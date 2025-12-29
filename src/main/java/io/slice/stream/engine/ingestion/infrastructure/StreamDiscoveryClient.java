@@ -1,4 +1,4 @@
-package io.slice.stream.engine.ingestion.infrastucture;
+package io.slice.stream.engine.ingestion.infrastructure;
 
 import io.slice.stream.engine.core.model.StreamTarget;
 import java.util.List;
