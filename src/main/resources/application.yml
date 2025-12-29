@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: slice-stream-engine
+
+url:
+  base-url: https://api.chzzk.naver.com
+  live-fetch: /service/v1/lives
