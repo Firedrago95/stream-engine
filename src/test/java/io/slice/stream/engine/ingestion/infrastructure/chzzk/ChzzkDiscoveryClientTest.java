@@ -49,8 +49,7 @@ class ChzzkDiscoveryClientTest {
         ));
 
         mockServer.expect(anything())
-            .andRespond(withSuccess(objectMapper.writeValueAsString(mockResponse),
-                MediaType.APPLICATION_JSON));
+            .andRespond(withSuccess(objectMapper.writeValueAsString(mockResponse), MediaType.APPLICATION_JSON));
 
         // When
         List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(limit);
@@ -68,8 +67,7 @@ class ChzzkDiscoveryClientTest {
         ChzzkLiveResponse emptyResponse = createMockResponse(List.of());
 
         mockServer.expect(anything())
-            .andRespond(withSuccess(objectMapper.writeValueAsString(emptyResponse),
-                MediaType.APPLICATION_JSON));
+            .andRespond(withSuccess(objectMapper.writeValueAsString(emptyResponse), MediaType.APPLICATION_JSON));
 
         // When
         List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(5);
@@ -85,8 +83,7 @@ class ChzzkDiscoveryClientTest {
         ChzzkLiveResponse nullDataResponse = createMockResponse(null);
 
         mockServer.expect(anything())
-            .andRespond(withSuccess(objectMapper.writeValueAsString(nullDataResponse),
-                MediaType.APPLICATION_JSON));
+            .andRespond(withSuccess(objectMapper.writeValueAsString(nullDataResponse), MediaType.APPLICATION_JSON));
 
         // When
         List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(5);

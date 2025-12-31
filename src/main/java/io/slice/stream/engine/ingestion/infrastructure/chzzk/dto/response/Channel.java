@@ -1,4 +1,4 @@
-package io.slice.stream.engine.ingestion.infrastucture.chzzk.dto.response;
+package io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
