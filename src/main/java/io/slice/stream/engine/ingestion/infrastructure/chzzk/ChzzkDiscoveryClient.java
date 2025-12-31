@@ -8,8 +8,10 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
@@ -22,6 +24,11 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
     private final String liveFetch;
 
     @Override
+    @Retryable(
+        includes = RestClientException.class,
+        maxRetries = 2,
+        delay = 400
+    )
     public List<StreamTarget> fetchTopLiveStreams(int limit) {
         String uri = buildApiUri(limit);
 
