@@ -9,6 +9,7 @@ import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -21,6 +22,7 @@ public class IngestionService {
     private final StreamRepository streamRepository;
     private final ApplicationEventPublisher eventPublisher;
 
+    @Scheduled(fixedRate = 3000)
     public void ingest() {
         List<StreamTarget> streamTargets = streamDiscoveryClient.fetchTopLiveStreams(DISCOVERY_LIMIT);
         StreamUpdateResults updateResults = streamRepository.update(streamTargets);
