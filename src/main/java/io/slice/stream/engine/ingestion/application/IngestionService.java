@@ -3,6 +3,8 @@ package io.slice.stream.engine.ingestion.application;
 import io.slice.stream.engine.core.model.StreamTarget;
 import io.slice.stream.engine.ingestion.domain.StreamDiscoveryClient;
 import io.slice.stream.engine.ingestion.domain.StreamRepository;
+import io.slice.stream.engine.ingestion.domain.StreamStartedEvent;
+import io.slice.stream.engine.ingestion.domain.StreamStoppedEvent;
 import io.slice.stream.engine.ingestion.domain.StreamUpdateResults;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
