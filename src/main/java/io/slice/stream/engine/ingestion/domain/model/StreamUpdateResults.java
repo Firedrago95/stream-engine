@@ -1,4 +1,4 @@
-package io.slice.stream.engine.ingestion.domain;
+package io.slice.stream.engine.ingestion.domain.model;
 
 import java.util.Set;
 

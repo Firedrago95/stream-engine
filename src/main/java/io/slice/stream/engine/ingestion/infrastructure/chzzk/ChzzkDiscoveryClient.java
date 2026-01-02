@@ -1,7 +1,7 @@
 package io.slice.stream.engine.ingestion.infrastructure.chzzk;
 
 import io.slice.stream.engine.core.model.StreamTarget;
-import io.slice.stream.engine.ingestion.domain.StreamDiscoveryClient;
+import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse;
 import java.util.Collections;
 import java.util.List;
