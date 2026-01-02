@@ -22,7 +22,7 @@ public class IngestionService {
     private final StreamRepository streamRepository;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Scheduled(fixedRate = 3000)
+    @Scheduled(fixedRate = 30000)
     public void ingest() {
         List<StreamTarget> streamTargets = streamDiscoveryClient.fetchTopLiveStreams(DISCOVERY_LIMIT);
         StreamUpdateResults updateResults = streamRepository.update(streamTargets);
