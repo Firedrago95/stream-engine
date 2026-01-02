@@ -11,5 +11,4 @@ public class SliceStreamEngineApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(SliceStreamEngineApplication.class, args);
 	}
-
 }
