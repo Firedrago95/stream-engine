@@ -23,7 +23,7 @@ public class RedisStreamRepository implements StreamRepository {
     private static final String INFO_KEY = "streams.info";
 
     private final StringRedisTemplate stringRedisTemplate;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, StreamTarget> redisTemplate;
 
     @Override
     public StreamUpdateResults update(List<StreamTarget> streamTargets) {

@@ -1,5 +1,6 @@
 package io.slice.stream.engine.ingestion.infrastructure.config;
 
+import io.slice.stream.engine.core.model.StreamTarget;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,14 +25,14 @@ public class RedisConfig {
     }
 
     @Bean
-    public RedisTemplate<String, Object> redisTemplate() {
-        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
+    public RedisTemplate<String, StreamTarget> redisTemplate() {
+        RedisTemplate<String, StreamTarget> redisTemplate = new RedisTemplate<>();
         redisTemplate.setConnectionFactory(redisConnectionFactory());
 
         redisTemplate.setKeySerializer(new StringRedisSerializer());
         redisTemplate.setHashKeySerializer(new StringRedisSerializer());
 
-        JacksonJsonRedisSerializer<Object> valueSerializer = new JacksonJsonRedisSerializer<>(Object.class);
+        JacksonJsonRedisSerializer<StreamTarget> valueSerializer = new JacksonJsonRedisSerializer<>(StreamTarget.class);
         redisTemplate.setValueSerializer(valueSerializer);
         redisTemplate.setHashValueSerializer(valueSerializer);
         return redisTemplate;
