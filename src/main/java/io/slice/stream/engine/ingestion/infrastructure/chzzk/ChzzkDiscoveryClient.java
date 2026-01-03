@@ -57,10 +57,10 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             .orElse(Collections.emptyList())
             .stream()
             .map(it -> new StreamTarget(
-                it.liveId(),
-                it.liveTitle(),
                 it.channel().channelId(),
                 it.channel().channelName(),
+                it.liveId(),
+                it.liveTitle(),
                 it.concurrentUserCount()
             )).toList();
     }
