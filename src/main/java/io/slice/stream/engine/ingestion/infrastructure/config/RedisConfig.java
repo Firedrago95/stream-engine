@@ -1,14 +1,15 @@
 package io.slice.stream.engine.ingestion.infrastructure.config;
 
-import io.slice.stream.engine.core.model.StreamTarget;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
-import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.data.redis.core.script.RedisScript;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 @Configuration
 public class RedisConfig {
@@ -25,16 +26,14 @@ public class RedisConfig {
     }
 
     @Bean
-    public RedisTemplate<String, StreamTarget> redisTemplate() {
-        RedisTemplate<String, StreamTarget> redisTemplate = new RedisTemplate<>();
-        redisTemplate.setConnectionFactory(redisConnectionFactory());
+    public ObjectMapper objectMapper() {
+        return JsonMapper.builder()
+            .build();
+    }
 
-        redisTemplate.setKeySerializer(new StringRedisSerializer());
-        redisTemplate.setHashKeySerializer(new StringRedisSerializer());
-
-        JacksonJsonRedisSerializer<StreamTarget> valueSerializer = new JacksonJsonRedisSerializer<>(StreamTarget.class);
-        redisTemplate.setValueSerializer(valueSerializer);
-        redisTemplate.setHashValueSerializer(valueSerializer);
-        return redisTemplate;
+    @Bean
+    public RedisScript<List> updateStreamScript() {
+        ClassPathResource scriptSource = new ClassPathResource("lua/redis_stream_update.lua");
+        return RedisScript.of(scriptSource, List.class);
     }
 }
