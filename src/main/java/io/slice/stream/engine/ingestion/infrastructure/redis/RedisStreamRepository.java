@@ -34,7 +34,7 @@ public class RedisStreamRepository implements StreamRepository {
             .toArray(String[]::new);
 
         if (streamTargets.isEmpty()) {
-            log.warn("Ingested streams are empty. Check if the external API is working correctly.");
+            log.warn("수집된 방송이 없습니다. 외부 api 요청을 점검하세요");
             return new StreamUpdateResults(Set.of(), Set.of());
         }
 
