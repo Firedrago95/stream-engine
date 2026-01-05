@@ -33,6 +33,12 @@ public class RedisStreamRepository implements StreamRepository {
             return new StreamUpdateResults(Set.of(), Set.of());
         }
 
+        List<String> args = makeArguments(streamTargets);
+
+        return executeStreamUpdate(args);
+    }
+
+    private List<String> makeArguments(List<StreamTarget> streamTargets) {
         List<String> args = new ArrayList<>();
 
         for (StreamTarget target : streamTargets) {
@@ -43,7 +49,10 @@ public class RedisStreamRepository implements StreamRepository {
             args.add(target.channelId());
             args.add(serialize(target));
         }
+        return args;
+    }
 
+    private StreamUpdateResults executeStreamUpdate(List<String> args) {
         List<List<String>> result = stringRedisTemplate.execute(
             updateStreamScript,
             List.of(ACTUAL_KEY, INFO_KEY),
