@@ -1,4 +1,4 @@
-package io.slice.stream.engine.config;
+package io.slice.stream.engine.global.config;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;

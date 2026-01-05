@@ -1,7 +1,9 @@
 package io.slice.stream.engine.ingestion.infrastructure.chzzk;
 
 import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.engine.global.error.ErrorCode;
 import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
+import io.slice.stream.engine.ingestion.domain.error.IngestionException;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse;
 import java.util.Collections;
 import java.util.List;
@@ -45,10 +47,14 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
     }
 
     private ChzzkLiveResponse callChzzkApi(String url) {
-        return restClient.get()
-            .uri(url)
-            .retrieve()
-            .body(ChzzkLiveResponse.class);
+        try {
+            return restClient.get()
+                .uri(url)
+                .retrieve()
+                .body(ChzzkLiveResponse.class);
+        } catch (RestClientException e) {
+            throw new IngestionException(ErrorCode.STREAM_PROVIDER_CLIENT_ERROR, "치지직 API 호출에 실패했습니다.");
+        }
     }
 
     private static List<StreamTarget> toStreamTargets(ChzzkLiveResponse response) {
