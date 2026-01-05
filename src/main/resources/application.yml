@@ -2,6 +2,11 @@ spring:
   application:
     name: slice-stream-engine
 
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
 url:
   base-url: https://api.chzzk.naver.com
   live-fetch: /service/v1/lives

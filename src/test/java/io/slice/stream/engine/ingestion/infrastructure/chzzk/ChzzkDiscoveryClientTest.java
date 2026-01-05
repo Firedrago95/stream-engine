@@ -1,10 +1,14 @@
 package io.slice.stream.engine.ingestion.infrastructure.chzzk;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.anything;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.engine.global.error.ErrorCode;
+import io.slice.stream.engine.ingestion.domain.error.IngestionException;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.ChzzkLive;
@@ -91,6 +95,20 @@ class ChzzkDiscoveryClientTest {
         // Then
         mockServer.verify();
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void API_호출이_실패하면_IngestionException을_던진다() {
+        // Given
+        mockServer.expect(anything())
+            .andRespond(withServerError());
+
+        // When & Then
+        assertThatThrownBy(() -> chzzkDiscoveryClient.fetchTopLiveStreams(5))
+            .isInstanceOf(IngestionException.class)
+            .hasMessage("치지직 API 호출에 실패했습니다.")
+            .extracting("errorCode")
+            .isEqualTo(ErrorCode.STREAM_PROVIDER_CLIENT_ERROR);
     }
 
     private ChzzkLiveResponse createMockResponse(List<ChzzkLive> data) {
