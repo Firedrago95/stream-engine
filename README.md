@@ -7,7 +7,7 @@
 
 ## 기술 스택
 ### Core
-- Java 24 (Virtual Threads)
+- Java 25 (Virtual Threads)
 - Spring Boot 4.0.1
 - Spring Data Redis
 - Spring Scheduling
