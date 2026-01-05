@@ -17,7 +17,12 @@ public class LoggingAspect {
     }
 
     @AfterThrowing(pointcut = "ingestionServicePointcut()", throwing = "ex")
-    public void logIngestionException(BusinessException ex) {
-        log.error("Ingestion 모듈 예외 발생: {} - {}", ex.getErrorCode().getCode(), ex.getMessage(), ex);
+    public void logIngestionException(Exception ex) {
+        if (ex instanceof BusinessException be) {
+            log.error("Ingestion 비즈니스 예외: {} - {}",
+                be.getErrorCode().getCode(), be.getMessage(), ex);
+        } else {
+            log.error("Ingestion 예상치 못한 예외", ex);
+        }
     }
 }
