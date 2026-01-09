@@ -50,13 +50,12 @@ class IngestionServiceTest {
     }
 
     @Test
-    void 새로운_스트림을_성공적으로_수집하고_이벤트를_발행해야_한다() {
+    void 새로운_스트림과_종료된_스트림이_있을때_StreamChangedEvent를_한번만_발행해야_한다() {
         // given
         List<StreamTarget> newStreams = List.of(
             new StreamTarget("ch1", "chName1", 123L, "title1", 10)
         );
-        Set<String> newStreamIds = Set.of("ch1");
-        StreamUpdateResults results = new StreamUpdateResults(newStreamIds, Collections.emptySet());
+        StreamUpdateResults results = new StreamUpdateResults(Set.of("ch1"), Set.of("ch2"));
         when(streamDiscoveryClient.fetchTopLiveStreams(any(int.class))).thenReturn(newStreams);
         when(streamRepository.update(newStreams)).thenReturn(results);
 
@@ -64,39 +63,15 @@ class IngestionServiceTest {
         ingestionService.ingest();
 
         // then
-        verify(streamRepository).update(newStreams);
         ArgumentCaptor<StreamChangedEvent> captor = ArgumentCaptor.forClass(
             StreamChangedEvent.class);
         verify(eventPublisher).publishEvent(captor.capture());
-        assertThat(captor.getValue().newStreamIds()).isEqualTo(newStreamIds);
-        assertThat(captor.getValue().closedStreamIds()).isEmpty();
+        
+        StreamChangedEvent event = captor.getValue();
+        assertThat(event.newStreamIds()).containsExactly("ch1");
+        assertThat(event.closedStreamIds()).containsExactly("ch2");
     }
-
-    @Test
-    void 스트림이_시작되고_종료될_때_StreamChangedEvent를_올바르게_발행해야_한다() {
-        // given
-        List<StreamTarget> liveStreams = List.of(
-            new StreamTarget("ch1", "chName1", 1L, "title1", 10)
-        );
-        Set<String> newStreamIds = Set.of("ch1");
-        Set<String> closedStreamIds = Set.of("ch2");
-        StreamUpdateResults results = new StreamUpdateResults(newStreamIds, closedStreamIds);
-        when(streamDiscoveryClient.fetchTopLiveStreams(any(int.class))).thenReturn(liveStreams);
-        when(streamRepository.update(liveStreams)).thenReturn(results);
-
-        // when
-        ingestionService.ingest();
-
-        // then
-        ArgumentCaptor<StreamChangedEvent> captor = ArgumentCaptor.forClass(
-            StreamChangedEvent.class);
-        verify(eventPublisher).publishEvent(captor.capture());
-        assertThat(captor.getValue().newStreamIds()).isEqualTo(newStreamIds);
-        assertThat(captor.getValue().closedStreamIds()).isEqualTo(closedStreamIds);
-    }
-
-
-
+    
     @Test
     void 변경되지_않은_스트림에_대해서는_이벤트를_발행하지_않아야_한다() {
         // given
