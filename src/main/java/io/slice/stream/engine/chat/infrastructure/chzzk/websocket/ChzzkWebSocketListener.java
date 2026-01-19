@@ -1,8 +1,5 @@
 package io.slice.stream.engine.chat.infrastructure.chzzk.websocket;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.slice.stream.engine.chat.domain.ChatMessageListener;
 import io.slice.stream.engine.chat.infrastructure.chzzk.dto.request.ChzzkAuthRequest;
 import java.net.http.WebSocket;
@@ -13,6 +10,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 public class ChzzkWebSocketListener implements Listener {

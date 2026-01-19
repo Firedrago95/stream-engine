@@ -1,8 +1,7 @@
 package io.slice.stream.engine.chat.infrastructure.chzzk.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
-import java.util.Map;
+import tools.jackson.databind.JsonNode;
 
 public record ChzzkResponseMessage(
     @JsonProperty("cmd") int cmd,
@@ -18,7 +17,7 @@ public record ChzzkResponseMessage(
         @JsonProperty("msg") String message,
         @JsonProperty("msgTime") long messageTime,
         @JsonProperty("msgTypeCode") int messageTypeCode,
-        @JsonProperty{value = "extras", access = JsonProperty.Access.WRITE_ONLY}
+        @JsonProperty(value = "extras", access = JsonProperty.Access.WRITE_ONLY)
         JsonNode extras,
         @JsonProperty(value = "message", access = JsonProperty.Access.WRITE_ONLY)
         JsonNode messageJson
