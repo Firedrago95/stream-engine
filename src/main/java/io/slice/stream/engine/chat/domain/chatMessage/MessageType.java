@@ -1,5 +1,5 @@
 package io.slice.stream.engine.chat.domain.chatMessage;
 
 public enum MessageType {
-    NORMAL,DONATION
+    TEXT,DONATION
 }

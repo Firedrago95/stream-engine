@@ -1,3 +1,5 @@
+package io.slice.stream.engine.chat.infrastructure.chzzk;
+
 import io.slice.stream.engine.chat.domain.ChatClient;
 import io.slice.stream.engine.chat.domain.ChatCollector;
 import io.slice.stream.engine.chat.domain.ChatMessageListener;
@@ -53,9 +55,9 @@ public class ChzzkChatCollector implements ChatCollector, ChatMessageListener {
                 ChzzkResponseMessage response = jsonMapper.treeToValue(rootNode, ChzzkResponseMessage.class);
                 if (response.body().isArray()) {
                     for (JsonNode bodyNode : response.body()) {
-                        ChzzkResponseMessage.Body bodyDto = jsonMapper.treeToValue(bodyNode,
-                            ChzzkResponseMessage.Body.class);
-                        ChatMessage chatMessage = toChatMessage(bodyDto, cmdType);
+                        ChzzkResponseMessage.Profile profile = jsonMapper.readValue(bodyNode.path("profile").asText(),
+                            ChzzkResponseMessage.Profile.class);
+                        ChatMessage chatMessage = toChatMessage(bodyNode, profile, cmdType);
                         kafkaTemplate.send("chat-messages", streamId, chatMessage);
                         log.info("[{}] 메시지를 Kafka에 전송했습니다: {}", streamId, chatMessage.message());
                     }
@@ -66,34 +68,23 @@ public class ChzzkChatCollector implements ChatCollector, ChatMessageListener {
         }
     }
 
-    private ChatMessage toChatMessage(ChzzkResponseMessage.Body bodyDto, CmdType cmdType) {
+    private ChatMessage toChatMessage(JsonNode bodyNode, ChzzkResponseMessage.Profile profile, CmdType cmdType) {
         MessageType messageType =
             (cmdType == CmdType.DONATION) ? MessageType.DONATION : MessageType.TEXT;
 
         Author author = new Author(
-            bodyDto.profile().userIdHash(),
-            bodyDto.profile().nickname(),
-            bodyDto.profile().profileImageUrl(),
-            hasAuthority(bodyDto.profile().badge()),
-            isStreamer(bodyDto.profile().badge())
+            profile.userIdHash(),
+            profile.nickname(),
+            profile.profileImageUrl()
         );
 
         return new ChatMessage(
             messageType,
             author,
-            bodyDto.message(),
-            LocalDateTime.ofEpochSecond(bodyDto.time() / 1000, 0, ZoneOffset.UTC),
+            bodyNode.path("msg").asText(),
+            LocalDateTime.ofEpochSecond(bodyNode.path("msgTime").asLong() / 1000, 0, ZoneOffset.UTC),
             Map.of()
         );
-    }
-
-    private boolean hasAuthority(Map<String, String> badge) {
-        return badge != null && !badge.isEmpty();
-    }
-
-    private boolean isStreamer(Map<String, String> badge) {
-        // Implement logic to check if the user is the streamer based on badge info
-        return false;
     }
 
     @Override
