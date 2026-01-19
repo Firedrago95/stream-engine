@@ -12,10 +12,12 @@ import lombok.RequiredArgsConstructor;
 public class ChzzkChatCollectorFactory implements ChatCollectorFactory {
 
     private final ChzzkApiClient chzzkApiClient;
+    private final java.net.http.HttpClient httpClient;
+    private final java.util.concurrent.ExecutorService executorService;
 
     @Override
     public ChatCollector start(String streamId) {
-        ChatClient chzzkChatClient = new ChzzkChatClient(chzzkApiClient);
+        ChatClient chzzkChatClient = new ChzzkChatClient(chzzkApiClient, httpClient, executorService);
         ChatCollector chatCollector = new ChatCollector(chzzkChatClient, streamId);
         chatCollector.start();
         return chatCollector;

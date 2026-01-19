@@ -20,12 +20,14 @@ public class ChzzkChatClient implements ChatClient {
     private WebSocket webSocket;
     private ChatMessageListener listener;
 
-    public ChzzkChatClient(ChzzkApiClient chzzkApiClient) {
+    public ChzzkChatClient(
+        ChzzkApiClient chzzkApiClient,
+        HttpClient httpClient,
+        ExecutorService executorService
+    ) {
         this.chzzkApiClient = chzzkApiClient;
-        this.executorService = Executors.newVirtualThreadPerTaskExecutor();
-        this.httpClient = HttpClient.newBuilder()
-            .executor(this.executorService)
-            .build();
+        this.httpClient = httpClient;
+        this.executorService = executorService;
     }
 
     @Override
