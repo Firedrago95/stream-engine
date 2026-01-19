@@ -23,11 +23,12 @@ public class ChatManager {
         }
 
         if (!closedStreamIds.isEmpty()) {
-            closedStreamIds.stream()
-                .map(chatColletors::get)
-                .forEach(ChatCollector::disconnect);
-
-            closedStreamIds.forEach(chatColletors::remove);
+            closedStreamIds.forEach(streamId -> {
+                ChatCollector collector = chatColletors.remove(streamId);
+                if (collector != null) {
+                    collector.disconnect();
+                }
+            });
         }
     }
 
