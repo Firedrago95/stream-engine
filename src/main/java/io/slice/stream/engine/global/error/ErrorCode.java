@@ -17,7 +17,7 @@ public enum ErrorCode {
     INVALID_STREAM_PROVIDER(HttpStatus.BAD_REQUEST, "I-003"),
 
     // chat
-    INVALID_CHANNEL_ID(HttpStatus.NOT_FOUND, "C-001"),
+    INVALID_CHANNEL_ID(HttpStatus.NOT_FOUND, "C-003"),
     CLOSE_LIVE(HttpStatus.NOT_FOUND, "C-002"),
 
     // Analysis,
