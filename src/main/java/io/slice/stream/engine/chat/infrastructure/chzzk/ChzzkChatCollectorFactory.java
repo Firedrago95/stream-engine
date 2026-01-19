@@ -20,7 +20,7 @@ public class ChzzkChatCollectorFactory implements ChatCollectorFactory {
     @Override
     public ChatCollector start(String streamId) {
         ChatClient chzzkChatClient = new ChzzkChatClient(chzzkApiClient, httpClient, jsonMapper);
-        ChatCollector chatCollector = new ChatCollector(chzzkChatClient, streamId, jsonMapper);
+        ChatCollector chatCollector = new ChzzkChatCollector(chzzkChatClient, streamId, jsonMapper);
         chatCollector.start();
         return chatCollector;
     }

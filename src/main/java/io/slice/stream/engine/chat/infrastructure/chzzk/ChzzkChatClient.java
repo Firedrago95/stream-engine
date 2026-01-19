@@ -16,8 +16,8 @@ public class ChzzkChatClient implements ChatClient {
     private final HttpClient httpClient;
     private final ChzzkApiClient chzzkApiClient;
     private final JsonMapper jsonMapper;
-
     private final AtomicReference<WebSocket> webSocketRef = new AtomicReference<>();
+
     private ChatMessageListener listener;
 
     public ChzzkChatClient(
