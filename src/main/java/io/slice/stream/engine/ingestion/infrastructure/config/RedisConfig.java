@@ -25,11 +25,7 @@ public class RedisConfig {
         return new LettuceConnectionFactory(host, port);
     }
 
-    @Bean
-    public ObjectMapper objectMapper() {
-        return JsonMapper.builder()
-            .build();
-    }
+
 
     @Bean
     public RedisScript<List> updateStreamScript() {

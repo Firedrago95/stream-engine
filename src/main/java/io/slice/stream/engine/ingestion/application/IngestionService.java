@@ -1,11 +1,10 @@
 package io.slice.stream.engine.ingestion.application;
 
+import io.slice.stream.engine.core.event.StreamChangedEvent;
 import io.slice.stream.engine.core.model.StreamTarget;
 import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
-import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
-import io.slice.stream.engine.ingestion.domain.event.StreamStartedEvent;
-import io.slice.stream.engine.ingestion.domain.event.StreamStoppedEvent;
 import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
+import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -27,12 +26,11 @@ public class IngestionService {
         List<StreamTarget> streamTargets = streamDiscoveryClient.fetchTopLiveStreams(DISCOVERY_LIMIT);
         StreamUpdateResults updateResults = streamRepository.update(streamTargets);
 
-        updateResults.newStreamIds().forEach(id ->
-            eventPublisher.publishEvent(new StreamStartedEvent(id))
-        );
-
-        updateResults.closedStreamIds().forEach(id ->
-            eventPublisher.publishEvent(new StreamStoppedEvent(id))
-        );
+        if (!updateResults.newStreamIds().isEmpty() || !updateResults.closedStreamIds().isEmpty()) {
+            eventPublisher.publishEvent(new StreamChangedEvent(
+                updateResults.newStreamIds(),
+                updateResults.closedStreamIds()
+            ));
+        }
     }
 }
