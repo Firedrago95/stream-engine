@@ -37,31 +37,32 @@
 ```mermaid
 graph TD
     subgraph Ingestion Module
-        A[⏰ Scheduler] --> B{IngestionService};
-        B --> C[Chzzk API];
-        B --> D[(Redis)];
-        D -- 스트림 변경 감지 --> E{Stream Event 발행};
+        A[⏰ Scheduler] --> B{IngestionService}
+        B --> C[Chzzk API]
+        B --> D[(Redis)]
+        D -- "스트림 변경 감지" --> E{Stream Event 발행}
     end
 
     subgraph Chat Module
-        E -- 이벤트 수신 --> F[ChatEventListener];
-        F --> G{ChatManager};
-        G --> H[Chzzk Chat WebSocket];
-    end
-    
-    subgraph Analysis/Highlight Module
-        H -- 채팅 메시지 --> I((Kafka));
-        I -- 메시지 전달 --> J[분석/하이라이트 (예정)];
+        E -- "이벤트 수신" --> F[ChatEventListener]
+        F --> G{ChatManager}
+        G --> H[Chzzk Chat WebSocket]
     end
 
-    A --> B;
-    C --> B;
-    B --> D;
-    E --> F;
-    F --> G;
-    G --> H;
-    H --> I;
-    I --> J;
+    subgraph "Analysis/Highlight Module"
+        H -- "채팅 메시지" --> I((Kafka))
+        I -- "메시지 전달" --> J["분석/하이라이트 (예정)"]
+    end
+
+    %% redundant connections removed as they are defined inside subgraphs or explicitly below
+    A --> B
+    C --> B
+    B --> D
+    E --> F
+    F --> G
+    G --> H
+    H --> I
+    I --> J
 ```
 
 1.  **스트림 수집**: `Scheduler`가 30초마다 `IngestionService`를 실행하여 치지직의 상위 라이브 스트림 목록을 가져옵니다.
