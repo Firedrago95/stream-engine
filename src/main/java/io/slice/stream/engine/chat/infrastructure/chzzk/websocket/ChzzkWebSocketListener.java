@@ -42,11 +42,18 @@ public class ChzzkWebSocketListener implements Listener {
         this.messageListener.onConnected();
         log.info("[{}] Websocket 연결 완료.", chatChannelId);
 
-        String authPacket = createAuthPacket(chatChannelId, accessToken);
-        webSocket.sendText(authPacket, true);
+        try {
+            String authPacket = createAuthPacket(chatChannelId, accessToken);
+            webSocket.sendText(authPacket, true);
 
-        String sendPacket = createSendPacket(chatChannelId);
-        webSocket.sendText(sendPacket, true);
+            String sendPacket = createSendPacket(chatChannelId);
+            webSocket.sendText(sendPacket, true);
+        } catch (Exception e) {
+            log.error("[{}] 웹소켓 초기 패킷 전송 실패", chatChannelId, e);
+            this.messageListener.onError(e);
+            webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "Failed to send initial packets");
+            return;
+        }
 
         this.pingScheduler = Executors.newSingleThreadScheduledExecutor();
         pingScheduler.scheduleAtFixedRate(this::sendPing, 20, 20, TimeUnit.SECONDS);
