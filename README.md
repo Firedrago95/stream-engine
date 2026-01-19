@@ -119,6 +119,6 @@ flowchart LR
     C --> D{ChatCollector<br/>Factory}
     D --> E[ChatCollector]
     E --> F[ChatClient]
-    F --> G[💬 Chzzk Chat API/WebSocket]
-    E --> H[카프카 전송<br/>(chat-messages)]
+    F --> G["💬 Chzzk Chat API/WebSocket"]
+    E --> H["카프카 전송<br/>(chat-messages)"]
 ```
