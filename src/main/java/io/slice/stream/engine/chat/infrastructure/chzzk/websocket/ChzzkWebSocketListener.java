@@ -20,6 +20,7 @@ public class ChzzkWebSocketListener implements Listener {
     private final String chatChannelId;
     private final String accessToken;
     private final JsonMapper jsonMapper;
+    private final StringBuilder textBuffer = new StringBuilder();
 
     private WebSocket webSocket;
     private ScheduledExecutorService pingScheduler;
@@ -62,8 +63,14 @@ public class ChzzkWebSocketListener implements Listener {
 
     @Override
     public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
+        textBuffer.append(data);
+        if (!last) {
+            return Listener.super.onText(webSocket, data, last);
+        }
+        String message = textBuffer.toString();
+        textBuffer.setLength(0);
+
         try {
-            String message = data.toString();
             JsonNode rootNode = jsonMapper.readTree(message);
             int cmd = rootNode.path("cmd").asInt();
 
@@ -75,6 +82,7 @@ public class ChzzkWebSocketListener implements Listener {
                 default -> log.warn("[{}] 알 수 없는 명령어 cmd 수신: {}", chatChannelId, cmd);
             }
         } catch (Exception e) {
+            textBuffer.setLength(0);
             log.error("[{}] 메시지 파싱 중 오류가 발생했습니다.", chatChannelId, e);
         }
 
