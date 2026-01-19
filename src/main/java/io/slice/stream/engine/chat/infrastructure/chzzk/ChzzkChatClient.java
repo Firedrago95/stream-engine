@@ -8,6 +8,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
+import java.util.concurrent.atomic.AtomicReference;
 import tools.jackson.databind.json.JsonMapper;
 
 public class ChzzkChatClient implements ChatClient {
@@ -16,7 +17,7 @@ public class ChzzkChatClient implements ChatClient {
     private final ChzzkApiClient chzzkApiClient;
     private final JsonMapper jsonMapper;
 
-    private WebSocket webSocket;
+    private final AtomicReference<WebSocket> webSocketRef = new AtomicReference<>();
     private ChatMessageListener listener;
 
     public ChzzkChatClient(
@@ -39,10 +40,10 @@ public class ChzzkChatClient implements ChatClient {
 
         ChzzkWebSocketListener webSocketListener = new ChzzkWebSocketListener(
             listener, chatChannelId, accessToken, jsonMapper);
-        
+
         httpClient.newWebSocketBuilder()
             .buildAsync(uri, webSocketListener)
-            .thenAccept(ws -> this.webSocket = ws)
+            .thenAccept(webSocketRef::set)
             .exceptionally(throwable -> {
                 this.listener.onError(throwable);
                 return null;
@@ -51,9 +52,9 @@ public class ChzzkChatClient implements ChatClient {
 
     @Override
     public void disconnect() {
-        if (webSocket != null) {
-            webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "Client disconnected");
-            webSocket = null;
+        WebSocket ws = webSocketRef.getAndSet(null);
+        if (ws != null) {
+            ws.sendClose(WebSocket.NORMAL_CLOSURE, "클라이언트 연결 종료");
         }
     }
 }
