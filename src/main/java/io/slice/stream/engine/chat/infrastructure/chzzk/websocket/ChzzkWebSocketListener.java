@@ -11,7 +11,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 @Slf4j
 public class ChzzkWebSocketListener implements Listener {
@@ -19,7 +19,7 @@ public class ChzzkWebSocketListener implements Listener {
     private final ChatMessageListener messageListener;
     private final String chatChannelId;
     private final String accessToken;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     private WebSocket webSocket;
     private ScheduledExecutorService pingScheduler;
@@ -27,12 +27,13 @@ public class ChzzkWebSocketListener implements Listener {
     public ChzzkWebSocketListener(
         ChatMessageListener messageListener,
         String chatChannelId,
-        String accessToken
+        String accessToken,
+        JsonMapper jsonMapper
     ) {
         this.messageListener = messageListener;
         this.chatChannelId = chatChannelId;
         this.accessToken = accessToken;
-        this.objectMapper = new ObjectMapper();
+        this.jsonMapper = jsonMapper;
     }
 
     @Override
@@ -63,7 +64,7 @@ public class ChzzkWebSocketListener implements Listener {
     public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
         try {
             String message = data.toString();
-            JsonNode rootNode = objectMapper.readTree(message);
+            JsonNode rootNode = jsonMapper.readTree(message);
             int cmd = rootNode.path("cmd").asInt();
 
             switch (CmdType.fromInt(cmd)) {
@@ -114,7 +115,7 @@ public class ChzzkWebSocketListener implements Listener {
     private String createAuthPacket(String chatChannelId, String accessToken) {
         var body = new ChzzkAuthRequest.AuthRequestBody(null, 2, accessToken, "READ");
         var request = new ChzzkAuthRequest("2", 100, "game", chatChannelId, 1, body);
-        return this.objectMapper.writeValueAsString(request);
+        return this.jsonMapper.writeValueAsString(request);
     }
 
     private String createSendPacket(String chatChannelId) {
@@ -126,7 +127,7 @@ public class ChzzkWebSocketListener implements Listener {
             "cid", chatChannelId,
             "bdy", body
         );
-        return this.objectMapper.writeValueAsString(packet);
+        return this.jsonMapper.writeValueAsString(packet);
     }
 
     private String createPongPacket() {

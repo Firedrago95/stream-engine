@@ -12,8 +12,8 @@ public class ChzzkApiClient {
 
     private final RestClient restClient;
 
-    public ChzzkApiClient(RestClient.Builder builder) {
-        this.restClient = builder.build();
+    public ChzzkApiClient(RestClient restClient) {
+        this.restClient = restClient;
     }
 
     public String getAccessToken(String chatChannelId) {

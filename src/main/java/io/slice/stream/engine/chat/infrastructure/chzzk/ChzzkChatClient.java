@@ -9,13 +9,14 @@ import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import tools.jackson.databind.json.JsonMapper;
 
 public class ChzzkChatClient implements ChatClient {
 
     private final HttpClient httpClient;
     private final ExecutorService executorService;
     private final ChzzkApiClient chzzkApiClient;
+    private final JsonMapper jsonMapper;
 
     private WebSocket webSocket;
     private ChatMessageListener listener;
@@ -23,11 +24,13 @@ public class ChzzkChatClient implements ChatClient {
     public ChzzkChatClient(
         ChzzkApiClient chzzkApiClient,
         HttpClient httpClient,
-        ExecutorService executorService
+        ExecutorService executorService,
+        JsonMapper jsonMapper
     ) {
         this.chzzkApiClient = chzzkApiClient;
         this.httpClient = httpClient;
         this.executorService = executorService;
+        this.jsonMapper = jsonMapper;
     }
 
     @Override
@@ -39,8 +42,8 @@ public class ChzzkChatClient implements ChatClient {
         URI uri = new URI("wss://kr-ss1.chat.naver.com/chat");
 
         ChzzkWebSocketListener webSocketListener = new ChzzkWebSocketListener(
-            listener, chatChannelId, accessToken);
-
+            listener, chatChannelId, accessToken, jsonMapper);
+        
         httpClient.newWebSocketBuilder()
             .buildAsync(uri, webSocketListener)
             .thenAccept(ws -> this.webSocket = ws)

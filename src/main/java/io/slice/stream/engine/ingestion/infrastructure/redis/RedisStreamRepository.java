@@ -14,19 +14,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Repository;
-import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 @Slf4j
 @Repository
 @RequiredArgsConstructor
 public class RedisStreamRepository implements StreamRepository {
 
-    private static final String ACTUAL_KEY = "streams.active.id";
-    private static final String INFO_KEY = "streams.info";
-
-    private final StringRedisTemplate stringRedisTemplate;
+    private final StringRedisTemplate redisTemplate;
     private final RedisScript<List> updateStreamScript;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
+
+    private static final String STREAM_TARGET_KEY = "stream:targets";
+    private static final String STREAM_LIVE_KEY_PREFIX = "stream:live:";
 
     @Override
     public StreamUpdateResults update(List<StreamTarget> streamTargets) {
@@ -56,15 +56,24 @@ public class RedisStreamRepository implements StreamRepository {
 
     private StreamUpdateResults executeStreamUpdate(List<String> args) {
         try {
-            List<List<String>> result = stringRedisTemplate.execute(
+            // execute의 반환 타입은 RedisScript<T>의 T에 따라 결정됩니다. (여기서는 List)
+            List<?> rawResult = redisTemplate.execute(
                 updateStreamScript,
-                List.of(ACTUAL_KEY, INFO_KEY),
-                args.toArray()
+                List.of(STREAM_TARGET_KEY, STREAM_LIVE_KEY_PREFIX),
+                args.toArray(new String[0])
             );
 
+            if (rawResult == null || rawResult.size() < 2 || !(rawResult.get(0) instanceof List) || !(rawResult.get(1) instanceof List)) {
+                log.warn("Redis 스크립트 실행 결과가 비정상적입니다. rawResult: {}", rawResult);
+                return new StreamUpdateResults(new HashSet<>(), new HashSet<>());
+            }
+
+            List<String> newStreamIds = (List<String>) rawResult.get(0);
+            List<String> closedStreamIds = (List<String>) rawResult.get(1);
+
             return new StreamUpdateResults(
-                new HashSet<>(result.get(0)),
-                new HashSet<>(result.get(1))
+                new HashSet<>(newStreamIds),
+                new HashSet<>(closedStreamIds)
             );
         } catch (Exception e) {
             throw new IngestionException(ErrorCode.INTERNAL_SERVER_ERROR, "Redis 스크립트 실행 중 오류가 발생했습니다.");
@@ -73,7 +82,7 @@ public class RedisStreamRepository implements StreamRepository {
 
     private String serialize(StreamTarget target) {
         try {
-            return objectMapper.writeValueAsString(target);
+            return jsonMapper.writeValueAsString(target);
         } catch (Exception e) {
             throw new IngestionException(ErrorCode.INTERNAL_SERVER_ERROR, "StreamTarget 직렬화에 실패했습니다.");
         }

@@ -4,19 +4,19 @@ import io.slice.stream.engine.chat.infrastructure.chzzk.dto.response.ChzzkRespon
 import io.slice.stream.engine.chat.infrastructure.chzzk.websocket.CmdType;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 @Slf4j
 public class ChatCollector implements ChatMessageListener {
 
     private final ChatClient chatClient;
     private final String streamId;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
-    public ChatCollector(ChatClient chatClient, String streamId) {
+    public ChatCollector(ChatClient chatClient, String streamId, JsonMapper jsonMapper) {
         this.chatClient = chatClient;
         this.streamId = streamId;
-        this.objectMapper = new ObjectMapper();
+        this.jsonMapper = jsonMapper;
     }
 
     public void start() {
@@ -34,10 +34,10 @@ public class ChatCollector implements ChatMessageListener {
             CmdType cmdType = CmdType.fromInt(cmd);
 
             if (cmdType == CmdType.CHAT || cmdType == CmdType.DONATION) {
-                ChzzkResponseMessage response = objectMapper.treeToValue(rootNode, ChzzkResponseMessage.class);
+                ChzzkResponseMessage response = jsonMapper.treeToValue(rootNode, ChzzkResponseMessage.class);
                 if (response.body().isArray()) {
                     for (JsonNode bodyNode : response.body()) {
-                        ChzzkResponseMessage.Body bodyDto = objectMapper.treeToValue(bodyNode, ChzzkResponseMessage.Body.class);
+                        ChzzkResponseMessage.Body bodyDto = jsonMapper.treeToValue(bodyNode, ChzzkResponseMessage.Body.class);
                         log.info("[{}] 채팅 수신 : {}", streamId, bodyDto.message());
                     }
                 }
