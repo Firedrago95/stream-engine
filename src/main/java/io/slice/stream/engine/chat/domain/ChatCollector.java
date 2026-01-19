@@ -28,20 +28,22 @@ public class ChatCollector implements ChatMessageListener {
     }
 
     @Override
-    public void onRawMessage(String rawMessage) {
-        JsonNode rootNode = objectMapper.readTree(rawMessage);
-        int cmd = rootNode.path("cmd").asInt();
-        CmdType cmdType = CmdType.fromInt(cmd);
+    public void onMessage(JsonNode rootNode) {
+        try {
+            int cmd = rootNode.path("cmd").asInt();
+            CmdType cmdType = CmdType.fromInt(cmd);
 
-        if (cmdType == CmdType.CHAT || cmdType == CmdType.DONATION) {
-            ChzzkResponseMessage response = objectMapper.treeToValue(rootNode, ChzzkResponseMessage.class);
-            if (response.body().isArray()) {
-                for (JsonNode bodyNode : response.body()) {
-                    ChzzkResponseMessage.Body bodyDto = objectMapper.treeToValue(bodyNode, ChzzkResponseMessage.Body.class);
-                    // TODO: MapDTO to ChatMessage domain object and send to the next stage (e.g., Kafka)
-                    log.info("[{}] 채팅 수신 : {}", streamId, bodyDto.message());
+            if (cmdType == CmdType.CHAT || cmdType == CmdType.DONATION) {
+                ChzzkResponseMessage response = objectMapper.treeToValue(rootNode, ChzzkResponseMessage.class);
+                if (response.body().isArray()) {
+                    for (JsonNode bodyNode : response.body()) {
+                        ChzzkResponseMessage.Body bodyDto = objectMapper.treeToValue(bodyNode, ChzzkResponseMessage.Body.class);
+                        log.info("[{}] 채팅 수신 : {}", streamId, bodyDto.message());
+                    }
                 }
             }
+        } catch (Exception e) {
+            log.error("[{}] 메시지 처리 중 오류가 발생했습니다.", streamId, e);
         }
     }
 

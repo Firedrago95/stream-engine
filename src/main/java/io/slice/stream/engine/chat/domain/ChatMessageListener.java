@@ -1,8 +1,10 @@
 package io.slice.stream.engine.chat.domain;
 
+import tools.jackson.databind.JsonNode;
+
 public interface ChatMessageListener {
 
-    void onRawMessage(String rawMessage);
+    void onMessage(JsonNode jsonNode);
 
     void onConnected();
 

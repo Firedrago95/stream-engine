@@ -54,16 +54,20 @@ public class ChzzkWebSocketListener implements Listener {
 
     @Override
     public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
-        String message = data.toString();
-        JsonNode rootNode = objectMapper.readTree(message);
-        int cmd = rootNode.path("cmd").asInt();
+        try {
+            String message = data.toString();
+            JsonNode rootNode = objectMapper.readTree(message);
+            int cmd = rootNode.path("cmd").asInt();
 
-        switch (CmdType.fromInt(cmd)) {
-            case CONNECT_ACK -> log.info("[{}] 웹소켓 연결 완료 ack 수신", chatChannelId);
-            case PING -> webSocket.sendText(createPongPacket(), true);
-            case PONG -> log.info("[{}] 서버로부터 pong 수신", chatChannelId);
-            case CHAT, DONATION -> this.messageListener.onRawMessage(message);
-            default -> log.warn("[{}] 알 수 없는 명령어 cmd 수신: {}", chatChannelId, cmd);
+            switch (CmdType.fromInt(cmd)) {
+                case CONNECT_ACK -> log.info("[{}] 웹소켓 연결 완료 ack 수신", chatChannelId);
+                case PING -> webSocket.sendText(createPongPacket(), true);
+                case PONG -> log.info("[{}] 서버로부터 pong 수신", chatChannelId);
+                case CHAT, DONATION -> this.messageListener.onMessage(rootNode);
+                default -> log.warn("[{}] 알 수 없는 명령어 cmd 수신: {}", chatChannelId, cmd);
+            }
+        } catch (Exception e) {
+            log.error("[{}] 메시지 파싱 중 오류가 발생했습니다.", chatChannelId, e);
         }
 
         return Listener.super.onText(webSocket, data, last);
