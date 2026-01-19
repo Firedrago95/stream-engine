@@ -11,6 +11,6 @@ public record ChatMessage(
     Map<String, Object> headers
 ) {
     public boolean hasHeader(String key) {
-        return headers.containsKey(key);
+        return headers != null && headers.containsKey(key);
     }
 }

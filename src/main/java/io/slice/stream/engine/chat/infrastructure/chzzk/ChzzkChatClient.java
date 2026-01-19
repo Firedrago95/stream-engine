@@ -8,13 +8,11 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
-import java.util.concurrent.ExecutorService;
 import tools.jackson.databind.json.JsonMapper;
 
 public class ChzzkChatClient implements ChatClient {
 
     private final HttpClient httpClient;
-    private final ExecutorService executorService;
     private final ChzzkApiClient chzzkApiClient;
     private final JsonMapper jsonMapper;
 
@@ -24,12 +22,10 @@ public class ChzzkChatClient implements ChatClient {
     public ChzzkChatClient(
         ChzzkApiClient chzzkApiClient,
         HttpClient httpClient,
-        ExecutorService executorService,
         JsonMapper jsonMapper
     ) {
         this.chzzkApiClient = chzzkApiClient;
         this.httpClient = httpClient;
-        this.executorService = executorService;
         this.jsonMapper = jsonMapper;
     }
 

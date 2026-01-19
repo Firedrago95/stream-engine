@@ -52,7 +52,7 @@ public class ChzzkWebSocketListener implements Listener {
         } catch (Exception e) {
             log.error("[{}] 웹소켓 초기 패킷 전송 실패", chatChannelId, e);
             this.messageListener.onError(e);
-            webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "Failed to send initial packets");
+            webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "초기 패킷 전송 실패");
             return;
         }
 

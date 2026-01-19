@@ -10,6 +10,7 @@ import org.springframework.web.client.RestClient;
 @Component
 public class ChzzkApiClient {
 
+    public static final String URL = "https://comm-api.game.naver.com/nng_main/v1/chats/access-token?channelId={channelId}&chatType=STREAMING";
     private final RestClient restClient;
 
     public ChzzkApiClient(RestClient restClient) {
@@ -18,17 +19,23 @@ public class ChzzkApiClient {
 
     public String getAccessToken(String chatChannelId) {
         ChatAccessResponse chatAccessResponse = restClient
-                .get()
-                .uri("https://comm-api.game.naver.com/nng_main/v1/chats/access-token?channelId={channelId}&chatType=STREAMING", chatChannelId)
-                .accept(MediaType.APPLICATION_JSON)
-                .retrieve()
-                .body(ChatAccessResponse.class);
+            .get()
+            .uri(URL, chatChannelId)
+            .accept(MediaType.APPLICATION_JSON)
+            .retrieve()
+            .body(ChatAccessResponse.class);
 
         if (chatAccessResponse == null) {
-            throw new BusinessException(ErrorCode.INVALID_CHANNEL_ID, "잘못된 채널 id입니다. accessToken을 찾을 수 없습니다.");
+            throw new BusinessException(ErrorCode.INVALID_CHANNEL_ID,
+                "잘못된 채널 id입니다. accessToken을 찾을 수 없습니다.");
         }
 
-        String accessToken = chatAccessResponse.content().accessToken();
-        return accessToken;
+        if (chatAccessResponse.content() == null
+            || chatAccessResponse.content().accessToken() == null) {
+            throw new BusinessException(ErrorCode.INVALID_CHANNEL_ID,
+                "잘못된 채널 id입니다. accessToken을 찾을 수 없습니다.");
+        }
+
+        return chatAccessResponse.content().accessToken();
     }
 }
