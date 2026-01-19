@@ -19,8 +19,7 @@ public class ChzzkApiClient {
     public String getAccessToken(String chatChannelId) {
         ChatAccessResponse chatAccessResponse = restClient
                 .get()
-                .uri("https://comm-api.game.naver.com/nng_main/v1/chats/access-token?channelId="
-                        + chatChannelId + "&chatType=STREAMING")
+                .uri("https://comm-api.game.naver.com/nng_main/v1/chats/access-token?channelId={channelId}&chatType=STREAMING", chatChannelId)
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
                 .body(ChatAccessResponse.class);
