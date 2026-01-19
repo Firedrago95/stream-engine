@@ -11,14 +11,16 @@
 - Spring Boot 4.0.1
 - Spring Data Redis
 - Spring Scheduling
+- Spring Kafka
 ### Infrastructure
 - Redis 7 (Lua Script)
 - Lettuce (Redis Client)
 - RestClient (HTTP Client)
+- Kafka
 ### Testing
 - JUnit 5
 - Mockito
-- TestContainers (Redis)
+- TestContainers (Redis, Kafka)
 - AssertJ
 
 ## 🚀 실행 방법
@@ -101,9 +103,10 @@ flowchart LR
 
 ### 💬 Chat 모듈 (v1.0)
 #### 핵심 기능
-#### 1. 실시간 채팅 데이터 수집
+#### 1. 실시간 채팅 데이터 수집 및 Kafka 전송
 *   Ingestion 모듈에서 전달된 스트림 변경 이벤트에 따라 채팅 수집기 관리
 *   새로운 스트림에 대한 채팅 수집 시작 및 종료된 스트림에 대한 채팅 수집 중단
+*   수집된 채팅 메시지를 Kafka `chat-messages` 토픽으로 전송
 #### 2. 확장 가능한 채팅 클라이언트
 *   `ChatClient` 인터페이스를 통해 다양한 스트리밍 플랫폼의 채팅 데이터 수집 지원
 *   현재 Chzzk 플랫폼 지원
@@ -117,4 +120,5 @@ flowchart LR
     D --> E[ChatCollector]
     E --> F[ChatClient]
     F --> G[💬 Chzzk Chat API/WebSocket]
+    E --> H[카프카 전송<br/>(chat-messages)]
 ```
