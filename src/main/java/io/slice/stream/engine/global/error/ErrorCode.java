@@ -16,9 +16,12 @@ public enum ErrorCode {
     STREAM_NOT_FOUND(HttpStatus.NOT_FOUND, "I-002"),
     INVALID_STREAM_PROVIDER(HttpStatus.BAD_REQUEST, "I-003"),
 
-    // Analysis
-    ANALYSIS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "A-001"),
-    ;
+    // chat
+    INVALID_CHANNEL_ID(HttpStatus.NOT_FOUND, "C-001"),
+    CLOSE_LIVE(HttpStatus.NOT_FOUND, "C-002"),
+
+    // Analysis,
+    ANALYSIS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "A-001");
 
     private final HttpStatus status;
     private final String code;

@@ -1,4 +1,4 @@
-package io.slice.stream.engine.chat.apllication;
+package io.slice.stream.engine.chat.application;
 
 import io.slice.stream.engine.chat.domain.ChatCollector;
 import io.slice.stream.engine.chat.domain.ChatCollectorFactory;
