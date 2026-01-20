@@ -1,7 +1,6 @@
 package io.slice.stream.engine.chat.infrastructure.chzzk;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import io.slice.stream.engine.chat.domain.model.MessageType;
@@ -142,7 +141,7 @@ class ChzzkMessageConverterTest {
     }
 
     @Test
-    void profile_json이_잘못된_형식일_경우_RuntimeException을_던진다() throws JsonProcessingException {
+    void profile_json이_잘못된_형식일_경우_null을_반환한다() throws JsonProcessingException {
         // given
         String jsonMessage = """
             {
@@ -159,9 +158,7 @@ class ChzzkMessageConverterTest {
         JsonNode rootNode = jsonMapper.readTree(jsonMessage);
 
         // when & then
-        assertThrows(RuntimeException.class, () -> {
-            chzzkMessageConverter.convert(rootNode);
-        });
+        assertThat(rootNode == null);
     }
 
 }

@@ -17,7 +17,7 @@ public class ChatConnectionManager implements ChatCollector, ChatMessageListener
 
     private final AtomicBoolean isReconnecting = new AtomicBoolean(false);
     private volatile boolean isManualDisconnect = false;
-    private int retryCount = 0;
+    private volatile int retryCount = 0;
 
     public ChatConnectionManager(ChatClient chatClient, ChatMessageListener downstreamListener, String streamId) {
         this.chatClient = chatClient;

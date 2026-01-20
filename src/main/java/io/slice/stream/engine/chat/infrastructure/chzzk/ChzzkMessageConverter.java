@@ -67,7 +67,8 @@ public class ChzzkMessageConverter {
                 Map.of()
             );
         } catch (Exception e) {
-            throw new RuntimeException("단일 메시지 파싱 실패", e);
+            log.error("단일 채팅 메시지 파싱 실패");
+            return null;
         }
     }
 }
