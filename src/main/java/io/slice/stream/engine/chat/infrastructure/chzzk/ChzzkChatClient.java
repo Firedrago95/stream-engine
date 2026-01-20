@@ -8,6 +8,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -16,18 +17,21 @@ public class ChzzkChatClient implements ChatClient {
     private final HttpClient httpClient;
     private final ChzzkApiClient chzzkApiClient;
     private final JsonMapper jsonMapper;
-
+    private final ChzzkMessageConverter messageConverter;
     private final AtomicReference<WebSocket> webSocketRef = new AtomicReference<>();
+
     private ChatMessageListener listener;
 
     public ChzzkChatClient(
         ChzzkApiClient chzzkApiClient,
         HttpClient httpClient,
-        JsonMapper jsonMapper
+        JsonMapper jsonMapper,
+        ChzzkMessageConverter messageConverter
     ) {
         this.chzzkApiClient = chzzkApiClient;
         this.httpClient = httpClient;
         this.jsonMapper = jsonMapper;
+        this.messageConverter = messageConverter;
     }
 
     @Override
@@ -39,13 +43,19 @@ public class ChzzkChatClient implements ChatClient {
         URI uri = new URI("wss://kr-ss1.chat.naver.com/chat");
 
         ChzzkWebSocketListener webSocketListener = new ChzzkWebSocketListener(
-            listener, chatChannelId, accessToken, jsonMapper);
+            listener,
+            chatChannelId,
+            accessToken,
+            jsonMapper,
+            messageConverter
+        );
 
         httpClient.newWebSocketBuilder()
             .buildAsync(uri, webSocketListener)
             .thenAccept(webSocketRef::set)
             .exceptionally(throwable -> {
-                this.listener.onError(throwable);
+                Throwable cause = (throwable instanceof CompletionException) ? throwable.getCause() : throwable;
+                this.listener.onError(cause);
                 return null;
             });
     }

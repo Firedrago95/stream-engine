@@ -1,14 +1,14 @@
 package io.slice.stream.engine.chat.infrastructure.chzzk.websocket;
 
 import io.slice.stream.engine.chat.domain.ChatMessageListener;
+import io.slice.stream.engine.chat.domain.model.ChatMessage;
+import io.slice.stream.engine.chat.infrastructure.chzzk.ChzzkMessageConverter;
 import io.slice.stream.engine.chat.infrastructure.chzzk.dto.request.ChzzkAuthRequest;
 import java.net.http.WebSocket;
 import java.net.http.WebSocket.Listener;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -20,21 +20,24 @@ public class ChzzkWebSocketListener implements Listener {
     private final String chatChannelId;
     private final String accessToken;
     private final JsonMapper jsonMapper;
+    private final ChzzkMessageConverter messageConverter;
     private final StringBuilder textBuffer = new StringBuilder();
 
     private WebSocket webSocket;
-    private ScheduledExecutorService pingScheduler;
+    private volatile boolean isRunning = true;
 
     public ChzzkWebSocketListener(
         ChatMessageListener messageListener,
         String chatChannelId,
         String accessToken,
-        JsonMapper jsonMapper
+        JsonMapper jsonMapper,
+        ChzzkMessageConverter messageConverter
     ) {
         this.messageListener = messageListener;
         this.chatChannelId = chatChannelId;
         this.accessToken = accessToken;
         this.jsonMapper = jsonMapper;
+        this.messageConverter = messageConverter;
     }
 
     @Override
@@ -57,8 +60,7 @@ public class ChzzkWebSocketListener implements Listener {
             return;
         }
 
-        this.pingScheduler = Executors.newSingleThreadScheduledExecutor();
-        pingScheduler.scheduleAtFixedRate(this::sendPing, 20, 20, TimeUnit.SECONDS);
+        Thread.ofVirtual().name("ping-thread-" + chatChannelId).start(this::runPingLoop);
     }
 
     @Override
@@ -78,7 +80,12 @@ public class ChzzkWebSocketListener implements Listener {
                 case CONNECT_ACK -> log.info("[{}] 웹소켓 연결 완료 ack 수신", chatChannelId);
                 case PING -> webSocket.sendText(createPongPacket(), true);
                 case PONG -> log.info("[{}] 서버로부터 pong 수신", chatChannelId);
-                case CHAT, DONATION -> this.messageListener.onMessage(rootNode);
+                case CHAT, DONATION -> {
+                    List<ChatMessage> messages = this.messageConverter.convert(rootNode);
+                    if (!messages.isEmpty()) {
+                        this.messageListener.onMessages(messages);
+                    }
+                }
                 default -> log.warn("[{}] 알 수 없는 명령어 cmd 수신: {}", chatChannelId, cmd);
             }
         } catch (Exception e) {
@@ -105,10 +112,21 @@ public class ChzzkWebSocketListener implements Listener {
         Listener.super.onError(webSocket, error);
     }
 
-    private void shutdownScheduler() {
-        if (pingScheduler != null && !pingScheduler.isShutdown()) {
-            pingScheduler.shutdown();
+    public void runPingLoop() {
+        while (isRunning && !Thread.currentThread().isInterrupted()) {
+            try {
+                Thread.sleep(20_000);
+                sendPing();
+            } catch (InterruptedException e) {
+                log.info("[{}] Ping 스레드 종료", chatChannelId);
+                Thread.currentThread().interrupt();
+                break;
+            }
         }
+    }
+
+    private void shutdownScheduler() {
+        this.isRunning = false;
     }
 
     private void sendPing() {
