@@ -3,6 +3,7 @@ package io.slice.stream.engine.chat.infrastructure.chzzk.api;
 import io.slice.stream.engine.chat.infrastructure.chzzk.dto.response.ChatAccessResponse;
 import io.slice.stream.engine.global.error.BusinessException;
 import io.slice.stream.engine.global.error.ErrorCode;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -23,6 +24,10 @@ public class ChzzkApiClient {
             .uri(URL, chatChannelId)
             .accept(MediaType.APPLICATION_JSON)
             .retrieve()
+            .onStatus(HttpStatusCode::isError, (request, response) -> {
+                throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
+                    "치지직 API를 통해 accessToken을 받아오지 못했습니다. Status: " + response.getStatusText() );
+            })
             .body(ChatAccessResponse.class);
 
         if (chatAccessResponse == null) {

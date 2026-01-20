@@ -25,26 +25,23 @@ public class ChzzkMessageConverter {
     private final JsonMapper jsonMapper;
 
     public List<ChatMessage> convert(JsonNode rootNode) {
-        try {
-            int cmd = rootNode.path("cmd").asInt();
-            CmdType cmdType = CmdType.fromInt(cmd);
+        int cmd = rootNode.path("cmd").asInt();
+        CmdType cmdType = CmdType.fromInt(cmd);
 
-            if (cmdType != CmdType.CHAT && cmdType != CmdType.DONATION) {
-                return Collections.emptyList();
-            }
-
-            ChzzkResponseMessage response = jsonMapper.treeToValue(rootNode, ChzzkResponseMessage.class);
-            if (response.body() == null || !response.body().isArray()) {
-                return Collections.emptyList();
-            }
-
-            return StreamSupport.stream(response.body().spliterator(), false)
-                .map(bodyNode -> parseSingleMessage(bodyNode, cmdType))
-                .toList();
-        } catch (Exception e) {
-            log.error("메시지 변환 중 오류 발생", e);
-            return Collections.emptyList();
+        if (cmdType != CmdType.CHAT && cmdType != CmdType.DONATION) {
+            return Collections.emptyList(); // 비즈니스 로직상 무시 (정상)
         }
+
+        ChzzkResponseMessage response;
+        response = jsonMapper.treeToValue(rootNode, ChzzkResponseMessage.class);
+
+        if (response.body() == null || !response.body().isArray()) {
+            return Collections.emptyList(); // 데이터 없음 (정상)
+        }
+
+        return StreamSupport.stream(response.body().spliterator(), false)
+            .map(bodyNode -> parseSingleMessage(bodyNode, cmdType))
+            .toList();
     }
 
     private ChatMessage parseSingleMessage(JsonNode bodyNode, CmdType cmdType) {

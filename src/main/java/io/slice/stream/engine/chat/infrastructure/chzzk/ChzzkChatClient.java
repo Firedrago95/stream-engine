@@ -8,6 +8,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -53,7 +54,8 @@ public class ChzzkChatClient implements ChatClient {
             .buildAsync(uri, webSocketListener)
             .thenAccept(webSocketRef::set)
             .exceptionally(throwable -> {
-                this.listener.onError(throwable);
+                Throwable cause = (throwable instanceof CompletionException) ? throwable.getCause() : throwable;
+                this.listener.onError(cause);
                 return null;
             });
     }

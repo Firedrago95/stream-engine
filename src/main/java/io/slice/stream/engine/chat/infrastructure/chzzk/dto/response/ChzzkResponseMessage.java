@@ -8,7 +8,7 @@ public record ChzzkResponseMessage(
     @JsonProperty("cmd") int cmd,
     @JsonProperty("svcid") String serviceId,
     @JsonProperty("cid") String channelId,
-    @JsonProperty("tid") int type,
+    @JsonProperty("tid") Integer type,
     @JsonProperty("bdy") JsonNode body,
     @JsonProperty("sid") String sessionId
 ) {
@@ -18,7 +18,7 @@ public record ChzzkResponseMessage(
         String profileImageUrl,
         Map<String, String> badge,
         Map<String, String> title,
-        boolean streamingProperty
+        Boolean streamingProperty
     ) {
     }
 }
