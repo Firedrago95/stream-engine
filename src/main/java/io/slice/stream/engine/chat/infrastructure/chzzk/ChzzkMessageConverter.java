@@ -41,6 +41,7 @@ public class ChzzkMessageConverter {
 
         return StreamSupport.stream(response.body().spliterator(), false)
             .map(bodyNode -> parseSingleMessage(bodyNode, cmdType))
+            .filter(java.util.Objects::nonNull)
             .toList();
     }
 

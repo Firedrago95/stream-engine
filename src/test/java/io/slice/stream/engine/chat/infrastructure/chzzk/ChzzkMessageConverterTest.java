@@ -141,7 +141,7 @@ class ChzzkMessageConverterTest {
     }
 
     @Test
-    void profile_json이_잘못된_형식일_경우_null을_반환한다() throws JsonProcessingException {
+    void profile_json이_잘못된_형식일_경우_빈_리스트를_반환한다() throws JsonProcessingException {
         // given
         String jsonMessage = """
             {
@@ -157,8 +157,11 @@ class ChzzkMessageConverterTest {
             """;
         JsonNode rootNode = jsonMapper.readTree(jsonMessage);
 
-        // when & then
-        assertThat(rootNode == null);
+        // when
+        List<ChatMessage> convert = chzzkMessageConverter.convert(rootNode);
+
+        // then
+        assertThat(convert).isEmpty();
     }
 
 }
