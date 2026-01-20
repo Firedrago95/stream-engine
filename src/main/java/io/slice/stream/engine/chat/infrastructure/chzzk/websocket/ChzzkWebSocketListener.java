@@ -6,9 +6,6 @@ import java.net.http.WebSocket;
 import java.net.http.WebSocket.Listener;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -23,7 +20,7 @@ public class ChzzkWebSocketListener implements Listener {
     private final StringBuilder textBuffer = new StringBuilder();
 
     private WebSocket webSocket;
-    private ScheduledExecutorService pingScheduler;
+    private volatile boolean isRunning = true;
 
     public ChzzkWebSocketListener(
         ChatMessageListener messageListener,
@@ -57,8 +54,7 @@ public class ChzzkWebSocketListener implements Listener {
             return;
         }
 
-        this.pingScheduler = Executors.newSingleThreadScheduledExecutor();
-        pingScheduler.scheduleAtFixedRate(this::sendPing, 20, 20, TimeUnit.SECONDS);
+        Thread.ofVirtual().name("ping-thread-" + chatChannelId).start(this::runPingLoop);
     }
 
     @Override
@@ -105,10 +101,21 @@ public class ChzzkWebSocketListener implements Listener {
         Listener.super.onError(webSocket, error);
     }
 
-    private void shutdownScheduler() {
-        if (pingScheduler != null && !pingScheduler.isShutdown()) {
-            pingScheduler.shutdown();
+    public void runPingLoop() {
+        while (isRunning && !Thread.currentThread().isInterrupted()) {
+            try {
+                Thread.sleep(20_000);
+                sendPing();
+            } catch (InterruptedException e) {
+                log.info("[{}] Ping 스레드 종료", chatChannelId);
+                Thread.currentThread().interrupt();
+                break;
+            }
         }
+    }
+
+    private void shutdownScheduler() {
+        this.isRunning = false;
     }
 
     private void sendPing() {

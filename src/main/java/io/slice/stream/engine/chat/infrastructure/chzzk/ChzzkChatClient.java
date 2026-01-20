@@ -39,7 +39,11 @@ public class ChzzkChatClient implements ChatClient {
         URI uri = new URI("wss://kr-ss1.chat.naver.com/chat");
 
         ChzzkWebSocketListener webSocketListener = new ChzzkWebSocketListener(
-            listener, chatChannelId, accessToken, jsonMapper);
+            listener,
+            chatChannelId,
+            accessToken,
+            jsonMapper
+        );
 
         httpClient.newWebSocketBuilder()
             .buildAsync(uri, webSocketListener)
