@@ -10,18 +10,18 @@ import io.slice.stream.engine.chat.infrastructure.chzzk.dto.response.ChzzkRespon
 import io.slice.stream.engine.chat.infrastructure.chzzk.websocket.CmdType;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
 @Slf4j
 public class ChzzkChatCollector implements ChatCollector, ChatMessageListener {
 
     private final ChatClient chatClient;
     private final String streamId;
-    private final JsonMapper jsonMapper;
+    private final ChzzkMessageConverter messageConverter;
     private final KafkaTemplate<String, ChatMessage> kafkaTemplate;
 
     private volatile boolean isManualDisconnect = false;
@@ -30,12 +30,12 @@ public class ChzzkChatCollector implements ChatCollector, ChatMessageListener {
     public ChzzkChatCollector(
         ChatClient chatClient,
         String streamId,
-        JsonMapper jsonMapper,
+        ChzzkMessageConverter messageConverter,
         KafkaTemplate<String, ChatMessage> kafkaTemplate
     ) {
         this.chatClient = chatClient;
         this.streamId = streamId;
-        this.jsonMapper = jsonMapper;
+        this.messageConverter = messageConverter;
         this.kafkaTemplate = kafkaTemplate;
     }
 
@@ -47,25 +47,12 @@ public class ChzzkChatCollector implements ChatCollector, ChatMessageListener {
 
     @Override
     public void onMessage(JsonNode rootNode) {
-        try {
-            int cmd = rootNode.path("cmd").asInt();
-            CmdType cmdType = CmdType.fromInt(cmd);
+        List<ChatMessage> chatMessages = messageConverter.convert(rootNode);
 
-            if (cmdType == CmdType.CHAT || cmdType == CmdType.DONATION) {
-                ChzzkResponseMessage response = jsonMapper.treeToValue(rootNode, ChzzkResponseMessage.class);
-                if (response.body().isArray()) {
-                    for (JsonNode bodyNode : response.body()) {
-                        ChzzkResponseMessage.Profile profile = jsonMapper.readValue(bodyNode.path("profile").asText(),
-                            ChzzkResponseMessage.Profile.class);
-                        ChatMessage chatMessage = toChatMessage(bodyNode, profile, cmdType);
-                        kafkaTemplate.send("chat-messages", streamId, chatMessage);
-                        log.info("[{}] 메시지를 Kafka에 전송했습니다: {}", streamId, chatMessage.message());
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.error("[{}] 메시지 처리 중 오류가 발생했습니다.", streamId, e);
-        }
+        chatMessages.forEach(msg -> {
+            kafkaTemplate.send("chat-messages", streamId, msg);
+            log.debug("[{}] kafka 전송 완료: {}", streamId, msg.message());
+        });
     }
 
     @Override

@@ -17,13 +17,14 @@ public class ChzzkChatCollectorFactory implements ChatCollectorFactory {
 
     private final ChzzkApiClient chzzkApiClient;
     private final HttpClient httpClient;
+    private final ChzzkMessageConverter chzzkMessageConverter;
     private final JsonMapper jsonMapper;
     private final KafkaTemplate<String, ChatMessage> kafkaTemplate;
 
     @Override
     public ChatCollector start(String streamId) {
         ChatClient chzzkChatClient = new ChzzkChatClient(chzzkApiClient, httpClient, jsonMapper);
-        ChatCollector chatCollector = new ChzzkChatCollector(chzzkChatClient, streamId, jsonMapper, kafkaTemplate);
+        ChatCollector chatCollector = new ChzzkChatCollector(chzzkChatClient, streamId, chzzkMessageConverter, kafkaTemplate);
         chatCollector.start();
         return chatCollector;
     }
