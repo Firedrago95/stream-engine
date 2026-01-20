@@ -1,8 +1,10 @@
 package io.slice.stream.engine.chat.infrastructure.chzzk;
 
+import io.slice.stream.engine.chat.application.ChatConnectionManager;
 import io.slice.stream.engine.chat.domain.ChatClient;
 import io.slice.stream.engine.chat.domain.ChatCollector;
 import io.slice.stream.engine.chat.domain.ChatCollectorFactory;
+import io.slice.stream.engine.chat.domain.ChatMessageListener;
 import io.slice.stream.engine.chat.domain.chatMessage.ChatMessage;
 import io.slice.stream.engine.chat.infrastructure.chzzk.api.ChzzkApiClient;
 import java.net.http.HttpClient;
@@ -23,9 +25,11 @@ public class ChzzkChatCollectorFactory implements ChatCollectorFactory {
 
     @Override
     public ChatCollector start(String streamId) {
-        ChatClient chzzkChatClient = new ChzzkChatClient(chzzkApiClient, httpClient, jsonMapper);
-        ChatCollector chatCollector = new ChzzkChatCollector(chzzkChatClient, streamId, chzzkMessageConverter, kafkaTemplate);
-        chatCollector.start();
-        return chatCollector;
+        ChatClient chzzkChatClient = new ChzzkChatClient(chzzkApiClient, httpClient, jsonMapper, chzzkMessageConverter);
+        ChatMessageListener messageListener = new ChzzkChatCollector(streamId, kafkaTemplate);
+        ChatCollector connectionManager = new ChatConnectionManager(chzzkChatClient, messageListener, streamId);
+
+        connectionManager.start();
+        return connectionManager;
     }
 }

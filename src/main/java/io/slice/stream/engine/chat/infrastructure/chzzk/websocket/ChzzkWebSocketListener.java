@@ -1,9 +1,12 @@
 package io.slice.stream.engine.chat.infrastructure.chzzk.websocket;
 
 import io.slice.stream.engine.chat.domain.ChatMessageListener;
+import io.slice.stream.engine.chat.domain.chatMessage.ChatMessage;
+import io.slice.stream.engine.chat.infrastructure.chzzk.ChzzkMessageConverter;
 import io.slice.stream.engine.chat.infrastructure.chzzk.dto.request.ChzzkAuthRequest;
 import java.net.http.WebSocket;
 import java.net.http.WebSocket.Listener;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +20,7 @@ public class ChzzkWebSocketListener implements Listener {
     private final String chatChannelId;
     private final String accessToken;
     private final JsonMapper jsonMapper;
+    private final ChzzkMessageConverter messageConverter;
     private final StringBuilder textBuffer = new StringBuilder();
 
     private WebSocket webSocket;
@@ -26,12 +30,14 @@ public class ChzzkWebSocketListener implements Listener {
         ChatMessageListener messageListener,
         String chatChannelId,
         String accessToken,
-        JsonMapper jsonMapper
+        JsonMapper jsonMapper,
+        ChzzkMessageConverter messageConverter
     ) {
         this.messageListener = messageListener;
         this.chatChannelId = chatChannelId;
         this.accessToken = accessToken;
         this.jsonMapper = jsonMapper;
+        this.messageConverter = messageConverter;
     }
 
     @Override
@@ -74,7 +80,12 @@ public class ChzzkWebSocketListener implements Listener {
                 case CONNECT_ACK -> log.info("[{}] 웹소켓 연결 완료 ack 수신", chatChannelId);
                 case PING -> webSocket.sendText(createPongPacket(), true);
                 case PONG -> log.info("[{}] 서버로부터 pong 수신", chatChannelId);
-                case CHAT, DONATION -> this.messageListener.onMessage(rootNode);
+                case CHAT, DONATION -> {
+                    List<ChatMessage> messages = this.messageConverter.convert(rootNode);
+                    if (!messages.isEmpty()) {
+                        this.messageListener.onMessages(messages);
+                    }
+                }
                 default -> log.warn("[{}] 알 수 없는 명령어 cmd 수신: {}", chatChannelId, cmd);
             }
         } catch (Exception e) {

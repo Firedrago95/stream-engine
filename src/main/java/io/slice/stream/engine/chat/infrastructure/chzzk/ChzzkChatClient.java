@@ -16,6 +16,7 @@ public class ChzzkChatClient implements ChatClient {
     private final HttpClient httpClient;
     private final ChzzkApiClient chzzkApiClient;
     private final JsonMapper jsonMapper;
+    private final ChzzkMessageConverter messageConverter;
     private final AtomicReference<WebSocket> webSocketRef = new AtomicReference<>();
 
     private ChatMessageListener listener;
@@ -23,11 +24,13 @@ public class ChzzkChatClient implements ChatClient {
     public ChzzkChatClient(
         ChzzkApiClient chzzkApiClient,
         HttpClient httpClient,
-        JsonMapper jsonMapper
+        JsonMapper jsonMapper,
+        ChzzkMessageConverter messageConverter
     ) {
         this.chzzkApiClient = chzzkApiClient;
         this.httpClient = httpClient;
         this.jsonMapper = jsonMapper;
+        this.messageConverter = messageConverter;
     }
 
     @Override
@@ -42,7 +45,8 @@ public class ChzzkChatClient implements ChatClient {
             listener,
             chatChannelId,
             accessToken,
-            jsonMapper
+            jsonMapper,
+            messageConverter
         );
 
         httpClient.newWebSocketBuilder()
