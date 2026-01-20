@@ -1,8 +1,8 @@
 package io.slice.stream.engine.chat.infrastructure.chzzk;
 
-import io.slice.stream.engine.chat.domain.chatMessage.Author;
-import io.slice.stream.engine.chat.domain.chatMessage.ChatMessage;
-import io.slice.stream.engine.chat.domain.chatMessage.MessageType;
+import io.slice.stream.engine.chat.domain.model.Author;
+import io.slice.stream.engine.chat.domain.model.ChatMessage;
+import io.slice.stream.engine.chat.domain.model.MessageType;
 import io.slice.stream.engine.chat.infrastructure.chzzk.dto.response.ChzzkResponseMessage;
 import io.slice.stream.engine.chat.infrastructure.chzzk.websocket.CmdType;
 import java.time.LocalDateTime;

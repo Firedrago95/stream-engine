@@ -1,7 +1,7 @@
 package io.slice.stream.engine.chat.infrastructure.chzzk.websocket;
 
 import io.slice.stream.engine.chat.domain.ChatMessageListener;
-import io.slice.stream.engine.chat.domain.chatMessage.ChatMessage;
+import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import io.slice.stream.engine.chat.infrastructure.chzzk.ChzzkMessageConverter;
 import io.slice.stream.engine.chat.infrastructure.chzzk.dto.request.ChzzkAuthRequest;
 import java.net.http.WebSocket;

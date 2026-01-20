@@ -1,4 +1,4 @@
-package io.slice.stream.engine.chat.domain.chatMessage;
+package io.slice.stream.engine.chat.domain.model;
 
 import java.time.LocalDateTime;
 import java.util.Map;
