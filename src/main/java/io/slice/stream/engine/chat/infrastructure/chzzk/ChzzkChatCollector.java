@@ -24,6 +24,9 @@ public class ChzzkChatCollector implements ChatCollector, ChatMessageListener {
     private final JsonMapper jsonMapper;
     private final KafkaTemplate<String, ChatMessage> kafkaTemplate;
 
+    private volatile boolean isManualDisconnect = false;
+    private int retryCount = 0;
+
     public ChzzkChatCollector(
         ChatClient chatClient,
         String streamId,
@@ -38,11 +41,8 @@ public class ChzzkChatCollector implements ChatCollector, ChatMessageListener {
 
     @Override
     public void start() {
-        try {
-            chatClient.connect(streamId, this);
-        } catch (Exception e) {
-            log.error("[{}] 채팅 연결에 실패했습니다..", streamId, e);
-        }
+        this.isManualDisconnect = false;
+        connect();
     }
 
     @Override
@@ -68,25 +68,6 @@ public class ChzzkChatCollector implements ChatCollector, ChatMessageListener {
         }
     }
 
-    private ChatMessage toChatMessage(JsonNode bodyNode, ChzzkResponseMessage.Profile profile, CmdType cmdType) {
-        MessageType messageType =
-            (cmdType == CmdType.DONATION) ? MessageType.DONATION : MessageType.TEXT;
-
-        Author author = new Author(
-            profile.userIdHash(),
-            profile.nickname(),
-            profile.profileImageUrl()
-        );
-
-        return new ChatMessage(
-            messageType,
-            author,
-            bodyNode.path("msg").asText(),
-            LocalDateTime.ofEpochSecond(bodyNode.path("msgTime").asLong() / 1000, 0, ZoneOffset.UTC),
-            Map.of()
-        );
-    }
-
     @Override
     public void onConnected() {
         log.info("[{}] ChatCollector 연결.", streamId);
@@ -105,5 +86,58 @@ public class ChzzkChatCollector implements ChatCollector, ChatMessageListener {
     @Override
     public void disconnect() {
         chatClient.disconnect();
+    }
+
+    private void connect() {
+        if (isManualDisconnect) return;
+
+        try {
+            chatClient.connect(streamId, this);
+        } catch (Exception e) {
+            log.error("[{}] 채팅 연결에 실패했습니다..", streamId, e);
+            scheduleReconnect();
+        }
+    }
+
+    private void scheduleReconnect() {
+        if (isManualDisconnect) return;
+
+        long delayMillis = calcualteBackoffDelay();
+
+        Thread.ofVirtual().name("retry-thread-" + streamId).start(() -> {
+            try {
+                log.info("[{}] {}ms 후 재연결을 시도합니다. (시도 횟수: {})", streamId, delayMillis, retryCount + 1);
+                Thread.sleep(delayMillis);
+
+                if (!isManualDisconnect) connect();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+    }
+
+    private long calcualteBackoffDelay() {
+        long delay = 1000L * (1L << Math.min(retryCount, 5));
+        retryCount++;
+        return Math.min(delay, 30000L);
+    }
+
+    private ChatMessage toChatMessage(JsonNode bodyNode, ChzzkResponseMessage.Profile profile, CmdType cmdType) {
+        MessageType messageType =
+            (cmdType == CmdType.DONATION) ? MessageType.DONATION : MessageType.TEXT;
+
+        Author author = new Author(
+            profile.userIdHash(),
+            profile.nickname(),
+            profile.profileImageUrl()
+        );
+
+        return new ChatMessage(
+            messageType,
+            author,
+            bodyNode.path("msg").asText(),
+            LocalDateTime.ofEpochSecond(bodyNode.path("msgTime").asLong() / 1000, 0, ZoneOffset.UTC),
+            Map.of()
+        );
     }
 }
