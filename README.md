@@ -96,8 +96,14 @@ stream-engine/
 │ └── application/    # 유스케이스 계층
 │ └── domain/         # 도메인 계층
 │ └── infrastructure/ # 인프라 계층
-├── analysis/        # 📊 분석 모듈 (🚧 예정)
-│ └── ...
+├── analysis/        # 📊 실시간 채팅 분석
+│ ├── application/    # 유스케이스 계층
+│ │ └── ChatAnalysisService
+│ ├── domain/         # 도메인 계층
+│ │ ├── ChatRoomAnalysis
+│ │ └── ChatRoomAnalysisRepository
+│ └── infrastructure/ # 인프라 계층
+│   └── RedisChatRoomAnalysisRepository
 │
 ├── highlight/       # ⭐ 하이라이트 추출 (🚧 예정)
 │ └── ...
@@ -160,4 +166,27 @@ flowchart LR
     E --> F[ChatClient]
     F --> G["💬 Chzzk Chat API/WebSocket"]
     E --> H["카프카 전송<br/>(chat-messages)"]
+```
+
+### 📊 Analysis 모듈 (v1.1)
+#### 핵심 기능
+#### 1. 실시간 채팅 수 분석
+*   Kafka `chat-messages` 토픽으로부터 메시지를 수신하여 스트림별 분당 채팅 수를 실시간으로 집계합니다.
+*   집계된 데이터는 하이라이트 구간 탐지 및 실시간 대시보드 표시에 사용됩니다.
+
+#### 2. Caffeine 캐시 기반 메모리 관리
+*   **메모리 누수 방지**: 활성 스트림의 분석 데이터만 메모리에 유지하기 위해 Caffeine 캐시를 사용합니다.
+*   **TTL(Time-To-Live) 만료 정책**: 특정 시간(예: 30분) 동안 새로운 채팅이나 조회 활동이 없는 비활성 스트림의 데이터는 캐시에서 자동으로 제거하여 메모리 사용량을 최적화합니다.
+
+#### 3. 주기적인 데이터 저장
+*   Spring Scheduler를 사용하여 10초마다 메모리에 집계된 분석 데이터를 RedisTimeSeries에 저장합니다.
+*   이를 통해 데이터 영속성을 확보하고 시계열 분석을 위한 기반을 마련합니다.
+
+#### 데이터 플로우
+```mermaid
+flowchart LR
+    A["Kafka<br/>(chat-messages)"] --> B[ChatAnalysisService]
+    B --> C["Caffeine Cache<br/>(In-Memory Aggregation)"]
+    C --> D{Scheduler<br/>10s}
+    D --> E["RedisTimeSeries<br/>(분당 채팅 수 저장)"]
 ```
