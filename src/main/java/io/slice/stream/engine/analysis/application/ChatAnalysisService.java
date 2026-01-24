@@ -1,29 +1,40 @@
 package io.slice.stream.engine.analysis.application;
 
 import io.slice.stream.engine.analysis.domain.ChatRoomAnalysis;
+import io.slice.stream.engine.analysis.domain.ChatRoomAnalysisRepository;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class ChatAnalysisService {
 
-    private final Map<String, ChatRoomAnalysis> chatRoomAnalysises = new ConcurrentHashMap<>();
+    private final Map<String, ChatRoomAnalysis> chatRoomAnalyses = new ConcurrentHashMap<>();
+    private final ChatRoomAnalysisRepository chatRoomAnalysisRepository;
 
     public void analyze(ChatMessage chatMessage) {
         String streamId = chatMessage.streamId();
 
-        ChatRoomAnalysis chatRoomAnalysis = chatRoomAnalysises.computeIfAbsent(streamId, k -> new ChatRoomAnalysis());
+        ChatRoomAnalysis chatRoomAnalysis = chatRoomAnalyses.computeIfAbsent(streamId, k -> new ChatRoomAnalysis(streamId));
 
         chatRoomAnalysis.increaseCount();
     }
 
+    @Scheduled(fixedRate = 10_000)
+    public void saveAnalyses() {
+        chatRoomAnalyses.keySet().forEach(streamId ->{
+            chatRoomAnalysisRepository.save(chatRoomAnalyses.get(streamId), Instant.now());
+        });
+    }
+
     public ChatRoomAnalysis getAnalysisFor(String streamId) {
-        if (chatRoomAnalysises.containsKey(streamId)) {
-            return chatRoomAnalysises.get(streamId);
+        if (chatRoomAnalyses.containsKey(streamId)) {
+            return chatRoomAnalyses.get(streamId);
         }
         return null;
     }

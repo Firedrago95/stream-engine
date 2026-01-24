@@ -1,13 +1,17 @@
 package io.slice.stream.engine.analysis.domain;
 
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.Getter;
 
+@Getter
 public class ChatRoomAnalysis {
 
+    private final String streamId;
     private AtomicLong count;
 
-    public ChatRoomAnalysis() {
-        count = new AtomicLong(1);
+    public ChatRoomAnalysis(String streamId) {
+        this.streamId = streamId;
+        this.count = new AtomicLong(1);
     }
 
     public Long getCount() {
