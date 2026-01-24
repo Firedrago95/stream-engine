@@ -21,7 +21,7 @@ public class ChatAnalysisService {
     public ChatAnalysisService(ChatRoomAnalysisRepository chatRoomAnalysisRepository) {
         this.chatRoomAnalysisRepository = chatRoomAnalysisRepository;
         this.chatRoomAnalyses = Caffeine.newBuilder()
-            .expireAfterAccess(30, TimeUnit.MINUTES)
+            .expireAfterAccess(10, TimeUnit.MINUTES)
             .build();
     }
 
