@@ -27,15 +27,12 @@ public class ChatAnalysisService {
 
     @Scheduled(fixedRate = 10_000)
     public void saveAnalyses() {
-        chatRoomAnalyses.keySet().forEach(streamId ->{
-            chatRoomAnalysisRepository.save(chatRoomAnalyses.get(streamId), Instant.now());
+        chatRoomAnalyses.forEach((streamId, analysis) -> {
+            chatRoomAnalysisRepository.save(analysis, Instant.now());
         });
     }
 
     public ChatRoomAnalysis getAnalysisFor(String streamId) {
-        if (chatRoomAnalyses.containsKey(streamId)) {
-            return chatRoomAnalyses.get(streamId);
-        }
-        return null;
+        return chatRoomAnalyses.get(streamId);
     }
 }

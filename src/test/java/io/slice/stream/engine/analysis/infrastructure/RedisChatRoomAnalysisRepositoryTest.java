@@ -36,6 +36,7 @@ class RedisChatRoomAnalysisRepositoryTest implements RedisTestSupport {
         Instant now = Instant.now();
         String streamId = "abcd1234";
         ChatRoomAnalysis chatRoomAnalysis = new ChatRoomAnalysis(streamId);
+        chatRoomAnalysis.increaseCount();
 
         // when
         repository.save(chatRoomAnalysis, now);
