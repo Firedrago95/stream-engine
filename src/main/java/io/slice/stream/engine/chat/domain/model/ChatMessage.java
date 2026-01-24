@@ -14,9 +14,7 @@ public record ChatMessage(
     @JsonSerialize(using = LocalDateTimeSerializer.class)
     @JsonDeserialize(using = LocalDateTimeDeserializer.class)
     LocalDateTime time,
+    String streamId,
     Map<String, Object> headers
 ) {
-    public boolean hasHeader(String key) {
-        return headers != null && headers.containsKey(key);
-    }
 }
