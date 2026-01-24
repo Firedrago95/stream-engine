@@ -31,8 +31,8 @@ class RedisStreamRepositoryTest implements RedisTestSupport {
     @Autowired
     private ObjectMapper objectMapper; // 주입받아서 검증 시 사용
 
-    private static final String ACTUAL_KEY = "streams.active.id";
-    private static final String INFO_KEY = "streams.info";
+    private static final String ACTUAL_KEY = "stream:targets";
+    private static final String INFO_KEY = "stream:live:";
 
     @BeforeEach
     @AfterEach
