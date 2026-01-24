@@ -55,7 +55,7 @@ public class ChatAnalysisServiceTest {
         ChatRoomAnalysis analysis = chatAnalysisService.getAnalysisFor(streamId);
         assertAll(
             () -> assertThat(analysis).isNotNull(),
-            () -> assertThat(analysis.getCount()).isEqualTo(2)
+            () -> assertThat(analysis.getCount()).isEqualTo(1L)
         );
     }
 
@@ -83,7 +83,7 @@ public class ChatAnalysisServiceTest {
         ChatRoomAnalysis capturedAnalysis = argumentCaptor.getValue();
         assertAll(
             () -> assertThat(capturedAnalysis.getStreamId()).isEqualTo(streamId),
-            () -> assertThat(capturedAnalysis.getCount()).isEqualTo(2L)
+            () -> assertThat(capturedAnalysis.getCount()).isEqualTo(1L)
         );
     }
 }

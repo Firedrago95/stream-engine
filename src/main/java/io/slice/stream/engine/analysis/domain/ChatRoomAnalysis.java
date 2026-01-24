@@ -11,7 +11,7 @@ public class ChatRoomAnalysis {
 
     public ChatRoomAnalysis(String streamId) {
         this.streamId = streamId;
-        this.count = new AtomicLong(1);
+        this.count = new AtomicLong(0);
     }
 
     public Long getCount() {
