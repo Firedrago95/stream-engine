@@ -31,6 +31,7 @@ reviews:
     - "!gradlew.bat"
     - "!*.jar"
     - "!src/main/generated/**"
+    - "!client/**"
 
   # 각 리뷰 댓글의 길이를 조절합니다.
   comment_length: "medium"
