@@ -16,6 +16,10 @@ public class ChatRoomAnalysis {
         return count.longValue();
     }
 
+    public String getStreamId() {
+        return streamId;
+    }
+
     public void increaseCount() {
         count.addAndGet(1);
     }

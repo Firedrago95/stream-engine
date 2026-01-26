@@ -15,6 +15,7 @@ import org.springframework.stereotype.Repository;
 public class RedisChatRoomAnalysisRepository implements ChatRoomAnalysisRepository {
 
     private static final String CHAT_ANALYSIS_KEY = "chat:analysis:%s";
+    private static final long RETENTION = 604_800_000; // 7일
 
     private final StringRedisTemplate redisTemplate;
     private final RedisScript<Long> tsAddScript;
@@ -26,7 +27,7 @@ public class RedisChatRoomAnalysisRepository implements ChatRoomAnalysisReposito
         String count = String.valueOf(chatRoomAnalysis.getCount());
         String timestamp = String.valueOf(now.toEpochMilli());
 
-        redisTemplate.execute(tsAddScript, List.of(key), timestamp, count);
+        redisTemplate.execute(tsAddScript, List.of(key), timestamp, count, RETENTION);
     }
 
     @Override
