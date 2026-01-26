@@ -1,0 +1,19 @@
+plugins {
+    id "com.github.node-gradle.node" version "7.0.2"
+}
+
+node {
+    version = "20.11.0" // 원하는 Node.js 버전
+    npmVersion = "10.2.4" // 원하는 npm 버전
+    download = true
+}
+
+// React 앱 빌드 (npm run build)
+task buildClient(type: NpmTask) {
+    args = ['run', 'build']
+}
+
+// 빌드 순서 정의: buildClient 태스크가 먼저 실행되도록 설정
+tasks.named("build") {
+    dependsOn(buildClient)
+}

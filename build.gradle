@@ -1,0 +1,63 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:4.0.1")
+        classpath("io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:1.1.5")
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'org.springframework.boot'
+    apply plugin: 'io.spring.dependency-management'
+
+    group = 'io.slice.stream.engine'
+    version = '0.0.1-SNAPSHOT'
+
+    java {
+        sourceCompatibility = JavaVersion.toVersion('25')
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    configurations {
+        compileOnly {
+            extendsFrom annotationProcessor
+        }
+    }
+
+    dependencies {
+        // 공통 의존성 (필요 시 추가)
+    }
+}
+
+// client 모듈은 Spring Boot 실행 파일로 만들지 않음
+project(':client') {
+    bootJar {
+        enabled = false
+    }
+    jar {
+        enabled = true
+    }
+}
+
+// api 모듈을 빌드할 때 client 빌드 결과물을 포함
+project(':api') {
+    dependencies {
+        // client 모듈의 빌드 결과에 의존
+        runtimeOnly project(':client')
+    }
+
+    bootJar {
+        // client/build/libs/client-0.0.1-SNAPSHOT.jar 안에 있는
+        // static 리소스를 api jar의 static/으로 복사
+        from(zipTree(project(':client').jar.archiveFile)) {
+            into 'static'
+        }
+    }
+}
