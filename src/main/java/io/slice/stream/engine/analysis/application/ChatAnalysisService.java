@@ -2,10 +2,12 @@ package io.slice.stream.engine.analysis.application;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import io.slice.stream.engine.analysis.domain.ChatAnalysisResult;
 import io.slice.stream.engine.analysis.domain.ChatRoomAnalysis;
 import io.slice.stream.engine.analysis.domain.ChatRoomAnalysisRepository;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -46,5 +48,9 @@ public class ChatAnalysisService {
 
     public ChatRoomAnalysis getAnalysisFor(String streamId) {
         return chatRoomAnalyses.getIfPresent(streamId);
+    }
+
+    public Optional<ChatAnalysisResult> getChatAnalysisResult(String streamId) {
+        return chatRoomAnalysisRepository.findByStreamId(streamId);
     }
 }

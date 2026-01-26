@@ -1,7 +1,7 @@
 package io.slice.stream.engine.analysis.infrastructure;
 
-import io.slice.stream.engine.analysis.domain.ChatCountHistory;
-import io.slice.stream.engine.analysis.domain.ChatCountHistory.DataPoint;
+import io.slice.stream.engine.analysis.domain.ChatAnalysisResult;
+import io.slice.stream.engine.analysis.domain.ChatAnalysisResult.DataPoint;
 import io.slice.stream.engine.analysis.domain.ChatRoomAnalysis;
 import io.slice.stream.engine.analysis.domain.ChatRoomAnalysisRepository;
 import java.time.Instant;
@@ -35,7 +35,7 @@ public class RedisChatRoomAnalysisRepository implements ChatRoomAnalysisReposito
     }
 
     @Override
-    public Optional<ChatCountHistory> findByStreamId(String streamId) {
+    public Optional<ChatAnalysisResult> findByStreamId(String streamId) {
         String key = String.format(CHAT_ANALYSIS_KEY, streamId);
         List<List<Object>> rawData = redisTemplate.execute(tsRangeScript, List.of(key), "-", "+");
 
@@ -51,6 +51,6 @@ public class RedisChatRoomAnalysisRepository implements ChatRoomAnalysisReposito
             })
             .toList();
 
-        return Optional.of(new ChatCountHistory(streamId, dataPoints));
+        return Optional.of(new ChatAnalysisResult(streamId, dataPoints));
     }
 }

@@ -2,7 +2,7 @@ package io.slice.stream.engine.analysis.domain;
 
 import java.util.List;
 
-public record ChatCountHistory(
+public record ChatAnalysisResult(
     String streamId,
     List<DataPoint> dataPoints
 ) {

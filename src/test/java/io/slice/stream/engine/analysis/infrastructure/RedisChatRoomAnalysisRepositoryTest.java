@@ -3,8 +3,8 @@ package io.slice.stream.engine.analysis.infrastructure;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
-import io.slice.stream.engine.analysis.domain.ChatCountHistory;
-import io.slice.stream.engine.analysis.domain.ChatCountHistory.DataPoint;
+import io.slice.stream.engine.analysis.domain.ChatAnalysisResult;
+import io.slice.stream.engine.analysis.domain.ChatAnalysisResult.DataPoint;
 import io.slice.stream.engine.analysis.domain.ChatRoomAnalysis;
 import io.slice.stream.testcontainer.redis.RedisTestSupport;
 import java.time.Instant;
@@ -80,15 +80,15 @@ class RedisChatRoomAnalysisRepositoryTest implements RedisTestSupport {
 
 
         // when
-        Optional<ChatCountHistory> chatCounts = repository.findByStreamId(streamId1);
+        Optional<ChatAnalysisResult> chatCounts = repository.findByStreamId(streamId1);
 
         // then
         assertThat(chatCounts).isPresent();
-        ChatCountHistory chatCountHistory = chatCounts.get();
-        List<DataPoint> dataPoints = chatCountHistory.dataPoints();
+        ChatAnalysisResult chatAnalysisResult = chatCounts.get();
+        List<DataPoint> dataPoints = chatAnalysisResult.dataPoints();
 
         assertAll(
-            () -> assertThat(chatCountHistory.streamId()).isEqualTo(streamId1),
+            () -> assertThat(chatAnalysisResult.streamId()).isEqualTo(streamId1),
             () -> assertThat(dataPoints.getFirst().timestamp()).isEqualTo(now.minusSeconds(10).toEpochMilli()),
             () -> assertThat(dataPoints.get(1).timestamp()).isEqualTo(now.toEpochMilli()),
             () -> assertThat(dataPoints.get(1).value()).isEqualTo(2)
