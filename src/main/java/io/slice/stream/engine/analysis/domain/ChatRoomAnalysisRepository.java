@@ -7,5 +7,5 @@ public interface ChatRoomAnalysisRepository {
 
     void save(ChatRoomAnalysis chatRoomAnalysis,  Instant now);
 
-    Optional<ChatRoomAnalysis> findByStreamId(String streamId);
+    Optional<ChatCountHistory> findByStreamId(String streamId);
 }

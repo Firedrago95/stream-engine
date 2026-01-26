@@ -1,5 +1,7 @@
 package io.slice.stream.engine.analysis.infrastructure;
 
+import io.slice.stream.engine.analysis.domain.ChatCountHistory;
+import io.slice.stream.engine.analysis.domain.ChatCountHistory.DataPoint;
 import io.slice.stream.engine.analysis.domain.ChatRoomAnalysis;
 import io.slice.stream.engine.analysis.domain.ChatRoomAnalysisRepository;
 import java.time.Instant;
@@ -19,6 +21,7 @@ public class RedisChatRoomAnalysisRepository implements ChatRoomAnalysisReposito
 
     private final StringRedisTemplate redisTemplate;
     private final RedisScript<Long> tsAddScript;
+    private final RedisScript<List> tsRangeScript;
 
     @Override
     public void save(ChatRoomAnalysis chatRoomAnalysis, Instant now) {
@@ -26,12 +29,28 @@ public class RedisChatRoomAnalysisRepository implements ChatRoomAnalysisReposito
 
         String count = String.valueOf(chatRoomAnalysis.getCount());
         String timestamp = String.valueOf(now.toEpochMilli());
+        String retention = String.valueOf(RETENTION);
 
-        redisTemplate.execute(tsAddScript, List.of(key), timestamp, count, RETENTION);
+        redisTemplate.execute(tsAddScript, List.of(key), timestamp, count, retention);
     }
 
     @Override
-    public Optional<ChatRoomAnalysis> findByStreamId(String streamId) {
-        return Optional.empty();
+    public Optional<ChatCountHistory> findByStreamId(String streamId) {
+        String key = String.format(CHAT_ANALYSIS_KEY, streamId);
+        List<List<Object>> rawData = redisTemplate.execute(tsRangeScript, List.of(key), "-", "+");
+
+        if (rawData == null || rawData.isEmpty()) {
+            return Optional.empty();
+        }
+
+        List<DataPoint> dataPoints = rawData.stream()
+            .map(entry -> {
+                long timestamp = ((Number) entry.get(0)).longValue();
+                long value = Long.parseLong((String) entry.get(1));
+                return new DataPoint(timestamp, value);
+            })
+            .toList();
+
+        return Optional.of(new ChatCountHistory(streamId, dataPoints));
     }
 }

@@ -39,4 +39,10 @@ public class RedisConfig {
     public RedisScript<List> tsGetScript() {
         return RedisScript.of("return redis.call('TS.GET', KEYS[1])", List.class);
     }
+
+    @Bean
+    public RedisScript<List> tsRangeScript() {
+        ClassPathResource scriptSource = new ClassPathResource("lua/ts_range.lua");
+        return RedisScript.of(scriptSource, List.class);
+    }
 }
