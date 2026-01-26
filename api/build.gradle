@@ -8,12 +8,6 @@ group = 'io.slice.stream'
 version = '0.0.1-SNAPSHOT'
 description = 'A high-performance stream slicing and analytics engine'
 
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(25)
-	}
-}
-
 configurations {
 	compileOnly {
 		extendsFrom annotationProcessor
