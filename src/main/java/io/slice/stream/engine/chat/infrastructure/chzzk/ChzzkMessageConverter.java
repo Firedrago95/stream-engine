@@ -39,13 +39,15 @@ public class ChzzkMessageConverter {
             return Collections.emptyList(); // 데이터 없음 (정상)
         }
 
+        String streamId = response.channelId();
+
         return StreamSupport.stream(response.body().spliterator(), false)
-            .map(bodyNode -> parseSingleMessage(bodyNode, cmdType))
+            .map(bodyNode -> parseSingleMessage(bodyNode, cmdType, streamId))
             .filter(java.util.Objects::nonNull)
             .toList();
     }
 
-    private ChatMessage parseSingleMessage(JsonNode bodyNode, CmdType cmdType) {
+    private ChatMessage parseSingleMessage(JsonNode bodyNode, CmdType cmdType, String streamId) {
         try {
             ChzzkResponseMessage.Profile profile = jsonMapper.readValue(
                 bodyNode.path("profile").asString(),
@@ -65,6 +67,7 @@ public class ChzzkMessageConverter {
                 author,
                 bodyNode.path("msg").asString(),
                 LocalDateTime.ofEpochSecond(bodyNode.path("msgTime").asLong() / 1000, 0, ZoneOffset.UTC),
+                streamId,
                 Map.of()
             );
         } catch (Exception e) {

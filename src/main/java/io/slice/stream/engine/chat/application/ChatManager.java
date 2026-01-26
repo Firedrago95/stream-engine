@@ -12,19 +12,19 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ChatManager {
 
-    private final Map<String, ChatCollector> chatColletors = new ConcurrentHashMap<>();
+    private final Map<String, ChatCollector> chatCollectors = new ConcurrentHashMap<>();
     private final ChatCollectorFactory chatCollectorFactory;
 
     public void manageStreams(Set<String> newStreamIds, Set<String> closedStreamIds) {
         if (!newStreamIds.isEmpty()) {
             newStreamIds.forEach(stream -> {
-                chatColletors.put(stream, manageNewStreams(stream));
+                chatCollectors.put(stream, manageNewStreams(stream));
             });
         }
 
         if (!closedStreamIds.isEmpty()) {
             closedStreamIds.forEach(streamId -> {
-                ChatCollector collector = chatColletors.remove(streamId);
+                ChatCollector collector = chatCollectors.remove(streamId);
                 if (collector != null) {
                     collector.disconnect();
                 }

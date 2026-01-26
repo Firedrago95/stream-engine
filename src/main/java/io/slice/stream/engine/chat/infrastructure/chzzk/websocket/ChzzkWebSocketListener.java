@@ -66,34 +66,45 @@ public class ChzzkWebSocketListener implements Listener {
     @Override
     public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
         textBuffer.append(data);
-        if (!last) {
-            return Listener.super.onText(webSocket, data, last);
-        }
-        String message = textBuffer.toString();
-        textBuffer.setLength(0);
 
-        try {
-            JsonNode rootNode = jsonMapper.readTree(message);
-            int cmd = rootNode.path("cmd").asInt();
-
-            switch (CmdType.fromInt(cmd)) {
-                case CONNECT_ACK -> log.info("[{}] 웹소켓 연결 완료 ack 수신", chatChannelId);
-                case PING -> webSocket.sendText(createPongPacket(), true);
-                case PONG -> log.info("[{}] 서버로부터 pong 수신", chatChannelId);
-                case CHAT, DONATION -> {
-                    List<ChatMessage> messages = this.messageConverter.convert(rootNode);
-                    if (!messages.isEmpty()) {
-                        this.messageListener.onMessages(messages);
-                    }
-                }
-                default -> log.warn("[{}] 알 수 없는 명령어 cmd 수신: {}", chatChannelId, cmd);
-            }
-        } catch (Exception e) {
-            textBuffer.setLength(0);
-            log.error("[{}] 메시지 파싱 중 오류가 발생했습니다.", chatChannelId, e);
+        if (last) {
+            String fullMessage = textBuffer.toString();
+            textBuffer.setLength(0); // 다음 메시지를 위해 즉시 버퍼 초기화
+            processMessage(fullMessage);
         }
 
         return Listener.super.onText(webSocket, data, last);
+    }
+
+    private void processMessage(String message) {
+        try {
+            JsonNode rootNode = jsonMapper.readTree(message);
+            CmdType cmdType = CmdType.fromInt(rootNode.path("cmd").asInt());
+            dispatchCommand(cmdType, rootNode);
+        } catch (Exception e) {
+            log.error("[{}] 메시지 처리 중 오류 발생: {}", chatChannelId, e.getMessage());
+        }
+    }
+
+    private void dispatchCommand(CmdType type, JsonNode rootNode) {
+        switch (type) {
+            case CHAT, DONATION -> handleChatMessage(rootNode);
+            case PING           -> handlePing();
+            case CONNECT_ACK    -> log.info("[{}] 웹소켓 연결 완료 ack 수신", chatChannelId);
+            case PONG           -> log.debug("[{}] 서버로부터 pong 수신", chatChannelId);
+            default             -> log.warn("[{}] 처리되지 않은 명령어 수신 (cmd: {})", chatChannelId, type);
+        }
+    }
+
+    private void handleChatMessage(JsonNode rootNode) {
+        List<ChatMessage> messages = messageConverter.convert(rootNode);
+        if (!messages.isEmpty()) {
+            messageListener.onMessages(messages);
+        }
+    }
+
+    private void handlePing() {
+        webSocket.sendText(createPongPacket(), true);
     }
 
     @Override

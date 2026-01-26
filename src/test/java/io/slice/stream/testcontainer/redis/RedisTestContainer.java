@@ -5,7 +5,7 @@ import org.testcontainers.utility.DockerImageName;
 
 public class RedisTestContainer {
 
-    private static final String REDIS_IMAGE = "redis:7-alpine";
+    private static final String REDIS_IMAGE = "redis/redis-stack-server:latest";
     private static final int REDIS_PORT = 6379;
     public static final GenericContainer<?> GENERIC_CONTAINER;
 
