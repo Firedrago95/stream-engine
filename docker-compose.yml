@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.8.0
+    hostname: kafka
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    command: "bash -c 'echo \"cluster.id=rlbaunQ7QqSMfWiy4m0QYw\" > /tmp/cluster.id && kafka-storage format -t rlbaunQ7QqSMfWiy4m0QYw -c /etc/kafka/kafka.properties --ignore-formatted && kafka-server-start /etc/kafka/kafka.properties'"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT_HOST://localhost:9092,PLAINTEXT://kafka:29092'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+
+  redis:
+    image: redis/redis-stack-server:7.4.0-v0
+    hostname: redis
+    container_name: redis
+    ports:
+      - "6379:6379"
+      - "8001:8001" # RedisInsight UI
+    environment:
+      REDIS_ARGS: "--appendonly yes"
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    hostname: api
+    container_name: slice-stream-engine-api
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_PROFILES_ACTIVE: prod
+    depends_on:
+      - kafka
+      - redis
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    hostname: client
+    container_name: slice-stream-engine-client
+    ports:
+      - "3000:5173" # Map host port 3000 to container port 5173 (Vite default)
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080 # This might need to be 'http://api:8080' if client calls API within docker network
+    depends_on:
+      - api
