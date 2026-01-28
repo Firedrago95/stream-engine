@@ -2,24 +2,24 @@ version: '3.8'
 
 services:
   kafka:
-    image: confluentinc/cp-kafka:7.8.0
+    image: bitnami/kafka:latest
     hostname: kafka
     container_name: kafka
     ports:
       - "9092:9092"
-    command: "bash -c 'echo \"cluster.id=rlbaunQ7QqSMfWiy4m0QYw\" > /tmp/cluster.id && kafka-storage format -t rlbaunQ7QqSMfWiy4m0QYw -c /etc/kafka/kafka.properties --ignore-formatted && kafka-server-start /etc/kafka/kafka.properties'"
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_PROCESS_ROLES: 'broker,controller'
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093'
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
-      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT_HOST://localhost:9092,PLAINTEXT://kafka:29092'
-      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
-      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_KRAFT_CLUSTER_ID: rlbaunQ7QqSMfWiy4m0QYw
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:29092,CONTROLLER://:9093,EXTERNAL://:9092
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+    volumes:
+      - kafka_data:/bitnami/kafka # 데이터 영구 저장
 
   redis:
     image: redis/redis-stack-server:7.4.0-v0
@@ -60,3 +60,6 @@ services:
       VITE_API_BASE_URL: http://localhost:8080 # This might need to be 'http://api:8080' if client calls API within docker network
     depends_on:
       - api
+
+volumes:
+  kafka_data:
