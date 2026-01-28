@@ -43,6 +43,8 @@ public class RedisStreamRepository implements StreamRepository {
     private List<String> makeArguments(List<StreamTarget> streamTargets) {
         List<String> args = new ArrayList<>();
 
+        args.add(String.valueOf(streamTargets.size()));
+
         for (StreamTarget target : streamTargets) {
             args.add(target.channelId());
         }
@@ -76,6 +78,7 @@ public class RedisStreamRepository implements StreamRepository {
                 new HashSet<>(closedStreamIds)
             );
         } catch (Exception e) {
+            log.error("Redis 방송 정보 업데이트 실패 오류", e);
             throw new IngestionException(ErrorCode.INTERNAL_SERVER_ERROR, "Redis 스크립트 실행 중 오류가 발생했습니다.");
         }
     }
