@@ -22,7 +22,7 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
 
     private final RestClient restClient;
 
-    @Value("${url.live-fetch}")
+    @Value("${chzzk.api.live-fetch}")
     private final String liveFetch;
 
     @Override

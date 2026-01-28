@@ -3,6 +3,7 @@ package io.slice.stream.engine.chat.infrastructure.chzzk.api;
 import io.slice.stream.engine.chat.infrastructure.chzzk.dto.response.ChatAccessResponse;
 import io.slice.stream.engine.global.error.BusinessException;
 import io.slice.stream.engine.global.error.ErrorCode;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -11,10 +12,11 @@ import org.springframework.web.client.RestClient;
 @Component
 public class ChzzkApiClient {
 
-    public static final String URL = "https://comm-api.game.naver.com/nng_main/v1/chats/access-token?channelId={channelId}&chatType=STREAMING";
+    public static final String URL = "/nng_main/v1/chats/access-token?channelId={channelId}&chatType=STREAMING";
+
     private final RestClient restClient;
 
-    public ChzzkApiClient(RestClient restClient) {
+    public ChzzkApiClient(@Qualifier("chzzkGameApiClient") RestClient restClient) {
         this.restClient = restClient;
     }
 
@@ -26,7 +28,7 @@ public class ChzzkApiClient {
             .retrieve()
             .onStatus(HttpStatusCode::isError, (request, response) -> {
                 throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
-                    "치지직 API를 통해 accessToken을 받아오지 못했습니다. Status: " + response.getStatusText() );
+                    "치지직 API를 통해 accessToken을 받아오지 못했습니다. Status: " + response.getStatusText());
             })
             .body(ChatAccessResponse.class);
 
