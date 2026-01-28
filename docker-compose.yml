@@ -20,7 +20,7 @@ services:
 
       CLUSTER_ID: rlbaunQ7QqSMfWiy4m0QYw
     volumes:
-      - kafka_data:/var/lib/kafka/data
+      - Kafka_:/var/lib/kafka/data
 
   redis:
     image: redis/redis-stack-server:7.4.0-v0
@@ -41,8 +41,8 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_REDIS_HOST: redis
-      SPRING_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_PROFILES_ACTIVE: prod
     depends_on:
@@ -63,4 +63,4 @@ services:
       - api
 
 volumes:
-  kafka_data:
+  Kafka_:
