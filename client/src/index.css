@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background-color: #21242c; /* chzzk_bg */
+  color: #e0e0e0; /* chzzk_text */
+}
+
+/* 스크롤바 커스터마이징 (선택 사항) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #8a2be2; /* chzzk_purple */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: #333;
+}

@@ -182,11 +182,24 @@ flowchart LR
 *   Spring Scheduler를 사용하여 10초마다 메모리에 집계된 분석 데이터를 RedisTimeSeries에 저장합니다.
 *   이를 통해 데이터 영속성을 확보하고 시계열 분석을 위한 기반을 마련합니다.
 
+#### 4. 채팅 화력 조회 API
+*   저장된 스트림별 시계열 분석 데이터를 조회할 수 있는 REST API 엔드포인트(`GET /api/v1/analysis/{streamId}`)를 제공합니다.
+*   이를 통해 Grafana와 같은 외부 시각화 도구나 클라이언트 애플리케이션에서 데이터를 활용할 수 있습니다.
+
 #### 데이터 플로우
 ```mermaid
 flowchart LR
-    A["Kafka<br/>(chat-messages)"] --> B[ChatAnalysisService]
-    B --> C["Caffeine Cache<br/>(In-Memory Aggregation)"]
-    C --> D{Scheduler<br/>10s}
-    D --> E["RedisTimeSeries<br/>(분당 채팅 수 저장)"]
+    subgraph Write Path
+        A["Kafka<br/>(chat-messages)"] --> B[ChatAnalysisService]
+        B --> C["Caffeine Cache<br/>(In-Memory Aggregation)"]
+        C --> D{Scheduler<br/>10s}
+        D --> E["RedisTimeSeries<br/>(분당 채팅 수 저장)"]
+    end
+
+    subgraph Read Path
+        F[External Client<br/>(e.g., Grafana)] --> G[ChatAnalysisController]
+        G --> H[ChatAnalysisService]
+        H --> I["RedisTimeSeries<br/>(채팅 기록 조회)"]
+        I --> G
+    end
 ```

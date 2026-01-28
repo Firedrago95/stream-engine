@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: slice-stream-engine
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  kafka:
+    producer:
+      bootstrap-servers: localhost:9092
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+chzzk:
+  # 1. 치지직 오픈 API (방송 정보 조회 등)
+  api:
+    base-url: "https://api.chzzk.naver.com"
+    live-fetch: /service/v1/lives
+
+  # 2. 치지직 게임 API (토큰 발급용 - 별도 도메인)
+  game-api:
+    base-url: "https://comm-api.game.naver.com"

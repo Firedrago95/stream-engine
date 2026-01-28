@@ -1,0 +1,27 @@
+plugins {
+    id 'java'
+    id 'com.github.node-gradle.node' version '7.0.2'
+}
+
+group = 'io.slice.stream.engine'
+version = '0.0.1-SNAPSHOT'
+
+node {
+    version = "22.12.0"
+    npmVersion = "10.9.0"
+    download = true
+}
+
+repositories {
+    mavenCentral()
+}
+
+// React build
+tasks.register("buildClient", NpmTask) {
+    args = ["run", "build"]
+}
+
+// client build 시 React 먼저
+tasks.named("build") {
+    dependsOn("buildClient")
+}
