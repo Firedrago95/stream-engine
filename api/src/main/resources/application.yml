@@ -17,7 +17,8 @@ chzzk:
   # 1. 치지직 오픈 API (방송 정보 조회 등)
   api:
     base-url: "https://api.chzzk.naver.com"
-    live-fetch: /service/v1/lives
+    live-fetch: "/service/v1/lives"
+    live-detail-fetch: "/service/v1/channels/{channelId}/live-detail"
 
   # 2. 치지직 게임 API (토큰 발급용 - 별도 도메인)
   game-api:

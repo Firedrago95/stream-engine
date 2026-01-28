@@ -25,6 +25,9 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
     @Value("${chzzk.api.live-fetch}")
     private final String liveFetch;
 
+    @Value("${chzzk.api.live-detail-fetch}")
+    private final String liveDetailFetch;
+
     @Override
     @Retryable(
         includes = RestClientException.class,
@@ -32,18 +35,39 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
         delay = 400
     )
     public List<StreamTarget> fetchTopLiveStreams(int limit) {
-        String uri = buildApiUri(limit);
+        String topLiveUri = buildTopLiveApiUri(limit);
+        ChzzkLiveResponse topLivesResponse = callChzzkApi(topLiveUri);
 
-        ChzzkLiveResponse response = callChzzkApi(uri);
-
-        return toStreamTargets(response);
+        return Optional.ofNullable(topLivesResponse)
+            .map(r -> r.content().data())
+            .orElse(Collections.emptyList())
+            .stream()
+            .map(topLive -> {
+                String channelId = topLive.channel().channelId();
+                ChzzkLiveResponse.Content.ChzzkLive detailLive = fetchLiveDetail(channelId);
+                return new StreamTarget(
+                    topLive.channel().channelId(),
+                    topLive.channel().channelName(),
+                    detailLive.chatChannelId(),
+                    topLive.liveId(),
+                    topLive.liveTitle(),
+                    topLive.concurrentUserCount()
+                );
+            }).toList();
     }
 
-    private String buildApiUri(int limit) {
+    private String buildTopLiveApiUri(int limit) {
         return UriComponentsBuilder.fromPath(liveFetch)
             .queryParam("sort", "POPULAR")
             .queryParam("size", limit)
             .toUriString();
+    }
+
+    private ChzzkLiveResponse.Content.ChzzkLive fetchLiveDetail(String channelId) {
+        String uri = UriComponentsBuilder.fromPath(liveDetailFetch)
+            .buildAndExpand(channelId)
+            .toUriString();
+        return callChzzkApi(uri).content().data().get(0);
     }
 
     private ChzzkLiveResponse callChzzkApi(String url) {
@@ -55,19 +79,5 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
         } catch (RestClientException e) {
             throw new IngestionException(ErrorCode.STREAM_PROVIDER_CLIENT_ERROR, "치지직 API 호출에 실패했습니다.");
         }
-    }
-
-    private static List<StreamTarget> toStreamTargets(ChzzkLiveResponse response) {
-        return Optional.ofNullable(response)
-            .map(r -> r.content().data())
-            .orElse(Collections.emptyList())
-            .stream()
-            .map(it -> new StreamTarget(
-                it.channel().channelId(),
-                it.channel().channelName(),
-                it.liveId(),
-                it.liveTitle(),
-                it.concurrentUserCount()
-            )).toList();
     }
 }
