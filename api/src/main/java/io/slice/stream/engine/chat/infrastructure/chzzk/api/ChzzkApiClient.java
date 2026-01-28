@@ -28,7 +28,8 @@ public class ChzzkApiClient {
             .retrieve()
             .onStatus(HttpStatusCode::isError, (request, response) -> {
                 throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
-                    "치지직 API를 통해 accessToken을 받아오지 못했습니다. Status: " + response.getStatusText());
+                    "치지직 API를 통해 accessToken을 받아오지 못했습니다. Status: " + response.getStatusText()
+                + "/ streamId:" + chatChannelId);
             })
             .body(ChatAccessResponse.class);
 
