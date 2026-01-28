@@ -5,7 +5,7 @@ COPY --chown=gradle:gradle . .
 RUN gradle bootJar --no-daemon
 
 # Stage 2: Create the final image
-FROM eclipse-temurin:25-jre-slim
+FROM eclipse-temurin:25-jre
 WORKDIR /app
-COPY --from=build /home/gradle/src/api/build/libs/*.jar app.jar
+COPY --from=build /home/gradle/src/build/libs/*.jar app.jar
 ENTRYPOINT ["java", "-jar", "app.jar"]
