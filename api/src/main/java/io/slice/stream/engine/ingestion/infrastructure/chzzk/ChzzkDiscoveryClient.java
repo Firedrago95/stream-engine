@@ -4,18 +4,22 @@ import io.slice.stream.engine.core.model.StreamTarget;
 import io.slice.stream.engine.global.error.ErrorCode;
 import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
 import io.slice.stream.engine.ingestion.domain.error.IngestionException;
+import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveDetailResponse;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
@@ -36,7 +40,7 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
     )
     public List<StreamTarget> fetchTopLiveStreams(int limit) {
         String topLiveUri = buildTopLiveApiUri(limit);
-        ChzzkLiveResponse topLivesResponse = callChzzkApi(topLiveUri);
+        ChzzkLiveResponse topLivesResponse = callTopLivesApi(topLiveUri);
 
         return Optional.ofNullable(topLivesResponse)
             .map(r -> r.content().data())
@@ -44,11 +48,12 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             .stream()
             .map(topLive -> {
                 String channelId = topLive.channel().channelId();
-                ChzzkLiveResponse.Content.ChzzkLive detailLive = fetchLiveDetail(channelId);
+                log.debug("채널 id로 상세 조회 시작: {}", channelId);
+                ChzzkLiveDetailResponse.Content detailContent = fetchLiveDetail(channelId);
                 return new StreamTarget(
                     topLive.channel().channelId(),
                     topLive.channel().channelName(),
-                    detailLive.chatChannelId(),
+                    detailContent.chatChannelId(),
                     topLive.liveId(),
                     topLive.liveTitle(),
                     topLive.concurrentUserCount()
@@ -63,20 +68,41 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             .toUriString();
     }
 
-    private ChzzkLiveResponse.Content.ChzzkLive fetchLiveDetail(String channelId) {
+    private ChzzkLiveDetailResponse.Content fetchLiveDetail(String channelId) {
         String uri = UriComponentsBuilder.fromPath(liveDetailFetch)
             .buildAndExpand(channelId)
             .toUriString();
-        return callChzzkApi(uri).content().data().get(0);
+        ChzzkLiveDetailResponse response = callLiveDetailApi(uri);
+        return response.content();
     }
 
-    private ChzzkLiveResponse callChzzkApi(String url) {
+    private ChzzkLiveResponse callTopLivesApi(String url) {
         try {
+            log.info("[Chzzk API] TopLive 요청 URL: {}", url);
             return restClient.get()
                 .uri(url)
                 .retrieve()
+                .onStatus(HttpStatusCode::isError, (request, response) -> {
+                    String body = new String(response.getBody().readAllBytes());
+                    log.error("TopLive API Error - Body: {}", body);
+                    throw new IngestionException(ErrorCode.STREAM_PROVIDER_CLIENT_ERROR, "API 호출 실패: " + body);
+                })
                 .body(ChzzkLiveResponse.class);
         } catch (RestClientException e) {
+            log.error("[Chzzk API Error] TopLive 호출 실패. URL: {}", url, e);
+            throw new IngestionException(ErrorCode.STREAM_PROVIDER_CLIENT_ERROR, "치지직 API 호출에 실패했습니다.");
+        }
+    }
+
+    private ChzzkLiveDetailResponse callLiveDetailApi(String url) {
+        try {
+            log.info("[Chzzk API] LiveDetail 요청 URL: {}", url);
+            return restClient.get()
+                .uri(url)
+                .retrieve()
+                .body(ChzzkLiveDetailResponse.class);
+        } catch (RestClientException e) {
+            log.error("[Chzzk API Error] LiveDetail 호출 실패. URL: {}", url, e);
             throw new IngestionException(ErrorCode.STREAM_PROVIDER_CLIENT_ERROR, "치지직 API 호출에 실패했습니다.");
         }
     }

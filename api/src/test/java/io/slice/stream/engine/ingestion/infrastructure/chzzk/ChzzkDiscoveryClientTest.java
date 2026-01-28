@@ -10,6 +10,7 @@ import io.slice.stream.engine.core.model.StreamTarget;
 import io.slice.stream.engine.global.error.ErrorCode;
 import io.slice.stream.engine.ingestion.domain.error.IngestionException;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse;
+import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveDetailResponse;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.ChzzkLive;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.ChzzkLive.Channel;
@@ -64,12 +65,16 @@ class ChzzkDiscoveryClientTest {
 
         // 2. live-detail-fetch (각 채널의 상세 정보 조회) 응답 Mocking
         // ch1에 대한 상세 응답
-        ChzzkLiveResponse detailResponse1 = createMockResponse(List.of(chzzkLive1));
+        ChzzkLiveDetailResponse detailResponse1 = new ChzzkLiveDetailResponse(
+            new ChzzkLiveDetailResponse.Content("OPEN", chzzkLive1.chatChannelId())
+        );
         mockServer.expect(requestTo(buildLiveDetailApiUri(chzzkLive1.channel().channelId())))
             .andRespond(withSuccess(objectMapper.writeValueAsString(detailResponse1), MediaType.APPLICATION_JSON));
 
         // ch2에 대한 상세 응답
-        ChzzkLiveResponse detailResponse2 = createMockResponse(List.of(chzzkLive2));
+        ChzzkLiveDetailResponse detailResponse2 = new ChzzkLiveDetailResponse(
+            new ChzzkLiveDetailResponse.Content("OPEN", chzzkLive2.chatChannelId())
+        );
         mockServer.expect(requestTo(buildLiveDetailApiUri(chzzkLive2.channel().channelId())))
             .andRespond(withSuccess(objectMapper.writeValueAsString(detailResponse2), MediaType.APPLICATION_JSON));
 
