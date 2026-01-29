@@ -53,6 +53,7 @@ public class ChzzkChatClient implements ChatClient {
 
         httpClient.newWebSocketBuilder()
             .header("User-Agent", USER_AGENT)
+            .header("Origin", "https://chzzk.naver.com")
             .header("sec-ch-ua", "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\"")
             .header("sec-ch-ua-mobile", "?0")
             .header("sec-ch-ua-platform", "\"macOS\"")
