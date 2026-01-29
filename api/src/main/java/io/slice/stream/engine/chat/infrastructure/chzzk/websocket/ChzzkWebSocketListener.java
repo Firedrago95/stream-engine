@@ -66,6 +66,7 @@ public class ChzzkWebSocketListener implements Listener {
 
     private void processMessage(String message) {
         try {
+            log.debug("[{}] 수신 데이터 : {}", chatChannelId, message);
             JsonNode rootNode = jsonMapper.readTree(message);
             int cmd = rootNode.path("cmd").asInt();
             CmdType cmdType = CmdType.fromInt(rootNode.path("cmd").asInt());
