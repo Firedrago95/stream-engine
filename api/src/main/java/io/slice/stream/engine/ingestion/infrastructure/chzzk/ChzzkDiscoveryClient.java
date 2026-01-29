@@ -6,8 +6,10 @@ import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
 import io.slice.stream.engine.ingestion.domain.error.IngestionException;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveDetailResponse;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse;
+import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.ChzzkLive;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,19 +48,28 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             .map(r -> r.content().data())
             .orElse(Collections.emptyList())
             .stream()
-            .map(topLive -> {
-                String channelId = topLive.channel().channelId();
-                log.debug("채널 id로 상세 조회 시작: {}", channelId);
-                ChzzkLiveDetailResponse.Content detailContent = fetchLiveDetail(channelId);
-                return new StreamTarget(
-                    topLive.channel().channelId(),
-                    topLive.channel().channelName(),
-                    detailContent.chatChannelId(),
-                    topLive.liveId(),
-                    topLive.liveTitle(),
-                    topLive.concurrentUserCount()
-                );
-            }).toList();
+            .map(this::convertToStreamTarget)
+            .filter(Objects::nonNull)
+            .toList();
+    }
+
+    private StreamTarget convertToStreamTarget(ChzzkLive topLive) {
+        String channelId = topLive.channel().channelId();
+        try {
+            log.debug("채널 id로 상세 조회 시작: {}", channelId);
+            ChzzkLiveDetailResponse.Content detailContent = fetchLiveDetail(channelId);
+            return new StreamTarget(
+                topLive.channel().channelId(),
+                topLive.channel().channelName(),
+                detailContent.chatChannelId(),
+                topLive.liveId(),
+                topLive.liveTitle(),
+                topLive.concurrentUserCount()
+            );
+        } catch (Exception e) {
+            log.warn("방송 상세 정보 조회 중 에러 발생. channelName: {}", topLive.channel().channelName());
+            return null;
+        }
     }
 
     private String buildTopLiveApiUri(int limit) {
