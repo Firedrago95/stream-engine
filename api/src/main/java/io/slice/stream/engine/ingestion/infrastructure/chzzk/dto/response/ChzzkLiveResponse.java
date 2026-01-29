@@ -13,6 +13,7 @@ public record ChzzkLiveResponse(
         public record ChzzkLive(
             long liveId,
             String liveTitle,
+            String chatChannelId,
             int concurrentUserCount,
             Channel channel
         ) {

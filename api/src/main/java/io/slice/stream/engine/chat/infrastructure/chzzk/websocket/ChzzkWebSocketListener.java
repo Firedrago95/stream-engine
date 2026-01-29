@@ -45,20 +45,8 @@ public class ChzzkWebSocketListener implements Listener {
         Listener.super.onOpen(webSocket);
         this.webSocket = webSocket;
         this.messageListener.onConnected();
-        log.info("[{}] Websocket 연결 완료.", chatChannelId);
 
-        try {
-            String authPacket = createAuthPacket(chatChannelId, accessToken);
-            webSocket.sendText(authPacket, true);
-
-            String sendPacket = createSendPacket(chatChannelId);
-            webSocket.sendText(sendPacket, true);
-        } catch (Exception e) {
-            log.error("[{}] 웹소켓 초기 패킷 전송 실패", chatChannelId, e);
-            this.messageListener.onError(e);
-            webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "초기 패킷 전송 실패");
-            return;
-        }
+        log.info("[{}] Websocket 연결 성공. 서버의 CONNECTED(10100) 신호 대기 중...", chatChannelId);
 
         Thread.ofVirtual().name("ping-thread-" + chatChannelId).start(this::runPingLoop);
     }
@@ -78,8 +66,12 @@ public class ChzzkWebSocketListener implements Listener {
 
     private void processMessage(String message) {
         try {
+            log.debug("[{}] 수신 데이터 : {}", chatChannelId, message);
             JsonNode rootNode = jsonMapper.readTree(message);
+            int cmd = rootNode.path("cmd").asInt();
             CmdType cmdType = CmdType.fromInt(rootNode.path("cmd").asInt());
+
+            log.info("[{}] 수신 패킷: cmd = {}, body = {}", chatChannelId, cmd, message);
             dispatchCommand(cmdType, rootNode);
         } catch (Exception e) {
             log.error("[{}] 메시지 처리 중 오류 발생: {}", chatChannelId, e.getMessage());
@@ -88,11 +80,24 @@ public class ChzzkWebSocketListener implements Listener {
 
     private void dispatchCommand(CmdType type, JsonNode rootNode) {
         switch (type) {
+            case CONNECTED      -> {
+                log.info("[{}] 서버로부터 CONNECTED(10100) 수신. 인증 패킷 전송 시도...", chatChannelId);
+                requestAuthentication();
+            }
             case CHAT, DONATION -> handleChatMessage(rootNode);
             case PING           -> handlePing();
             case CONNECT_ACK    -> log.info("[{}] 웹소켓 연결 완료 ack 수신", chatChannelId);
             case PONG           -> log.debug("[{}] 서버로부터 pong 수신", chatChannelId);
             default             -> log.warn("[{}] 처리되지 않은 명령어 수신 (cmd: {})", chatChannelId, type);
+        }
+    }
+
+    private void requestAuthentication() {
+        try {
+            String authPacket = createAuthPacket(chatChannelId, accessToken);
+            webSocket.sendText(authPacket, true);
+        } catch (Exception e) {
+            log.error("[{}] 인증 패킷 전송 실패", chatChannelId, e);
         }
     }
 
