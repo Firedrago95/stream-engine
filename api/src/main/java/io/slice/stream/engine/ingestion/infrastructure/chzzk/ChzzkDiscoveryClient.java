@@ -11,6 +11,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,10 +30,10 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
 
     private final RestClient restClient;
+    private final ExecutorService virtualThreadExecutor;
 
     @Value("${chzzk.api.live-fetch}")
     private final String liveFetch;
-
     @Value("${chzzk.api.live-detail-fetch}")
     private final String liveDetailFetch;
 
@@ -41,16 +44,46 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
         delay = 400
     )
     public List<StreamTarget> fetchTopLiveStreams(int limit) {
+        List<ChzzkLive> topLives = fetchTopLives(limit);
+
+        if (topLives.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return fetchAllLiveDetailsConcurrently(topLives);
+    }
+
+    private List<ChzzkLive> fetchTopLives(int limit) {
         String topLiveUri = buildTopLiveApiUri(limit);
         ChzzkLiveResponse topLivesResponse = callTopLivesApi(topLiveUri);
 
         return Optional.ofNullable(topLivesResponse)
             .map(r -> r.content().data())
-            .orElse(Collections.emptyList())
-            .stream()
-            .map(this::convertToStreamTarget)
-            .filter(Objects::nonNull)
+            .orElse(Collections.emptyList());
+    }
+
+    private List<StreamTarget> fetchAllLiveDetailsConcurrently(List<ChzzkLive> lives) {
+        List<Callable<StreamTarget>> tasks = lives.stream()
+            .<Callable<StreamTarget>>map(live -> () -> convertToStreamTarget(live))
             .toList();
+
+        try {
+            List<Future<StreamTarget>> futures = virtualThreadExecutor.invokeAll(tasks);
+            return futures.stream()
+                .map(future -> {
+                    try {
+                        return future.get();
+                    } catch (Exception e) {
+                        log.warn("상세 정보 조회 작업 결과 가져오기 실패", e);
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .toList();
+        } catch (InterruptedException e) {
+            log.warn("상세 정보 조회 작업이 중단되었습니다.", e);
+            Thread.currentThread().interrupt();
+            return Collections.emptyList();
+        }
     }
 
     private StreamTarget convertToStreamTarget(ChzzkLive topLive) {
@@ -72,17 +105,8 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
         }
     }
 
-    private String buildTopLiveApiUri(int limit) {
-        return UriComponentsBuilder.fromPath(liveFetch)
-            .queryParam("sort", "POPULAR")
-            .queryParam("size", limit)
-            .toUriString();
-    }
-
     private ChzzkLiveDetailResponse.Content fetchLiveDetail(String channelId) {
-        String uri = UriComponentsBuilder.fromPath(liveDetailFetch)
-            .buildAndExpand(channelId)
-            .toUriString();
+        String uri = buildLiveDetailApiUri(channelId);
         ChzzkLiveDetailResponse response = callLiveDetailApi(uri);
         return response.content();
     }
@@ -116,5 +140,18 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             log.error("[Chzzk API Error] LiveDetail 호출 실패. URL: {}", url, e);
             throw new IngestionException(ErrorCode.STREAM_PROVIDER_CLIENT_ERROR, "치지직 API 호출에 실패했습니다.");
         }
+    }
+
+    private String buildTopLiveApiUri(int limit) {
+        return UriComponentsBuilder.fromPath(liveFetch)
+            .queryParam("sort", "POPULAR")
+            .queryParam("size", limit)
+            .toUriString();
+    }
+
+    private String buildLiveDetailApiUri(String channelId) {
+        return UriComponentsBuilder.fromPath(liveDetailFetch)
+            .buildAndExpand(channelId)
+            .toUriString();
     }
 }

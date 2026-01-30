@@ -2,6 +2,10 @@ spring:
   application:
     name: slice-stream-engine
 
+  threads:
+    virtual:
+      enabled: true
+
   data:
     redis:
       host: redis

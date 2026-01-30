@@ -2,6 +2,7 @@ package io.slice.stream.engine.ingestion.infrastructure.chzzk;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -9,18 +10,21 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import io.slice.stream.engine.core.model.StreamTarget;
 import io.slice.stream.engine.global.error.ErrorCode;
 import io.slice.stream.engine.ingestion.domain.error.IngestionException;
-import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveDetailResponse;
+import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.ChzzkLive;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.ChzzkLive.Channel;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.test.web.client.UnorderedRequestExpectationManager;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClient.Builder;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -29,9 +33,10 @@ import tools.jackson.databind.ObjectMapper;
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class ChzzkDiscoveryClientTest {
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private ChzzkDiscoveryClient chzzkDiscoveryClient;
     private MockRestServiceServer mockServer;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private ExecutorService virtualExecutorService;
 
     private String baseUrl = "https://api.chzzk.naver.com";
     private String liveFetchUrl;
@@ -40,11 +45,13 @@ class ChzzkDiscoveryClientTest {
     @BeforeEach
     void setUp() {
         liveFetchUrl = "/service/v1/lives";
-        liveDetailFetchUrl = "/service/v1/channels/{channelId}/live-detail";
+        liveDetailFetchUrl = "/service/v2/channels/{channelId}/live-detail";
 
         Builder builder = RestClient.builder().baseUrl(baseUrl);
-        mockServer = MockRestServiceServer.bindTo(builder).build();
-        chzzkDiscoveryClient = new ChzzkDiscoveryClient(builder.build(), liveFetchUrl, liveDetailFetchUrl);
+        mockServer = MockRestServiceServer.bindTo(builder)
+            .build(new UnorderedRequestExpectationManager());
+        virtualExecutorService = Executors.newVirtualThreadPerTaskExecutor();
+        chzzkDiscoveryClient = new ChzzkDiscoveryClient(builder.build(), virtualExecutorService, liveFetchUrl, liveDetailFetchUrl);
     }
 
     @Test
@@ -83,13 +90,12 @@ class ChzzkDiscoveryClientTest {
 
         // Then
         mockServer.verify();
-        assertThat(result).hasSize(2);
-        assertThat(result.get(0).liveTitle()).isEqualTo("침착맨의 일상");
-        assertThat(result.get(0).channelName()).isEqualTo("침착맨");
-        assertThat(result.get(0).chatChannelId()).isEqualTo("chatCh1");
-        assertThat(result.get(1).liveTitle()).isEqualTo("게임 방송");
-        assertThat(result.get(1).channelName()).isEqualTo("게이머A");
-        assertThat(result.get(1).chatChannelId()).isEqualTo("chatCh2");
+        assertThat(result).hasSize(2)
+            .extracting("channelName", "liveTitle", "chatChannelId")
+            .containsExactlyInAnyOrder(
+                tuple("침착맨", "침착맨의 일상", "chatCh1"),
+                tuple("게이머A", "게임 방송", "chatCh2")
+            );
     }
 
     @Test
@@ -136,7 +142,7 @@ class ChzzkDiscoveryClientTest {
         // When & Then
         assertThatThrownBy(() -> chzzkDiscoveryClient.fetchTopLiveStreams(limit))
             .isInstanceOf(IngestionException.class)
-            .hasMessage("치지직 API 호출에 실패했습니다.")
+            .hasMessage("API 호출 실패: ")
             .extracting("errorCode")
             .isEqualTo(ErrorCode.STREAM_PROVIDER_CLIENT_ERROR);
     }
