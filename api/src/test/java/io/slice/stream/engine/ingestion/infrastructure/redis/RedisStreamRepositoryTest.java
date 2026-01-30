@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
 import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.engine.global.config.RedisConfig;
 import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
 import io.slice.stream.testcontainer.redis.RedisTestSupport;
 import java.util.List;
@@ -14,11 +15,14 @@ import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.data.redis.test.autoconfigure.DataRedisTest;
+import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import tools.jackson.databind.ObjectMapper;
 
-@SpringBootTest
+@DataRedisTest
+@Import({RedisStreamRepository.class, RedisConfig.class, JacksonAutoConfiguration.class})
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class RedisStreamRepositoryTest implements RedisTestSupport {
 
