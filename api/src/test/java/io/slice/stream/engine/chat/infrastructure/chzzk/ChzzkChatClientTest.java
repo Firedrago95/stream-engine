@@ -58,13 +58,11 @@ class ChzzkChatClientTest {
     void setUp() {
         chzzkChatClient = new ChzzkChatClient(chzzkApiClient, httpClient, jsonMapper, messageConverter);
         lenient().when(httpClient.newWebSocketBuilder()).thenReturn(webSocketBuilder);
-        lenient().when(webSocketBuilder.header(anyString(), anyString())).thenReturn(webSocketBuilder);
     }
 
     @Test
     void connect는_AccessToken을_받아_웹소켓_연결을_시도해야_한다() throws URISyntaxException {
         // given
-        when(httpClient.newWebSocketBuilder()).thenReturn(webSocketBuilder);
         when(chzzkApiClient.getAccessToken(CHANNEL_ID)).thenReturn(ACCESS_TOKEN);
         when(webSocketBuilder.buildAsync(any(URI.class), any(ChzzkWebSocketListener.class)))
             .thenReturn(CompletableFuture.completedFuture(webSocket));
@@ -80,7 +78,6 @@ class ChzzkChatClientTest {
     @Test
     void 웹소켓_연결이_실패하면_listener의_onError가_호출되어야_한다() throws URISyntaxException {
         // given
-        when(httpClient.newWebSocketBuilder()).thenReturn(webSocketBuilder);
         RuntimeException testException = new RuntimeException("Connection failed");
         when(chzzkApiClient.getAccessToken(CHANNEL_ID)).thenReturn(ACCESS_TOKEN);
         when(webSocketBuilder.buildAsync(any(URI.class), any(ChzzkWebSocketListener.class)))
@@ -96,7 +93,6 @@ class ChzzkChatClientTest {
     @Test
     void disconnect는_활성화된_웹소켓의_sendClose를_호출해야_한다() throws URISyntaxException {
         // given
-        when(httpClient.newWebSocketBuilder()).thenReturn(webSocketBuilder);
         when(chzzkApiClient.getAccessToken(CHANNEL_ID)).thenReturn(ACCESS_TOKEN);
         when(webSocketBuilder.buildAsync(any(URI.class), any(ChzzkWebSocketListener.class)))
             .thenReturn(CompletableFuture.completedFuture(webSocket));
