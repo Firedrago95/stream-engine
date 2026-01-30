@@ -36,7 +36,7 @@ public class ChzzkApiClient {
                 log.error("❌ 치지직 API 에러 발생!");
                 log.error("Request URI: {}", request.getURI());
                 log.error("Response Status: {}", response.getStatusCode());
-                log.error("Response Body: {}", responseBody);
+                log.error("Response Body: {}", responseBody.replaceAll("[\r\n]", " "));
 
                 throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR,
                     "치지직 API를 통해 accessToken을 받아오지 못했습니다. Status: " + response.getStatusText()

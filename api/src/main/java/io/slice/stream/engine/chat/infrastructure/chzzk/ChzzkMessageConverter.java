@@ -72,7 +72,7 @@ public class ChzzkMessageConverter {
                 Map.of()
             );
         } catch (Exception e) {
-            log.error("단일 채팅 메시지 파싱 실패: {} | 원인: {}", bodyNode.toString(), e.getMessage());
+            log.error("단일 채팅 메시지 파싱 실패: {} | 원인: {}", bodyNode.toString().replaceAll("[\r\n]", " "), e.getMessage());
             return null;
         }
     }

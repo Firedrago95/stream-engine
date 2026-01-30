@@ -95,7 +95,7 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, (request, response) -> {
                     String body = new String(response.getBody().readAllBytes());
-                    log.error("TopLive API Error - Body: {}", body);
+                    log.error("TopLive API Error - Body: {}", body.replaceAll("[\r\n]", " "));
                     throw new IngestionException(ErrorCode.STREAM_PROVIDER_CLIENT_ERROR, "API 호출 실패: " + body);
                 })
                 .body(ChzzkLiveResponse.class);

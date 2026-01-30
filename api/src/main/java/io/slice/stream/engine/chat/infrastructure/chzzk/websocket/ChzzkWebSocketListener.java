@@ -104,7 +104,7 @@ public class ChzzkWebSocketListener implements Listener {
         List<ChatMessage> messages = messageConverter.convert(rootNode);
         if (!messages.isEmpty()) {
             for (ChatMessage msg : messages) {
-                log.info("[{}] {}: {}", chatChannelId, msg.author().nickname(), msg.message());
+                log.info("[{}] {}: {}", chatChannelId, msg.author().nickname().replaceAll("[\r\n]", " "), msg.message());
             }
             messageListener.onMessages(messages);
         }
