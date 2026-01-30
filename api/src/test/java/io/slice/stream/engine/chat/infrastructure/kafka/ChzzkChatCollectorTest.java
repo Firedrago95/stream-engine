@@ -47,7 +47,7 @@ class ChzzkChatCollectorTest implements KafkaTestSupport {
         chzzkChatCollector = new ChzzkChatCollector(STREAM_ID, kafkaTemplate);
         
         Map<String, Object> props = Map.of(
-            ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA_CONTAINER.getBootstrapServers(),
+            ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA_CONTAINER.getHost() + ":" + KAFKA_CONTAINER.getMappedPort(9092),
             ConsumerConfig.GROUP_ID_CONFIG, "test-group",
             ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
             ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JacksonJsonDeserializer.class,
