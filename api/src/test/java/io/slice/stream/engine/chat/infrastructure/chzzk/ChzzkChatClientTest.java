@@ -58,6 +58,7 @@ class ChzzkChatClientTest {
     void setUp() {
         chzzkChatClient = new ChzzkChatClient(chzzkApiClient, httpClient, jsonMapper, messageConverter);
         lenient().when(httpClient.newWebSocketBuilder()).thenReturn(webSocketBuilder);
+        lenient().when(webSocketBuilder.header(anyString(), anyString())).thenReturn(webSocketBuilder);
     }
 
     @Test
