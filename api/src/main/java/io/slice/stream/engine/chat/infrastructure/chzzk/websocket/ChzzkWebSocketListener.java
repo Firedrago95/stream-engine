@@ -7,7 +7,6 @@ import io.slice.stream.engine.chat.infrastructure.chzzk.dto.request.ChzzkAuthReq
 import java.net.http.WebSocket;
 import java.net.http.WebSocket.Listener;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.JsonNode;
@@ -45,21 +44,10 @@ public class ChzzkWebSocketListener implements Listener {
         Listener.super.onOpen(webSocket);
         this.webSocket = webSocket;
         this.messageListener.onConnected();
-        log.info("[{}] Websocket 연결 완료.", chatChannelId);
 
-        try {
-            String authPacket = createAuthPacket(chatChannelId, accessToken);
-            webSocket.sendText(authPacket, true);
+        log.info("[{}] Websocket 연결 성공. 서버의 CONNECTED(10100) 신호 대기 중...", chatChannelId);
 
-            String sendPacket = createSendPacket(chatChannelId);
-            webSocket.sendText(sendPacket, true);
-        } catch (Exception e) {
-            log.error("[{}] 웹소켓 초기 패킷 전송 실패", chatChannelId, e);
-            this.messageListener.onError(e);
-            webSocket.sendClose(WebSocket.NORMAL_CLOSURE, "초기 패킷 전송 실패");
-            return;
-        }
-
+        requestAuthentication();
         Thread.ofVirtual().name("ping-thread-" + chatChannelId).start(this::runPingLoop);
     }
 
@@ -69,7 +57,7 @@ public class ChzzkWebSocketListener implements Listener {
 
         if (last) {
             String fullMessage = textBuffer.toString();
-            textBuffer.setLength(0); // 다음 메시지를 위해 즉시 버퍼 초기화
+            textBuffer.setLength(0);
             processMessage(fullMessage);
         }
 
@@ -79,7 +67,13 @@ public class ChzzkWebSocketListener implements Listener {
     private void processMessage(String message) {
         try {
             JsonNode rootNode = jsonMapper.readTree(message);
+            int cmd = rootNode.path("cmd").asInt();
             CmdType cmdType = CmdType.fromInt(rootNode.path("cmd").asInt());
+
+            if (cmdType != CmdType.CHAT && cmdType != CmdType.PING && cmdType != CmdType.PONG) {
+                log.info("[{}] 시스템 메시지 수신: cmd={}", chatChannelId, cmdType);
+            }
+
             dispatchCommand(cmdType, rootNode);
         } catch (Exception e) {
             log.error("[{}] 메시지 처리 중 오류 발생: {}", chatChannelId, e.getMessage());
@@ -88,6 +82,7 @@ public class ChzzkWebSocketListener implements Listener {
 
     private void dispatchCommand(CmdType type, JsonNode rootNode) {
         switch (type) {
+            case CONNECTED      -> log.info("[{}] 서버로부터 CONNECTED(10100) 수신. 인증 패킷 전송 시도...", chatChannelId);
             case CHAT, DONATION -> handleChatMessage(rootNode);
             case PING           -> handlePing();
             case CONNECT_ACK    -> log.info("[{}] 웹소켓 연결 완료 ack 수신", chatChannelId);
@@ -96,9 +91,21 @@ public class ChzzkWebSocketListener implements Listener {
         }
     }
 
+    private void requestAuthentication() {
+        try {
+            String authPacket = createAuthPacket(chatChannelId, accessToken);
+            webSocket.sendText(authPacket, true);
+        } catch (Exception e) {
+            log.error("[{}] 인증 패킷 전송 실패", chatChannelId, e);
+        }
+    }
+
     private void handleChatMessage(JsonNode rootNode) {
         List<ChatMessage> messages = messageConverter.convert(rootNode);
         if (!messages.isEmpty()) {
+            for (ChatMessage msg : messages) {
+                log.info("[{}] {}: {}", chatChannelId, msg.author().nickname().replaceAll("[\r\n]", " "), msg.message());
+            }
             messageListener.onMessages(messages);
         }
     }
@@ -151,20 +158,8 @@ public class ChzzkWebSocketListener implements Listener {
 
     private String createAuthPacket(String chatChannelId, String accessToken) {
         var body = new ChzzkAuthRequest.AuthRequestBody(null, 2, accessToken, "READ");
-        var request = new ChzzkAuthRequest("2", 100, "game", chatChannelId, 1, body);
+        var request = new ChzzkAuthRequest("3", 100, "game", chatChannelId, 1, body);
         return this.jsonMapper.writeValueAsString(request);
-    }
-
-    private String createSendPacket(String chatChannelId) {
-        Map<String, Object> body = Map.of("recentMessageCount", 50);
-        Map<String, Object> packet = Map.of(
-            "cmd", 100,
-            "ver", 2,
-            "svcid", "game",
-            "cid", chatChannelId,
-            "bdy", body
-        );
-        return this.jsonMapper.writeValueAsString(packet);
     }
 
     private String createPongPacket() {

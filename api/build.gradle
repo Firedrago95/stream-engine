@@ -27,6 +27,9 @@ dependencies {
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     implementation 'com.github.ben-manes.caffeine:caffeine'
 
+    // 에러 방지 목적으로 필수적으로 필요
+    implementation 'org.bitbucket.b_c:jose4j:0.9.6'
+
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
     annotationProcessor 'org.projectlombok:lombok'

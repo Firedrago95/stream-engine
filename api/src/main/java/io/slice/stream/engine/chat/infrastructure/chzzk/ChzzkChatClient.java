@@ -14,6 +14,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 public class ChzzkChatClient implements ChatClient {
 
+    private static final String USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36";
+
     private final HttpClient httpClient;
     private final ChzzkApiClient chzzkApiClient;
     private final JsonMapper jsonMapper;
@@ -51,6 +53,11 @@ public class ChzzkChatClient implements ChatClient {
         );
 
         httpClient.newWebSocketBuilder()
+            .header("User-Agent", USER_AGENT)
+            .header("Origin", "https://chzzk.naver.com")
+            .header("sec-ch-ua", "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\"")
+            .header("sec-ch-ua-mobile", "?0")
+            .header("sec-ch-ua-platform", "\"macOS\"")
             .buildAsync(uri, webSocketListener)
             .thenAccept(webSocketRef::set)
             .exceptionally(throwable -> {

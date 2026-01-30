@@ -70,16 +70,28 @@ public class RedisStreamRepository implements StreamRepository {
                 return new StreamUpdateResults(new HashSet<>(), new HashSet<>());
             }
 
-            List<String> newStreamIds = (List<String>) rawResult.get(0);
+            List<String> newStreamTargetsJson = (List<String>) rawResult.get(0);
             List<String> closedStreamIds = (List<String>) rawResult.get(1);
 
+            Set<StreamTarget> newStreamTargets = newStreamTargetsJson.stream()
+                .map(this::deserialize)
+                .collect(java.util.stream.Collectors.toSet());
+
             return new StreamUpdateResults(
-                new HashSet<>(newStreamIds),
+                newStreamTargets,
                 new HashSet<>(closedStreamIds)
             );
         } catch (Exception e) {
             log.error("Redis 방송 정보 업데이트 실패 오류", e);
             throw new IngestionException(ErrorCode.INTERNAL_SERVER_ERROR, "Redis 스크립트 실행 중 오류가 발생했습니다.");
+        }
+    }
+
+    private StreamTarget deserialize(String json) {
+        try {
+            return jsonMapper.readValue(json, StreamTarget.class);
+        } catch (Exception e) {
+            throw new IngestionException(ErrorCode.INTERNAL_SERVER_ERROR, "StreamTarget 역직렬화에 실패했습니다.");
         }
     }
 

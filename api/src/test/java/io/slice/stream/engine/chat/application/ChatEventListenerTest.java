@@ -3,6 +3,7 @@ package io.slice.stream.engine.chat.application;
 import static org.mockito.Mockito.verify;
 
 import io.slice.stream.engine.core.event.StreamChangedEvent;
+import io.slice.stream.engine.core.model.StreamTarget;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -25,14 +26,16 @@ class ChatEventListenerTest {
     @Test
     void StreamChangedEvent를_수신하면_ChatManager의_manageStreams를_호출해야_한다() {
         // given
-        Set<String> newStreamIds = Set.of("stream1", "stream2");
+        StreamTarget streamTarget1 = new StreamTarget("stream1", "name1", "chat1", 1L, "title1", 100);
+        StreamTarget streamTarget2 = new StreamTarget("stream2", "name2", "chat2", 2L, "title2", 200);
+        Set<StreamTarget> newStreamTargets = Set.of(streamTarget1, streamTarget2);
         Set<String> closedStreamIds = Set.of("stream3");
-        StreamChangedEvent event = new StreamChangedEvent(newStreamIds, closedStreamIds);
+        StreamChangedEvent event = new StreamChangedEvent(newStreamTargets, closedStreamIds);
 
         // when
         chatEventListener.handleStreamChangedEvent(event);
 
         // then
-        verify(chatManager).manageStreams(newStreamIds, closedStreamIds);
+        verify(chatManager).manageStreams(newStreamTargets, closedStreamIds);
     }
 }

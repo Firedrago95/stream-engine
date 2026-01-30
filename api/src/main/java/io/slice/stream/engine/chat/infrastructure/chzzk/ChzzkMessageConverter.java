@@ -10,6 +10,7 @@ import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,15 +36,15 @@ public class ChzzkMessageConverter {
         ChzzkResponseMessage response;
         response = jsonMapper.treeToValue(rootNode, ChzzkResponseMessage.class);
 
-        if (response.body() == null || !response.body().isArray()) {
+        if (response.bdy() == null || !response.bdy().isArray()) {
             return Collections.emptyList(); // 데이터 없음 (정상)
         }
 
-        String streamId = response.channelId();
+        String streamId = response.cid();
 
-        return StreamSupport.stream(response.body().spliterator(), false)
+        return StreamSupport.stream(response.bdy().spliterator(), false)
             .map(bodyNode -> parseSingleMessage(bodyNode, cmdType, streamId))
-            .filter(java.util.Objects::nonNull)
+            .filter(Objects::nonNull)
             .toList();
     }
 
@@ -71,7 +72,7 @@ public class ChzzkMessageConverter {
                 Map.of()
             );
         } catch (Exception e) {
-            log.error("단일 채팅 메시지 파싱 실패");
+            log.error("단일 채팅 메시지 파싱 실패: {} | 원인: {}", bodyNode.toString().replaceAll("[\r\n]", " "), e.getMessage());
             return null;
         }
     }

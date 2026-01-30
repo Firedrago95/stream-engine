@@ -1,10 +1,12 @@
 package io.slice.stream.engine.core.event;
 
+import io.slice.stream.engine.core.model.StreamTarget;
 import java.util.Set;
 
 public record StreamChangedEvent(
-    Set<String> newStreamIds,
+    Set<StreamTarget> newStreamIds,
     Set<String> closedStreamIds
 ) {
 
 }
+

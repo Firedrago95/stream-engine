@@ -20,7 +20,7 @@ services:
 
       CLUSTER_ID: ${KAFKA_CLUSTER_ID}
     volumes:
-      - ${KAFKA_VOLUME_NAME}:/var/lib/kafka/data
+      - Kafka_:/var/lib/kafka/data
 
   redis:
     image: redis/redis-stack-server:${REDIS_IMAGE_TAG}
@@ -63,4 +63,4 @@ services:
       - api
 
 volumes:
-  ${KAFKA_VOLUME_NAME}:
+  Kafka_:

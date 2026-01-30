@@ -3,8 +3,8 @@
 -- ARGV[count+2 ~ END]: channelId, json pairs
 
 local unpack = table.unpack or unpack
-local actual_key = KEYS[1]
-local info_key = KEYS[2]
+local actual_key = KEYS[1] -- "stream:targets" (SET)
+local info_key = KEYS[2]   -- "stream:live:" (HASH)
 local temp_key = actual_key .. ":temp"
 
 local count = tonumber(ARGV[1])
@@ -28,8 +28,8 @@ if #ids_for_sadd > 0 then
 end
 
 -- 2. 신규/종료 방송 비교
-local new_stream_ids = redis.call('SDIFF', temp_key, actual_key)
-local closed_stream_ids = redis.call('SDIFF', actual_key, temp_key)
+local new_channel_ids = redis.call('SDIFF', temp_key, actual_key) -- 신규 channelId 목록
+local closed_channel_ids = redis.call('SDIFF', actual_key, temp_key) -- 종료 channelId 목록
 
 -- 3. 현재 활성 ID 목록 교체
 if #ids_for_sadd > 0 then
@@ -40,8 +40,8 @@ else
 end
 
 -- 4. 상세 정보(Hash) 관리
-if #closed_stream_ids > 0 then
-    redis.call('HDEL', info_key, unpack(closed_stream_ids))
+if #closed_channel_ids > 0 then
+    redis.call('HDEL', info_key, unpack(closed_channel_ids))
 end
 
 local hash_data = {}
@@ -54,4 +54,11 @@ if #hash_data > 0 then
     redis.call('HSET', info_key, unpack(hash_data))
 end
 
-return {new_stream_ids, closed_stream_ids}
+-- 5. 새로운 StreamTarget 객체(JSON 문자열) 목록 가져오기
+local new_stream_targets_json = {}
+if #new_channel_ids > 0 then
+    new_stream_targets_json = redis.call('HMGET', info_key, unpack(new_channel_ids))
+end
+
+-- 결과 반환: {신규 StreamTarget JSON 목록, 종료된 channelId 목록}
+return {new_stream_targets_json, closed_channel_ids}

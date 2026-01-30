@@ -7,6 +7,7 @@ import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
 import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -15,15 +16,16 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class IngestionService {
 
-    private static final int DISCOVERY_LIMIT = 20;
-
     private final StreamDiscoveryClient streamDiscoveryClient;
     private final StreamRepository streamRepository;
     private final ApplicationEventPublisher eventPublisher;
 
+    @Value("${chzzk.discovery.limit}")
+    private int discoveryLimit;
+
     @Scheduled(fixedRate = 30000)
     public void ingest() {
-        List<StreamTarget> streamTargets = streamDiscoveryClient.fetchTopLiveStreams(DISCOVERY_LIMIT);
+        List<StreamTarget> streamTargets = streamDiscoveryClient.fetchTopLiveStreams(discoveryLimit);
         StreamUpdateResults updateResults = streamRepository.update(streamTargets);
 
         if (!updateResults.newStreamIds().isEmpty() || !updateResults.closedStreamIds().isEmpty()) {

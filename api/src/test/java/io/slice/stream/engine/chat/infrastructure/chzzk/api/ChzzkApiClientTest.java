@@ -106,6 +106,6 @@ class ChzzkApiClientTest {
         // when & then
         assertThatThrownBy(() -> chzzkApiClient.getAccessToken("testChannel"))
             .isInstanceOf(BusinessException.class)
-            .hasMessage("치지직 API를 통해 accessToken을 받아오지 못했습니다. Status: Internal Server Error/ streamId:h");
+            .hasMessage("치지직 API를 통해 accessToken을 받아오지 못했습니다. Status: Internal Server Error/ streamId:testChannel");
     }
 }

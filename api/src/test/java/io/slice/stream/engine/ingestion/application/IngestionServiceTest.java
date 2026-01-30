@@ -52,10 +52,10 @@ class IngestionServiceTest {
     @Test
     void 새로운_스트림과_종료된_스트림이_있을때_StreamChangedEvent를_한번만_발행해야_한다() {
         // given
-        List<StreamTarget> newStreams = List.of(
-            new StreamTarget("ch1", "chName1", 123L, "title1", 10)
-        );
-        StreamUpdateResults results = new StreamUpdateResults(Set.of("ch1"), Set.of("ch2"));
+        StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 123L, "title1", 10);
+        StreamTarget streamTarget2 = new StreamTarget("ch2", "chName2", "chatCh2", 456L, "title2", 20);
+        List<StreamTarget> newStreams = List.of(streamTarget1);
+        StreamUpdateResults results = new StreamUpdateResults(Set.of(streamTarget1), Set.of("ch2"));
         when(streamDiscoveryClient.fetchTopLiveStreams(any(int.class))).thenReturn(newStreams);
         when(streamRepository.update(newStreams)).thenReturn(results);
 
@@ -68,16 +68,15 @@ class IngestionServiceTest {
         verify(eventPublisher).publishEvent(captor.capture());
         
         StreamChangedEvent event = captor.getValue();
-        assertThat(event.newStreamIds()).containsExactly("ch1");
+        assertThat(event.newStreamIds()).containsExactly(streamTarget1);
         assertThat(event.closedStreamIds()).containsExactly("ch2");
     }
     
     @Test
     void 변경되지_않은_스트림에_대해서는_이벤트를_발행하지_않아야_한다() {
         // given
-        List<StreamTarget> liveStreams = List.of(
-            new StreamTarget("ch1", "chName1", 1L, "title1", 10)
-        );
+        StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 1L, "title1", 10);
+        List<StreamTarget> liveStreams = List.of(streamTarget1);
         StreamUpdateResults results = new StreamUpdateResults(Collections.emptySet(),
             Collections.emptySet());
         when(streamDiscoveryClient.fetchTopLiveStreams(any(int.class))).thenReturn(liveStreams);
@@ -103,10 +102,9 @@ class IngestionServiceTest {
     @Test
     void 저장소의_스트림_상태를_업데이트해야_한다() {
         // given
-        List<StreamTarget> liveStreams = List.of(
-            new StreamTarget("ch1", "chName1", 1L, "title1", 10),
-            new StreamTarget("ch2", "chName2", 2L, "title2", 20)
-        );
+        StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 1L, "title1", 10);
+        StreamTarget streamTarget2 = new StreamTarget("ch2", "chName2", "chatCh2", 2L, "title2", 20);
+        List<StreamTarget> liveStreams = List.of(streamTarget1, streamTarget2);
         when(streamDiscoveryClient.fetchTopLiveStreams(any(int.class))).thenReturn(liveStreams);
         when(streamRepository.update(liveStreams)).thenReturn(
             new StreamUpdateResults(Collections.emptySet(), Collections.emptySet()));
