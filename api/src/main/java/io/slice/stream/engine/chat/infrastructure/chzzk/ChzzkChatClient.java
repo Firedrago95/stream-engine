@@ -14,12 +14,13 @@ import tools.jackson.databind.json.JsonMapper;
 
 public class ChzzkChatClient implements ChatClient {
 
+    private static final String USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36";
+
     private final HttpClient httpClient;
     private final ChzzkApiClient chzzkApiClient;
     private final JsonMapper jsonMapper;
     private final ChzzkMessageConverter messageConverter;
     private final AtomicReference<WebSocket> webSocketRef = new AtomicReference<>();
-    private static final String USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36";
 
     private ChatMessageListener listener;
 

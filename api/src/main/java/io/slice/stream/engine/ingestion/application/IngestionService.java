@@ -16,12 +16,12 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class IngestionService {
 
-    @Value("${chzzk.discovery.limit}")
-    private final int discoveryLimit;
-
     private final StreamDiscoveryClient streamDiscoveryClient;
     private final StreamRepository streamRepository;
     private final ApplicationEventPublisher eventPublisher;
+
+    @Value("${chzzk.discovery.limit}")
+    private int discoveryLimit;
 
     @Scheduled(fixedRate = 30000)
     public void ingest() {
