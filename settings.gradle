@@ -1,4 +1,5 @@
 rootProject.name = 'slice-stream-engine'
 
-include 'api'
+include 'engine'
+include 'api-server'
 include 'client'
