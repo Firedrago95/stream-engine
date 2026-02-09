@@ -18,7 +18,7 @@ public enum ErrorCode {
 
     // chat
     INVALID_CHANNEL_ID(HttpStatus.NOT_FOUND, "C-003"),
-    CLOSE_LIVE(HttpStatus.NOT_FOUND, "C-002"),
+    CLOSE_LIVE(HttpStatus.NOT_FOUND, "C-004"),
 
     // Analysis,
     ANALYSIS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "A-001");
