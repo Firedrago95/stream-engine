@@ -1,4 +1,4 @@
-package io.slice.stream.testcontainer.kafka;
+package io.slice.stream.apiserver.testcontainer.kafka;
 
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
