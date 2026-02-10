@@ -1,4 +1,4 @@
-package io.slice.stream.engine.analysis.presentation;
+package io.slice.stream.apiserver.analysis.presentation;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -6,9 +6,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.slice.stream.engine.analysis.application.ChatAnalysisService;
-import io.slice.stream.engine.analysis.domain.ChatAnalysisResult;
-import io.slice.stream.engine.analysis.domain.ChatAnalysisResult.DataPoint;
+import io.slice.stream.apiserver.analysis.application.ChatAnalysisService;
+import io.slice.stream.apiserver.analysis.domain.ChatAnalysisResult;
+import io.slice.stream.apiserver.analysis.domain.ChatAnalysisResult.DataPoint;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayNameGeneration;
