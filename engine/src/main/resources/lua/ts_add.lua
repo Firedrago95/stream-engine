@@ -3,4 +3,4 @@
 -- ARGV[2]: Value (e.g., "42")
 -- ARGV[3]: Retention (milliseconds)
 
-return redis.call('TS.ADD', KEYS[1], ARGV[1], ARGV[2], 'RETENTION', ARGV[3])
+return redis.call('TS.ADD', KEYS[1], ARGV[1], ARGV[2], 'RETENTION', ARGV[3], 'ON_DUPLICATE', 'LAST')
