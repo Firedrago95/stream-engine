@@ -7,7 +7,7 @@ import io.slice.stream.engine.analysis.domain.ChatAnalysisResult;
 import io.slice.stream.engine.analysis.domain.ChatRoomAnalysis;
 import io.slice.stream.engine.analysis.domain.ChatRoomAnalysisRepository;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
-import java.time.Instant;
+import java.time.Clock;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -20,9 +20,11 @@ public class ChatAnalysisService {
 
     private final Cache<String, ChatRoomAnalysis> chatRoomAnalyses;
     private final ChatRoomAnalysisRepository chatRoomAnalysisRepository;
+    private final Clock clock;
 
-    public ChatAnalysisService(ChatRoomAnalysisRepository chatRoomAnalysisRepository) {
+    public ChatAnalysisService(ChatRoomAnalysisRepository chatRoomAnalysisRepository, Clock clock) {
         this.chatRoomAnalysisRepository = chatRoomAnalysisRepository;
+        this.clock = clock;
         this.chatRoomAnalyses = Caffeine.newBuilder()
             .expireAfterAccess(10, TimeUnit.MINUTES)
             .removalListener((String key, ChatRoomAnalysis value, RemovalCause cause) -> {
@@ -49,7 +51,7 @@ public class ChatAnalysisService {
 
     private void saveToRepository(String key, ChatRoomAnalysis analysis) {
         try {
-            chatRoomAnalysisRepository.save(analysis, Instant.now());
+            chatRoomAnalysisRepository.save(analysis, clock.instant());
         } catch(Exception e) {
             log.error("채팅 분석 결과 저장 실패 : {}", key, e);
         }

@@ -82,7 +82,7 @@ class ChatFirepowerDetectorTest implements RedisTestSupport {
         ChatFirepowerStatus status = detector.detect(roomId);
 
         // then
-        assertThat(status).isEqualTo(ChatFirepowerStatus.PEEK);
+        assertThat(status).isEqualTo(ChatFirepowerStatus.PEAK);
     }
 
     @Test

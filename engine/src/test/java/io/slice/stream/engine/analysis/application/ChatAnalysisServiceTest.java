@@ -2,13 +2,17 @@ package io.slice.stream.engine.analysis.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import io.slice.stream.engine.analysis.domain.ChatAnalysisResult;
 import io.slice.stream.engine.analysis.domain.ChatRoomAnalysis;
 import io.slice.stream.engine.analysis.domain.ChatRoomAnalysisRepository;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -28,6 +32,9 @@ class ChatAnalysisServiceTest {
 
     @Mock
     private ChatRoomAnalysisRepository chatRoomAnalysisRepository;
+
+    @Mock
+    private Clock clock;
 
     @InjectMocks
     private ChatAnalysisService chatAnalysisService;
@@ -86,6 +93,9 @@ class ChatAnalysisServiceTest {
     @Test
     void saveAnalyses_캐시에_있는_모든_분석_결과를_Repository에_저장한다() {
         // given
+        Instant fixedNow = Instant.parse("2026-02-12T10:00:00Z");
+        when(clock.instant()).thenReturn(fixedNow);
+
         ChatRoomAnalysis analysis1 = new ChatRoomAnalysis("stream1");
         analysis1.increaseCount();
         ChatRoomAnalysis analysis2 = new ChatRoomAnalysis("stream2");
@@ -102,13 +112,16 @@ class ChatAnalysisServiceTest {
         chatAnalysisService.saveAnalyses();
 
         // then
-        verify(chatRoomAnalysisRepository, times(1)).save(eq(analysis1), any(Instant.class));
-        verify(chatRoomAnalysisRepository, times(1)).save(eq(analysis2), any(Instant.class));
+        verify(chatRoomAnalysisRepository, times(1)).save(eq(analysis1), eq(fixedNow));
+        verify(chatRoomAnalysisRepository, times(1)).save(eq(analysis2), eq(fixedNow));
     }
 
     @Test
     void 캐시에서_데이터가_만료되면_RemovalListener가_실행되어_저장한다() {
         // given
+        Instant fixedNow = Instant.parse("2026-02-12T10:00:00Z");
+        when(clock.instant()).thenReturn(fixedNow);
+
         String streamId = "expiredStream";
         ChatRoomAnalysis analysis = new ChatRoomAnalysis(streamId);
         analysis.increaseCount();
@@ -123,7 +136,7 @@ class ChatAnalysisServiceTest {
 
         // then
         await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
-            verify(chatRoomAnalysisRepository).save(eq(analysis), any(Instant.class));
+            verify(chatRoomAnalysisRepository).save(eq(analysis), eq(fixedNow));
         });
     }
 }

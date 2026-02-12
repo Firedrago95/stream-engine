@@ -27,7 +27,6 @@ public class ChatFirepowerDetector implements HighlightDetector {
     private final StringRedisTemplate redisTemplate;
     private final RedisScript<List> tsRangeScript;
 
-
     @Override
     public ChatFirepowerStatus detect(String chatRoomId) {
         String key = String.format(CHAT_ANALYSIS_KEY, chatRoomId);
@@ -51,7 +50,7 @@ public class ChatFirepowerDetector implements HighlightDetector {
         }
 
         if (lastValue > average.getAsDouble() * chatFirepowerMultiplier) {
-            return ChatFirepowerStatus.PEEK;
+            return ChatFirepowerStatus.PEAK;
         }
 
         return ChatFirepowerStatus.NORMAL;
