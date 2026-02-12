@@ -1,19 +1,17 @@
 package io.slice.stream.apiserver.aggregation.domain;
 
-import java.util.concurrent.atomic.AtomicLong;
-
 public class ChatRoomAggregation {
 
     private final String streamId;
-    private AtomicLong count;
+    private long count;
 
     public ChatRoomAggregation(String streamId) {
         this.streamId = streamId;
-        this.count = new AtomicLong(0);
+        this.count = 0L;
     }
 
     public Long getCount() {
-        return count.longValue();
+        return count;
     }
 
     public String getStreamId() {
@@ -21,6 +19,6 @@ public class ChatRoomAggregation {
     }
 
     public void increaseCount() {
-        count.addAndGet(1);
+        count++;
     }
 }
