@@ -7,7 +7,7 @@ import static org.mockito.Mockito.verify;
 import io.slice.stream.engine.chat.domain.model.Author;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import io.slice.stream.engine.chat.domain.model.MessageType;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -34,7 +34,7 @@ class ChatAnalysisKafkaConsumerTest {
             MessageType.TEXT,
             new Author("abcd1", "nickname", null),
             "안녕하세요",
-            LocalDateTime.now(),
+            Instant.now(),
             "abcde1234",
             Map.of()
         );

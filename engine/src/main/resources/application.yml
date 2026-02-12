@@ -32,3 +32,9 @@ chzzk:
   # 3. 수집할 방송 갯수
   discovery:
     limit: 5
+
+highlight:
+  # 피크 채팅 화력 배수
+  chat-firepower-multiplier: 3.0
+  # 채팅 평균 산출 기간
+  range: 2m

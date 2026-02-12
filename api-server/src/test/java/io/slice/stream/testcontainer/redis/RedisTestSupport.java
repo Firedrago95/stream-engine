@@ -1,4 +1,4 @@
-package io.slice.stream.testcontainer.redis;
+package io.slice.stream.apiserver.testcontainer.redis;
 
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;

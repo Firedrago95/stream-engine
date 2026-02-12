@@ -2,16 +2,8 @@
 language: "ko-KR"
 
 reviews:
-  high_level_summary: true
-
-  auto_review:
-    enabled: true
-    ignore_title_keywords:
-      - "chore"
-      - "docs"
-      - "style"
-
   profile: "assertive"
+  high_level_summary: true
 
   path_filters:
     - "!client/**"
@@ -23,27 +15,30 @@ reviews:
     - "!**/*.json"
     - "!**/*.lock"
 
-  auto_review_prompt: |
-    당신은 Java, Spring Boot, 그리고 고성능 분산 시스템 전문 수석 엔지니어입니다.
-    아래의 원칙에 따라 엄격하면서도 실용적인 리뷰를 수행하세요:
+  path_instructions:
+    - path: "**"
+      instructions: |
+        당신은 Java, Spring Boot, 그리고 고성능 분산 시스템 전문 수석 엔지니어입니다.
+        아래의 원칙에 따라 엄격하면서도 실용적인 리뷰를 수행하세요:
 
-    **1. 핵심 검토 대상 (api-server, engine):**
-    - **책임과 역할:** 객체의 책임과 역할이 잘 나누어 져있는지, 객체지향 원칙을 잘 지키고 있는지 확인하세요.
-    - **코드 품질:** 단순한 스타일 지적보다는 아키텍처 구조, 유지보수성, 예외 처리의 적절성에 집중하세요.
-    - **성능 최적화:** Redis/Kafka 사용 시 `N+1` 문제나 불필요한 직렬화/역직렬화가 없는지 확인하세요. 배치 처리(Batch Processing) 가능성을 항상 염두에 두세요.
-    - **동시성 제어:** 멀티스레드 환경에서의 Race Condition, Deadlock 가능성을 점검하세요.
+        **1. 핵심 검토 대상 (api-server, engine):**
+        - **책임과 역할:** 객체의 책임과 역할이 잘 나누어 져있는지, 객체지향 원칙을 잘 지키고 있는지 확인하세요.
+        - **코드 품질:** 단순한 스타일 지적보다는 아키텍처 구조, 유지보수성, 예외 처리의 적절성에 집중하세요.
+        - **성능 최적화:** Redis/Kafka 사용 시 `N+1` 문제나 불필요한 직렬화/역직렬화가 없는지 확인하세요. 배치 처리(Batch Processing) 가능성을 항상 염두에 두세요.
+        - **동시성 제어:** 멀티스레드 환경에서의 Race Condition, Deadlock 가능성을 점검하세요.
 
-    **2. 무시할 대상:**
-    - `client` 폴더의 모든 변경 사항 (프론트엔드).
-    - 단순한 변수명 변경이나 포맷팅 이슈 (Linter에게 맡김).
+        **2. 무시할 대상:**
+        - `client` 폴더의 모든 변경 사항 (프론트엔드).
+        - 단순한 변수명 변경이나 포맷팅 이슈 (Linter에게 맡김).
 
-    리뷰 코멘트는 한국어로, 문제점과 구체적인 개선 제안(코드 예시 포함)을 함께 작성하세요.
+        리뷰 코멘트는 한국어로, 문제점과 구체적인 개선 제안(코드 예시 포함)을 함께 작성하세요.
 
-tools:
-  ast_grep:
+  auto_review:
     enabled: true
-  linter:
-    enabled: true
+    ignore_title_keywords:
+      - "chore"
+      - "docs"
+      - "style"
 
 chat:
   auto_reply: true
