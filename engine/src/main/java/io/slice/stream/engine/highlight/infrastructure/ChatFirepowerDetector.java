@@ -42,6 +42,7 @@ public class ChatFirepowerDetector implements HighlightDetector {
         long lastValue = Long.parseLong((String) values.getLast().get(1));
 
         OptionalDouble average = values.stream()
+            .limit(values.size() - 1)
             .mapToLong(v -> Long.parseLong((String) v.get(1)))
             .average();
 
