@@ -1,8 +1,8 @@
-package io.slice.stream.apiserver.analysis.domain;
+package io.slice.stream.apiserver.aggregation.domain;
 
 import java.util.List;
 
-public record ChatAnalysisResult(
+public record ChatAggregationResult(
     String streamId,
     List<DataPoint> dataPoints
 ) {

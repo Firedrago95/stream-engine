@@ -1,6 +1,6 @@
 # stream-engine
 ## 프로젝트 설명
-- Java 25 가상 스레드(Virtual Threads) 기반의 실시간 스트림 데이터 수집 및 분석 엔진
+- Java 25 가상 스레드(Virtual Threads) 기반의 실시간 스트림 데이터 수집 및 집계/분석 엔진
 - 라이브 스트리밍 플랫폼(Chzzk 등)의 방대한 데이터를 실시간으로 수집하여 <br>
   비즈니스 분석과 하이라이트를 추출하는 chzzSlice 서비스의 코어 엔진입니다.
 
@@ -49,9 +49,9 @@ graph TD
         G --> H[Chzzk Chat WebSocket]
     end
 
-    subgraph "Analysis/Highlight Module"
+    subgraph "Aggregation/Highlight Module"
         H -- "채팅 메시지" --> I((Kafka))
-        I -- "메시지 전달" --> J["분석/하이라이트 (예정)"]
+        I -- "메시지 전달" --> J["집계/하이라이트 (예정)"]
     end
 
     %% redundant connections removed as they are defined inside subgraphs or explicitly below
@@ -70,7 +70,7 @@ graph TD
 3.  **채팅 수집기 관리**: `ChatEventListener`가 스트림 이벤트를 수신하여 `ChatManager`에게 특정 스트림의 채팅 수집기(Collector)를 생성하거나 제거하도록 요청합니다.
 4.  **실시간 채팅 수집**: 생성된 채팅 수집기는 해당 스트림의 치지직 채팅 서버(WebSocket)에 연결하여 실시간으로 채팅 메시지를 수집합니다.
 5.  **메시지 큐잉**: 수집된 채팅 메시지는 후속 비동기 처리를 위해 `Kafka`로 전송됩니다.
-6.  **분석 및 하이라이트 추출 (예정)**: Kafka에 적재된 채팅 데이터를 분석하여 하이라이트 구간을 추출합니다.
+6.  **집계 및 하이라이트 추출 (예정)**: Kafka에 적재된 채팅 데이터를 집계/분석하여 하이라이트 구간을 추출합니다.
 
 ### Clean Architecture 기반 모듈 구조
 ```text
@@ -96,14 +96,14 @@ stream-engine/
 │ └── application/    # 유스케이스 계층
 │ └── domain/         # 도메인 계층
 │ └── infrastructure/ # 인프라 계층
-├── analysis/        # 📊 실시간 채팅 분석
+├── aggregation/     # 📊 실시간 채팅 집계
 │ ├── application/    # 유스케이스 계층
-│ │ └── ChatAnalysisService
+│ │ └── ChatAggregationService
 │ ├── domain/         # 도메인 계층
-│ │ ├── ChatRoomAnalysis
-│ │ └── ChatRoomAnalysisRepository
+│ │ ├── ChatRoomAggregation
+│ │ └── ChatRoomAggregationRepository
 │ └── infrastructure/ # 인프라 계층
-│   └── RedisChatRoomAnalysisRepository
+│   └── RedisChatRoomAggregationRepository
 │
 ├── highlight/       # ⭐ 하이라이트 추출 (🚧 예정)
 │ └── ...

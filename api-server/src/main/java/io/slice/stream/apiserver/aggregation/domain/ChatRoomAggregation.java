@@ -1,13 +1,13 @@
-package io.slice.stream.apiserver.analysis.domain;
+package io.slice.stream.apiserver.aggregation.domain;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-public class ChatRoomAnalysis {
+public class ChatRoomAggregation {
 
     private final String streamId;
     private AtomicLong count;
 
-    public ChatRoomAnalysis(String streamId) {
+    public ChatRoomAggregation(String streamId) {
         this.streamId = streamId;
         this.count = new AtomicLong(0);
     }
