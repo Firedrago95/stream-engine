@@ -2,6 +2,7 @@ package io.slice.stream.engine.analysis.application;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.RemovalCause;
 import io.slice.stream.engine.analysis.domain.ChatAnalysisResult;
 import io.slice.stream.engine.analysis.domain.ChatRoomAnalysis;
 import io.slice.stream.engine.analysis.domain.ChatRoomAnalysisRepository;
@@ -24,6 +25,12 @@ public class ChatAnalysisService {
         this.chatRoomAnalysisRepository = chatRoomAnalysisRepository;
         this.chatRoomAnalyses = Caffeine.newBuilder()
             .expireAfterAccess(10, TimeUnit.MINUTES)
+            .removalListener((String key, ChatRoomAnalysis value, RemovalCause cause) -> {
+                if (cause != RemovalCause.REPLACED) {
+                    log.info("캐시 만료로 최종 저장 실행: {}", key);
+                    saveToRepository(key, value);
+                }
+            })
             .build();
     }
 
@@ -37,13 +44,15 @@ public class ChatAnalysisService {
 
     @Scheduled(fixedRate = 10_000)
     public void saveAnalyses() {
-            chatRoomAnalyses.asMap().forEach((streamId, analysis) -> {
-                try {
-                    chatRoomAnalysisRepository.save(analysis, Instant.now());
-                } catch(Exception e) {
-                    log.error("채팅 분석 결과 저장 실패 : {}", streamId, e);
-                }
-            });
+            chatRoomAnalyses.asMap().forEach(this::saveToRepository);
+    }
+
+    private void saveToRepository(String key, ChatRoomAnalysis analysis) {
+        try {
+            chatRoomAnalysisRepository.save(analysis, Instant.now());
+        } catch(Exception e) {
+            log.error("채팅 분석 결과 저장 실패 : {}", key, e);
+        }
     }
 
     public ChatRoomAnalysis getAnalysisFor(String streamId) {

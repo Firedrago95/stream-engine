@@ -1,6 +1,7 @@
 package io.slice.stream.engine.analysis.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.*;
 
 import com.github.benmanes.caffeine.cache.Cache;
@@ -11,6 +12,7 @@ import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
@@ -91,7 +93,8 @@ class ChatAnalysisServiceTest {
         analysis2.increaseCount();
 
         // ReflectionTestUtils를 사용하여 Caffeine 캐시에 직접 데이터 주입
-        Cache<String, ChatRoomAnalysis> cache = (Cache<String, ChatRoomAnalysis>) ReflectionTestUtils.getField(chatAnalysisService, "chatRoomAnalyses");
+        Cache<String, ChatRoomAnalysis> cache = (Cache<String, ChatRoomAnalysis>) ReflectionTestUtils.getField(
+            chatAnalysisService, "chatRoomAnalyses");
         cache.put("stream1", analysis1);
         cache.put("stream2", analysis2);
 
@@ -101,5 +104,26 @@ class ChatAnalysisServiceTest {
         // then
         verify(chatRoomAnalysisRepository, times(1)).save(eq(analysis1), any(Instant.class));
         verify(chatRoomAnalysisRepository, times(1)).save(eq(analysis2), any(Instant.class));
+    }
+
+    @Test
+    void 캐시에서_데이터가_만료되면_RemovalListener가_실행되어_저장한다() {
+        // given
+        String streamId = "expiredStream";
+        ChatRoomAnalysis analysis = new ChatRoomAnalysis(streamId);
+        analysis.increaseCount();
+
+        Cache<String, ChatRoomAnalysis> cache = (Cache<String, ChatRoomAnalysis>)
+            ReflectionTestUtils.getField(chatAnalysisService, "chatRoomAnalyses");
+        cache.put(streamId, analysis);
+
+        // when
+        cache.invalidate(streamId);
+        cache.cleanUp();
+
+        // then
+        await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            verify(chatRoomAnalysisRepository).save(eq(analysis), any(Instant.class));
+        });
     }
 }
