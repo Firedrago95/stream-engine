@@ -3,6 +3,7 @@ package io.slice.stream.engine.highlight.infrastructure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.slice.stream.engine.global.config.RedisConfig;
+import io.slice.stream.engine.global.config.TimeConfig;
 import io.slice.stream.engine.highlight.domain.ChatFirepowerStatus;
 import io.slice.stream.testcontainer.redis.RedisTestSupport;
 import java.time.Instant;
@@ -19,7 +20,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 
 @DataRedisTest
-@Import({RedisConfig.class, ChatFirepowerDetector.class})
+@Import({RedisConfig.class, ChatFirepowerDetector.class, TimeConfig.class})
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class ChatFirepowerDetectorTest implements RedisTestSupport {
 
@@ -61,7 +62,7 @@ class ChatFirepowerDetectorTest implements RedisTestSupport {
     }
 
     @Test
-    void 평상시보다_채팅화력이_높으면_PEEK_상태를_유지한다() throws InterruptedException {
+    void 평상시보다_채팅화력이_높으면_PEAK_상태를_유지한다() throws InterruptedException {
         // given
         String roomId = "room1";
         String key = String.format(CHAT_ANALYSIS_KEY, roomId);

@@ -46,13 +46,13 @@ public class ChatAnalysisService {
 
     @Scheduled(fixedRate = 10_000)
     public void saveAnalyses() {
-            chatRoomAnalyses.asMap().forEach(this::saveToRepository);
+        chatRoomAnalyses.asMap().forEach(this::saveToRepository);
     }
 
     private void saveToRepository(String key, ChatRoomAnalysis analysis) {
         try {
             chatRoomAnalysisRepository.save(analysis, clock.instant());
-        } catch(Exception e) {
+        } catch (Exception e) {
             log.error("채팅 분석 결과 저장 실패 : {}", key, e);
         }
     }

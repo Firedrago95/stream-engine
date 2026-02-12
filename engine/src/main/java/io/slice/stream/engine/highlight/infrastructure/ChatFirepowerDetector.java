@@ -2,7 +2,8 @@ package io.slice.stream.engine.highlight.infrastructure;
 
 import io.slice.stream.engine.highlight.domain.ChatFirepowerStatus;
 import io.slice.stream.engine.highlight.domain.HighlightDetector;
-import java.time.Instant;
+import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
 import java.util.OptionalDouble;
 import lombok.RequiredArgsConstructor;
@@ -22,16 +23,17 @@ public class ChatFirepowerDetector implements HighlightDetector {
     private double chatFirepowerMultiplier;
 
     @Value("${highlight.range}")
-    private long highlightRange;
+    private Duration highlightRange;
 
     private final StringRedisTemplate redisTemplate;
     private final RedisScript<List> tsRangeScript;
+    private final Clock clock;
 
     @Override
     public ChatFirepowerStatus detect(String chatRoomId) {
         String key = String.format(CHAT_ANALYSIS_KEY, chatRoomId);
-        long toTs = Instant.now().toEpochMilli();
-        long fromTs = toTs - highlightRange;
+        long toTs = clock.instant().toEpochMilli();
+        long fromTs = toTs - highlightRange.toMillis();
 
         List<List<Object>> values = redisTemplate.execute(tsRangeScript, List.of(key), String.valueOf(fromTs), String.valueOf(toTs));
 
