@@ -5,8 +5,7 @@ import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import io.slice.stream.engine.chat.domain.model.MessageType;
 import io.slice.stream.engine.chat.infrastructure.chzzk.dto.response.ChzzkResponseMessage;
 import io.slice.stream.engine.chat.infrastructure.chzzk.websocket.CmdType;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -67,7 +66,7 @@ public class ChzzkMessageConverter {
                 messageType,
                 author,
                 bodyNode.path("msg").asString(),
-                LocalDateTime.ofEpochSecond(bodyNode.path("msgTime").asLong() / 1000, 0, ZoneOffset.UTC),
+                Instant.ofEpochMilli(bodyNode.path("msgTime").asLong()),
                 streamId,
                 Map.of()
             );
