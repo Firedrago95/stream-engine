@@ -1,4 +1,4 @@
-package io.slice.stream.engine.analysis.application;
+package io.slice.stream.engine.analyzer.application;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;

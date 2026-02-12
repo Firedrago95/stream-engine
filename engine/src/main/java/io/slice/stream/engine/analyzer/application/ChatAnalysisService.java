@@ -1,11 +1,11 @@
-package io.slice.stream.engine.analysis.application;
+package io.slice.stream.engine.analyzer.application;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalCause;
-import io.slice.stream.engine.analysis.domain.ChatAnalysisResult;
-import io.slice.stream.engine.analysis.domain.ChatRoomAnalysis;
-import io.slice.stream.engine.analysis.domain.ChatRoomAnalysisRepository;
+import io.slice.stream.engine.analyzer.domain.ChatAnalysisResult;
+import io.slice.stream.engine.analyzer.domain.ChatRoomAnalysis;
+import io.slice.stream.engine.analyzer.domain.ChatRoomAnalysisRepository;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import java.time.Clock;
 import java.util.Optional;

@@ -1,9 +1,9 @@
-package io.slice.stream.engine.analysis.infrastructure;
+package io.slice.stream.engine.analyzer.infrastructure;
 
-import io.slice.stream.engine.analysis.domain.ChatAnalysisResult;
-import io.slice.stream.engine.analysis.domain.ChatAnalysisResult.DataPoint;
-import io.slice.stream.engine.analysis.domain.ChatRoomAnalysis;
-import io.slice.stream.engine.analysis.domain.ChatRoomAnalysisRepository;
+import io.slice.stream.engine.analyzer.domain.ChatAnalysisResult;
+import io.slice.stream.engine.analyzer.domain.ChatAnalysisResult.DataPoint;
+import io.slice.stream.engine.analyzer.domain.ChatRoomAnalysis;
+import io.slice.stream.engine.analyzer.domain.ChatRoomAnalysisRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;

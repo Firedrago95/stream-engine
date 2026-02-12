@@ -1,4 +1,4 @@
-package io.slice.stream.engine.analysis.application;
+package io.slice.stream.engine.analyzer.application;
 
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import lombok.RequiredArgsConstructor;

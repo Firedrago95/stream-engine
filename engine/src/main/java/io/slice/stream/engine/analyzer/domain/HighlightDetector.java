@@ -1,4 +1,4 @@
-package io.slice.stream.engine.highlight.domain;
+package io.slice.stream.engine.analyzer.domain;
 
 public interface HighlightDetector {
 

@@ -1,11 +1,11 @@
-package io.slice.stream.engine.analysis.infrastructure;
+package io.slice.stream.engine.analyzer.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
-import io.slice.stream.engine.analysis.domain.ChatAnalysisResult;
-import io.slice.stream.engine.analysis.domain.ChatAnalysisResult.DataPoint;
-import io.slice.stream.engine.analysis.domain.ChatRoomAnalysis;
+import io.slice.stream.engine.analyzer.domain.ChatAnalysisResult;
+import io.slice.stream.engine.analyzer.domain.ChatAnalysisResult.DataPoint;
+import io.slice.stream.engine.analyzer.domain.ChatRoomAnalysis;
 import io.slice.stream.engine.global.config.RedisConfig;
 import io.slice.stream.testcontainer.redis.RedisTestSupport;
 import java.time.Instant;

@@ -1,10 +1,10 @@
-package io.slice.stream.engine.highlight.infrastructure;
+package io.slice.stream.engine.analyzer.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.slice.stream.engine.global.config.RedisConfig;
 import io.slice.stream.engine.global.config.TimeConfig;
-import io.slice.stream.engine.highlight.domain.ChatFirepowerStatus;
+import io.slice.stream.engine.analyzer.domain.ChatFirepowerStatus;
 import io.slice.stream.testcontainer.redis.RedisTestSupport;
 import java.time.Instant;
 import java.util.List;
