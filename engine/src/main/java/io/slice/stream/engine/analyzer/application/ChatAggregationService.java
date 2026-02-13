@@ -3,12 +3,10 @@ package io.slice.stream.engine.analyzer.application;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalCause;
-import io.slice.stream.engine.analyzer.domain.ChatAggregationResult;
 import io.slice.stream.engine.analyzer.domain.ChatRoomAggregation;
 import io.slice.stream.engine.analyzer.domain.ChatRoomAggregationRepository;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import java.time.Clock;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -44,7 +42,7 @@ public class ChatAggregationService {
         chatRoomAggregation.increaseCount();
     }
 
-    @Scheduled(fixedRate = 10_000)
+    @Scheduled(fixedRate = 3_000)
     public void saveAggregations() {
         chatRoomAggregations.asMap().forEach(this::saveToRepository);
     }
@@ -59,9 +57,5 @@ public class ChatAggregationService {
 
     public ChatRoomAggregation getAggregationFor(String streamId) {
         return chatRoomAggregations.getIfPresent(streamId);
-    }
-
-    public Optional<ChatAggregationResult> getChatAggregationResult(String streamId) {
-        return chatRoomAggregationRepository.findByStreamId(streamId);
     }
 }
