@@ -33,84 +33,103 @@
 
 ## 🏗️ 아키텍처
 
+
+두 개의 독립적인 모듈(`engine`, `api-server`)로 구성되어 역할과 책임을 명확히 분리합니다.
+
+### 모듈별 역할
+
+*   **`engine`**:
+    *   **데이터 수집 및 분석**: 실시간으로 스트림 및 채팅 데이터를 수집하고, 이를 집계/분석하여 하이라이트 후보를 감지하는 핵심 로직을 수행합니다.
+    *   **내부 실행**: 로컬 환경 또는 내부 서버에서 실행됩니다.
+    *   **PUSH**: 하이라이트 후보를 감지하면 `api-server`로 HTTP 요청을 보내 데이터를 PUSH합니다.
+
+*   **`api-server`**:
+    *   **외부 인터페이스**: `engine`으로부터 하이라이트 후보를 수신하고, 외부 API(e.g., 치지직 다시보기 API)를 통해 검증 후 최종 하이라이트를 저장/관리합니다.
+    *   **외부 배포**: 외부에 배포되어 클라이언트(웹/앱)의 요청을 처리합니다.
+    *   **조회 API 제공**: 클라이언트가 하이라이트 목록, 실시간 채팅 화력 등의 데이터를 조회할 수 있는 API를 제공합니다.
+
 ### 전체 플로우
 ```mermaid
 graph TD
-    subgraph Ingestion Module
+    subgraph engine (Data Processing)
         A[⏰ Scheduler] --> B{IngestionService}
         B --> C[Chzzk API]
         B --> D[(Redis)]
         D -- "스트림 변경 감지" --> E{Stream Event 발행}
-    end
-
-    subgraph Chat Module
         E -- "이벤트 수신" --> F[ChatEventListener]
         F --> G{ChatManager}
         G --> H[Chzzk Chat WebSocket]
-    end
-
-    subgraph "Aggregation/Highlight Module"
         H -- "채팅 메시지" --> I((Kafka))
-        I -- "메시지 전달" --> J["집계/하이라이트 (예정)"]
+        I -- "메시지 전달" --> J[ChatAggregationService]
+        J -- "주기적 저장" --> K[(RedisTimeSeries)]
+        J -- "하이라이트 후보 감지" --> L{HighlightDetector}
     end
 
-    %% redundant connections removed as they are defined inside subgraphs or explicitly below
-    A --> B
-    C --> B
-    B --> D
-    E --> F
-    F --> G
-    G --> H
-    H --> I
-    I --> J
+    subgraph api-server (API & Verification)
+        M[Client] --> N{API Endpoint}
+        N -- "데이터 조회" --> O[(Database)]
+        L -- "HTTP PUSH" --> P{Internal API Endpoint}
+        P -- "후보 수신" --> Q{HighlightVerificationService}
+        Q --> R[Chzzk VOD API]
+        Q -- "검증 완료" --> O
+    end
+
+    %% Styles
+    style engine fill:#f9f9f9,stroke:#333,stroke-width:2px
+    style api-server fill:#e6f3ff,stroke:#333,stroke-width:2px
 ```
 
-1.  **스트림 수집**: `Scheduler`가 30초마다 `IngestionService`를 실행하여 치지직의 상위 라이브 스트림 목록을 가져옵니다.
-2.  **상태 관리 및 이벤트 발행**: `Redis`에 저장된 기존 스트림 목록과 비교하여 새로 시작되거나 종료된 스트림을 감지하고, `StreamStartedEvent` 또는 `StreamStoppedEvent`를 발행합니다.
-3.  **채팅 수집기 관리**: `ChatEventListener`가 스트림 이벤트를 수신하여 `ChatManager`에게 특정 스트림의 채팅 수집기(Collector)를 생성하거나 제거하도록 요청합니다.
-4.  **실시간 채팅 수집**: 생성된 채팅 수집기는 해당 스트림의 치지직 채팅 서버(WebSocket)에 연결하여 실시간으로 채팅 메시지를 수집합니다.
-5.  **메시지 큐잉**: 수집된 채팅 메시지는 후속 비동기 처리를 위해 `Kafka`로 전송됩니다.
-6.  **집계 및 하이라이트 추출 (예정)**: Kafka에 적재된 채팅 데이터를 집계/분석하여 하이라이트 구간을 추출합니다.
-
 ### Clean Architecture 기반 모듈 구조
+
+#### `engine`
 ```text
-stream-engine/
+engine/
 ├── core/             # 공통 도메인 모델
-│ └── model/
-│ └── StreamTarget     # 스트림 타겟 정보
 │
-├── ingestion/       # 수집 모듈
-│ ├── application/    # 유스케이스 계층
-│ │ └── IngestionService
-│ ├── domain/         # 도메인 계층
-│ │ ├── client/        # 외부 클라이언트 인터페이스
-│ │ ├── event/         # 도메인 이벤트
-│ │ ├── model/         # 도메인 모델
-│ │ └── repository/    # 저장소 인터페이스
-│ └── infrastructure/ # 인프라 계층
-│ ├── chzzk/           # Chzzk API 클라이언트
-│ ├── redis/           # Redis 저장소 구현
-│ └── config/          # 인프라 설정
+├── ingestion/       # 라이브 스트림 수집
+│ ├── application/
+│ └── ...
 │
 ├── chat/            # 💬 실시간 채팅 데이터 수집
-│ └── application/    # 유스케이스 계층
-│ └── domain/         # 도메인 계층
-│ └── infrastructure/ # 인프라 계층
-├── aggregation/     # 📊 실시간 채팅 집계
-│ ├── application/    # 유스케이스 계층
+│ └── ...
+│
+├── analyzer/        # 📊 실시간 채팅 집계 및 분석
+│ ├── application/
 │ │ └── ChatAggregationService
-│ ├── domain/         # 도메인 계층
+│ ├── domain/
 │ │ ├── ChatRoomAggregation
 │ │ └── ChatRoomAggregationRepository
-│ └── infrastructure/ # 인프라 계층
+│ └── infrastructure/
 │   └── RedisChatRoomAggregationRepository
 │
 ├── highlight/       # ⭐ 하이라이트 추출 (🚧 예정)
 │ └── ...
 │
 └── global/          # 전역 설정
-├── config/           # 스케줄링 등
-├── error/            # 예외 처리
-└── aop/              # 횡단 관심사
 ```
+
+#### `api-server`
+```text
+api-server/
+├── highlight/       # ⭐ 최종 하이라이트 관리
+│ ├── application/
+│ │ └── HighlightService
+│ ├── domain/
+│ │ └── Highlight
+│ ├── infrastructure/
+│ │ └── ...
+│ └── presentation/
+│   └── HighlightController
+│
+├── aggregation/     # 📊 집계 데이터 조회
+│ ├── application/
+│ │ └── ChatAggregationQueryService
+│ ├── domain/
+│ ├── infrastructure/
+│ └── presentation/
+│   └── ChatAggregationController
+│
+└── global/          # 전역 설정
+```
+
 
