@@ -20,8 +20,8 @@ public enum ErrorCode {
     INVALID_CHANNEL_ID(HttpStatus.NOT_FOUND, "C-003"),
     CLOSE_LIVE(HttpStatus.NOT_FOUND, "C-002"),
 
-    // Analysis,
-    ANALYSIS_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "A-001");
+    // Aggregation,
+    AGGREGATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "A-001");
 
     private final HttpStatus status;
     private final String code;

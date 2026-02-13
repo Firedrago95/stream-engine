@@ -1,13 +1,13 @@
-package io.slice.stream.apiserver.analysis.infrastructure;
+package io.slice.stream.engine.analyzer.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
-import io.slice.stream.apiserver.analysis.domain.ChatAnalysisResult;
-import io.slice.stream.apiserver.analysis.domain.ChatAnalysisResult.DataPoint;
-import io.slice.stream.apiserver.analysis.domain.ChatRoomAnalysis;
-import io.slice.stream.apiserver.global.config.RedisConfig;
-import io.slice.stream.apiserver.testcontainer.redis.RedisTestSupport;
+import io.slice.stream.engine.analyzer.domain.ChatAggregationResult;
+import io.slice.stream.engine.analyzer.domain.ChatAggregationResult.DataPoint;
+import io.slice.stream.engine.analyzer.domain.ChatRoomAggregation;
+import io.slice.stream.engine.global.config.RedisConfig;
+import io.slice.stream.testcontainer.redis.RedisTestSupport;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -21,12 +21,12 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 
 @DataRedisTest
-@Import({RedisChatRoomAnalysisRepository.class, RedisConfig.class})
+@Import({RedisChatRoomAggregationRepository.class, RedisConfig.class})
 @DisplayNameGeneration(ReplaceUnderscores.class)
-class RedisChatRoomAnalysisRepositoryTest implements RedisTestSupport {
+class RedisChatRoomAggregationRepositoryTest implements RedisTestSupport {
 
     @Autowired
-    private RedisChatRoomAnalysisRepository repository;
+    private RedisChatRoomAggregationRepository repository;
 
     @Autowired
     private StringRedisTemplate redisTemplate;
@@ -34,21 +34,21 @@ class RedisChatRoomAnalysisRepositoryTest implements RedisTestSupport {
     @Autowired
     private RedisScript<List> tsGetScript;
 
-    private static final String CHAT_ANALYSIS_KEY = "chat:analysis:%s";
+    private static final String CHAT_AGGREGATION_KEY = "chat:aggregation:%s";
 
     @Test
     void 채팅갯수를_저장한다() {
         // given
         Instant now = Instant.now();
         String streamId = "abcd1234";
-        ChatRoomAnalysis chatRoomAnalysis = new ChatRoomAnalysis(streamId);
-        chatRoomAnalysis.increaseCount();
+        ChatRoomAggregation chatRoomAggregation = new ChatRoomAggregation(streamId);
+        chatRoomAggregation.increaseCount();
 
         // when
-        repository.save(chatRoomAnalysis, now);
+        repository.save(chatRoomAggregation, now);
 
         // then
-        String key = String.format(CHAT_ANALYSIS_KEY, streamId);
+        String key = String.format(CHAT_AGGREGATION_KEY, streamId);
 
         List<?> result = redisTemplate.execute(tsGetScript, List.of(key));
 
@@ -58,7 +58,7 @@ class RedisChatRoomAnalysisRepositoryTest implements RedisTestSupport {
         long savedCount = Long.parseLong(result.get(1).toString());
 
         assertAll(
-            () -> assertThat(savedCount).isEqualTo(chatRoomAnalysis.getCount()),
+            () -> assertThat(savedCount).isEqualTo(chatRoomAggregation.getCount()),
             () -> assertThat(savedTimestamp).isEqualTo(now.toEpochMilli())
         );
     }
@@ -70,28 +70,28 @@ class RedisChatRoomAnalysisRepositoryTest implements RedisTestSupport {
         String streamId1 = "abcd1234";
         String streamId2 = "efgh5678";
 
-        ChatRoomAnalysis chatRoomAnalysis1 = new ChatRoomAnalysis(streamId1);
-        chatRoomAnalysis1.increaseCount();
-        repository.save(chatRoomAnalysis1, now.minusSeconds(10));
+        ChatRoomAggregation chatRoomAggregation1 = new ChatRoomAggregation(streamId1);
+        chatRoomAggregation1.increaseCount();
+        repository.save(chatRoomAggregation1, now.minusSeconds(10));
 
-        chatRoomAnalysis1.increaseCount();
-        repository.save(chatRoomAnalysis1, now);
+        chatRoomAggregation1.increaseCount();
+        repository.save(chatRoomAggregation1, now);
 
-        ChatRoomAnalysis chatRoomAnalysis2 = new ChatRoomAnalysis(streamId2);
-        chatRoomAnalysis2.increaseCount();
-        repository.save(chatRoomAnalysis2, now);
+        ChatRoomAggregation chatRoomAggregation2 = new ChatRoomAggregation(streamId2);
+        chatRoomAggregation2.increaseCount();
+        repository.save(chatRoomAggregation2, now);
 
 
         // when
-        Optional<ChatAnalysisResult> chatCounts = repository.findByStreamId(streamId1);
+        Optional<ChatAggregationResult> chatCounts = repository.findByStreamId(streamId1);
 
         // then
         assertThat(chatCounts).isPresent();
-        ChatAnalysisResult chatAnalysisResult = chatCounts.get();
-        List<DataPoint> dataPoints = chatAnalysisResult.dataPoints();
+        ChatAggregationResult chatAggregationResult = chatCounts.get();
+        List<DataPoint> dataPoints = chatAggregationResult.dataPoints();
 
         assertAll(
-            () -> assertThat(chatAnalysisResult.streamId()).isEqualTo(streamId1),
+            () -> assertThat(chatAggregationResult.streamId()).isEqualTo(streamId1),
             () -> assertThat(dataPoints.getFirst().timestamp()).isEqualTo(now.minusSeconds(10).toEpochMilli()),
             () -> assertThat(dataPoints.get(1).timestamp()).isEqualTo(now.toEpochMilli()),
             () -> assertThat(dataPoints.get(1).value()).isEqualTo(2)

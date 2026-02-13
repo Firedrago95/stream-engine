@@ -1,7 +1,7 @@
-package io.slice.stream.engine.highlight.infrastructure;
+package io.slice.stream.engine.analyzer.infrastructure;
 
-import io.slice.stream.engine.highlight.domain.ChatFirepowerStatus;
-import io.slice.stream.engine.highlight.domain.HighlightDetector;
+import io.slice.stream.engine.analyzer.domain.ChatFirepowerStatus;
+import io.slice.stream.engine.analyzer.domain.HighlightDetector;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;

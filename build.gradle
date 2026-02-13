@@ -18,5 +18,5 @@ subprojects {
 
 // 루트 build는 순서만 조정
 tasks.named("build") {
-    dependsOn(":client:build", ":api:build")
+    dependsOn(":client:build", ":api-server:build")
 }
