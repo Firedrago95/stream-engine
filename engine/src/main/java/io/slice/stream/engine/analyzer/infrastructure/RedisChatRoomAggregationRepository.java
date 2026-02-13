@@ -1,9 +1,9 @@
 package io.slice.stream.engine.analyzer.infrastructure;
 
-import io.slice.stream.engine.analyzer.domain.ChatAnalysisResult;
-import io.slice.stream.engine.analyzer.domain.ChatAnalysisResult.DataPoint;
-import io.slice.stream.engine.analyzer.domain.ChatRoomAnalysis;
-import io.slice.stream.engine.analyzer.domain.ChatRoomAnalysisRepository;
+import io.slice.stream.engine.analyzer.domain.ChatAggregationResult;
+import io.slice.stream.engine.analyzer.domain.ChatAggregationResult.DataPoint;
+import io.slice.stream.engine.analyzer.domain.ChatRoomAggregation;
+import io.slice.stream.engine.analyzer.domain.ChatRoomAggregationRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -14,9 +14,9 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
-public class RedisChatRoomAnalysisRepository implements ChatRoomAnalysisRepository {
+public class RedisChatRoomAggregationRepository implements ChatRoomAggregationRepository {
 
-    private static final String CHAT_ANALYSIS_KEY = "chat:analysis:%s";
+    private static final String CHAT_AGGREGATION_KEY = "chat:aggregation:%s";
     private static final long RETENTION = 604_800_000; // 7일
 
     private final StringRedisTemplate redisTemplate;
@@ -24,10 +24,10 @@ public class RedisChatRoomAnalysisRepository implements ChatRoomAnalysisReposito
     private final RedisScript<List> tsRangeScript;
 
     @Override
-    public void save(ChatRoomAnalysis chatRoomAnalysis, Instant now) {
-        String key = String.format(CHAT_ANALYSIS_KEY, chatRoomAnalysis.getStreamId());
+    public void save(ChatRoomAggregation chatRoomAggregation, Instant now) {
+        String key = String.format(CHAT_AGGREGATION_KEY, chatRoomAggregation.getStreamId());
 
-        String count = String.valueOf(chatRoomAnalysis.getCount());
+        String count = String.valueOf(chatRoomAggregation.getCount());
         String timestamp = String.valueOf(now.toEpochMilli());
         String retention = String.valueOf(RETENTION);
 
@@ -35,8 +35,8 @@ public class RedisChatRoomAnalysisRepository implements ChatRoomAnalysisReposito
     }
 
     @Override
-    public Optional<ChatAnalysisResult> findByStreamId(String streamId) {
-        String key = String.format(CHAT_ANALYSIS_KEY, streamId);
+    public Optional<ChatAggregationResult> findByStreamId(String streamId) {
+        String key = String.format(CHAT_AGGREGATION_KEY, streamId);
         List<List<Object>> rawData = redisTemplate.execute(tsRangeScript, List.of(key), "-", "+");
 
         if (rawData == null || rawData.isEmpty()) {
@@ -51,6 +51,6 @@ public class RedisChatRoomAnalysisRepository implements ChatRoomAnalysisReposito
             })
             .toList();
 
-        return Optional.of(new ChatAnalysisResult(streamId, dataPoints));
+        return Optional.of(new ChatAggregationResult(streamId, dataPoints));
     }
 }

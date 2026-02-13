@@ -1,4 +1,4 @@
-package io.slice.stream.apiserver.aggregation.domain;
+package io.slice.stream.engine.analyzer.domain;
 
 import java.util.List;
 

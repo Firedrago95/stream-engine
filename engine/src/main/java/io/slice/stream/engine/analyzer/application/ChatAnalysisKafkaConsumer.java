@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ChatAnalysisKafkaConsumer {
 
-    private final ChatAnalysisService chatAnalysisService;
+    private final ChatAggregationService chatAggregationService;
 
     @KafkaListener(
         topics = "chat-messages",
@@ -20,6 +20,6 @@ public class ChatAnalysisKafkaConsumer {
     )
     public void consume(ChatMessage chatMessage) {
         log.debug("kafka 메시지 수신: streamId={}, message={}", chatMessage.streamId(), chatMessage.message());
-        chatAnalysisService.analyze(chatMessage);
+        chatAggregationService.aggregate(chatMessage);
     }
 }

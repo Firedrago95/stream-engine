@@ -22,7 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ChatAnalysisKafkaConsumerTest {
 
     @Mock
-    ChatAnalysisService chatAnalysisService;
+    ChatAggregationService chatAggregationService;
 
     @InjectMocks
     ChatAnalysisKafkaConsumer chatAnalysisKafkaConsumer;
@@ -43,6 +43,6 @@ class ChatAnalysisKafkaConsumerTest {
         chatAnalysisKafkaConsumer.consume(chatMessage);
 
         // then
-        verify(chatAnalysisService, times(1)).analyze(any(ChatMessage.class));
+        verify(chatAggregationService, times(1)).aggregate(any(ChatMessage.class));
     }
 }
