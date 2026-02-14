@@ -30,8 +30,13 @@ public class HighlightService {
     public void monitorHighlights() {
         List<String> activeStreamIds = streamProvider.getActiveStreamIds();
 
-        List<AnalysisSignal> signals = activeStreamIds.stream()
+        List<CompletableFuture<Optional<AnalysisSignal>>> futures = activeStreamIds.stream()
             .map(id -> CompletableFuture.supplyAsync(() -> processStream(id), virtualThreadExecutor))
+            .toList();
+
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        List<AnalysisSignal> signals = futures.stream()
             .map(CompletableFuture::join)
             .filter(Optional::isPresent)
             .map(Optional::get)
