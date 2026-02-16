@@ -1,11 +1,10 @@
 package io.slice.stream.engine.analyzer.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -18,7 +17,6 @@ import io.slice.stream.engine.analyzer.domain.HighlightDetector;
 import io.slice.stream.engine.analyzer.domain.HighlightSignalClient;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,28 +33,26 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class HighlightServiceTest {
 
+    private static final Instant FIXED_NOW = Instant.parse("2026-02-13T10:00:00Z");
+
     @Mock
     private ActiveStreamProvider streamProvider;
-    @Mock
-    private ExecutorService virtualThreadExecutor;
     @Mock
     private HighlightDetector detector;
     @Mock
     private HighlightSignalClient signalClient;
+    @Mock
+    private ExecutorService virtualThreadExecutor;
     @Mock
     private Clock clock;
 
     @InjectMocks
     private HighlightService highlightService;
 
-    private static final Instant FIXED_NOW = Instant.parse("2026-02-13T10:00:00Z");
-
     @BeforeEach
     void setUp() {
-        lenient().when(clock.instant()).thenReturn(FIXED_NOW);
-        lenient().when(clock.getZone()).thenReturn(ZoneId.systemDefault());
-
-        lenient().doAnswer(invocation -> {
+        // ExecutorService가 비동기가 아닌 동기식으로 즉시 실행되도록 설정하여 테스트를 용이하게 함
+        doAnswer(invocation -> {
             Runnable task = invocation.getArgument(0);
             task.run();
             return null;
@@ -66,6 +62,7 @@ class HighlightServiceTest {
     @Test
     void WAITING이_아닌_상태인_NORMAL과_PEAK는_모두_전송되어야_한다() {
         // given
+        when(clock.instant()).thenReturn(FIXED_NOW);
         List<String> streamIds = List.of("stream-normal", "stream-peak", "stream-waiting");
         when(streamProvider.getActiveStreamIds()).thenReturn(streamIds);
 
@@ -105,5 +102,36 @@ class HighlightServiceTest {
 
         // then
         verify(signalClient, never()).send(anyList());
+    }
+
+    @Test
+    void 특정_스트림_분석_중_예외가_발생해도_나머지_스트림은_정상_처리되어야_한다() {
+        // given
+        when(clock.instant()).thenReturn(FIXED_NOW);
+        List<String> streamIds = List.of("stream-normal", "stream-exception", "stream-peak");
+        when(streamProvider.getActiveStreamIds()).thenReturn(streamIds);
+
+        when(detector.detect("stream-normal")).thenReturn(ChatFirepowerStatus.NORMAL);
+        when(detector.detect("stream-exception")).thenThrow(new RuntimeException("Detector temporary error"));
+        when(detector.detect("stream-peak")).thenReturn(ChatFirepowerStatus.PEAK);
+
+        // when
+        highlightService.monitorHighlights();
+
+        // then
+        ArgumentCaptor<List<AnalysisSignal>> captor = ArgumentCaptor.forClass(List.class);
+        verify(signalClient, times(1)).send(captor.capture());
+
+        List<AnalysisSignal> capturedSignals = captor.getValue();
+        assertThat(capturedSignals).hasSize(2);
+        assertThat(capturedSignals)
+            .extracting(AnalysisSignal::streamId)
+            .containsExactlyInAnyOrder("stream-normal", "stream-peak");
+    }
+
+    private void assertAll(Runnable... assertions) {
+        for (Runnable runnable : assertions) {
+            runnable.run();
+        }
     }
 }
