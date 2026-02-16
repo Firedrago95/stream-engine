@@ -75,7 +75,12 @@ graph TD
         Kafka_Topic -- "메시지 컨슘" --> AggService[ChatAggregationService]
         
         AggService -- "시계열 저장" --> RedisTS[(RedisTimeSeries)]
-        AggService -- "하이라이트 감지" --> Detector{HighlightDetector}
+        
+        Scheduler --> HighlightService[HighlightService]
+        HighlightService -- "활성 스트림 조회" --> Redis_DB
+        HighlightService -- "하이라이트 감지" --> Detector{HighlightDetector}
+        Detector -- "채팅 화력 조회" --> RedisTS
+        HighlightService -- "하이라이트 신호 전송" --> SignalClient[HighlightSignalClient]
     end
 
     %% Subgraph: API Server Module
@@ -87,7 +92,7 @@ graph TD
         MainDB[(Database)]
         API_Endpoint{API Endpoint}
         
-        Detector -- "HTTP PUSH" --> InternalAPI
+        SignalClient -- "HTTP PUSH" --> InternalAPI
         InternalAPI --> VerifyService
         VerifyService --> VOD_API
         VerifyService -- "검증 완료" --> MainDB
@@ -98,7 +103,7 @@ graph TD
         UserClient[React Client]
     end
 
-    %% Connections betweeen modules
+    %% Connections between modules
     API_Endpoint -- "데이터 조회" --> MainDB
     UserClient --> API_Endpoint
 
