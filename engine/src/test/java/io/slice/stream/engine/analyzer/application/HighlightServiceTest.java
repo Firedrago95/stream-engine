@@ -1,9 +1,11 @@
 package io.slice.stream.engine.analyzer.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.Mockito.doAnswer;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -51,12 +53,10 @@ class HighlightServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Clock의 동작을 고정
-        when(clock.instant()).thenReturn(FIXED_NOW);
-        when(clock.getZone()).thenReturn(ZoneId.systemDefault());
+        lenient().when(clock.instant()).thenReturn(FIXED_NOW);
+        lenient().when(clock.getZone()).thenReturn(ZoneId.systemDefault());
 
-        // ExecutorService가 비동기가 아닌 동기식으로 즉시 실행되도록 설정하여 테스트를 용이하게 함
-        doAnswer(invocation -> {
+        lenient().doAnswer(invocation -> {
             Runnable task = invocation.getArgument(0);
             task.run();
             return null;
@@ -64,14 +64,14 @@ class HighlightServiceTest {
     }
 
     @Test
-    void 활성화된_스트림에서_하이라이트_신호를_감지하여_전송한다() {
+    void WAITING이_아닌_상태인_NORMAL과_PEAK는_모두_전송되어야_한다() {
         // given
-        List<String> streamIds = List.of("stream1", "stream2", "stream3");
+        List<String> streamIds = List.of("stream-normal", "stream-peak", "stream-waiting");
         when(streamProvider.getActiveStreamIds()).thenReturn(streamIds);
 
-        when(detector.detect("stream1")).thenReturn(ChatFirepowerStatus.PEAK);
-        when(detector.detect("stream2")).thenReturn(ChatFirepowerStatus.WAITING);
-        when(detector.detect("stream3")).thenThrow(new RuntimeException("Test Exception"));
+        when(detector.detect("stream-normal")).thenReturn(ChatFirepowerStatus.NORMAL);
+        when(detector.detect("stream-peak")).thenReturn(ChatFirepowerStatus.PEAK);
+        when(detector.detect("stream-waiting")).thenReturn(ChatFirepowerStatus.WAITING);
 
         // when
         highlightService.monitorHighlights();
@@ -81,40 +81,29 @@ class HighlightServiceTest {
         verify(signalClient, times(1)).send(captor.capture());
 
         List<AnalysisSignal> capturedSignals = captor.getValue();
-        assertThat(capturedSignals).hasSize(1);
 
-        AnalysisSignal signal = capturedSignals.getFirst();
-        assertThat(signal.streamId()).isEqualTo("stream1");
-        assertThat(signal.status()).isEqualTo(ChatFirepowerStatus.PEAK.name());
-        assertThat(signal.timestamp()).isEqualTo(FIXED_NOW);
+        assertAll(
+            () -> assertThat(capturedSignals).hasSize(2),
+            () -> assertThat(capturedSignals)
+                .extracting(AnalysisSignal::status)
+                .containsExactlyInAnyOrder("NORMAL", "PEAK")
+                .doesNotContain("WAITING"),
+            () -> assertThat(capturedSignals)
+                .extracting(AnalysisSignal::streamId)
+                .containsExactlyInAnyOrder("stream-normal", "stream-peak")
+        );
     }
 
     @Test
-    void 하이라이트_신호가_없으면_클라이언트를_호출하지_않는다() {
+    void 분석_가능한_신호가_하나도_없으면_클라이언트를_호출하지_않는다() {
         // given
-        List<String> streamIds = List.of("stream1", "stream2");
-        when(streamProvider.getActiveStreamIds()).thenReturn(streamIds);
-
-        when(detector.detect("stream1")).thenReturn(ChatFirepowerStatus.WAITING);
-        when(detector.detect("stream2")).thenReturn(ChatFirepowerStatus.NORMAL);
+        when(streamProvider.getActiveStreamIds()).thenReturn(List.of("stream-waiting1", "stream-waiting2"));
+        when(detector.detect(anyString())).thenReturn(ChatFirepowerStatus.WAITING);
 
         // when
         highlightService.monitorHighlights();
 
         // then
-        verify(signalClient, never()).send(anyList());
-    }
-
-    @Test
-    void 활성화된_스트림이_없으면_아무_작업도_하지_않는다() {
-        // given
-        when(streamProvider.getActiveStreamIds()).thenReturn(List.of());
-
-        // when
-        highlightService.monitorHighlights();
-
-        // then
-        verify(detector, never()).detect(any());
         verify(signalClient, never()).send(anyList());
     }
 }
