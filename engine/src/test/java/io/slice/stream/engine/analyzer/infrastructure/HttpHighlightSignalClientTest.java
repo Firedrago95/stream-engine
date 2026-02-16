@@ -58,11 +58,11 @@ class HttpHighlightSignalClientTest {
             new AnalysisSignal("stream2", "NORMAL", Instant.now())
         );
         String jsonBody = """
-                          [
-                            {"streamId":"stream1","signalType":"PEAK","timestamp":"2026-02-13T10:00:00Z"},
-                            {"streamId":"stream2","signalType":"NORMAL","timestamp":"2026-02-13T10:00:00Z"}
-                          ]
-                          """;
+            [
+              {"streamId":"stream1","signalType":"PEAK","timestamp":"2026-02-13T10:00:00Z"},
+              {"streamId":"stream2","signalType":"NORMAL","timestamp":"2026-02-13T10:00:00Z"}
+            ]
+            """;
 
         when(objectMapper.writeValueAsString(signals)).thenReturn(jsonBody);
 
@@ -96,4 +96,21 @@ class HttpHighlightSignalClientTest {
 
         verify(httpClient, never()).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
     }
+
+    @Test
+    void send_메서드에서_httpClient_send_실패_시_예외를_던지지_않고_로그를_남긴다() throws IOException, InterruptedException {
+        // given
+        List<AnalysisSignal> signals = List.of(new AnalysisSignal("stream1", "PEAK", Instant.now()));
+        String jsonBody = "[]";
+
+        when(objectMapper.writeValueAsString(signals)).thenReturn(jsonBody);
+        when(httpClient.send(any(HttpRequest.class),
+            any(HttpResponse.BodyHandler.class)))
+            .thenThrow(new IOException("Network Error"));
+
+        // when & then
+        assertThatNoException().isThrownBy(() ->
+            httpHighlightSignalClient.send(signals));
+    }
+
 }
