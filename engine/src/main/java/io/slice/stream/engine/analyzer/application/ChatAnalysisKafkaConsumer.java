@@ -19,7 +19,6 @@ public class ChatAnalysisKafkaConsumer {
         containerFactory = "kafkaListenerContainerFactory"
     )
     public void consume(ChatMessage chatMessage) {
-        log.debug("kafka 메시지 수신: streamId={}, message={}", chatMessage.streamId(), chatMessage.message());
         chatAggregationService.aggregate(chatMessage);
     }
 }
