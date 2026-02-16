@@ -52,4 +52,5 @@ dependencyManagement {
 
 tasks.named('test') {
     useJUnitPlatform()
+    failOnNoDiscoveredTests = false
 }

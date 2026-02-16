@@ -38,3 +38,7 @@ highlight:
   chat-firepower-multiplier: 3.0
   # 채팅 평균 산출 기간
   range: 2m
+
+api-server:
+  uri: ${SERVER_URI}
+  secret: ${SERVER_SECRET}

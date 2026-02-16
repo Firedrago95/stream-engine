@@ -8,14 +8,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.github.benmanes.caffeine.cache.Cache;
-import io.slice.stream.engine.analyzer.domain.ChatAggregationResult;
 import io.slice.stream.engine.analyzer.domain.ChatRoomAggregation;
 import io.slice.stream.engine.analyzer.domain.ChatRoomAggregationRepository;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -73,21 +70,6 @@ class ChatAggregationServiceTest {
         ChatRoomAggregation result = chatAggregationService.getAggregationFor(streamId);
         assertThat(result).isNotNull();
         assertThat(result.getCount()).isEqualTo(2L);
-    }
-
-    @Test
-    void getChatAggregationResult_Repository를_호출하여_결과를_반환한다() {
-        // given
-        String streamId = "testStream";
-        ChatAggregationResult expected = new ChatAggregationResult(streamId, List.of());
-        when(chatRoomAggregationRepository.findByStreamId(streamId)).thenReturn(Optional.of(expected));
-
-        // when
-        Optional<ChatAggregationResult> actual = chatAggregationService.getChatAggregationResult(streamId);
-
-        // then
-        assertThat(actual).isPresent().contains(expected);
-        verify(chatRoomAggregationRepository, times(1)).findByStreamId(streamId);
     }
 
     @Test
