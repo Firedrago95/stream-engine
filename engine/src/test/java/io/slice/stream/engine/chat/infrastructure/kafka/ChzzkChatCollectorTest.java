@@ -2,6 +2,7 @@ package io.slice.stream.engine.chat.infrastructure.kafka;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.slice.stream.engine.analyzer.domain.HighlightSignalClient;
 import io.slice.stream.engine.chat.domain.model.Author;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import io.slice.stream.engine.chat.domain.model.MessageType;
@@ -27,10 +28,14 @@ import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class ChzzkChatCollectorTest implements KafkaTestSupport {
+
+    @MockitoBean
+    private HighlightSignalClient highlightSignalClient;
 
     @Autowired
     private KafkaTemplate<String, ChatMessage> kafkaTemplate;
