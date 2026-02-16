@@ -38,7 +38,6 @@ class HttpHighlightSignalClientTest {
     @Mock
     private ObjectMapper objectMapper;
 
-    @InjectMocks
     private HttpHighlightSignalClient httpHighlightSignalClient;
 
     private static final String API_SERVER_URL = "http://localhost:8081/internal/highlights";
@@ -46,8 +45,9 @@ class HttpHighlightSignalClientTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(httpHighlightSignalClient, "apiServerUrl", API_SERVER_URL);
-        ReflectionTestUtils.setField(httpHighlightSignalClient, "engineSecret", ENGINE_SECRET);
+        httpHighlightSignalClient = new HttpHighlightSignalClient(
+            httpClient, objectMapper, API_SERVER_URL, ENGINE_SECRET
+        );
     }
 
     @Test
