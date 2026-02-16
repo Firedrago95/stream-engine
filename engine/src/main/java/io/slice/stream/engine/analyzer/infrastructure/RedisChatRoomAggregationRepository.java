@@ -4,6 +4,7 @@ import io.slice.stream.engine.analyzer.domain.ChatAggregationResult;
 import io.slice.stream.engine.analyzer.domain.ChatAggregationResult.DataPoint;
 import io.slice.stream.engine.analyzer.domain.ChatRoomAggregation;
 import io.slice.stream.engine.analyzer.domain.ChatRoomAggregationRepository;
+import io.slice.stream.engine.core.redis.Rediskeys;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -16,27 +17,25 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class RedisChatRoomAggregationRepository implements ChatRoomAggregationRepository {
 
-    private static final String CHAT_AGGREGATION_KEY = "chat:aggregation:%s";
-    private static final long RETENTION = 604_800_000; // 7일
-
     private final StringRedisTemplate redisTemplate;
     private final RedisScript<Long> tsAddScript;
     private final RedisScript<List> tsRangeScript;
 
     @Override
     public void save(ChatRoomAggregation chatRoomAggregation, Instant now) {
-        String key = String.format(CHAT_AGGREGATION_KEY, chatRoomAggregation.getStreamId());
+        String key = Rediskeys.CHAT_AGGREGATION_PREFIX + chatRoomAggregation.getStreamId();
 
         String count = String.valueOf(chatRoomAggregation.getCount());
         String timestamp = String.valueOf(now.toEpochMilli());
-        String retention = String.valueOf(RETENTION);
+        String retention = String.valueOf(Rediskeys.CHAT_AGGREGATION_RETENTION);
 
         redisTemplate.execute(tsAddScript, List.of(key), timestamp, count, retention);
     }
 
     @Override
     public Optional<ChatAggregationResult> findByStreamId(String streamId) {
-        String key = String.format(CHAT_AGGREGATION_KEY, streamId);
+        String key = Rediskeys.CHAT_AGGREGATION_PREFIX + streamId;
+
         List<List<Object>> rawData = redisTemplate.execute(tsRangeScript, List.of(key), "-", "+");
 
         if (rawData == null || rawData.isEmpty()) {

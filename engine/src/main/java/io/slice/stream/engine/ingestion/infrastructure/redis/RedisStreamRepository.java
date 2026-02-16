@@ -1,6 +1,7 @@
 package io.slice.stream.engine.ingestion.infrastructure.redis;
 
 import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.engine.core.redis.Rediskeys;
 import io.slice.stream.engine.global.error.ErrorCode;
 import io.slice.stream.engine.ingestion.domain.error.IngestionException;
 import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
@@ -25,24 +26,14 @@ public class RedisStreamRepository implements StreamRepository {
     private final RedisScript<List> updateStreamScript;
     private final JsonMapper jsonMapper;
 
-    private static final String STREAM_TARGET_KEY = "stream:targets";
-    private static final String STREAM_LIVE_KEY_PREFIX = "stream:live:";
-
     @Override
     public StreamUpdateResults update(List<StreamTarget> streamTargets) {
-        if (streamTargets.isEmpty()) {
-            log.warn("수집된 방송이 없습니다. 외부 api 요청을 점검하세요");
-            return new StreamUpdateResults(Set.of(), Set.of());
-        }
-
         List<String> args = makeArguments(streamTargets);
-
         return executeStreamUpdate(args);
     }
 
     private List<String> makeArguments(List<StreamTarget> streamTargets) {
         List<String> args = new ArrayList<>();
-
         args.add(String.valueOf(streamTargets.size()));
 
         for (StreamTarget target : streamTargets) {
@@ -58,10 +49,13 @@ public class RedisStreamRepository implements StreamRepository {
 
     private StreamUpdateResults executeStreamUpdate(List<String> args) {
         try {
-            // execute의 반환 타입은 RedisScript<T>의 T에 따라 결정됩니다. (여기서는 List)
             List<?> rawResult = redisTemplate.execute(
                 updateStreamScript,
-                List.of(STREAM_TARGET_KEY, STREAM_LIVE_KEY_PREFIX),
+                List.of(
+                    Rediskeys.STREAM_TARGETS,     // KEYS[1]
+                    Rediskeys.STREAM_LIVE_PREFIX, // KEYS[2]
+                    Rediskeys.ANALYSIS_INDEX      // KEYS[3]
+                ),
                 args.toArray(new String[0])
             );
 
