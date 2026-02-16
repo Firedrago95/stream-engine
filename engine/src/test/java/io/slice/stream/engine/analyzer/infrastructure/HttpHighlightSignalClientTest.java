@@ -10,12 +10,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.slice.stream.engine.analyzer.domain.AnalysisSignal;
-import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -51,66 +51,65 @@ class HttpHighlightSignalClientTest {
     }
 
     @Test
-    void send_메서드_호출시_올바른_HttpRequest로_HttpClient가_호출되어야_한다() throws IOException, InterruptedException {
+    void send_메서드_호출시_올바른_HttpRequest로_비동기_호출되어야_한다() throws Exception {
         // given
         List<AnalysisSignal> signals = List.of(
-            new AnalysisSignal("stream1", "PEAK", Instant.now()),
-            new AnalysisSignal("stream2", "NORMAL", Instant.now())
+            new AnalysisSignal("stream1", "PEAK", Instant.now())
         );
-        String jsonBody = """
-            [
-              {"streamId":"stream1","signalType":"PEAK","timestamp":"2026-02-13T10:00:00Z"},
-              {"streamId":"stream2","signalType":"NORMAL","timestamp":"2026-02-13T10:00:00Z"}
-            ]
-            """;
+        String jsonBody = "[{\"streamId\":\"stream1\"}]";
 
         when(objectMapper.writeValueAsString(signals)).thenReturn(jsonBody);
 
-        HttpResponse<Void> mockResponse = mock(HttpResponse.class);
-        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-            .thenReturn(mockResponse);
+        CompletableFuture<HttpResponse> mockFuture = CompletableFuture.completedFuture(mock(HttpResponse.class));
+        when(httpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+            .thenReturn(mockFuture);
 
         // when
         httpHighlightSignalClient.send(signals);
 
         // then
         ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
-        verify(httpClient, times(1)).send(requestCaptor.capture(), any(HttpResponse.BodyHandler.class));
+        verify(httpClient, times(1)).sendAsync(requestCaptor.capture(), any(HttpResponse.BodyHandler.class));
 
         HttpRequest capturedRequest = requestCaptor.getValue();
-        assertThat(capturedRequest.uri().toString()).isEqualTo(API_SERVER_URL);
-        assertThat(capturedRequest.headers().firstValue("Content-Type")).contains("application/json");
-        assertThat(capturedRequest.headers().firstValue("X-SL-ENGINE-TOKEN")).contains(ENGINE_SECRET);
-        assertThat(capturedRequest.bodyPublisher()).isPresent();
+        assertAll(
+            () -> assertThat(capturedRequest.uri().toString()).isEqualTo(API_SERVER_URL),
+            () -> assertThat(capturedRequest.headers().firstValue("Content-Type")).contains("application/json"),
+            () -> assertThat(capturedRequest.headers().firstValue("X-SL-ENGINE-TOKEN")).contains(ENGINE_SECRET),
+            () -> assertThat(capturedRequest.method()).isEqualTo("POST")
+        );
     }
 
     @Test
-    void send_메서드_실행_중_예외가_발생해도_정상_종료되어야_하며_로그를_남긴다() throws IOException, InterruptedException {
+    void 직렬화_단계에서_예외가_발생해도_httpClient를_호출하지_않고_정상_종료되어야_한다() throws Exception {
         // given
-        List<AnalysisSignal> signals = List.of(new AnalysisSignal("stream1", "EXPLODED", Instant.now()));
-
-        when(objectMapper.writeValueAsString(signals)).thenThrow(new RuntimeException("Serialization Error"));
+        List<AnalysisSignal> signals = List.of(new AnalysisSignal("stream1", "ERROR", Instant.now()));
+        when(objectMapper.writeValueAsString(signals)).thenThrow(new RuntimeException("Serialization Failed"));
 
         // when & then
         assertThatNoException().isThrownBy(() -> httpHighlightSignalClient.send(signals));
-
-        verify(httpClient, never()).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        verify(httpClient, never()).sendAsync(any(), any());
     }
 
     @Test
-    void send_메서드에서_httpClient_send_실패_시_예외를_던지지_않고_로그를_남긴다() throws IOException, InterruptedException {
+    void 비동기_전송_중_네트워크_에러가_발생해도_전체_프로세스는_예외를_던지지_않는다() throws Exception {
         // given
         List<AnalysisSignal> signals = List.of(new AnalysisSignal("stream1", "PEAK", Instant.now()));
-        String jsonBody = "[]";
+        when(objectMapper.writeValueAsString(signals)).thenReturn("[]");
 
-        when(objectMapper.writeValueAsString(signals)).thenReturn(jsonBody);
-        when(httpClient.send(any(HttpRequest.class),
-            any(HttpResponse.BodyHandler.class)))
-            .thenThrow(new IOException("Network Error"));
+        CompletableFuture<HttpResponse<Object>> failedFuture = new CompletableFuture<>();
+        failedFuture.completeExceptionally(new RuntimeException("Network Down"));
+
+        when(httpClient.sendAsync(any(), any())).thenReturn(failedFuture);
 
         // when & then
-        assertThatNoException().isThrownBy(() ->
-            httpHighlightSignalClient.send(signals));
+        assertThatNoException().isThrownBy(() -> httpHighlightSignalClient.send(signals));
+        verify(httpClient).sendAsync(any(), any());
     }
 
+    private void assertAll(Runnable... assertions) {
+        for (Runnable assertion : assertions) {
+            assertion.run();
+        }
+    }
 }
