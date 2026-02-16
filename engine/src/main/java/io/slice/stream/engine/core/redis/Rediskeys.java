@@ -7,7 +7,7 @@ public final class Rediskeys {
 
     // 방송 상태 관련 키
     public static final String STREAM_TARGETS = "stream:targets";
-    public static final String STREAM_LIVE_PREFIX = "stream:live:";
+    public static final String STREAM_LIVE_HASH = "stream:live:";
     public static final String CHAT_AGGREGATION_PREFIX = "chat:aggregation:";
 
     // 리텐션 정책

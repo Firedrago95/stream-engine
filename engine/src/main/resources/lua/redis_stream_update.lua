@@ -1,5 +1,5 @@
 -- KEYS[1]: "stream:targets" (기존 방송 상태 SET)
--- KEYS[2]: "stream:live" (방송 상세 정보 HASH)
+-- KEYS[2]: "stream:live:" (방송 상세 정보 HASH)
 -- KEYS[3]: "active:analysis:ids" (분석 엔진용 전용 인덱스 SET)
 
 local unpack = table.unpack or unpack

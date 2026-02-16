@@ -53,7 +53,7 @@ public class RedisStreamRepository implements StreamRepository {
                 updateStreamScript,
                 List.of(
                     Rediskeys.STREAM_TARGETS,     // KEYS[1]
-                    Rediskeys.STREAM_LIVE_PREFIX, // KEYS[2]
+                    Rediskeys.STREAM_LIVE_HASH, // KEYS[2]
                     Rediskeys.ANALYSIS_INDEX      // KEYS[3]
                 ),
                 args.toArray(new String[0])
