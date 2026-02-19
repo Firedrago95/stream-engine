@@ -15,14 +15,11 @@ spring:
     bootstrap-servers: kafka:29092
 
     consumer:
-      enable-auto-commit: false # 자동 커밋 끄기
+      enable-auto-commit: false
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: "*"
-
-    listener:
-      ack-mode: manual_immediate # 로직 완료 후 즉시 수동으로 확정
+        spring.json.trusted.packages: "io.slice.stream.engine.*"
 
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
