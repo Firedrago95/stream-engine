@@ -4,6 +4,7 @@ import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -18,8 +19,13 @@ public class ChatAnalysisKafkaConsumer {
         groupId = "chat-analysis-group",
         containerFactory = "kafkaListenerContainerFactory"
     )
-    public void consume(ChatMessage chatMessage) {
-        log.debug("kafka 메시지 수신: streamId={}, message={}", chatMessage.streamId(), chatMessage.message());
-        chatAggregationService.aggregate(chatMessage);
+    public void consume(ChatMessage chatMessage, Acknowledgment ack) {
+        try {
+            chatAggregationService.aggregate(chatMessage);
+        } catch (Exception e) {
+            log.error("분석 실패, 다음 메시지로 진행합니다: {}", e.getMessage());
+        } finally {
+            ack.acknowledge();
+        }
     }
 }
