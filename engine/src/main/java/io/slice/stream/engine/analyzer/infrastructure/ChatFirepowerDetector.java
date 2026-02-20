@@ -19,6 +19,7 @@ public class ChatFirepowerDetector implements HighlightDetector {
 
     private static final String CHAT_AGGREGATION_KEY = "chat:aggregation:%s";
     private static final int MIN_DATA_POINTS_FOR_ANALYSIS = 5;
+    private static final String MAX_FETCH_COUNT = "100";
 
     @Value("${highlight.chat-firepower-multiplier}")
     private double chatFirepowerMultiplier;
@@ -47,7 +48,7 @@ public class ChatFirepowerDetector implements HighlightDetector {
         String key = String.format(CHAT_AGGREGATION_KEY, chatRoomId);
         long toTs = clock.instant().toEpochMilli();
         long fromTs = toTs - highlightRange.toMillis();
-        return redisTemplate.execute(tsRangeScript, List.of(key), String.valueOf(fromTs), String.valueOf(toTs));
+        return redisTemplate.execute(tsRangeScript, List.of(key), String.valueOf(fromTs), String.valueOf(toTs), MAX_FETCH_COUNT);
     }
 
     private List<Long> convertToDeltas(List<List<Object>> cumulativeValues) {

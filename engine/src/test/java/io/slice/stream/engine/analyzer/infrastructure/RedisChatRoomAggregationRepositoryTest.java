@@ -64,7 +64,7 @@ class RedisChatRoomAggregationRepositoryTest implements RedisTestSupport {
     }
 
     @Test
-    void 채팅방별_채팅개수_기록을_조회한다() throws InterruptedException {
+    void 채팅방별_채팅개수_기록을_조회한다() {
         // given
         Instant now = Instant.now();
         String streamId1 = "abcd1234";
@@ -73,8 +73,6 @@ class RedisChatRoomAggregationRepositoryTest implements RedisTestSupport {
         ChatRoomAggregation chatRoomAggregation1 = new ChatRoomAggregation(streamId1, now.minusSeconds(10));
         chatRoomAggregation1.increaseCount(now.minusSeconds(10));
         repository.save(chatRoomAggregation1, now.minusSeconds(10));
-
-        Thread.sleep(1); // 타임스탬프 중복 방지
 
         chatRoomAggregation1.increaseCount(now);
         repository.save(chatRoomAggregation1, now);

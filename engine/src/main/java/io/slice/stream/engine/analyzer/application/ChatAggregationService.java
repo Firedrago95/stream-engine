@@ -38,7 +38,11 @@ public class ChatAggregationService {
     public void aggregate(ChatMessage chatMessage) {
         String streamId = chatMessage.streamId();
 
-        ChatRoomAggregation chatRoomAggregation = chatRoomAggregations.get(streamId, k -> new ChatRoomAggregation(streamId, Instant.EPOCH));
+        ChatRoomAggregation chatRoomAggregation = chatRoomAggregations.get(
+            streamId,
+            // 모든 실제 메시지는 EPOCH 이후이므로 null guard 없이 갱신되도록 보초값 설정
+            k -> new ChatRoomAggregation(streamId, Instant.EPOCH)
+        );
 
         chatRoomAggregation.increaseCount(chatMessage.time());
     }
