@@ -1,26 +1,37 @@
 package io.slice.stream.engine.analyzer.domain;
 
+import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class ChatRoomAggregation {
 
     private final String streamId;
-    private AtomicLong count;
+    private final AtomicReference<Instant> lastChatTime;
+    private final AtomicLong count;
 
-    public ChatRoomAggregation(String streamId) {
+    public ChatRoomAggregation(String streamId, Instant lastChatTime) {
         this.streamId = streamId;
+        this.lastChatTime = new AtomicReference<>(lastChatTime);
         this.count = new AtomicLong(0);
-    }
-
-    public Long getCount() {
-        return count.longValue();
     }
 
     public String getStreamId() {
         return streamId;
     }
 
-    public void increaseCount() {
-        count.addAndGet(1);
+    public Instant getLastChatTime() {
+        return lastChatTime.get();
+    }
+
+    public Long getCount() {
+        return count.longValue();
+    }
+
+    public void increaseCount(Instant eventTime) {
+        count.incrementAndGet();
+        lastChatTime.updateAndGet(current ->
+            (current == null || eventTime.isAfter(current)) ? eventTime : current
+        );
     }
 }

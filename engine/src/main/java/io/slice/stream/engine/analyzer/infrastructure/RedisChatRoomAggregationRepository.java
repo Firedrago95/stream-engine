@@ -17,6 +17,8 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class RedisChatRoomAggregationRepository implements ChatRoomAggregationRepository {
 
+    private static final String MAX_COUNT_FOR_FIND = "1000";
+
     private final StringRedisTemplate redisTemplate;
     private final RedisScript<Long> tsAddScript;
     private final RedisScript<List> tsRangeScript;
@@ -36,7 +38,7 @@ public class RedisChatRoomAggregationRepository implements ChatRoomAggregationRe
     public Optional<ChatAggregationResult> findByStreamId(String streamId) {
         String key = Rediskeys.CHAT_AGGREGATION_PREFIX + streamId;
 
-        List<List<Object>> rawData = redisTemplate.execute(tsRangeScript, List.of(key), "-", "+");
+        List<List<Object>> rawData = redisTemplate.execute(tsRangeScript, List.of(key), "-", "+", MAX_COUNT_FOR_FIND);
 
         if (rawData == null || rawData.isEmpty()) {
             return Optional.empty();
