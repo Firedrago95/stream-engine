@@ -8,6 +8,8 @@ import io.slice.stream.engine.analyzer.domain.ChatRoomAggregationRepository;
 import io.slice.stream.engine.global.config.RedisConfig;
 import io.slice.stream.engine.global.config.TimeConfig;
 import io.slice.stream.testcontainer.redis.RedisTestSupport;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.data.redis.test.autoconfigure.DataRedisTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -33,23 +36,33 @@ class ChatFirepowerDetectorTest implements RedisTestSupport {
     @Autowired
     private ChatRoomAggregationRepository repository;
 
+    @Autowired
+    private Clock clock;
+
+    @Value("${highlight.range}")
+    private Duration highlightRange;
+
     @BeforeEach
     void setUp() {
         Objects.requireNonNull(redisTemplate.getConnectionFactory()).getConnection().serverCommands().flushAll();
     }
 
     @Test
-    void 평상시에는_NORMAL_상태를_유지한다() throws InterruptedException {
+    void 평상시에는_NORMAL_상태를_유지한다() {
         // given
         String roomId = "room1";
         ChatRoomAggregation aggregation = new ChatRoomAggregation(roomId, Instant.EPOCH);
 
+        Instant now = clock.instant();
+        long windowSeconds = highlightRange.toSeconds();
+        long intervalSeconds = (long) (windowSeconds * 0.8 / 10);
+        Instant startTime = now.minus(highlightRange).plusSeconds(windowSeconds / 10);
+
         for (int i = 0; i < 10; i++) {
-            Instant now = Instant.now();
-            aggregation.increaseCount(now);
-            aggregation.increaseCount(now);
-            repository.save(aggregation, now);
-            Thread.sleep(10);
+            Instant currentTime = startTime.plusSeconds(i * intervalSeconds);
+            aggregation.increaseCount(currentTime);
+            aggregation.increaseCount(currentTime);
+            repository.save(aggregation, currentTime);
         }
 
         // when
@@ -60,20 +73,26 @@ class ChatFirepowerDetectorTest implements RedisTestSupport {
     }
 
     @Test
-    void 평상시보다_채팅화력이_높으면_PEAK_상태를_유지한다() throws InterruptedException {
+    void 평상시보다_채팅화력이_높으면_PEAK_상태를_유지한다() {
         // given
         String roomId = "room1";
         ChatRoomAggregation aggregation = new ChatRoomAggregation(roomId, Instant.EPOCH);
+        Instant now = clock.instant();
 
+        long windowSeconds = highlightRange.toSeconds();
+        long intervalSeconds = (long) (windowSeconds * 0.8 / 10);
+        Instant startTime = now.minus(highlightRange).plusSeconds(windowSeconds / 10);
+
+        // 평균을 만들기 위해 평소 채팅량(2) 데이터를 쌓는다.
         for (int i = 0; i < 10; i++) {
-            Instant now = Instant.now();
-            aggregation.increaseCount(now);
-            aggregation.increaseCount(now);
-            repository.save(aggregation, now);
-            Thread.sleep(10);
+            Instant currentTime = startTime.plusSeconds(i * intervalSeconds);
+            aggregation.increaseCount(currentTime);
+            aggregation.increaseCount(currentTime);
+            repository.save(aggregation, currentTime);
         }
 
-        Instant peakTime = Instant.now();
+        // 화력이 폭발하는 시점의 데이터를 추가한다.
+        Instant peakTime = now.minusMillis(500);
         for (int i = 0; i < 20; i++) {
             aggregation.increaseCount(peakTime);
         }
@@ -91,11 +110,13 @@ class ChatFirepowerDetectorTest implements RedisTestSupport {
         // given
         String roomId = "room1";
         ChatRoomAggregation aggregation = new ChatRoomAggregation(roomId, Instant.EPOCH);
+        Instant now = clock.instant();
 
+        // 데이터가 MIN_DATA_POINTS(5개) 보다 적은 경우
         for (int i = 0; i < 4; i++) {
-            Instant now = Instant.now();
-            aggregation.increaseCount(now);
-            repository.save(aggregation, now);
+            Instant currentTime = now.minusSeconds(i * 2L);
+            aggregation.increaseCount(currentTime);
+            repository.save(aggregation, currentTime);
         }
 
         // when
