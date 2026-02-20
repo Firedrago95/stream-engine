@@ -9,11 +9,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalDouble;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ChatFirepowerDetector implements HighlightDetector {
@@ -39,7 +41,7 @@ public class ChatFirepowerDetector implements HighlightDetector {
             return ChatFirepowerStatus.WAITING;
         }
 
-        List<Long> deltas = convertToDeltas(cumulativeValues);
+        List<Long> deltas = convertToDeltas(cumulativeValues, chatRoomId);
 
         return analyzeFirepower(deltas);
     }
@@ -51,7 +53,7 @@ public class ChatFirepowerDetector implements HighlightDetector {
         return redisTemplate.execute(tsRangeScript, List.of(key), String.valueOf(fromTs), String.valueOf(toTs), MAX_FETCH_COUNT);
     }
 
-    private List<Long> convertToDeltas(List<List<Object>> cumulativeValues) {
+    private List<Long> convertToDeltas(List<List<Object>> cumulativeValues, String chatRoomId) {
         List<Long> deltas = new ArrayList<>();
         long previousValue = Long.parseLong((String) cumulativeValues.getFirst().get(1));
 
@@ -59,9 +61,12 @@ public class ChatFirepowerDetector implements HighlightDetector {
             long currentValue = Long.parseLong((String) cumulativeValues.get(i).get(1));
             long delta = currentValue - previousValue;
 
-            if (delta >= 0) {
-                deltas.add(delta);
+            if (delta < 0) {
+                log.warn("음수 변화량 감지(카운터 리셋 의심) - chatRoomId: {}, 이전 누적: {}, 현재 누적: {}. 변화량을 0으로 처리합니다.",
+                    chatRoomId, previousValue, currentValue);
+                delta = 0;
             }
+            deltas.add(delta);
             previousValue = currentValue;
         }
         return deltas;
