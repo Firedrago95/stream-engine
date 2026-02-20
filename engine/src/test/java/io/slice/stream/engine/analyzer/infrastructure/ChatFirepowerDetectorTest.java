@@ -2,12 +2,13 @@ package io.slice.stream.engine.analyzer.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.slice.stream.engine.analyzer.domain.ChatFirepowerStatus;
+import io.slice.stream.engine.analyzer.domain.ChatRoomAggregation;
+import io.slice.stream.engine.analyzer.domain.ChatRoomAggregationRepository;
 import io.slice.stream.engine.global.config.RedisConfig;
 import io.slice.stream.engine.global.config.TimeConfig;
-import io.slice.stream.engine.analyzer.domain.ChatFirepowerStatus;
 import io.slice.stream.testcontainer.redis.RedisTestSupport;
 import java.time.Instant;
-import java.util.List;
 import java.util.Objects;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -17,24 +18,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.redis.test.autoconfigure.DataRedisTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.RedisScript;
 
 @DataRedisTest
-@Import({RedisConfig.class, ChatFirepowerDetector.class, TimeConfig.class})
+@Import({RedisConfig.class, ChatFirepowerDetector.class, TimeConfig.class, RedisChatRoomAggregationRepository.class})
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class ChatFirepowerDetectorTest implements RedisTestSupport {
-
-    private static final String CHAT_ANALYSIS_KEY = "chat:analysis:%s";
-    private static final long RETENTION = 604_800_000;
 
     @Autowired
     private StringRedisTemplate redisTemplate;
 
     @Autowired
-    private RedisScript<Long> tsAddScript;
+    private ChatFirepowerDetector detector;
 
     @Autowired
-    private ChatFirepowerDetector detector;
+    private ChatRoomAggregationRepository repository;
 
     @BeforeEach
     void setUp() {
@@ -45,12 +42,13 @@ class ChatFirepowerDetectorTest implements RedisTestSupport {
     void 평상시에는_NORMAL_상태를_유지한다() throws InterruptedException {
         // given
         String roomId = "room1";
-        String key = String.format(CHAT_ANALYSIS_KEY, roomId);
-        String retention = String.valueOf(RETENTION);
+        ChatRoomAggregation aggregation = new ChatRoomAggregation(roomId, Instant.EPOCH);
 
         for (int i = 0; i < 10; i++) {
-            String timestamp = String.valueOf(Instant.now().toEpochMilli());
-            redisTemplate.execute(tsAddScript, List.of(key), timestamp, "2", retention);
+            Instant now = Instant.now();
+            aggregation.increaseCount(now);
+            aggregation.increaseCount(now);
+            repository.save(aggregation, now);
             Thread.sleep(10);
         }
 
@@ -65,19 +63,21 @@ class ChatFirepowerDetectorTest implements RedisTestSupport {
     void 평상시보다_채팅화력이_높으면_PEAK_상태를_유지한다() throws InterruptedException {
         // given
         String roomId = "room1";
-        String key = String.format(CHAT_ANALYSIS_KEY, roomId);
-        String retention = String.valueOf(RETENTION);
+        ChatRoomAggregation aggregation = new ChatRoomAggregation(roomId, Instant.EPOCH);
 
-        // 평균을 만들기 위해 평소 채팅량(2) 데이터를 쌓는다.
         for (int i = 0; i < 10; i++) {
-            String timestamp = String.valueOf(Instant.now().toEpochMilli());
-            redisTemplate.execute(tsAddScript, List.of(key), timestamp, "2", retention);
+            Instant now = Instant.now();
+            aggregation.increaseCount(now);
+            aggregation.increaseCount(now);
+            repository.save(aggregation, now);
             Thread.sleep(10);
         }
 
-        // 화력이 폭발하는 시점의 데이터를 추가한다.
-        String timestamp = String.valueOf(Instant.now().toEpochMilli());
-        redisTemplate.execute(tsAddScript, List.of(key),timestamp, "20", retention); // 폭발 시점 채팅량: 20
+        Instant peakTime = Instant.now();
+        for (int i = 0; i < 20; i++) {
+            aggregation.increaseCount(peakTime);
+        }
+        repository.save(aggregation, peakTime);
 
         // when
         ChatFirepowerStatus status = detector.detect(roomId);
@@ -90,11 +90,13 @@ class ChatFirepowerDetectorTest implements RedisTestSupport {
     void 채팅_이력이_부족한_경우_WAITING_상태를_유지한다() {
         // given
         String roomId = "room1";
-        String key = String.format(CHAT_ANALYSIS_KEY, roomId);
-        String retention = String.valueOf(RETENTION);
-        String timestamp = String.valueOf(Instant.now().toEpochMilli());
-        // 데이터가 MIN_DATA_POINTS(5개) 보다 적은 경우
-        redisTemplate.execute(tsAddScript, List.of(key), timestamp, "2", retention);
+        ChatRoomAggregation aggregation = new ChatRoomAggregation(roomId, Instant.EPOCH);
+
+        for (int i = 0; i < 4; i++) {
+            Instant now = Instant.now();
+            aggregation.increaseCount(now);
+            repository.save(aggregation, now);
+        }
 
         // when
         ChatFirepowerStatus status = detector.detect(roomId);
