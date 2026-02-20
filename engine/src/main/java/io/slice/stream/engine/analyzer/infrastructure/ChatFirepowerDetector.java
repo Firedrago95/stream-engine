@@ -2,6 +2,7 @@ package io.slice.stream.engine.analyzer.infrastructure;
 
 import io.slice.stream.engine.analyzer.domain.ChatFirepowerStatus;
 import io.slice.stream.engine.analyzer.domain.HighlightDetector;
+import io.slice.stream.engine.core.redis.Rediskeys;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -17,7 +18,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ChatFirepowerDetector implements HighlightDetector {
 
-    private static final String CHAT_AGGREGATION_KEY = "chat:aggregation:%s";
     private static final int MIN_DATA_POINTS_FOR_ANALYSIS = 5;
     private static final String MAX_FETCH_COUNT = "100";
 
@@ -45,7 +45,7 @@ public class ChatFirepowerDetector implements HighlightDetector {
     }
 
     private List<List<Object>> fetchCumulativeValues(String chatRoomId) {
-        String key = String.format(CHAT_AGGREGATION_KEY, chatRoomId);
+        String key = String.format(Rediskeys.CHAT_AGGREGATION_PREFIX, chatRoomId);
         long toTs = clock.instant().toEpochMilli();
         long fromTs = toTs - highlightRange.toMillis();
         return redisTemplate.execute(tsRangeScript, List.of(key), String.valueOf(fromTs), String.valueOf(toTs), MAX_FETCH_COUNT);
