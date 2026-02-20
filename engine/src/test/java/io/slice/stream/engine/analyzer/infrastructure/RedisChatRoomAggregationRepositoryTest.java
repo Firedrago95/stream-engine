@@ -41,8 +41,8 @@ class RedisChatRoomAggregationRepositoryTest implements RedisTestSupport {
         // given
         Instant now = Instant.now();
         String streamId = "abcd1234";
-        ChatRoomAggregation chatRoomAggregation = new ChatRoomAggregation(streamId);
-        chatRoomAggregation.increaseCount();
+        ChatRoomAggregation chatRoomAggregation = new ChatRoomAggregation(streamId, now);
+        chatRoomAggregation.increaseCount(now);
 
         // when
         repository.save(chatRoomAggregation, now);
@@ -64,21 +64,23 @@ class RedisChatRoomAggregationRepositoryTest implements RedisTestSupport {
     }
 
     @Test
-    void 채팅방별_채팅개수_기록을_조회한다() {
+    void 채팅방별_채팅개수_기록을_조회한다() throws InterruptedException {
         // given
         Instant now = Instant.now();
         String streamId1 = "abcd1234";
         String streamId2 = "efgh5678";
 
-        ChatRoomAggregation chatRoomAggregation1 = new ChatRoomAggregation(streamId1);
-        chatRoomAggregation1.increaseCount();
+        ChatRoomAggregation chatRoomAggregation1 = new ChatRoomAggregation(streamId1, now.minusSeconds(10));
+        chatRoomAggregation1.increaseCount(now.minusSeconds(10));
         repository.save(chatRoomAggregation1, now.minusSeconds(10));
 
-        chatRoomAggregation1.increaseCount();
+        Thread.sleep(1); // 타임스탬프 중복 방지
+
+        chatRoomAggregation1.increaseCount(now);
         repository.save(chatRoomAggregation1, now);
 
-        ChatRoomAggregation chatRoomAggregation2 = new ChatRoomAggregation(streamId2);
-        chatRoomAggregation2.increaseCount();
+        ChatRoomAggregation chatRoomAggregation2 = new ChatRoomAggregation(streamId2, now);
+        chatRoomAggregation2.increaseCount(now);
         repository.save(chatRoomAggregation2, now);
 
 

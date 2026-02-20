@@ -7,6 +7,7 @@ import io.slice.stream.engine.analyzer.domain.ChatRoomAggregation;
 import io.slice.stream.engine.analyzer.domain.ChatRoomAggregationRepository;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -37,9 +38,9 @@ public class ChatAggregationService {
     public void aggregate(ChatMessage chatMessage) {
         String streamId = chatMessage.streamId();
 
-        ChatRoomAggregation chatRoomAggregation = chatRoomAggregations.get(streamId, k -> new ChatRoomAggregation(streamId));
+        ChatRoomAggregation chatRoomAggregation = chatRoomAggregations.get(streamId, k -> new ChatRoomAggregation(streamId, Instant.EPOCH));
 
-        chatRoomAggregation.increaseCount();
+        chatRoomAggregation.increaseCount(chatMessage.time());
     }
 
     @Scheduled(fixedRate = 3_000)
@@ -49,7 +50,7 @@ public class ChatAggregationService {
 
     private void saveToRepository(String key, ChatRoomAggregation aggregation) {
         try {
-            chatRoomAggregationRepository.save(aggregation, clock.instant());
+            chatRoomAggregationRepository.save(aggregation, aggregation.getLastChatTime());
         } catch (Exception e) {
             log.error("채팅 집계 결과 저장 실패 : {}", key, e);
         }
