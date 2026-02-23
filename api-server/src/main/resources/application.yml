@@ -2,6 +2,9 @@ spring:
   application:
     name: slice-stream-api-server
 
+  config:
+    import: "optional:file:.env[.properties]"
+
   threads:
     virtual:
       enabled: true
