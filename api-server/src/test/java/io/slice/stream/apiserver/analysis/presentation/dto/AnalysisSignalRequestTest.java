@@ -28,7 +28,7 @@ class AnalysisSignalRequestTest {
 
         // then
         assertThat(violations).isNotEmpty();
-        assertThat(violations).anyMatch(v -> v.getMessage().contains("0 이상"));
+        assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("firepower"));
     }
 
     @Test
