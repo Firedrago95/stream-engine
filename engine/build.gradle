@@ -26,6 +26,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-aspectj'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     implementation 'com.github.ben-manes.caffeine:caffeine'
+    implementation 'me.paulschwarz:spring-dotenv:5.0.1'
 
     // 에러 방지 목적으로 필수적으로 필요
     implementation 'org.bitbucket.b_c:jose4j:0.9.6'

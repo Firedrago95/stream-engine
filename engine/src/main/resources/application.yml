@@ -47,5 +47,6 @@ highlight:
   range: 2m
 
 api-server:
-  uri: ${SERVER_URI}
+  host: ${SERVER_HOST}
+  path: ${HIGHLIGHT_PATH}
   secret: ${SERVER_SECRET}

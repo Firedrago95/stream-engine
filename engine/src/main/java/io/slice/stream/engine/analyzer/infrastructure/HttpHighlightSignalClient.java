@@ -25,12 +25,13 @@ public class HttpHighlightSignalClient implements HighlightSignalClient {
     public HttpHighlightSignalClient(
             HttpClient httpClient,
             ObjectMapper objectMapper,
-            @Value("${api-server.uri}") String apiServerUrl,
+            @Value("${api-server.host}") String host,
+            @Value("${api-server.path}") String path,
             @Value("${api-server.secret}") String engineSecret
     ) {
         this.httpClient = httpClient;
         this.objectMapper = objectMapper;
-        this.apiServerUrl = apiServerUrl;
+        this.apiServerUrl = host + path;
         this.engineSecret = engineSecret;
     }
 

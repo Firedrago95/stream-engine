@@ -22,10 +22,8 @@ import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,13 +38,18 @@ class HttpHighlightSignalClientTest {
 
     private HttpHighlightSignalClient httpHighlightSignalClient;
 
-    private static final String API_SERVER_URL = "http://localhost:8081/internal/highlights";
+    private static final String SERVER_HOST = "http://localhost:8081";
+    private static final String HIGHLIGHT_PATH = "/api/v1/signals/secret-path";
     private static final String ENGINE_SECRET = "test-engine-secret";
 
     @BeforeEach
     void setUp() {
         httpHighlightSignalClient = new HttpHighlightSignalClient(
-            httpClient, objectMapper, API_SERVER_URL, ENGINE_SECRET
+            httpClient,
+            objectMapper,
+            SERVER_HOST,
+            HIGHLIGHT_PATH,
+            ENGINE_SECRET
         );
     }
 
@@ -72,8 +75,9 @@ class HttpHighlightSignalClientTest {
         verify(httpClient, times(1)).sendAsync(requestCaptor.capture(), any(HttpResponse.BodyHandler.class));
 
         HttpRequest capturedRequest = requestCaptor.getValue();
+        String expectedFullUrl = SERVER_HOST + HIGHLIGHT_PATH;
         assertAll(
-            () -> assertThat(capturedRequest.uri().toString()).isEqualTo(API_SERVER_URL),
+            () -> assertThat(capturedRequest.uri().toString()).isEqualTo(expectedFullUrl),
             () -> assertThat(capturedRequest.headers().firstValue("Content-Type")).contains("application/json"),
             () -> assertThat(capturedRequest.headers().firstValue("X-SL-ENGINE-TOKEN")).contains(ENGINE_SECRET),
             () -> assertThat(capturedRequest.method()).isEqualTo("POST")
