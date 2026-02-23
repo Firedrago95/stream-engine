@@ -42,8 +42,7 @@ Java 25 가상 스레드(Virtual Threads) 기반의 고성능 실시간 스트�
 ```mermaid
 graph TD
     %% Subgraph: Engine Module
-    subgraph Engine_Scope ["1. engine (Data Processing)"]
-        direction TB
+    subgraph Engine_Scope [1. engine - Data Processing]
         Ingestion[IngestionService] -->|Polling| ChzzkAPI[Chzzk API]
         Ingestion --> Redis_DB[(Redis)]
         Redis_DB -- "스트림 감지" --> ChatListener[ChatEventListener]
@@ -59,40 +58,35 @@ graph TD
     end
 
     %% Subgraph: API Server Module
-    subgraph API_Scope ["2. api-server (API & Real-time Broadcast)"]
+    subgraph API_Scope [2. api-server - API & Real-time Broadcast]
         direction TB
         
-        subgraph "Webhook Flow (from Engine)"
-            InternalAPI{Webhook Endpoint\n(은닉 경로)}
-            TokenCheck[EngineTokenInterceptor]
-            SignalService[HighlightService]
-            SSE_Endpoint{SSE Endpoint}
-        end
+        InternalAPI{Webhook Endpoint 은닉 경로}
+        TokenCheck[EngineTokenInterceptor]
+        SignalService[HighlightService]
+        SSE_Endpoint{SSE Endpoint}
         
-        subgraph "Signal API Flow (from External)"
-            direction TB
-            Ext_Client([External Client])
-            AnalysisController[AnalysisController\n/api/v1/signals]
-            AnalysisService[AnalysisService]
-        end
+        Ext_Client([External Client])
+        AnalysisController[AnalysisController /api/v1/signals]
+        AnalysisService[AnalysisService]
         
-        Ext_Client -- "HTTP POST\n(화력 분석 신호)" --> AnalysisController
+        Ext_Client -- "HTTP POST 화력 분석 신호" --> AnalysisController
         AnalysisController --> AnalysisService
-        AnalysisService -- "내부 이벤트 발행" --> Kafka_Topic
         
-        SignalClient -- "HTTP POST\n+ Secret Token" --> InternalAPI
+        SignalClient -- "HTTP POST + Secret Token" --> InternalAPI
         InternalAPI --> TokenCheck
         TokenCheck -- "검증 통과" --> SignalService
         SignalService --> SSE_Endpoint
     end
 
     %% Subgraph: Client Module
-    subgraph Client_Scope ["3. client (Frontend Dashboard)"]
+    subgraph Client_Scope [3. client - Frontend Dashboard]
         ReactUI[React Dashboard]
     end
 
     %% Connections
-    SSE_Endpoint -- "실시간 알림 (Push)" --> ReactUI
+    AnalysisService -.-> Kafka_Topic
+    SSE_Endpoint -- "실시간 알림 Push" --> ReactUI
 
     %% Styling
     style Engine_Scope fill:#f9f9f9,stroke:#333,stroke-width:2px
