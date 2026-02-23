@@ -61,10 +61,24 @@ graph TD
     %% Subgraph: API Server Module
     subgraph API_Scope ["2. api-server (API & Real-time Broadcast)"]
         direction TB
-        InternalAPI{Webhook Endpoint\n(은닉 경로)}
-        TokenCheck[EngineTokenInterceptor]
-        SignalService[HighlightService]
-        SSE_Endpoint{SSE Endpoint}
+        
+        subgraph "Webhook Flow (from Engine)"
+            InternalAPI{Webhook Endpoint\n(은닉 경로)}
+            TokenCheck[EngineTokenInterceptor]
+            SignalService[HighlightService]
+            SSE_Endpoint{SSE Endpoint}
+        end
+        
+        subgraph "Signal API Flow (from External)"
+            direction TB
+            Ext_Client([External Client])
+            AnalysisController[AnalysisController\n/api/v1/signals]
+            AnalysisService[AnalysisService]
+        end
+        
+        Ext_Client -- "HTTP POST\n(화력 분석 신호)" --> AnalysisController
+        AnalysisController --> AnalysisService
+        AnalysisService -- "내부 이벤트 발행" --> Kafka_Topic
         
         SignalClient -- "HTTP POST\n+ Secret Token" --> InternalAPI
         InternalAPI --> TokenCheck
