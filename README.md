@@ -41,8 +41,9 @@ Java 25 가상 스레드(Virtual Threads) 기반의 고성능 실시간 스트�
 
 ```mermaid
 graph TD
-    %% Subgraph: Engine Module
-    subgraph Engine_Scope [1. engine - Data Processing]
+    %% Subgraph: Engine Module (핵심 로직)
+    subgraph Engine_Scope ["1. engine (Data Processing)"]
+        direction TB
         Ingestion[IngestionService] -->|Polling| ChzzkAPI[Chzzk API]
         Ingestion --> Redis_DB[(Redis)]
         Redis_DB -- "스트림 감지" --> ChatListener[ChatEventListener]
@@ -57,41 +58,27 @@ graph TD
         Detector -- "PEAK 신호" --> SignalClient[HighlightSignalClient]
     end
 
-    %% Subgraph: API Server Module
-    subgraph API_Scope [2. api-server - API & Real-time Broadcast]
+    %% Subgraph: API Server Module (은닉 경로 및 보안)
+    subgraph API_Scope ["2. api-server (API & Real-time Broadcast)"]
         direction TB
-        
         InternalAPI{Webhook Endpoint 은닉 경로}
-        TokenCheck[EngineTokenInterceptor]
-        SignalService[HighlightService]
+        TokenCheck[EngineTokenFilter]
+        SignalService[AnalysisService]
         SSE_Endpoint{SSE Endpoint}
         
-        Ext_Client([External Client])
-        AnalysisController[AnalysisController /api/v1/signals]
-        AnalysisService[AnalysisService]
-        
-        Ext_Client -- "HTTP POST 화력 분석 신호" --> AnalysisController
-        AnalysisController --> AnalysisService
-        
-        SignalClient -- "HTTP POST + Secret Token" --> InternalAPI
         InternalAPI --> TokenCheck
-        TokenCheck -- "검증 통과" --> SignalService
+        TokenCheck --> SignalService
         SignalService --> SSE_Endpoint
     end
 
-    %% Subgraph: Client Module
-    subgraph Client_Scope [3. client - Frontend Dashboard]
-        ReactUI[React Dashboard]
-    end
-
     %% Connections
-    AnalysisService -.-> Kafka_Topic
-    SSE_Endpoint -- "실시간 알림 Push" --> ReactUI
+    SignalClient -- "HTTP Webhook" ---> InternalAPI
+    SSE_Endpoint -- "실시간 Push" ---> ReactUI([React UI])
 
     %% Styling
     style Engine_Scope fill:#f9f9f9,stroke:#333,stroke-width:2px
     style API_Scope fill:#e6f3ff,stroke:#0056b3,stroke-width:2px
-    style Client_Scope fill:#fff5f5,stroke:#d63384,stroke-width:2px
+    style ReactUI fill:#fff5f5,stroke:#d63384,stroke-dasharray: 5 5
 ```
 
 ---
