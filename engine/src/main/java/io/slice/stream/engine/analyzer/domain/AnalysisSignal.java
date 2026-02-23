@@ -6,7 +6,7 @@ public record AnalysisSignal(
     String streamId,
     String status,
     Instant timestamp,
-    Long firepower
+    long firepower
 ) {
 
 }

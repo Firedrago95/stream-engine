@@ -40,7 +40,7 @@ class AnalysisSignalControllerTest {
         // given
         String signalPath = "/api/v1/signals/test-path";
         List<AnalysisSignalRequest> requests = List.of(
-            new AnalysisSignalRequest("stream1", "PEAK", Instant.now())
+            new AnalysisSignalRequest("stream1", "PEAK", Instant.now(), 10)
         );
 
         // when & then

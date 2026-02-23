@@ -30,8 +30,8 @@ class AnalysisServiceTest {
     void 신호_리스트를_받으면_각_신호를_내부_이벤트로_발행한다() {
         // given
         List<AnalysisSignal> signals = List.of(
-            new AnalysisSignal("stream1", "PEAK", Instant.now()),
-            new AnalysisSignal("stream2", "NORMAL", Instant.now())
+            new AnalysisSignal("stream1", "PEAK", Instant.now(), 20),
+            new AnalysisSignal("stream2", "NORMAL", Instant.now(), 5)
         );
 
         // when

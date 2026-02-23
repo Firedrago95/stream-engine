@@ -6,9 +6,10 @@ import java.time.Instant;
 public record AnalysisSignalRequest(
     String streamId,
     String status,
-    Instant timestamp
+    Instant timestamp,
+    long firepower
 ) {
     public AnalysisSignal toDomain() {
-        return AnalysisSignal.of(streamId, status, timestamp);
+        return AnalysisSignal.of(streamId, status, timestamp, firepower);
     }
 }
