@@ -3,6 +3,7 @@ package io.slice.stream.engine.analyzer.application;
 import io.slice.stream.engine.analyzer.domain.ActiveStreamProvider;
 import io.slice.stream.engine.analyzer.domain.AnalysisSignal;
 import io.slice.stream.engine.analyzer.domain.ChatFirepowerStatus;
+import io.slice.stream.engine.analyzer.domain.DetectionResult;
 import io.slice.stream.engine.analyzer.domain.HighlightDetector;
 import io.slice.stream.engine.analyzer.domain.HighlightSignalClient;
 import java.time.Clock;
@@ -60,10 +61,10 @@ public class HighlightService {
 
     private Optional<AnalysisSignal> processStream(String streamId) {
         try {
-            ChatFirepowerStatus currentStatus = detector.detect(streamId);
-            if (currentStatus == ChatFirepowerStatus.WAITING) return Optional.empty();
+            DetectionResult detectionResult = detector.detect(streamId);
+            if (detectionResult.status() == ChatFirepowerStatus.WAITING) return Optional.empty();
 
-            return Optional.of(new AnalysisSignal(streamId, currentStatus.name(), clock.instant()));
+            return Optional.of(new AnalysisSignal(streamId, detectionResult.status().name(), clock.instant(), detectionResult.firepower()));
         } catch (Exception e) {
             log.error("스트림 분석 에러: {}", streamId, e);
             return Optional.empty();

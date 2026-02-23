@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.slice.stream.engine.analyzer.domain.ChatFirepowerStatus;
 import io.slice.stream.engine.analyzer.domain.ChatRoomAggregation;
 import io.slice.stream.engine.analyzer.domain.ChatRoomAggregationRepository;
+import io.slice.stream.engine.analyzer.domain.DetectionResult;
+import io.slice.stream.engine.analyzer.domain.HighlightDetector; // HighlightDetector import
 import io.slice.stream.engine.global.config.RedisConfig;
 import io.slice.stream.engine.global.config.TimeConfig;
 import io.slice.stream.testcontainer.redis.RedisTestSupport;
@@ -23,7 +25,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 @DataRedisTest
-@Import({RedisConfig.class, ChatFirepowerDetector.class, TimeConfig.class, RedisChatRoomAggregationRepository.class})
+@Import({RedisConfig.class, ChatFirepowerDetector.class, TimeConfig.class, RedisChatRoomAggregationRepository.class}) // 이 줄은 그대로 둡니다. (ChatFirepowerDetector는 구현체로 Import가 필요합니다.)
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class ChatFirepowerDetectorTest implements RedisTestSupport {
 
@@ -31,7 +33,7 @@ class ChatFirepowerDetectorTest implements RedisTestSupport {
     private StringRedisTemplate redisTemplate;
 
     @Autowired
-    private ChatFirepowerDetector detector;
+    private HighlightDetector detector;
 
     @Autowired
     private ChatRoomAggregationRepository repository;
@@ -66,10 +68,10 @@ class ChatFirepowerDetectorTest implements RedisTestSupport {
         }
 
         // when
-        ChatFirepowerStatus status = detector.detect(roomId);
+        DetectionResult detectionResult = detector.detect(roomId);
 
         // then
-        assertThat(status).isEqualTo(ChatFirepowerStatus.NORMAL);
+        assertThat(detectionResult.status()).isEqualTo(ChatFirepowerStatus.NORMAL);
     }
 
     @Test
@@ -99,10 +101,10 @@ class ChatFirepowerDetectorTest implements RedisTestSupport {
         repository.save(aggregation, peakTime);
 
         // when
-        ChatFirepowerStatus status = detector.detect(roomId);
+        DetectionResult detectionResult = detector.detect(roomId);
 
         // then
-        assertThat(status).isEqualTo(ChatFirepowerStatus.PEAK);
+        assertThat(detectionResult.status()).isEqualTo(ChatFirepowerStatus.PEAK);
     }
 
     @Test
@@ -120,10 +122,9 @@ class ChatFirepowerDetectorTest implements RedisTestSupport {
         }
 
         // when
-        ChatFirepowerStatus status = detector.detect(roomId);
+        DetectionResult detectionResult = detector.detect(roomId);
 
         // then
-        assertThat(status).isEqualTo(ChatFirepowerStatus.WAITING);
+        assertThat(detectionResult.status()).isEqualTo(ChatFirepowerStatus.WAITING);
     }
 }
-

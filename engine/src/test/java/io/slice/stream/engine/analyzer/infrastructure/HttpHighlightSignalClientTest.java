@@ -54,7 +54,7 @@ class HttpHighlightSignalClientTest {
     void send_메서드_호출시_올바른_HttpRequest로_비동기_호출되어야_한다() throws Exception {
         // given
         List<AnalysisSignal> signals = List.of(
-            new AnalysisSignal("stream1", "PEAK", Instant.now())
+            new AnalysisSignal("stream1", "PEAK", Instant.now(), 100L)
         );
         String jsonBody = "[{\"streamId\":\"stream1\"}]";
 
@@ -83,7 +83,7 @@ class HttpHighlightSignalClientTest {
     @Test
     void 직렬화_단계에서_예외가_발생해도_httpClient를_호출하지_않고_정상_종료되어야_한다() throws Exception {
         // given
-        List<AnalysisSignal> signals = List.of(new AnalysisSignal("stream1", "ERROR", Instant.now()));
+        List<AnalysisSignal> signals = List.of(new AnalysisSignal("stream1", "ERROR", Instant.now(), 0L));
         when(objectMapper.writeValueAsString(signals)).thenThrow(new RuntimeException("Serialization Failed"));
 
         // when & then
@@ -94,7 +94,7 @@ class HttpHighlightSignalClientTest {
     @Test
     void 비동기_전송_중_네트워크_에러가_발생해도_전체_프로세스는_예외를_던지지_않는다() throws Exception {
         // given
-        List<AnalysisSignal> signals = List.of(new AnalysisSignal("stream1", "PEAK", Instant.now()));
+        List<AnalysisSignal> signals = List.of(new AnalysisSignal("stream1", "PEAK", Instant.now(), 50L));
         when(objectMapper.writeValueAsString(signals)).thenReturn("[]");
 
         CompletableFuture<HttpResponse<Object>> failedFuture = new CompletableFuture<>();

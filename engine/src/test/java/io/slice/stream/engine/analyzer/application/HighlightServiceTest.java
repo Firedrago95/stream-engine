@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import io.slice.stream.engine.analyzer.domain.ActiveStreamProvider;
 import io.slice.stream.engine.analyzer.domain.AnalysisSignal;
 import io.slice.stream.engine.analyzer.domain.ChatFirepowerStatus;
+import io.slice.stream.engine.analyzer.domain.DetectionResult;
 import io.slice.stream.engine.analyzer.domain.HighlightDetector;
 import io.slice.stream.engine.analyzer.domain.HighlightSignalClient;
 import java.time.Clock;
@@ -66,9 +67,9 @@ class HighlightServiceTest {
         List<String> streamIds = List.of("stream-normal", "stream-peak", "stream-waiting");
         when(streamProvider.getActiveStreamIds()).thenReturn(streamIds);
 
-        when(detector.detect("stream-normal")).thenReturn(ChatFirepowerStatus.NORMAL);
-        when(detector.detect("stream-peak")).thenReturn(ChatFirepowerStatus.PEAK);
-        when(detector.detect("stream-waiting")).thenReturn(ChatFirepowerStatus.WAITING);
+        when(detector.detect("stream-normal")).thenReturn(new DetectionResult(ChatFirepowerStatus.NORMAL, 10L)); // firepower 추가
+        when(detector.detect("stream-peak")).thenReturn(new DetectionResult(ChatFirepowerStatus.PEAK, 100L)); // firepower 추가
+        when(detector.detect("stream-waiting")).thenReturn(DetectionResult.waiting()); // DetectionResult.waiting() 사용
 
         // when
         highlightService.monitorHighlights();
@@ -95,7 +96,7 @@ class HighlightServiceTest {
     void 분석_가능한_신호가_하나도_없으면_클라이언트를_호출하지_않는다() {
         // given
         when(streamProvider.getActiveStreamIds()).thenReturn(List.of("stream-waiting1", "stream-waiting2"));
-        when(detector.detect(anyString())).thenReturn(ChatFirepowerStatus.WAITING);
+        when(detector.detect(anyString())).thenReturn(DetectionResult.waiting()); // DetectionResult.waiting() 사용
 
         // when
         highlightService.monitorHighlights();
@@ -111,9 +112,9 @@ class HighlightServiceTest {
         List<String> streamIds = List.of("stream-normal", "stream-exception", "stream-peak");
         when(streamProvider.getActiveStreamIds()).thenReturn(streamIds);
 
-        when(detector.detect("stream-normal")).thenReturn(ChatFirepowerStatus.NORMAL);
+        when(detector.detect("stream-normal")).thenReturn(new DetectionResult(ChatFirepowerStatus.NORMAL, 20L)); // firepower 추가
         when(detector.detect("stream-exception")).thenThrow(new RuntimeException("Detector temporary error"));
-        when(detector.detect("stream-peak")).thenReturn(ChatFirepowerStatus.PEAK);
+        when(detector.detect("stream-peak")).thenReturn(new DetectionResult(ChatFirepowerStatus.PEAK, 200L)); // firepower 추가
 
         // when
         highlightService.monitorHighlights();

@@ -5,7 +5,8 @@ import java.time.Instant;
 public record AnalysisSignal(
     String streamId,
     String status,
-    Instant timestamp
+    Instant timestamp,
+    Long firepower
 ) {
 
 }

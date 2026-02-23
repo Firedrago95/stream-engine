@@ -25,7 +25,7 @@ public class RedisChatRoomAggregationRepository implements ChatRoomAggregationRe
 
     @Override
     public void save(ChatRoomAggregation chatRoomAggregation, Instant now) {
-        String key = Rediskeys.CHAT_AGGREGATION_PREFIX + chatRoomAggregation.getStreamId();
+        String key = String.format(Rediskeys.CHAT_AGGREGATION_PREFIX, chatRoomAggregation.getStreamId());
 
         String count = String.valueOf(chatRoomAggregation.getCount());
         String timestamp = String.valueOf(now.toEpochMilli());
