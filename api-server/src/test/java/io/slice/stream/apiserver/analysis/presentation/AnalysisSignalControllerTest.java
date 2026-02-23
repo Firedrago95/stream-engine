@@ -21,7 +21,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(AnalysisController.class)
+@WebMvcTest(AnalysisSignalController.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
 @TestPropertySource(properties = "analysis.signal.path=/api/v1/signals/test-path")
 class AnalysisSignalControllerTest {
