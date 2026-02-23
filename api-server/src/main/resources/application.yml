@@ -37,3 +37,4 @@ analysis:
   signal:
     path: ${SIGNAL_PATH}
     secret: ${SERVER_SECRET}
+    header: ${SERVER_HEADER}
