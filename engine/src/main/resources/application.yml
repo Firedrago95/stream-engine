@@ -48,5 +48,5 @@ highlight:
 
 api-server:
   host: ${SERVER_HOST}
-  path: ${HIGHLIGHT_PATH}
+  path: ${SIGNAL_PATH}
   secret: ${SERVER_SECRET}

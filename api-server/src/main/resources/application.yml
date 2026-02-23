@@ -1,6 +1,6 @@
 spring:
   application:
-    name: slice-stream-engine
+    name: slice-stream-api-server
 
   threads:
     virtual:
@@ -32,3 +32,8 @@ chzzk:
   # 3. 수집할 방송 갯수
   discovery:
     limit: 5
+
+analysis:
+  signal:
+    path: ${SIGNAL_PATH}
+    secret: ${SERVER_SECRET}
