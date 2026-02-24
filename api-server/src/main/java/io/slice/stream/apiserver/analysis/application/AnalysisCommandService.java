@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AnalysisService {
+public class AnalysisCommandService {
 
     private final ApplicationEventPublisher eventPublisher;
 

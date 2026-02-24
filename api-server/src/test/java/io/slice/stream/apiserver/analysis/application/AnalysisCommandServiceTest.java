@@ -18,13 +18,13 @@ import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
-class AnalysisServiceTest {
+class AnalysisCommandServiceTest {
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
-    private AnalysisService analysisService;
+    private AnalysisCommandService analysisCommandService;
 
     @Test
     void 신호_리스트를_받으면_각_신호를_내부_이벤트로_발행한다() {
@@ -35,7 +35,7 @@ class AnalysisServiceTest {
         );
 
         // when
-        analysisService.processSignals(signals);
+        analysisCommandService.processSignals(signals);
 
         // then
         verify(eventPublisher, times(2)).publishEvent(any(AnalysisSignal.class));
@@ -47,7 +47,7 @@ class AnalysisServiceTest {
         List<AnalysisSignal> signals = List.of();
 
         // when
-        analysisService.processSignals(signals);
+        analysisCommandService.processSignals(signals);
 
         // then
         verify(eventPublisher, times(0)).publishEvent(any());

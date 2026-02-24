@@ -1,6 +1,6 @@
 package io.slice.stream.apiserver.analysis.presentation;
 
-import io.slice.stream.apiserver.analysis.application.AnalysisService;
+import io.slice.stream.apiserver.analysis.application.AnalysisCommandService;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisSignalRequest;
 import jakarta.validation.Valid;
@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AnalysisSignalController {
 
-    private final AnalysisService analysisService;
+    private final AnalysisCommandService analysisCommandService;
 
     @PostMapping
     public ResponseEntity<Void> receive(
@@ -31,7 +31,7 @@ public class AnalysisSignalController {
             .map(AnalysisSignalRequest::toDomain)
             .toList();
 
-        analysisService.processSignals(signals);
+        analysisCommandService.processSignals(signals);
 
         return ResponseEntity.accepted().build();
     }
