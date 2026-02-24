@@ -1,6 +1,7 @@
 package io.slice.stream.engine.analyzer.infrastructure;
 
 import io.slice.stream.engine.analyzer.domain.ChatFirepowerStatus;
+import io.slice.stream.engine.analyzer.domain.DetectionResult; // import 추가
 import io.slice.stream.engine.analyzer.domain.HighlightDetector;
 import io.slice.stream.engine.core.redis.Rediskeys;
 import java.time.Clock;
@@ -34,11 +35,11 @@ public class ChatFirepowerDetector implements HighlightDetector {
     private final Clock clock;
 
     @Override
-    public ChatFirepowerStatus detect(String chatRoomId) {
+    public DetectionResult detect(String chatRoomId) {
         List<List<Object>> cumulativeValues = fetchCumulativeValues(chatRoomId);
 
         if (cumulativeValues == null || cumulativeValues.size() < MIN_DATA_POINTS_FOR_ANALYSIS + 1) {
-            return ChatFirepowerStatus.WAITING;
+            return DetectionResult.waiting();
         }
 
         List<Long> deltas = convertToDeltas(cumulativeValues, chatRoomId);
@@ -72,9 +73,9 @@ public class ChatFirepowerDetector implements HighlightDetector {
         return deltas;
     }
 
-    private ChatFirepowerStatus analyzeFirepower(List<Long> deltas) {
+    private DetectionResult analyzeFirepower(List<Long> deltas) {
         if (deltas.size() < MIN_DATA_POINTS_FOR_ANALYSIS) {
-            return ChatFirepowerStatus.WAITING;
+            return DetectionResult.waiting();
         }
 
         long lastValue = deltas.getLast();
@@ -84,14 +85,16 @@ public class ChatFirepowerDetector implements HighlightDetector {
             .average();
 
         if (average.isEmpty()) {
-            return ChatFirepowerStatus.WAITING;
+            return DetectionResult.waiting();
         }
 
+        ChatFirepowerStatus status;
         if (lastValue > average.getAsDouble() * chatFirepowerMultiplier) {
-            return ChatFirepowerStatus.PEAK;
+            status = ChatFirepowerStatus.PEAK;
+        } else {
+            status = ChatFirepowerStatus.NORMAL;
         }
-
-        return ChatFirepowerStatus.NORMAL;
+        return new DetectionResult(status, lastValue);
     }
 }
 

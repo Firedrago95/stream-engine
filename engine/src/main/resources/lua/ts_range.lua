@@ -4,4 +4,9 @@
 -- ARGV[3]: maxCount (optional, e.g., 1000)
 
 local maxCount = ARGV[3] and tonumber(ARGV[3]) or 1000
-return redis.call('TS.RANGE', KEYS[1], ARGV[1], ARGV[2], 'COUNT', maxCount)
+local ok, result = pcall(redis.call, 'TS.RANGE', KEYS[1], ARGV[1], ARGV[2], 'COUNT', maxCount)
+if not ok then
+    return {}
+end
+return result
+

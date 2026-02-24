@@ -2,6 +2,9 @@ spring:
   application:
     name: slice-stream-engine
 
+  config:
+    import: "optional:file:.env[.properties]"
+
   threads:
     virtual:
       enabled: true
@@ -47,5 +50,6 @@ highlight:
   range: 2m
 
 api-server:
-  uri: ${SERVER_URI}
+  host: ${SERVER_HOST}
+  path: ${SIGNAL_PATH}
   secret: ${SERVER_SECRET}

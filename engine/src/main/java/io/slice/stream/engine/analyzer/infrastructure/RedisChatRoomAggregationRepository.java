@@ -25,7 +25,7 @@ public class RedisChatRoomAggregationRepository implements ChatRoomAggregationRe
 
     @Override
     public void save(ChatRoomAggregation chatRoomAggregation, Instant now) {
-        String key = Rediskeys.CHAT_AGGREGATION_PREFIX + chatRoomAggregation.getStreamId();
+        String key = String.format(Rediskeys.CHAT_AGGREGATION_PREFIX, chatRoomAggregation.getStreamId());
 
         String count = String.valueOf(chatRoomAggregation.getCount());
         String timestamp = String.valueOf(now.toEpochMilli());
@@ -36,7 +36,7 @@ public class RedisChatRoomAggregationRepository implements ChatRoomAggregationRe
 
     @Override
     public Optional<ChatAggregationResult> findByStreamId(String streamId) {
-        String key = Rediskeys.CHAT_AGGREGATION_PREFIX + streamId;
+        String key = String.format(Rediskeys.CHAT_AGGREGATION_PREFIX, streamId);
 
         List<List<Object>> rawData = redisTemplate.execute(tsRangeScript, List.of(key), "-", "+", MAX_COUNT_FOR_FIND);
 
