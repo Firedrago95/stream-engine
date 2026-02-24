@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AnalysisQueryService {
 
-    public static final int FIND_LIMIT = 50;
+    private static final int FIND_LIMIT = 100;
 
     private final AnalysisRepository analysisRepository;
 
