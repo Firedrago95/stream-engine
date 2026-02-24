@@ -34,7 +34,7 @@ class AnalysisQueryServiceTest {
         List<AnalysisSignal> signals = List.of(
             AnalysisSignal.of(streamId, "PEAK", now, 100L)
         );
-        given(analysisRepository.findRecentSignals(streamId, 50)).willReturn(signals);
+        given(analysisRepository.findRecentSignals(streamId, 100)).willReturn(signals);
 
         // when
         AnalysisResponse response = analysisQueryService.getRecentAnalysis(streamId);
@@ -51,7 +51,7 @@ class AnalysisQueryServiceTest {
     void 조회된_데이터가_없으면_빈_리스트를_가진_응답_객체를_반환한다() {
         // given
         String streamId = "empty-stream";
-        given(analysisRepository.findRecentSignals(streamId, 50)).willReturn(List.of());
+        given(analysisRepository.findRecentSignals(streamId, 100)).willReturn(List.of());
 
         // when
         AnalysisResponse response = analysisQueryService.getRecentAnalysis(streamId);
