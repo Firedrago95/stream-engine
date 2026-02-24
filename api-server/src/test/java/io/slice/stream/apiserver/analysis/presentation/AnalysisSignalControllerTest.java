@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import io.slice.stream.apiserver.analysis.application.AnalysisService;
+import io.slice.stream.apiserver.analysis.application.AnalysisCommandService;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisSignalRequest;
 import java.time.Instant;
 import java.util.List;
@@ -37,7 +37,7 @@ class AnalysisSignalControllerTest {
         .registerModule(new JavaTimeModule());
 
     @MockitoBean
-    private AnalysisService analysisService;
+    private AnalysisCommandService analysisCommandService;
 
     @Test
     void 엔진으로부터_분석_신호를_받으면_202_Accepted를_반환하고_서비스를_호출한다() throws Exception {
@@ -54,9 +54,9 @@ class AnalysisSignalControllerTest {
         mockMvc.perform(post(signalPath)
                 .header(headerName, secretValue) // 자물쇠에 맞는 열쇠를 넣어줌
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(new ObjectMapper().registerModule(new JavaTimeModule()).writeValueAsString(requests)))
+                .content(objectMapper.registerModule(new JavaTimeModule()).writeValueAsString(requests)))
             .andExpect(status().isAccepted());
 
-        verify(analysisService).processSignals(anyList());
+        verify(analysisCommandService).processSignals(anyList());
     }
 }

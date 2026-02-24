@@ -5,7 +5,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
-import io.slice.stream.apiserver.analysis.application.AnalysisService;
+import io.slice.stream.apiserver.analysis.application.AnalysisQueryService;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
 import java.util.List;
@@ -22,7 +22,7 @@ class AnalysisQueryControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private AnalysisService analysisService;
+    private AnalysisQueryService analysisQueryService;
 
     @Test
     void 조회_요청_시_서비스를_통해_데이터를_반환한다() throws Exception {
@@ -31,7 +31,7 @@ class AnalysisQueryControllerTest {
         AnalysisResponse response = new AnalysisResponse(streamId, List.of(
             new AnalysisDataPoint(System.currentTimeMillis(), 100L, "NORMAL")
         ));
-        given(analysisService.getRecentAnalysis(streamId)).willReturn(response);
+        given(analysisQueryService.getRecentAnalysis(streamId)).willReturn(response);
 
         // when & then
         mockMvc.perform(get("/api/v1/analysis/{streamId}", streamId))

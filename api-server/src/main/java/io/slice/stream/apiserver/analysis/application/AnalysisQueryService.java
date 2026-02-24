@@ -7,25 +7,16 @@ import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.Anal
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AnalysisService {
+public class AnalysisQueryService {
 
     public static final int FIND_LIMIT = 50;
 
-    private final ApplicationEventPublisher eventPublisher;
     private final AnalysisRepository analysisRepository;
-
-    public void processSignals(List<AnalysisSignal> signals) {
-        signals.forEach(signal -> {
-            log.info("[Analysis] 신호 수신 - 스트림: {}, 상태: {}",signal.streamId(), signal.status());
-            eventPublisher.publishEvent(signal);
-        });
-    }
 
     public AnalysisResponse getRecentAnalysis(String streamId) {
         List<AnalysisSignal> signals = analysisRepository.findRecentSignals(streamId, FIND_LIMIT);

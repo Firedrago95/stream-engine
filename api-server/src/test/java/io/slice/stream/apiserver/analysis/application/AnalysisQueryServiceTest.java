@@ -1,10 +1,7 @@
 package io.slice.stream.apiserver.analysis.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
@@ -18,47 +15,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
-class AnalysisServiceTest {
-
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
+class AnalysisQueryServiceTest {
 
     @Mock
     private AnalysisRepository analysisRepository;
 
     @InjectMocks
-    private AnalysisService analysisService;
-
-    @Test
-    void 신호_리스트를_받으면_각_신호를_내부_이벤트로_발행한다() {
-        // given
-        List<AnalysisSignal> signals = List.of(
-            new AnalysisSignal("stream1", "PEAK", Instant.now(), 20),
-            new AnalysisSignal("stream2", "NORMAL", Instant.now(), 5)
-        );
-
-        // when
-        analysisService.processSignals(signals);
-
-        // then
-        verify(eventPublisher, times(2)).publishEvent(any(AnalysisSignal.class));
-    }
-
-    @Test
-    void 빈_신호_리스트를_받으면_이벤트를_발행하지_않는다() {
-        // given
-        List<AnalysisSignal> signals = List.of();
-
-        // when
-        analysisService.processSignals(signals);
-
-        // then
-        verify(eventPublisher, times(0)).publishEvent(any());
-    }
+    private AnalysisQueryService analysisQueryService;
 
     @Test
     void 특정_스트림의_최근_분석_데이터를_조회하면_DTO_형태로_변환하여_반환한다() {
@@ -71,7 +37,7 @@ class AnalysisServiceTest {
         given(analysisRepository.findRecentSignals(streamId, 50)).willReturn(signals);
 
         // when
-        AnalysisResponse response = analysisService.getRecentAnalysis(streamId);
+        AnalysisResponse response = analysisQueryService.getRecentAnalysis(streamId);
 
         // then
         assertThat(response.streamId()).isEqualTo(streamId);
@@ -88,7 +54,7 @@ class AnalysisServiceTest {
         given(analysisRepository.findRecentSignals(streamId, 50)).willReturn(List.of());
 
         // when
-        AnalysisResponse response = analysisService.getRecentAnalysis(streamId);
+        AnalysisResponse response = analysisQueryService.getRecentAnalysis(streamId);
 
         // then
         assertThat(response.streamId()).isEqualTo(streamId);
