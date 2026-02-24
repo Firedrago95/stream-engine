@@ -23,7 +23,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(AnalysisSignalController.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
-@TestPropertySource(properties = "analysis.signal.path=/api/v1/signals/test-path")
+@TestPropertySource(properties = {
+    "analysis.signal.path=/api/v1/signals/test-path",
+    "analysis.signal.secret=test-secret-value",
+    "analysis.signal.header=X-CUSTOM-HEADER-NAME"
+})
 class AnalysisSignalControllerTest {
 
     @Autowired
@@ -39,15 +43,18 @@ class AnalysisSignalControllerTest {
     void 엔진으로부터_분석_신호를_받으면_202_Accepted를_반환하고_서비스를_호출한다() throws Exception {
         // given
         String signalPath = "/api/v1/signals/test-path";
+        String headerName = "X-CUSTOM-HEADER-NAME";
+        String secretValue = "test-secret-value";
+
         List<AnalysisSignalRequest> requests = List.of(
             new AnalysisSignalRequest("stream1", "PEAK", Instant.now(), 10)
         );
 
         // when & then
         mockMvc.perform(post(signalPath)
-                .header("X-SL-ENGINE-TOKEN", "test-secret")
+                .header(headerName, secretValue) // 자물쇠에 맞는 열쇠를 넣어줌
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(requests)))
+                .content(new ObjectMapper().registerModule(new JavaTimeModule()).writeValueAsString(requests)))
             .andExpect(status().isAccepted());
 
         verify(analysisService).processSignals(anyList());
