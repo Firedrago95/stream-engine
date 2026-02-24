@@ -26,8 +26,8 @@ class ChatEventListenerTest {
     @Test
     void StreamChangedEvent를_수신하면_ChatManager의_manageStreams를_호출해야_한다() {
         // given
-        StreamTarget streamTarget1 = new StreamTarget("stream1", "name1", "chat1", 1L, "title1", 100);
-        StreamTarget streamTarget2 = new StreamTarget("stream2", "name2", "chat2", 2L, "title2", 200);
+        StreamTarget streamTarget1 = new StreamTarget("stream1", "침착맨", "chat1", 1L, "title1", 100, "https://thumb.com/1.jpg", "소통");
+        StreamTarget streamTarget2 = new StreamTarget("stream2", "풍월량", "chat2", 2L, "title2", 200, "https://thumb.com/2.jpg", "게임");
         Set<StreamTarget> newStreamTargets = Set.of(streamTarget1, streamTarget2);
         Set<String> closedStreamIds = Set.of("stream3");
         StreamChangedEvent event = new StreamChangedEvent(newStreamTargets, closedStreamIds);

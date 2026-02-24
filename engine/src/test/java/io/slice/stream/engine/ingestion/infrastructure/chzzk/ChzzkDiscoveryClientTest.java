@@ -58,32 +58,18 @@ class ChzzkDiscoveryClientTest {
     void 인기_라이브_스트림_목록을_가져와_도메인_모델로_매핑한다() throws Exception {
         // Given
         int limit = 5;
-        ChzzkLive chzzkLive1 = new ChzzkLive(1001L, "침착맨의 일상", "chatCh1", 5000, new Channel("ch1", "침착맨"));
-        ChzzkLive chzzkLive2 = new ChzzkLive(1002L, "게임 방송", "chatCh2", 3000, new Channel("ch2", "게이머A"));
+        ChzzkLive live1 = new ChzzkLive(1001L, "침착맨의 일상", "https://thumb.com/1_{type}.jpg", "소통", "5000", 5000, new Channel("ch1", "침착맨"));
+        ChzzkLive live2 = new ChzzkLive(1002L, "게임 방송", "https://thumb.com/2_{type}.jpg", "게임", "3000", 3000, new Channel("ch2", "게이머A"));
 
         // 1. live-fetch (상위 라이브 목록 조회) 응답 Mocking
-        ChzzkLiveResponse topLiveResponse = createMockResponse(List.of(
-            new ChzzkLive(chzzkLive1.liveId(), chzzkLive1.liveTitle(), null, chzzkLive1.concurrentUserCount(), chzzkLive1.channel()), // 첫 호출에서는 chatChannelId가 없다고 가정
-            new ChzzkLive(chzzkLive2.liveId(), chzzkLive2.liveTitle(), null, chzzkLive2.concurrentUserCount(), chzzkLive2.channel())
-        ));
+        ChzzkLiveResponse topLiveResponse = createMockResponse(List.of(live1, live2));
 
         mockServer.expect(requestTo(buildTopLiveApiUri(limit)))
             .andRespond(withSuccess(objectMapper.writeValueAsString(topLiveResponse), MediaType.APPLICATION_JSON));
 
-        // 2. live-detail-fetch (각 채널의 상세 정보 조회) 응답 Mocking
-        // ch1에 대한 상세 응답
-        ChzzkLiveDetailResponse detailResponse1 = new ChzzkLiveDetailResponse(
-            new ChzzkLiveDetailResponse.Content("OPEN", chzzkLive1.chatChannelId())
-        );
-        mockServer.expect(requestTo(buildLiveDetailApiUri(chzzkLive1.channel().channelId())))
-            .andRespond(withSuccess(objectMapper.writeValueAsString(detailResponse1), MediaType.APPLICATION_JSON));
-
-        // ch2에 대한 상세 응답
-        ChzzkLiveDetailResponse detailResponse2 = new ChzzkLiveDetailResponse(
-            new ChzzkLiveDetailResponse.Content("OPEN", chzzkLive2.chatChannelId())
-        );
-        mockServer.expect(requestTo(buildLiveDetailApiUri(chzzkLive2.channel().channelId())))
-            .andRespond(withSuccess(objectMapper.writeValueAsString(detailResponse2), MediaType.APPLICATION_JSON));
+        // 2. 상세 정보 응답 Mocking
+        mockDetailApi("ch1", "chatCh1");
+        mockDetailApi("ch2", "chatCh2");
 
         // When
         List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(limit);
@@ -145,6 +131,14 @@ class ChzzkDiscoveryClientTest {
             .hasMessage("API 호출 실패: ")
             .extracting("errorCode")
             .isEqualTo(ErrorCode.STREAM_PROVIDER_CLIENT_ERROR);
+    }
+
+    private void mockDetailApi(String channelId, String chatChannelId) throws Exception {
+        ChzzkLiveDetailResponse detailResponse = new ChzzkLiveDetailResponse(
+            new ChzzkLiveDetailResponse.Content("OPEN", chatChannelId)
+        );
+        mockServer.expect(requestTo(buildLiveDetailApiUri(channelId)))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(detailResponse), MediaType.APPLICATION_JSON));
     }
 
     private ChzzkLiveResponse createMockResponse(List<ChzzkLive> data) {

@@ -17,6 +17,15 @@ public class RestClientConfig {
     @Value("${chzzk.game-api.base-url}")
     String chzzkGameApiBaseUrl;
 
+    @Value("${api-server.host}")
+    private String apiServerHost;
+
+    @Value("${api-server.header}")
+    private String apiServerHeader;
+
+    @Value("${api-server.secret}")
+    private String apiServerSecret;
+
     private static final String USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36";
 
     // 1. [기존] 방송 정보 조회용 클라이언트 (api.chzzk.naver.com)
@@ -41,6 +50,16 @@ public class RestClientConfig {
             .defaultHeader("sec-ch-ua", "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\"")
             .defaultHeader("sec-ch-ua-mobile", "?0")
             .defaultHeader("sec-ch-ua-platform", "\"macOS\"")
+            .build();
+    }
+
+    // 3. 우리 API 서버와 통신할 전용 클라이언트
+    @Bean
+    public RestClient apiServerRestClient() {
+        return RestClient.builder()
+            .baseUrl(apiServerHost)
+            .defaultHeader(apiServerHeader, apiServerSecret)
+            .defaultHeader("Content-Type", "application/json")
             .build();
     }
 }

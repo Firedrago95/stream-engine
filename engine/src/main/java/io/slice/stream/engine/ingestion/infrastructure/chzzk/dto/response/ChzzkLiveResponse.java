@@ -13,6 +13,8 @@ public record ChzzkLiveResponse(
         public record ChzzkLive(
             long liveId,
             String liveTitle,
+            String liveImageUrl,
+            String liveCategoryValue,
             String chatChannelId,
             int concurrentUserCount,
             Channel channel
@@ -21,6 +23,11 @@ public record ChzzkLiveResponse(
                 String channelId,
                 String channelName
             ) { }
+
+            public String getFormattedThumbnailUrl() {
+                if (liveImageUrl == null) return null;
+                return liveImageUrl.replace("{type}", "1080");
+            }
         }
     }
 }
