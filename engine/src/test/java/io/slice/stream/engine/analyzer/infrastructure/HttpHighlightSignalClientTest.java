@@ -1,119 +1,89 @@
 package io.slice.stream.engine.analyzer.infrastructure;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.*;
 
 import io.slice.stream.engine.analyzer.domain.AnalysisSignal;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import tools.jackson.databind.ObjectMapper;
+import org.springframework.web.client.RestClient;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class HttpHighlightSignalClientTest {
 
     @Mock
-    private HttpClient httpClient;
+    private RestClient restClient;
 
     @Mock
-    private ObjectMapper objectMapper;
+    private RestClient.RequestBodyUriSpec requestBodyUriSpec;
+
+    @Mock
+    private RestClient.RequestBodySpec requestBodySpec;
+
+    @Mock
+    private RestClient.ResponseSpec responseSpec;
 
     private HttpHighlightSignalClient httpHighlightSignalClient;
 
-    private static final String SERVER_HOST = "http://localhost:8081";
     private static final String HIGHLIGHT_PATH = "/api/v1/signals/secret-path";
-    private static final String ENGINE_SECRET = "test-engine-secret";
 
     @BeforeEach
     void setUp() {
-        httpHighlightSignalClient = new HttpHighlightSignalClient(
-            httpClient,
-            objectMapper,
-            SERVER_HOST,
-            HIGHLIGHT_PATH,
-            ENGINE_SECRET
-        );
+        httpHighlightSignalClient = new HttpHighlightSignalClient(restClient, HIGHLIGHT_PATH);
     }
 
     @Test
-    void send_메서드_호출시_올바른_HttpRequest로_비동기_호출되어야_한다() throws Exception {
+    void send_메서드_호출시_RestClient의_Post_체인이_올바르게_실행되어야_한다() {
         // given
         List<AnalysisSignal> signals = List.of(
             new AnalysisSignal("stream1", "PEAK", Instant.now(), 100L)
         );
-        String jsonBody = "[{\"streamId\":\"stream1\"}]";
 
-        when(objectMapper.writeValueAsString(signals)).thenReturn(jsonBody);
-
-        CompletableFuture<HttpResponse> mockFuture = CompletableFuture.completedFuture(mock(HttpResponse.class));
-        when(httpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-            .thenReturn(mockFuture);
+        // RestClient의 Fluent API 체이닝 모킹
+        when(restClient.post()).thenReturn(requestBodyUriSpec);
+        when(requestBodyUriSpec.uri(HIGHLIGHT_PATH)).thenReturn(requestBodySpec);
+        when(requestBodySpec.body(anyList())).thenReturn(requestBodySpec);
+        when(requestBodySpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.onStatus(any(), any())).thenReturn(responseSpec);
 
         // when
         httpHighlightSignalClient.send(signals);
 
         // then
-        ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
-        verify(httpClient, times(1)).sendAsync(requestCaptor.capture(), any(HttpResponse.BodyHandler.class));
-
-        HttpRequest capturedRequest = requestCaptor.getValue();
-        String expectedFullUrl = SERVER_HOST + HIGHLIGHT_PATH;
-        assertAll(
-            () -> assertThat(capturedRequest.uri().toString()).isEqualTo(expectedFullUrl),
-            () -> assertThat(capturedRequest.headers().firstValue("Content-Type")).contains("application/json"),
-            () -> assertThat(capturedRequest.headers().firstValue("X-SL-ENGINE-TOKEN")).contains(ENGINE_SECRET),
-            () -> assertThat(capturedRequest.method()).isEqualTo("POST")
-        );
+        verify(restClient).post();
+        verify(requestBodyUriSpec).uri(HIGHLIGHT_PATH);
+        verify(requestBodySpec).body(signals); // 객체가 직접 전달되는지 확인
+        verify(responseSpec).toBodilessEntity();
     }
 
     @Test
-    void 직렬화_단계에서_예외가_발생해도_httpClient를_호출하지_않고_정상_종료되어야_한다() throws Exception {
-        // given
-        List<AnalysisSignal> signals = List.of(new AnalysisSignal("stream1", "ERROR", Instant.now(), 0L));
-        when(objectMapper.writeValueAsString(signals)).thenThrow(new RuntimeException("Serialization Failed"));
+    void 신호_리스트가_비어있으면_통신을_시도하지_않아야_한다() {
+        // when
+        httpHighlightSignalClient.send(Collections.emptyList());
 
-        // when & then
-        assertThatNoException().isThrownBy(() -> httpHighlightSignalClient.send(signals));
-        verify(httpClient, never()).sendAsync(any(), any());
+        // then
+        verify(restClient, never()).post();
     }
 
     @Test
-    void 비동기_전송_중_네트워크_에러가_발생해도_전체_프로세스는_예외를_던지지_않는다() throws Exception {
+    void 전송_중_예외가_발생해도_상위로_던지지_않고_로그만_남겨야_한다() {
         // given
         List<AnalysisSignal> signals = List.of(new AnalysisSignal("stream1", "PEAK", Instant.now(), 50L));
-        when(objectMapper.writeValueAsString(signals)).thenReturn("[]");
 
-        CompletableFuture<HttpResponse<Object>> failedFuture = new CompletableFuture<>();
-        failedFuture.completeExceptionally(new RuntimeException("Network Down"));
-
-        when(httpClient.sendAsync(any(), any())).thenReturn(failedFuture);
+        when(restClient.post()).thenThrow(new RuntimeException("Connection Refused"));
 
         // when & then
         assertThatNoException().isThrownBy(() -> httpHighlightSignalClient.send(signals));
-        verify(httpClient).sendAsync(any(), any());
-    }
-
-    private void assertAll(Runnable... assertions) {
-        for (Runnable assertion : assertions) {
-            assertion.run();
-        }
     }
 }

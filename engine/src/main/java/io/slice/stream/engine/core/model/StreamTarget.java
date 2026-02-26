@@ -6,7 +6,9 @@ public record StreamTarget(
     String chatChannelId,
     long liveId,
     String liveTitle,
-    int concurrentUserCount
+    int concurrentUserCount,
+    String thumbnailUri,
+    String categoryName
 ) {
 
 }

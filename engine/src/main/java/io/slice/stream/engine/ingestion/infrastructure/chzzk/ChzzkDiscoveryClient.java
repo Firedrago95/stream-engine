@@ -92,12 +92,14 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             log.debug("채널 id로 상세 조회 시작: {}", channelId);
             ChzzkLiveDetailResponse.Content detailContent = fetchLiveDetail(channelId);
             return new StreamTarget(
-                topLive.channel().channelId(),
+                channelId,
                 topLive.channel().channelName(),
                 detailContent.chatChannelId(),
                 topLive.liveId(),
                 topLive.liveTitle(),
-                topLive.concurrentUserCount()
+                topLive.concurrentUserCount(),
+                topLive.getFormattedThumbnailUrl(),
+                topLive.liveCategoryValue()
             );
         } catch (Exception e) {
             log.warn("방송 상세 정보 조회 중 에러 발생. channelName: {}", topLive.channel().channelName());

@@ -40,8 +40,8 @@ class ChatManagerTest {
     @Test
     void 새로운_스트림에_대해_채팅_수집을_시작해야_한다() {
         // given
-        StreamTarget streamTarget1 = new StreamTarget("stream1", "name1", "chat1", 1L, "title1", 100);
-        StreamTarget streamTarget2 = new StreamTarget("stream2", "name2", "chat2", 2L, "title2", 200);
+        StreamTarget streamTarget1 = new StreamTarget("stream1", "스트리머1", "chat1", 1L, "제목1", 100, "https://thumb.com/1.jpg", "음악");
+        StreamTarget streamTarget2 = new StreamTarget("stream2", "스트리머2", "chat2", 2L, "제목2", 200, "https://thumb.com/2.jpg", "게임");
         Set<StreamTarget> newStreamTargets = Set.of(streamTarget1, streamTarget2);
         Set<String> closedChatChannelIds = Collections.emptySet();
 
@@ -59,7 +59,7 @@ class ChatManagerTest {
     @Test
     void 종료된_스트림에_대해_채팅_수집을_중단해야_한다() {
         // given
-        StreamTarget streamTarget1 = new StreamTarget("stream1", "name1", "chat1", 1L, "title1", 100);
+        StreamTarget streamTarget1 = new StreamTarget("stream1", "스트리머1", "chat1", 1L, "제목1", 100, "https://thumb.com/1.jpg", "게임");
         Set<StreamTarget> initialStreamTargets = Set.of(streamTarget1);
         ChatCollector collectorToStop = mock(ChatCollector.class);
         when(chatCollectorFactory.start(streamTarget1)).thenReturn(collectorToStop);
@@ -78,13 +78,13 @@ class ChatManagerTest {
     @Test
     void 새로운_스트림과_종료된_스트림을_동시에_처리해야_한다() {
         // given
-        StreamTarget streamTargetToClose = new StreamTarget("streamToClose", "nameClose", "chatClose", 99L, "titleClose", 999);
+        StreamTarget streamTargetToClose = new StreamTarget("streamToClose", "종료스트리머", "chatClose", 99L, "종료제목", 999, "https://thumb.com/close.jpg", "소통");
         ChatCollector collectorToStop = mock(ChatCollector.class);
         when(chatCollectorFactory.start(streamTargetToClose)).thenReturn(collectorToStop);
         chatManager.manageStreams(Set.of(streamTargetToClose), Collections.emptySet());
 
-        StreamTarget streamTargetNew1 = new StreamTarget("streamNew1", "nameNew1", "chatNew1", 101L, "titleNew1", 111);
-        StreamTarget streamTargetNew2 = new StreamTarget("streamNew2", "nameNew2", "chatNew2", 102L, "titleNew2", 222);
+        StreamTarget streamTargetNew1 = new StreamTarget("streamNew1", "신규1", "chatNew1", 101L, "신규제목1", 111, "https://thumb.com/new1.jpg", "게임");
+        StreamTarget streamTargetNew2 = new StreamTarget("streamNew2", "신규2", "chatNew2", 102L, "신규제목2", 222, "https://thumb.com/new2.jpg", "먹방");
         Set<StreamTarget> newStreamTargets = Set.of(streamTargetNew1, streamTargetNew2);
         Set<String> closedChatChannelIds = Set.of(streamTargetToClose.chatChannelId());
 
