@@ -1,9 +1,10 @@
 package io.slice.stream.apiserver.stream.presentation.dto;
 
-public record StreamItem(
+public record StreamResponse(
     String streamId,
     String streamerName,
     String liveTitle,
     String thumbnailUrl,
-    String categoryName
+    String categoryName,
+    String status
 ) {}
