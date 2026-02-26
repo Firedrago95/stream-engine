@@ -1,26 +1,15 @@
-import { BrowserRouter, Routes, Route, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useStreams } from './hooks/useStreams';
 import { StreamCard } from './components/stream/StreamCard';
 import { StreamSkeleton } from './components/common/Skeleton';
-
-const StreamAnalysisDashboard = () => {
-  const { streamId } = useParams();
-  return (
-      <div className="max-w-[1800px] mx-auto p-6 md:p-10">
-        <h2 className="text-2xl font-bold text-chzzk-green mb-4">채팅 분석 대시보드</h2>
-        <div className="h-96 border border-white/10 rounded-xl flex items-center justify-center bg-white/5">
-          <p className="text-gray-400">Stream ID: {streamId} 데이터 로딩 및 분석 차트 렌더링 영역</p>
-        </div>
-      </div>
-  );
-};
+import { StreamAnalysisDashboard } from './components/stream/StreamAnalysisDashboard';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 const StreamList = () => {
   const { streams, isLoading, error } = useStreams(15000);
 
   return (
       <div className="max-w-[1800px] mx-auto p-6 md:p-10">
-        {/* Header */}
         <header className="flex items-center justify-between mb-10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-chzzk-green rounded-lg flex items-center justify-center shadow-neon">
@@ -34,7 +23,6 @@ const StreamList = () => {
           </div>
         </header>
 
-        {/* Content */}
         {error ? (
             <div className="h-64 flex items-center justify-center text-red-400 border border-red-400/20 rounded-2xl bg-red-400/5">
               {error}
@@ -53,14 +41,23 @@ const StreamList = () => {
 
 function App() {
   return (
-      <BrowserRouter>
-        <div className="min-h-screen bg-chzzk-dark text-white selection:bg-chzzk-green selection:text-black">
-          <Routes>
-            <Route path="/" element={<StreamList />} />
-            <Route path="/streams/:streamId" element={<StreamAnalysisDashboard />} />
-          </Routes>
-        </div>
-      </BrowserRouter>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <div className="min-h-screen bg-chzzk-dark text-white selection:bg-chzzk-green selection:text-black">
+            <Routes>
+              <Route path="/" element={<StreamList />} />
+              <Route
+                  path="/streams/:streamId"
+                  element={
+                    <ErrorBoundary fallback={<div className="p-10 text-center text-red-400">대시보드를 불러오는 중 치명적인 오류가 발생했습니다.</div>}>
+                      <StreamAnalysisDashboard />
+                    </ErrorBoundary>
+                  }
+              />
+            </Routes>
+          </div>
+        </BrowserRouter>
+      </ErrorBoundary>
   );
 }
 
