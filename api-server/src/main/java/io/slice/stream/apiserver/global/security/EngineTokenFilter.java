@@ -16,16 +16,19 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class EngineTokenFilter extends OncePerRequestFilter {
 
     private final String signalPath;
+    private final String syncPath;
     private final String expectedSecret;
     private final String headerName;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     public EngineTokenFilter(
         @Value("${analysis.signal.path}") String signalPath,
+        @Value("${analysis.sync.path}") String syncPath,
         @Value("${analysis.signal.secret}") String expectedSecret,
         @Value("${analysis.signal.header}") String headerName
     ) {
         this.signalPath = signalPath;
+        this.syncPath = syncPath;
         this.expectedSecret = expectedSecret;
         this.headerName = headerName;
     }
@@ -36,7 +39,9 @@ public class EngineTokenFilter extends OncePerRequestFilter {
 
         String requestPath = request.getRequestURI();
 
-        if (pathMatcher.match(signalPath + "/**", requestPath)) {
+        if (pathMatcher.match(signalPath + "/**", requestPath) ||
+            pathMatcher.match(syncPath + "/**", requestPath)) {
+
             String requestToken = request.getHeader(headerName);
 
             if (requestToken == null || !requestToken.equals(expectedSecret)) {
