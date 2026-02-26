@@ -4,63 +4,98 @@ services:
   kafka:
     image: ${KAFKA_IMAGE}
     hostname: kafka
-    container_name: kafka
+    container_name: slice-kafka
     ports:
       - "${KAFKA_EXTERNAL_PORT}:9092"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: controller,broker
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:${KAFKA_CONTROLLER_QUORUM_PORT}
-
-      KAFKA_LISTENERS: PLAINTEXT://:29092,CONTROLLER://:9093,EXTERNAL://:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,EXTERNAL://localhost:${KAFKA_EXTERNAL_PORT}
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-
       CLUSTER_ID: ${KAFKA_CLUSTER_ID}
     volumes:
-      - Kafka_:/var/lib/kafka/data
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis/redis-stack-server:${REDIS_IMAGE_TAG}
     hostname: redis
-    container_name: redis
+    container_name: slice-redis
     ports:
       - "${REDIS_EXTERNAL_PORT}:6379"
       - "${REDIS_INSIGHT_EXTERNAL_PORT}:8001"
     environment:
       REDIS_ARGS: "--appendonly yes"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  engine:
+    build:
+      context: ./engine
+      dockerfile: Dockerfile
+    hostname: engine
+    container_name: slice-stream-engine
+    environment:
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      SERVER_HOST: http://api:8080
+      SERVER_SECRET: ${SERVER_SECRET}
+      SERVER_HEADER: ${SERVER_HEADER}
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   api:
     build:
-      context: ./api
+      context: ./api-server
       dockerfile: Dockerfile
     hostname: api
-    container_name: slice-stream-engine-api
+    container_name: slice-stream-api-server
     ports:
       - "${API_EXTERNAL_PORT}:8080"
     environment:
-      SPRING_DATA_REDIS_HOST: ${SPRING_DATA_REDIS_HOST}
-      SPRING_DATA_REDIS_PORT: ${SPRING_DATA_REDIS_PORT}
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      SERVER_SECRET: ${SERVER_SECRET}
+      SERVER_HEADER: ${SERVER_HEADER}
     depends_on:
-      - kafka
-      - redis
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   client:
     build:
       context: ./client
       dockerfile: Dockerfile
     hostname: client
-    container_name: slice-stream-engine-client
+    container_name: slice-stream-client
     ports:
-      - "${CLIENT_EXTERNAL_PORT}:5173" # Map host port 3000 to container port 5173 (Vite default)
+      - "${CLIENT_EXTERNAL_PORT}:5173"
     environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL} # This might need to be 'http://api:8080' if client calls API within docker network
+      VITE_API_BASE_URL: /api
     depends_on:
       - api
 
 volumes:
-  Kafka_:
+  kafka_data:
+  redis_data:
