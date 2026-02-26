@@ -20,7 +20,7 @@ Java 25 가상 스레드(Virtual Threads) 기반의 고성능 실시간 스트�
 
 ### Backend (Core & API)
 - **Language**: Java 25 (Virtual Threads)
-- **Framework**: Spring Boot 3.x
+- **Framework**: Spring Boot 4.0.1
 - **Data & Messaging**: Spring Data Redis, Spring Kafka
 - **Utils**: Spring Scheduling, Jackson, SLF4J
 
@@ -29,9 +29,12 @@ Java 25 가상 스레드(Virtual Threads) 기반의 고성능 실시간 스트�
 - **Message Broker**: Apache Kafka (Kraft Mode)
 - **Containerization**: Docker, Docker Compose
 
-### Frontend (Client) (AI 담당)
+### Frontend (Client) 🤖
+> 프로젝트의 핵심 역량은 **백엔드 대용량 트래픽 처리 및 데이터 파이프라인 설계**에 집중되어 있습니다.
+> 프론트엔드(`client` 모듈)는 백엔드 엔진의 실시간 데이터(SSE, 화력 차트)를 시각적으로 검증하기 위해 **100% AI (LLM) 기반으로 생성된 MVP 코드**입니다.
 - **Framework**: React 18, Vite, TypeScript
-- **Styling / UI**: Tailwind CSS
+- **Routing & State**: React Router, Zod (Runtime Type Validation)
+- **Styling / UI**: Tailwind CSS, Recharts (Data Visualization)
 
 ---
 
