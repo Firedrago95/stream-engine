@@ -3,11 +3,14 @@ package io.slice.stream.apiserver.analysis.infrastructure;
 import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -35,5 +38,15 @@ public class InMemoryAnalysisRepository implements AnalysisRepository {
 
         int fromIndex = Math.max(0, size - limit);
         return new ArrayList<>(signals.subList(fromIndex, size));
+    }
+
+    @Override
+    public Set<String> findChannelsWithRecentSignals(Collection<String> streamIds) {
+        return streamIds.stream()
+            .filter(id -> {
+                List<AnalysisSignal> signals = store.get(id);
+                return signals != null && !signals.isEmpty();
+            })
+            .collect(Collectors.toSet());
     }
 }

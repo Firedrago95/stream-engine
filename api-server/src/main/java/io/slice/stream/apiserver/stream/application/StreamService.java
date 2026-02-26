@@ -17,6 +17,7 @@ public class StreamService {
     private final Map<String, StreamSyncRequest> streamCache = new ConcurrentHashMap<>();
 
     public void syncAll(List<StreamSyncRequest> streams) {
+        streamCache.clear();
         streams.forEach(s -> streamCache.put(s.channelId(), s));
         log.info("[Sync] 현재 서버 캐시 방송 수 : {}", streamCache.size());
     }

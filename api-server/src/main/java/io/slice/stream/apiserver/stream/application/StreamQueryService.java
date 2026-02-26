@@ -2,8 +2,10 @@ package io.slice.stream.apiserver.stream.application;
 
 import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamResponse;
-import java.util.Comparator;
+import io.slice.stream.apiserver.stream.presentation.dto.StreamSyncRequest;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,20 +17,24 @@ public class StreamQueryService {
     private final AnalysisRepository analysisRepository;
 
     public List<StreamResponse> getBrowseList() {
-        return streamService.getAllStreams().stream()
-            .map(s -> {
-                boolean isAnalyzing = !analysisRepository.findRecentSignals(s.channelId(), 1).isEmpty();
+        List<StreamSyncRequest> allStreams = streamService.getAllStreams();
 
-                return new StreamResponse(
-                    s.channelId(),
-                    s.channelName(),
-                    s.liveTitle(),
-                    s.thumbnailUrl(),
-                    s.categoryName(),
-                    isAnalyzing ? "ANALYZING" : "LIVE"
-                );
-            })
-            .sorted(Comparator.comparing(StreamResponse::status))
+        Set<String> channelIds = allStreams.stream()
+            .map(StreamSyncRequest::channelId)
+            .collect(Collectors.toSet());
+
+        Set<String> analyzingIds = analysisRepository.findChannelsWithRecentSignals(channelIds);
+
+        return allStreams.stream()
+            .map(s -> new StreamResponse(
+                s.channelId(),
+                s.channelName(),
+                s.liveTitle(),
+                s.thumbnailUrl(),
+                s.categoryName(),
+                analyzingIds.contains(s.channelId()) ? "ANALYZING" : "LIVE"
+            ))
+            .sorted()
             .toList();
     }
 }
