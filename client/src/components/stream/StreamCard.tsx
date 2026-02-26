@@ -1,15 +1,40 @@
-import React from 'react';
-import type {StreamItem} from '../../types/stream';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import type { StreamItem } from '../../types/stream';
 
 export const StreamCard: React.FC<{ stream: StreamItem }> = ({ stream }) => {
+  const navigate = useNavigate();
+  const [imgError, setImgError] = useState(false);
   const isAnalyzing = stream.status === 'ANALYZING';
 
+  const handleClick = () => {
+    navigate(`/streams/${stream.streamId}`);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+  };
+
+  const fallbackImage = 'https://via.placeholder.com/640x360.png?text=No+Image';
+
   return (
-      <div className="group flex flex-col gap-2.5 cursor-pointer">
+      <div
+          className="group flex flex-col gap-2.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-chzzk-green rounded-xl"
+          onClick={handleClick}
+          onKeyDown={handleKeyDown}
+          tabIndex={0}
+          role="button"
+          aria-label={`${stream.liveTitle} - ${stream.streamerName} 채팅 분석 보기`}
+      >
         {/* Thumbnail */}
         <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-chzzk-card ring-1 ring-white/5 group-hover:ring-chzzk-green/50 transition-all duration-300">
           <img
-              src={stream.thumbnailUrl}
+              src={imgError ? fallbackImage : stream.thumbnailUrl}
+              loading="lazy"
+              onError={() => setImgError(true)}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               alt={stream.liveTitle}
           />
