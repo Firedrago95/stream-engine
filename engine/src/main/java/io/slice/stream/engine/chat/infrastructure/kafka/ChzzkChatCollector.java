@@ -16,6 +16,7 @@ public class ChzzkChatCollector implements ChatMessageListener {
 
     @Override
     public void onMessages(List<ChatMessage> messages) {
+        log.info("[Kafka Producer] {} 개의 채팅 메시지를 Kafka로 전송 시도 - streamId: {}", messages.size(), streamId);
         messages.forEach(msg -> {
             kafkaTemplate.send("chat-messages", streamId, msg);
             log.debug("[{}] kafka 전송 완료: {}", streamId, msg.message());

@@ -16,6 +16,7 @@ import tools.jackson.databind.json.JsonMapper;
 public class ChzzkWebSocketListener implements Listener {
 
     private final ChatMessageListener messageListener;
+    private final String channelId;
     private final String chatChannelId;
     private final String accessToken;
     private final JsonMapper jsonMapper;
@@ -27,12 +28,14 @@ public class ChzzkWebSocketListener implements Listener {
 
     public ChzzkWebSocketListener(
         ChatMessageListener messageListener,
+        String channelId,
         String chatChannelId,
         String accessToken,
         JsonMapper jsonMapper,
         ChzzkMessageConverter messageConverter
     ) {
         this.messageListener = messageListener;
+        this.channelId = channelId;
         this.chatChannelId = chatChannelId;
         this.accessToken = accessToken;
         this.jsonMapper = jsonMapper;
@@ -105,7 +108,7 @@ public class ChzzkWebSocketListener implements Listener {
     }
 
     private void handleChatMessage(JsonNode rootNode) {
-        List<ChatMessage> messages = messageConverter.convert(rootNode);
+        List<ChatMessage> messages = messageConverter.convert(rootNode, channelId);
         if (!messages.isEmpty()) {
             for (ChatMessage msg : messages) {
                 log.info("[{}] {}: {}", chatChannelId, msg.author().nickname().replaceAll("[\r\n]", " "), msg.message());

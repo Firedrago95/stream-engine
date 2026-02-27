@@ -29,7 +29,13 @@ public class ChzzkChatCollectorFactory implements ChatCollectorFactory {
     public ChatCollector start(StreamTarget streamTarget) {
         ChatClient chzzkChatClient = new ChzzkChatClient(chzzkApiClient, httpClient, jsonMapper, chzzkMessageConverter);
         ChatMessageListener messageListener = new ChzzkChatCollector(streamTarget.channelId(), kafkaTemplate);
-        ChatCollector connectionManager = new ChatConnectionManager(chzzkChatClient, messageListener, streamTarget.chatChannelId());
+
+        ChatCollector connectionManager = new ChatConnectionManager(
+            chzzkChatClient,
+            messageListener,
+            streamTarget.chatChannelId(),
+            streamTarget.channelId()
+        );
 
         connectionManager.start();
         return connectionManager;

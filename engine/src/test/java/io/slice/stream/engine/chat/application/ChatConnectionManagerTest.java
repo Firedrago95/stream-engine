@@ -34,11 +34,12 @@ class ChatConnectionManagerTest {
 
     private ChatConnectionManager chatConnectionManager;
 
-    private static final String STREAM_ID = "testStream";
+    private static final String CHANNEL_ID = "testStream";
+    private static final String CHAT_CHANNEL_ID = "testChatChannelId";
 
     @BeforeEach
     void setUp() {
-        chatConnectionManager = new ChatConnectionManager(chatClient, downstreamListener, STREAM_ID);
+        chatConnectionManager = new ChatConnectionManager(chatClient, downstreamListener, CHAT_CHANNEL_ID, CHANNEL_ID);
     }
 
     @Test
@@ -47,7 +48,7 @@ class ChatConnectionManagerTest {
         chatConnectionManager.start();
 
         // then
-        verify(chatClient).connect(STREAM_ID, chatConnectionManager);
+        verify(chatClient).connect(CHANNEL_ID, CHAT_CHANNEL_ID, chatConnectionManager);
     }
 
     @Test
@@ -58,7 +59,7 @@ class ChatConnectionManagerTest {
 
         // then
         verify(chatClient).disconnect();
-        verify(chatClient, never()).connect(anyString(), any(ChatMessageListener.class));
+        verify(chatClient, never()).connect(anyString(), anyString(), any(ChatMessageListener.class));
     }
     
     @Test
@@ -82,7 +83,7 @@ class ChatConnectionManagerTest {
         chatConnectionManager.onDisconnected();
 
         // then
-        verify(chatClient, timeout(2000).times(2)).connect(eq(STREAM_ID), any(ChatMessageListener.class));
+        verify(chatClient, timeout(2000).times(2)).connect(eq(CHANNEL_ID), eq(CHAT_CHANNEL_ID), any(ChatMessageListener.class));
     }
     
     @Test
@@ -91,19 +92,19 @@ class ChatConnectionManagerTest {
         chatConnectionManager.onError(new RuntimeException("Test error"));
 
         // then
-        verify(chatClient, timeout(2000).times(1)).connect(eq(STREAM_ID), any(ChatMessageListener.class));
+        verify(chatClient, timeout(2000).times(1)).connect(eq(CHANNEL_ID), eq(CHAT_CHANNEL_ID), any(ChatMessageListener.class));
     }
     
     @Test
     void 최초_연결_실패_시_재연결을_시도해야_한다() throws URISyntaxException {
         // given
-        doThrow(new RuntimeException("Connection failed")).when(chatClient).connect(anyString(), any(ChatMessageListener.class));
+        doThrow(new RuntimeException("Connection failed")).when(chatClient).connect(anyString(), anyString(), any(ChatMessageListener.class));
 
         // when
         chatConnectionManager.start();
 
         // then
-        verify(chatClient, timeout(2000).times(2)).connect(eq(STREAM_ID), any(ChatMessageListener.class));
+        verify(chatClient, timeout(2000).times(2)).connect(eq(CHANNEL_ID), eq(CHAT_CHANNEL_ID), any(ChatMessageListener.class));
     }
     
     @Test
@@ -116,7 +117,7 @@ class ChatConnectionManagerTest {
 
         // then
         verify(chatClient).disconnect();
-        verify(chatClient, never()).connect(any(), any());
+        verify(chatClient, never()).connect(any(), any(), any());
     }
 
     @Test
@@ -124,16 +125,16 @@ class ChatConnectionManagerTest {
         // given
         doThrow(new RuntimeException("첫 번째 연결 실패"))
             .doNothing()
-            .when(chatClient).connect(eq(STREAM_ID), any(ChatMessageListener.class));
+            .when(chatClient).connect(eq(CHANNEL_ID), eq(CHAT_CHANNEL_ID), any(ChatMessageListener.class));
 
         // when
         chatConnectionManager.start();
-        verify(chatClient, timeout(2000).times(2)).connect(eq(STREAM_ID), any(ChatMessageListener.class));
+        verify(chatClient, timeout(2000).times(2)).connect(eq(CHANNEL_ID), eq(CHAT_CHANNEL_ID), any(ChatMessageListener.class));
 
         chatConnectionManager.onConnected();
         chatConnectionManager.onDisconnected();
 
         // then
-        verify(chatClient, timeout(2000).times(3)).connect(eq(STREAM_ID), any(ChatMessageListener.class));
+        verify(chatClient, timeout(2000).times(3)).connect(eq(CHANNEL_ID), eq(CHAT_CHANNEL_ID), any(ChatMessageListener.class));
     }
 }

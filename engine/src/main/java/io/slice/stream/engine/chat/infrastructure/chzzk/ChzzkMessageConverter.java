@@ -24,7 +24,7 @@ public class ChzzkMessageConverter {
 
     private final JsonMapper jsonMapper;
 
-    public List<ChatMessage> convert(JsonNode rootNode) {
+    public List<ChatMessage> convert(JsonNode rootNode, String channelId) {
         int cmd = rootNode.path("cmd").asInt();
         CmdType cmdType = CmdType.fromInt(cmd);
 
@@ -39,10 +39,8 @@ public class ChzzkMessageConverter {
             return Collections.emptyList(); // 데이터 없음 (정상)
         }
 
-        String streamId = response.cid();
-
         return StreamSupport.stream(response.bdy().spliterator(), false)
-            .map(bodyNode -> parseSingleMessage(bodyNode, cmdType, streamId))
+            .map(bodyNode -> parseSingleMessage(bodyNode, cmdType, channelId))
             .filter(Objects::nonNull)
             .toList();
     }
@@ -75,8 +73,6 @@ public class ChzzkMessageConverter {
                 streamId,
                 Map.of()
             );
-
-            log.info("[채팅 파싱 확인] 할당된 streamId: {}, 메시지: {}", streamId, chatMessage.message());
 
             return chatMessage;
         } catch (Exception e) {
