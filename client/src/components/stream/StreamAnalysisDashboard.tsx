@@ -17,11 +17,11 @@ export const StreamAnalysisDashboard: React.FC = () => {
   const { streamId } = useParams<{ streamId: string }>();
   const navigate = useNavigate();
 
-  // 💡 1. 훅의 반환값 이름(analysisData, isGathering)을 정확히 맞춥니다.
   const { analysisData, isLoading, error, isGathering } = useStreamAnalysis(streamId || '');
 
-  // 💡 2. 데이터가 null일 경우를 대비해 빈 배열([])을 기본값으로 줍니다.
-  const chartData = analysisData || [];
+  // 💡 백엔드 응답(객체)에서 'dataPoints' 배열만 안전하게 꺼냅니다!
+  // 데이터가 없거나 배열이 아니면 빈 배열([])을 반환합니다.
+  const chartData = analysisData?.dataPoints || [];
 
   // 💡 3. streamId가 아예 없으면 조기 종료합니다.
   if (!streamId) {
