@@ -49,29 +49,38 @@ public class ChzzkMessageConverter {
 
     private ChatMessage parseSingleMessage(JsonNode bodyNode, CmdType cmdType, String streamId) {
         try {
-            ChzzkResponseMessage.Profile profile = jsonMapper.readValue(
-                bodyNode.path("profile").asString(),
-                ChzzkResponseMessage.Profile.class
-            );
-
             MessageType messageType = (cmdType == CmdType.DONATION) ? MessageType.DONATION : MessageType.TEXT;
+            Author author;
 
-            Author author = new Author(
-                profile.userIdHash(),
-                profile.nickname(),
-                profile.profileImageUrl()
-            );
+            JsonNode profileNode = bodyNode.path("profile");
+            if (profileNode.isMissingNode() || profileNode.isNull() || profileNode.asText().isBlank() || profileNode.asText().equals("null")) {
+                author = new Author("anonymous", "익명", null);
+            } else {
+                ChzzkResponseMessage.Profile profile = jsonMapper.readValue(
+                    profileNode.asText(),
+                    ChzzkResponseMessage.Profile.class
+                );
+                author = new Author(
+                    profile.userIdHash(),
+                    profile.nickname(),
+                    profile.profileImageUrl()
+                );
+            }
 
-            return new ChatMessage(
+            ChatMessage chatMessage = new ChatMessage(
                 messageType,
                 author,
-                bodyNode.path("msg").asString(),
+                bodyNode.path("msg").asText(""), // asString() 대신 asText("")로 null 방어
                 Instant.ofEpochMilli(bodyNode.path("msgTime").asLong()),
                 streamId,
                 Map.of()
             );
+
+            log.info("[채팅 파싱 확인] 할당된 streamId: {}, 메시지: {}", streamId, chatMessage.message());
+
+            return chatMessage;
         } catch (Exception e) {
-            log.error("단일 채팅 메시지 파싱 실패: {} | 원인: {}", bodyNode.toString().replaceAll("[\r\n]", " "), e.getMessage());
+            log.error("단일 채팅 메시지 파싱 실패: {} | 원인: {}", bodyNode.toString().replaceAll("[\r\n]", " "), e.getMessage(), e);
             return null;
         }
     }

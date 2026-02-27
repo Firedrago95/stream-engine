@@ -70,6 +70,10 @@ public class ChzzkWebSocketListener implements Listener {
             int cmd = rootNode.path("cmd").asInt();
             CmdType cmdType = CmdType.fromInt(rootNode.path("cmd").asInt());
 
+            if (cmdType == CmdType.UNKNOWN) {
+                log.warn("[{}] 정의되지 않은 cmd 값 수신: {}, raw message: {}", chatChannelId, cmd, message);
+            }
+
             if (cmdType != CmdType.CHAT && cmdType != CmdType.PING && cmdType != CmdType.PONG) {
                 log.info("[{}] 시스템 메시지 수신: cmd={}", chatChannelId, cmdType);
             }
