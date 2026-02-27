@@ -1,7 +1,6 @@
 package io.slice.stream.engine.ingestion.infrastructure.apiServer;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatNoException;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -56,7 +55,7 @@ class ApiServerClientTest {
     @Test
     void 서버가_에러를_응답해도_예외를_밖으로_던지지_않아야_한다() {
         // given
-        mockServer.expect(requestTo(anyString()))
+        mockServer.expect(requestTo("http://localhost:8080" + syncPath))
             .andRespond(withServerError());
 
         // when & then
