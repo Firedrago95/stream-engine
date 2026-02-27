@@ -34,7 +34,6 @@ public class StreamQueryService {
                 s.categoryName(),
                 analyzingIds.contains(s.streamId()) ? "ANALYZING" : "LIVE"
             ))
-            .sorted()
             .toList();
     }
 }

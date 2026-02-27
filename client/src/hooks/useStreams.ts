@@ -1,5 +1,6 @@
+// client/src/hooks/useStreams.ts
 import { useState, useEffect, useCallback } from 'react';
-import {type StreamItem, StreamItemSchema } from '../types/stream';
+import { type StreamItem, StreamItemSchema } from '../types/stream';
 import { z } from 'zod';
 
 export const useStreams = (interval = 15000) => {
@@ -13,12 +14,17 @@ export const useStreams = (interval = 15000) => {
       if (!res.ok) throw new Error('데이터를 가져오지 못했습니다.');
       const data = await res.json();
 
+      // Zod를 사용하여 백엔드 응답 규격 검증
       const parsedData = z.array(StreamItemSchema).parse(data);
 
-      setStreams(parsedData);
+      const sorted = [...parsedData].sort((a, b) =>
+          a.streamerName.localeCompare(b.streamerName)
+      );
+
+      setStreams(sorted);
       setError(null);
     } catch (err: any) {
-      if (err.name === 'AbortError') return; // 언마운트로 인한 취소는 에러로 취급하지 않음
+      if (err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : '네트워크 오류');
     } finally {
       setIsLoading(false);
@@ -27,7 +33,6 @@ export const useStreams = (interval = 15000) => {
 
   useEffect(() => {
     const controller = new AbortController();
-
     fetchData(controller.signal);
 
     const timer = setInterval(() => {
