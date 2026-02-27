@@ -30,7 +30,7 @@ public class StreamQueryService {
                 s.streamId(),
                 s.streamerName(),
                 s.liveTitle(),
-                s.thumbnailUrl(),
+                s.profileImageUrl(),
                 s.categoryName(),
                 analyzingIds.contains(s.streamId()) ? "ANALYZING" : "LIVE"
             ))

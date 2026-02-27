@@ -1,66 +1,31 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import type { StreamItem } from '../../types/stream';
+import type {StreamItem} from "../../types/stream.ts";
 
-export const StreamCard: React.FC<{ stream: StreamItem }> = ({ stream }) => {
-  const navigate = useNavigate();
-  const [imgError, setImgError] = useState(false);
-  const isAnalyzing = stream.status === 'ANALYZING';
-
-  const handleClick = () => {
-    navigate(`/streams/${stream.streamId}`);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      handleClick();
-    }
-  };
-
-  const fallbackImage = 'https://via.placeholder.com/640x360.png?text=No+Image';
-
+export const StreamCard = ({ stream }: { stream: StreamItem }) => {
   return (
-      <div
-          className="group flex flex-col gap-2.5 cursor-pointer focus:outline-none focus:ring-2 focus:ring-chzzk-green rounded-xl"
-          onClick={handleClick}
-          onKeyDown={handleKeyDown}
-          tabIndex={0}
-          role="button"
-          aria-label={`${stream.liveTitle} - ${stream.streamerName} 채팅 분석 보기`}
-      >
-        {/* Thumbnail */}
-        <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-chzzk-card ring-1 ring-white/5 group-hover:ring-chzzk-green/50 transition-all duration-300">
+      <div className="flex items-center gap-4 p-4 bg-gray-800 rounded-xl cursor-pointer hover:bg-gray-700 transition-colors">
+
+        {/* 프로필 이미지 영역: 크기를 고정하고 완벽한 원형으로 만듭니다 */}
+        <div className="flex-shrink-0 w-16 h-16 rounded-full overflow-hidden bg-gray-600 border-2 border-purple-500">
           <img
-              src={imgError ? fallbackImage : stream.thumbnailUrl}
-              loading="lazy"
-              onError={() => setImgError(true)}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              alt={stream.liveTitle}
+              src={stream.profileImageUrl}
+              alt={stream.streamerName}
+              className="w-full h-full object-cover"
           />
-          {/* Floating Badges */}
-          <div className="absolute top-2 left-2 flex gap-1.5">
-          <span className={`px-1.5 py-0.5 rounded text-[11px] font-bold ${
-              isAnalyzing ? 'bg-purple-600 shadow-analyzing animate-pulse' : 'bg-chzzk-green text-black'
-          }`}>
-            {isAnalyzing ? 'ANALYZING' : 'LIVE'}
-          </span>
-          </div>
-          <div className="absolute bottom-2 left-2">
-          <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-black/60 backdrop-blur-md text-gray-200">
-            {stream.categoryName}
-          </span>
-          </div>
         </div>
-        {/* Info */}
-        <div className="px-0.5">
-          <h3 className="text-[15px] font-semibold text-gray-100 line-clamp-2 leading-snug group-hover:text-chzzk-green transition-colors">
-            {stream.liveTitle}
-          </h3>
-          <p className="text-sm text-gray-400 mt-1 flex items-center gap-1.5">
+
+        {/* 텍스트 정보 영역 */}
+        <div className="flex flex-col overflow-hidden">
+          <h3 className="text-white font-bold text-lg truncate">
             {stream.streamerName}
+          </h3>
+          <p className="text-gray-300 text-sm truncate">
+            {stream.liveTitle}
+          </p>
+          <p className="text-gray-500 text-xs mt-1">
+            {stream.categoryName || '카테고리 없음'}
           </p>
         </div>
+
       </div>
   );
 };

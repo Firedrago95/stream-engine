@@ -4,7 +4,7 @@ public record StreamResponse(
     String streamId,
     String streamerName,
     String liveTitle,
-    String thumbnailUrl,
+    String profileImageUrl,
     String categoryName,
     String status
 ) {}
