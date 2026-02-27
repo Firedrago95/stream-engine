@@ -45,4 +45,10 @@ public class RedisConfig {
         ClassPathResource scriptSource = new ClassPathResource("lua/ts_range.lua");
         return RedisScript.of(scriptSource, List.class);
     }
+
+    @Bean
+    public RedisScript<List> getActiveTargetsScript() {
+        ClassPathResource scriptSource = new ClassPathResource("lua/get_active_targets.lua");
+        return RedisScript.of(scriptSource, List.class);
+    }
 }

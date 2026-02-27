@@ -2,6 +2,7 @@ package io.slice.stream.engine.chat.infrastructure.kafka;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.slice.stream.engine.analyzer.domain.ActiveStreamProvider;
 import io.slice.stream.engine.analyzer.domain.HighlightSignalClient;
 import io.slice.stream.engine.chat.domain.model.Author;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
@@ -36,6 +37,9 @@ class ChzzkChatCollectorTest implements KafkaTestSupport {
 
     @MockitoBean
     private HighlightSignalClient highlightSignalClient;
+
+    @MockitoBean
+    private ActiveStreamProvider activeStreamProvider;
 
     @Autowired
     private KafkaTemplate<String, ChatMessage> kafkaTemplate;
