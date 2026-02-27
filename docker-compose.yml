@@ -57,6 +57,8 @@ services:
       SERVER_HOST: http://api:8080
       SERVER_SECRET: ${SERVER_SECRET}
       SERVER_HEADER: ${SERVER_HEADER}
+      SIGNAL_PATH: ${SIGNAL_PATH}
+      SYNC_PATH: ${SYNC_PATH}
     depends_on:
       kafka:
         condition: service_healthy
@@ -78,6 +80,8 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
       SERVER_SECRET: ${SERVER_SECRET}
       SERVER_HEADER: ${SERVER_HEADER}
+      SIGNAL_PATH: ${SIGNAL_PATH}
+      SYNC_PATH: ${SYNC_PATH}
     depends_on:
       kafka:
         condition: service_healthy
