@@ -62,11 +62,17 @@ public class HighlightService {
     private Optional<AnalysisSignal> processStream(String streamId) {
         try {
             DetectionResult detectionResult = detector.detect(streamId);
-            if (detectionResult.status() == ChatFirepowerStatus.WAITING) return Optional.empty();
+            if (detectionResult.status() == ChatFirepowerStatus.WAITING) {
+                log.info("[Analysis-Step 4] WAITING 상태로 시그널 전송 스킵 - Stream: {}", streamId);
+                return Optional.empty();
+            }
+
+            log.info("[Analysis-Step 4] 시그널 전송 결정 - Stream: {}, 상태: {}, 수치: {}",
+                streamId, detectionResult.status(), detectionResult.firepower());
 
             return Optional.of(new AnalysisSignal(streamId, detectionResult.status().name(), clock.instant(), detectionResult.firepower()));
         } catch (Exception e) {
-            log.error("스트림 분석 에러: {}", streamId, e);
+            log.error("[Analysis-Error] 분석 중 예외 발생: {}", streamId, e);
             return Optional.empty();
         }
     }

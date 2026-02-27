@@ -49,14 +49,20 @@ public class ChatAggregationService {
 
     @Scheduled(fixedRate = 3_000)
     public void saveAggregations() {
+        log.info("[Scheduler] 저장 스케줄러 작동 중... 현재 캐시된 스트림 수: {}", chatRoomAggregations.asMap().size());
         chatRoomAggregations.asMap().forEach(this::saveToRepository);
     }
 
     private void saveToRepository(String key, ChatRoomAggregation aggregation) {
         try {
+            log.info("[Redis-Save] 저장 시도 - Key: {}, 누적카운트: {}, 마지막채팅: {}",
+                key, aggregation.getCount(), aggregation.getLastChatTime());
+
             chatRoomAggregationRepository.save(aggregation, aggregation.getLastChatTime());
+
+            log.info("[Redis-Save] 저장 성공 - Key: {}", key);
         } catch (Exception e) {
-            log.error("채팅 집계 결과 저장 실패 : {}", key, e);
+            log.error("[Redis-Save] 저장 실패 - Key: {}", key, e);
         }
     }
 

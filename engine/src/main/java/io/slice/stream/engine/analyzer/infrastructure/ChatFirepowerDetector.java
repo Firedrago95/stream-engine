@@ -38,20 +38,40 @@ public class ChatFirepowerDetector implements HighlightDetector {
     public DetectionResult detect(String chatRoomId) {
         List<List<Object>> cumulativeValues = fetchCumulativeValues(chatRoomId);
 
+        int size = (cumulativeValues == null) ? 0 : cumulativeValues.size();
         if (cumulativeValues == null || cumulativeValues.size() < MIN_DATA_POINTS_FOR_ANALYSIS + 1) {
+            log.info("[Analysis-Step 1] 데이터 부족 (WAITING) - Stream: {}, 수집된 포인트: {}/6", chatRoomId, size);
             return DetectionResult.waiting();
         }
 
         List<Long> deltas = convertToDeltas(cumulativeValues, chatRoomId);
 
-        return analyzeFirepower(deltas);
+        log.info("[Analysis-Step 2] 변화량 확인 - Stream: {}, Deltas: {}", chatRoomId, deltas);
+
+        return analyzeFirepower(deltas, chatRoomId);
     }
 
     private List<List<Object>> fetchCumulativeValues(String chatRoomId) {
         String key = String.format(Rediskeys.CHAT_AGGREGATION_PREFIX, chatRoomId);
         long toTs = clock.instant().toEpochMilli();
         long fromTs = toTs - highlightRange.toMillis();
-        return redisTemplate.execute(tsRangeScript, List.of(key), String.valueOf(fromTs), String.valueOf(toTs), MAX_FETCH_COUNT);
+
+        log.info("[Redis-Fetch] 조회 요청 - Key: {}, Range: {} ~ {} (차이: {}ms)",
+            key, fromTs, toTs, highlightRange.toMillis());
+
+        @SuppressWarnings("unchecked")
+        List<List<Object>> result = (List<List<Object>>) redisTemplate.execute(
+            tsRangeScript,
+            List.of(key),
+            String.valueOf(fromTs),
+            String.valueOf(toTs),
+            MAX_FETCH_COUNT
+        );
+
+        log.info("[Redis-Fetch] 조회 결과 - Stream: {}, 수집갯수: {}, 데이터내용: {}",
+            chatRoomId, (result == null ? 0 : result.size()), result);
+
+        return result;
     }
 
     private List<Long> convertToDeltas(List<List<Object>> cumulativeValues, String chatRoomId) {
@@ -73,27 +93,27 @@ public class ChatFirepowerDetector implements HighlightDetector {
         return deltas;
     }
 
-    private DetectionResult analyzeFirepower(List<Long> deltas) {
+    private DetectionResult analyzeFirepower(List<Long> deltas, String chatRoomId) {
         if (deltas.size() < MIN_DATA_POINTS_FOR_ANALYSIS) {
             return DetectionResult.waiting();
         }
 
-        long lastValue = deltas.getLast();
+        long lastValue = deltas.get(deltas.size() - 1);
         OptionalDouble average = deltas.stream()
             .limit(deltas.size() - 1)
             .mapToLong(v -> v)
             .average();
 
-        if (average.isEmpty()) {
-            return DetectionResult.waiting();
-        }
+        if (average.isEmpty()) return DetectionResult.waiting();
 
-        ChatFirepowerStatus status;
-        if (lastValue > average.getAsDouble() * chatFirepowerMultiplier) {
-            status = ChatFirepowerStatus.PEAK;
-        } else {
-            status = ChatFirepowerStatus.NORMAL;
-        }
+        double avgValue = average.getAsDouble();
+        double threshold = avgValue * chatFirepowerMultiplier;
+
+        ChatFirepowerStatus status = (lastValue > threshold) ? ChatFirepowerStatus.PEAK : ChatFirepowerStatus.NORMAL;
+
+        log.info("[Analysis-Step 3] 판정 완료 - Stream: {}, 상태: {}, 현재: {}, 평균: {}, 임계치: {}",
+            chatRoomId, status, lastValue, String.format("%.2f", avgValue), String.format("%.2f", threshold));
+
         return new DetectionResult(status, lastValue);
     }
 }
