@@ -1,6 +1,6 @@
 -- ARGV[1]: count (데이터 개수, 예: 20)
 -- ARGV[2 ~ count+1]: channelIds
--- ARGV[count+2 ~ END]: channelId, json pairs
+-- ARGV[count+2 ~ END]: streamId, json pairs
 
 local unpack = table.unpack or unpack
 local actual_key = KEYS[1] -- "stream:targets" (SET)
@@ -28,8 +28,8 @@ if #ids_for_sadd > 0 then
 end
 
 -- 2. 신규/종료 방송 비교
-local new_channel_ids = redis.call('SDIFF', temp_key, actual_key) -- 신규 channelId 목록
-local closed_channel_ids = redis.call('SDIFF', actual_key, temp_key) -- 종료 channelId 목록
+local new_channel_ids = redis.call('SDIFF', temp_key, actual_key) -- 신규 streamId 목록
+local closed_channel_ids = redis.call('SDIFF', actual_key, temp_key) -- 종료 streamId 목록
 
 -- 3. 현재 활성 ID 목록 교체
 if #ids_for_sadd > 0 then
@@ -60,5 +60,5 @@ if #new_channel_ids > 0 then
     new_stream_targets_json = redis.call('HMGET', info_key, unpack(new_channel_ids))
 end
 
--- 결과 반환: {신규 StreamTarget JSON 목록, 종료된 channelId 목록}
+-- 결과 반환: {신규 StreamTarget JSON 목록, 종료된 streamId 목록}
 return {new_stream_targets_json, closed_channel_ids}

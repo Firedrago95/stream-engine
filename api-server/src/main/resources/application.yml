@@ -15,4 +15,4 @@ analysis:
     secret: ${SERVER_SECRET}
     header: ${SERVER_HEADER}
   sync:
-    path: ${SYNC_PATH }
+    path: ${SYNC_PATH}

@@ -31,7 +31,7 @@ class StreamServiceTest {
         // then
         List<StreamSyncRequest> allStreams = streamService.getAllStreams();
         assertThat(allStreams).hasSize(1);
-        assertThat(allStreams.get(0).channelId()).isEqualTo("ch1");
+        assertThat(allStreams.get(0).streamId()).isEqualTo("ch1");
     }
 
     @Test
