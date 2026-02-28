@@ -1,36 +1,40 @@
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { StreamItem } from "../../types/stream.ts";
+import type { StreamItem } from "../../types/stream";
 
-export const StreamCard = ({ stream }: { stream: StreamItem }) => {
+export const StreamCard: React.FC<{ stream: StreamItem }> = ({ stream }) => {
   const navigate = useNavigate();
 
   return (
-      // 💡 세로 정렬(flex-col), 가운데 정렬(items-center) 적용
       <div
           onClick={() => navigate(`/streams/${stream.streamId}`)}
-          className="flex flex-col items-center p-6 bg-gray-800/80 backdrop-blur-sm border border-white/5 rounded-2xl cursor-pointer hover:bg-gray-700/80 hover:-translate-y-1 hover:shadow-xl hover:border-chzzk-green/30 transition-all duration-200 group"
+          className="flex items-center p-3 sm:p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer hover:border-[#00FFA3]/50 hover:shadow-lg transition-all duration-200 group"
       >
-        {/* 프로필 이미지 영역 */}
-        <div className="w-24 h-24 mb-4 rounded-full overflow-hidden bg-gray-900 ring-4 ring-gray-700 group-hover:ring-chzzk-green transition-all duration-200 flex-shrink-0">
+        {/* 💡 좌측: 작은 프로필 이미지 (소프트콘 스타일) */}
+        <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden shrink-0 border-2 border-slate-700 group-hover:border-[#00FFA3] transition-colors">
           <img
               src={stream.profileImageUrl}
               alt={stream.streamerName}
               className="w-full h-full object-cover"
           />
+          {/* LIVE 빨간 불빛 효과 */}
+          <div className="absolute bottom-0 right-0 w-3 h-3 bg-red-500 border-2 border-slate-800 rounded-full animate-pulse"></div>
         </div>
 
-        {/* 텍스트 정보 영역 (가운데 정렬) */}
-        <div className="flex flex-col w-full text-center">
-          <h3 className="text-white font-bold text-lg truncate mb-1">
-            {stream.streamerName}
-          </h3>
-          <p className="text-gray-400 text-sm truncate mb-3">
+        {/* 💡 우측: 밀도 높은 정보 배치 */}
+        <div className="ml-4 flex flex-col flex-1 min-w-0">
+          {/* 방 제목 */}
+          <h3 className="text-slate-800 dark:text-slate-100 font-semibold text-sm sm:text-base truncate mb-0.5 group-hover:text-[#00FFA3] transition-colors">
             {stream.liveTitle}
-          </p>
+          </h3>
 
-          {/* 카테고리 뱃지 */}
-          <div className="flex justify-center">
-          <span className="px-3 py-1 bg-white/5 text-gray-300 text-xs rounded-full border border-white/10 truncate max-w-full">
+          <div className="flex items-center gap-2 mt-1">
+            {/* 스트리머 이름 */}
+            <span className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm truncate">
+            {stream.streamerName}
+          </span>
+            {/* 카테고리 뱃지 (Mosaic Badge UI 응용) */}
+            <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-[10px] sm:text-xs rounded-full whitespace-nowrap">
             {stream.categoryName || '카테고리 없음'}
           </span>
           </div>

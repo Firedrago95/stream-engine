@@ -10,12 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tailwindcss/forms": "^0.5.11",
     "autoprefixer": "^10.4.23",
     "axios": "^1.13.3",
     "postcss": "^8.5.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.1",
+    "react-transition-group": "^4.4.5",
     "recharts": "^3.7.0",
     "tailwindcss": "^4.1.18"
   },
