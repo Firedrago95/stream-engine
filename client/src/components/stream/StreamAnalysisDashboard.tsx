@@ -10,8 +10,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   const chartData = analysisData?.dataPoints || [];
 
-  // 그래프 흘러가게 하기: 최근 30개 데이터만 표시
-  const displayData = chartData.slice(-30);
+  // 5초 주기라면 약 1분 15초 동안의 변화를 보여줍니다.
+  const displayData = chartData.slice(-20);
 
   const formatXAxis = (timestamp: number) => {
     return new Date(timestamp).toLocaleTimeString('ko-KR', {
@@ -31,45 +31,50 @@ export const StreamAnalysisDashboard: React.FC = () => {
         </div>
 
         {(isLoading || chartData.length === 0) && !error ? (
-            <div className="h-64 flex flex-center items-center justify-center text-gray-500 bg-gray-800/50 rounded-xl border border-gray-700 animate-pulse">
+            <div className="h-64 flex items-center justify-center text-gray-500 bg-gray-800/50 rounded-xl border border-gray-700 animate-pulse">
               분석 데이터를 기다리는 중...
             </div>
         ) : (
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-5 shadow-lg">
-              <h3 className="text-lg font-semibold text-gray-100 mb-6">채팅 화력 트렌드 (최근 30개)</h3>
-              <div className="h-[400px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={displayData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorChat" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#00FFA3" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#00FFA3" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                    <XAxis
-                        dataKey="timestamp"
-                        tickFormatter={formatXAxis}
-                        stroke="#666"
-                        fontSize={12}
-                        tickMargin={10}
-                    />
-                    <YAxis stroke="#666" fontSize={12} tickMargin={10} />
-                    <Tooltip
-                        labelFormatter={(value) => `시간: ${formatXAxis(value)}`}
-                        contentStyle={{ backgroundColor: '#1a1a1c', border: '1px solid #333', borderRadius: '8px' }}
-                    />
-                    <Area
-                        type="monotone"
-                        dataKey="chatCount"
-                        stroke="#00FFA3"
-                        strokeWidth={2}
-                        fill="url(#colorChat)"
-                        animationDuration={300}
-                        isAnimationActive={true}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+            <div className="space-y-6">
+              <div className="p-5 bg-gray-800 border border-gray-700 rounded-xl shadow-lg">
+                {/* 타이틀에서 개수 안내 수정 */}
+                <h3 className="text-lg font-semibold text-gray-100 mb-6">최근 채팅 화력 트렌드</h3>
+                <div className="h-[400px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={displayData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#00FFA3" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#00FFA3" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                      <XAxis
+                          dataKey="timestamp"
+                          tickFormatter={formatXAxis}
+                          stroke="#666"
+                          fontSize={11}
+                          tickMargin={12}
+                          /* 💡 틱 간격 강제 조정: 시간끼리 겹치지 않게 보장 */
+                          minTickGap={50}
+                      />
+                      <YAxis stroke="#666" fontSize={11} tickMargin={10} />
+                      <Tooltip
+                          labelFormatter={(value) => `시간: ${formatXAxis(value)}`}
+                          contentStyle={{ backgroundColor: '#1a1a1c', border: '1px solid #333', borderRadius: '8px', color: '#fff' }}
+                      />
+                      <Area
+                          type="monotone"
+                          dataKey="value"
+                          stroke="#00FFA3"
+                          strokeWidth={3}
+                          fill="url(#colorValue)"
+                          animationDuration={500}
+                          isAnimationActive={true}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
         )}
