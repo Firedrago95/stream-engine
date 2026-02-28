@@ -1,69 +1,27 @@
-import React, { useState } from 'react';
-
-// 💡 당장 쓰지 않는 템플릿 컴포넌트들은 주석 처리해서 숨깁니다.
-// import SearchModal from '../components/ModalSearch.jsx';
-// import Notifications from '../components/DropdownNotifications.jsx';
-// import Help from '../components/DropdownHelp.jsx';
+// ... 상단 import 문에서 ThemeToggle 제거
 import UserMenu from '../components/DropdownProfile.jsx';
-import ThemeToggle from '../components/ThemeToggle.jsx';
+// import ThemeToggle from '../components/ThemeToggle.jsx'; // 💡 제거
 
-function Header({
-  sidebarOpen,
-  setSidebarOpen,
-  variant = 'default',
-}) {
-
-  // const [searchModalOpen, setSearchModalOpen] = useState(false)
-
+function Header({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
   return (
-      <header className={`sticky top-0 before:absolute before:inset-0 before:backdrop-blur-md max-lg:before:bg-white/90 dark:max-lg:before:bg-gray-800/90 before:-z-10 z-30 ${variant === 'v2' || variant === 'v3' ? 'before:bg-white after:absolute after:h-px after:inset-x-0 after:top-full after:bg-gray-200 dark:after:bg-gray-700/60 after:-z-10' : 'max-lg:shadow-xs lg:before:bg-gray-100/90 dark:lg:before:bg-gray-900/90'} ${variant === 'v2' ? 'dark:before:bg-gray-800' : ''} ${variant === 'v3' ? 'dark:before:bg-gray-900' : ''}`}>
+      <header className="...">
         <div className="px-4 sm:px-6 lg:px-8">
-          <div className={`flex items-center justify-between h-16 ${variant === 'v2' || variant === 'v3' ? '' : 'lg:border-b border-gray-200 dark:border-gray-700/60'}`}>
-
+          <div className="flex items-center justify-between h-16 ...">
             {/* Header: Left side */}
-            <div className="flex">
-              {/* Hamburger button (모바일에서 사이드바 여는 버튼은 남겨둡니다) */}
-              <button
-                  className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 lg:hidden"
-                  aria-controls="sidebar"
-                  aria-expanded={sidebarOpen}
-                  onClick={(e) => { e.stopPropagation(); setSidebarOpen(!sidebarOpen); }}
-              >
-                <span className="sr-only">Open sidebar</span>
-                <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="4" y="5" width="16" height="2" />
-                  <rect x="4" y="11" width="16" height="2" />
-                  <rect x="4" y="17" width="16" height="2" />
-                </svg>
-              </button>
-            </div>
+            <div className="flex">{/* 햄버거 버튼 생략 */}</div>
 
             {/* Header: Right side */}
             <div className="flex items-center space-x-3">
-
-              {/* 💡 안 쓰는 검색, 알림, 도움말 컴포넌트 주석 처리 */}
-              {/* <div>
-              <button ...>검색 아이콘...</button>
-              <SearchModal ... />
-            </div>
-            <Notifications align="right" />
-            <Help align="right" />
-            */}
-
-              {/* 다크모드 전환 버튼 (유지) */}
-              <ThemeToggle />
+              {/* 💡 ThemeToggle 컴포넌트가 있던 자리를 삭제했습니다. */}
 
               {/* Divider */}
               <hr className="w-px h-6 bg-gray-200 dark:bg-gray-700/60 border-none" />
 
-              {/* 우측 프로필 메뉴 (유지) */}
+              {/* User Menu */}
               <UserMenu align="right" />
-
             </div>
           </div>
         </div>
       </header>
   );
 }
-
-export default Header;

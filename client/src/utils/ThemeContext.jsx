@@ -1,37 +1,24 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+// src/utils/ThemeContext.jsx
+import { createContext, useContext, useEffect } from 'react';
 
 const ThemeContext = createContext({
-  currentTheme: 'light',
-  changeCurrentTheme: () => {},
+  currentTheme: 'dark',
 });
 
-export default function ThemeProvider({children}) {  
-  const persistedTheme = localStorage.getItem('theme');
-  const [theme, setTheme] = useState(persistedTheme || 'light');
-
-  const changeCurrentTheme = (newTheme) => {
-    setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-  };
-
+export default function ThemeProvider({ children }) {
+  // 💡 사용자의 선택권 없이 무조건 'dark'로 고정합니다.
   useEffect(() => {
-    document.documentElement.classList.add('**:transition-none!');
-    if (theme === 'light') {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.style.colorScheme = 'light';
-    } else {
-      document.documentElement.classList.add('dark');
-      document.documentElement.style.colorScheme = 'dark';
-    }
+    document.documentElement.classList.add('dark');
+    document.documentElement.style.colorScheme = 'dark';
 
-    const transitionTimeout = setTimeout(() => {
-      document.documentElement.classList.remove('**:transition-none!');
-    }, 1);
-    
-    return () => clearTimeout(transitionTimeout);
-  }, [theme]);
+    // Mosaic 템플릿의 다크모드 배경색(slate-900)이 즉시 적용되도록 합니다.
+  }, []);
 
-  return <ThemeContext.Provider value={{ currentTheme: theme, changeCurrentTheme }}>{children}</ThemeContext.Provider>;
+  return (
+      <ThemeContext.Provider value={{ currentTheme: 'dark' }}>
+        {children}
+      </ThemeContext.Provider>
+  );
 }
 
 export const useThemeProvider = () => useContext(ThemeContext);

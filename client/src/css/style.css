@@ -11,31 +11,33 @@
 @custom-variant sidebar-expanded (&:is(.sidebar-expanded *));
 
 @theme {
-  --shadow-sm: 0 1px 1px 0 rgb(0 0 0 / 0.05), 0 1px 2px 0 rgb(0 0 0 / 0.02);
+  --shadow-sm: 0 1px 1px 0 rgb(0 0 0 / 0.1), 0 1px 2px 0 rgb(0 0 0 / 0.05);
 
-  --color-gray-50: #f9fafb;
-  --color-gray-100: #f3f4f6;
-  --color-gray-200: #e5e7eb;
-  --color-gray-300: #bfc4cd;
-  --color-gray-400: #9ca3af;
-  --color-gray-500: #6b7280;
-  --color-gray-600: #4b5563;
-  --color-gray-700: #374151;
-  --color-gray-800: #1f2937;
-  --color-gray-900: #111827;
-  --color-gray-950: #030712;
+  /* 💡 Gray 계열을 치지직 스타일의 '딥 블랙'으로 재정의 */
+  --color-gray-50: #f0f0f2;
+  --color-gray-100: #e2e2e5;    /* 메인 텍스트 색상 */
+  --color-gray-200: #d1d1d4;    /* 보조 텍스트 색상 */
+  --color-gray-300: #3f3f42;
+  --color-gray-400: #333336;
+  --color-gray-500: #2a2a2c;    /* 구분선/테두리 색상 */
+  --color-gray-600: #242426;
+  --color-gray-700: #1a1a1c;    /* 카드/컴포넌트 배경색 */
+  --color-gray-800: #141415;
+  --color-gray-900: #080809;    /* 메인 배경색 (치지직 블랙) */
+  --color-gray-950: #040405;    /* 가장 깊은 블랙 */
 
+  /* 💡 치지직 포인트 컬러 (형광 연두)를 바이올렛 대신 기본 강조색으로 쓰고 싶을 때 참조 */
   --color-violet-50: #f1eeff;
   --color-violet-100: #e6e1ff;
   --color-violet-200: #d2cbff;
   --color-violet-300: #b7acff;
   --color-violet-400: #9c8cff;
-  --color-violet-500: #8470ff;
-  --color-violet-600: #755ff8;
-  --color-violet-700: #5d47de;
-  --color-violet-800: #4634b1;
-  --color-violet-900: #2f227c;
-  --color-violet-950: #1c1357;
+  --color-violet-500: #00FFA3;  /* 치지직 메인 컬러로 교체 */
+  --color-violet-600: #00e692;
+  --color-violet-700: #00cc82;
+  --color-violet-800: #00b372;
+  --color-violet-900: #008051;
+  --color-violet-950: #004d31;
 
   --color-sky-50: #e3f3ff;
   --color-sky-100: #d1ecff;
@@ -54,7 +56,7 @@
   --color-green-200: #8bf0b0;
   --color-green-300: #67e294;
   --color-green-400: #4bd37d;
-  --color-green-500: #3ec972;
+  --color-green-500: #00FFA3; /* 치지직 포인트 컬러 적용 */
   --color-green-600: #34bd68;
   --color-green-700: #239f52;
   --color-green-800: #15773a;
@@ -119,20 +121,18 @@
   --breakpoint-xs: 480px;
 }
 
-/*
-  The default border color has changed to `currentColor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
-
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
-*/
 @layer base {
   *,
   ::after,
   ::before,
   ::backdrop,
   ::file-selector-button {
-    border-color: var(--color-gray-200, currentColor);
+    /* 💡 기본 테두리 색상도 치지직 블랙의 경계선 색상(#2a2a2c)으로 변경 */
+    border-color: var(--color-gray-500, currentColor);
+  }
+
+  /* 다크모드 강제 적용 시 배경색 고정 */
+  body {
+    @apply bg-gray-900 text-gray-100;
   }
 }
