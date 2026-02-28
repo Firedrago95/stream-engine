@@ -1,137 +1,173 @@
-import React, { useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useStreamAnalysis } from '../../hooks/useStreamAnalysis';
 
 /**
- * 대시보드 환경 설정
+ * 💡 대시보드 환경 설정
  */
 const CONFIG = {
   POLLING_INTERVAL: 5000,      // 데이터 수집 주기 (5초)
   DISPLAY_POINTS: 20,          // X축 슬롯 개수 (20개 고정)
   CHART_COLOR: "#00FFA3",      // 치지직 연두색
-  BG_DARK: "#1a1a1c",          // 카드 배경색
+  BG_DARK: "#0c0d0f",          // 깊은 블랙-그레이 hex
 };
 
 export const StreamAnalysisDashboard: React.FC = () => {
   const { streamId } = useParams<{ streamId: string }>();
   const navigate = useNavigate();
 
+  // useStreamAnalysis 훅 호출
   const { analysisData, isLoading, error, isGathering } = useStreamAnalysis(
       streamId || '',
       CONFIG.POLLING_INTERVAL
   );
 
-  const rawPoints = analysisData?.dataPoints || [];
+  const [stableData, setStableData] = useState<any[]>([]);
+  const [maxY, setMaxY] = useState(10);
 
-  // 💡 [핵심] 실제 데이터가 시작되는 시점을 기억하여 그 이전 시간은 숨깁니다.
-  const firstRealTimestamp = useMemo(() => rawPoints[0]?.timestamp, [rawPoints]);
+  // 데이터 업데이트 로직
+  useEffect(() => {
+    const incomingPoints = analysisData?.dataPoints || [];
+    if (incomingPoints.length === 0) return;
 
-  /**
-   * 실제 데이터가 20개 미만일 때도 가상의 타임스탬프를 가진 빈 슬롯을 채워넣어 X축을 고정합니다.
-   */
-  const streamingData = useMemo(() => {
-    const lastPoints = rawPoints.slice(-CONFIG.DISPLAY_POINTS);
-    const paddingCount = CONFIG.DISPLAY_POINTS - lastPoints.length;
+    setStableData(prev => {
+      const lastTimestamp = prev.length > 0 ? prev[prev.length - 1].timestamp : 0;
+      const trulyNew = incomingPoints.filter((p: any) => p.timestamp > lastTimestamp);
 
-    if (paddingCount <= 0) return lastPoints;
+      if (trulyNew.length === 0) return prev;
 
-    // 데이터가 부족한 앞부분을 빈 데이터로 채움 (타임스탬프 역산하여 축 고정)
-    const referenceTime = rawPoints[0]?.timestamp || Date.now();
-    const padding = Array.from({ length: paddingCount }, (_, i) => ({
-      timestamp: referenceTime - (paddingCount - i) * CONFIG.POLLING_INTERVAL,
-      value: null, // 선이 그려지지 않음
-    }));
-
-    return [...padding, ...lastPoints];
-  }, [rawPoints]);
-
-  /**
-   * null이 뜨지 않게 하고, 데이터가 없는 구간은 빈칸으로 둡니다.
-   */
-  const formatXAxis = (ts: number) => {
-    // 실제 데이터가 들어오기 전의 가상 슬롯이거나 ts가 없으면 빈칸 처리
-    if (!ts || !firstRealTimestamp || ts < firstRealTimestamp) return "";
-
-    return new Date(ts).toLocaleTimeString('ko-KR', {
-      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+      const newData = [...prev, ...trulyNew];
+      return newData.slice(-CONFIG.DISPLAY_POINTS);
     });
+  }, [analysisData]);
+
+  // Y축 최대값 고정 (출렁임 방지)
+  useEffect(() => {
+    if (stableData.length > 0) {
+      const currentMax = Math.max(...stableData.map(d => d.value || 0));
+      if (currentMax > maxY) setMaxY(currentMax);
+    }
+  }, [stableData, maxY]);
+
+  // 고정 슬롯 데이터 생성
+  const chartDisplayData = useMemo(() => {
+    const totalSlots = CONFIG.DISPLAY_POINTS;
+    const result = new Array(totalSlots);
+
+    for (let i = 0; i < totalSlots; i++) {
+      if (i < stableData.length) {
+        result[i] = { ...stableData[i], slotIndex: i, hasData: true };
+      } else {
+        result[i] = { timestamp: null, value: null, slotIndex: i, hasData: false };
+      }
+    }
+    return result;
+  }, [stableData]);
+
+  /**
+   * 💡 [수정] X축 포맷터: 분:초 (mm:ss) 만 표시
+   */
+  const formatXAxis = (_: any, index: number) => {
+    const item = chartDisplayData[index];
+    if (!item || !item.hasData || !item.timestamp) return "";
+    const date = new Date(item.timestamp);
+    const mins = date.getMinutes().toString().padStart(2, '0');
+    const secs = date.getSeconds().toString().padStart(2, '0');
+    return `${mins}:${secs}`;
   };
 
-  if (!streamId) return <div className="p-10 text-center text-gray-400">잘못된 접근입니다.</div>;
+  if (!streamId) return <div className="p-10 text-center text-slate-400">잘못된 접근입니다.</div>;
 
   return (
-      <div className="w-full max-w-7xl mx-auto">
-        {/* 상단 헤더 영역 */}
-        <div className="mb-6 flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-2 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 text-gray-400 transition-colors">
+      <div className="w-full max-w-7xl mx-auto px-4">
+        <div className="mb-8 flex items-center gap-3">
+          <button onClick={() => navigate(-1)} className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-500 transition-colors">
             <svg className="w-4 h-4 fill-current" viewBox="0 0 16 16"><path d="M6.7 14.7l1.4-1.4L3.8 9H16V7H3.8l4.3-4.3-1.4-1.4L0 8z" /></svg>
           </button>
-          <h2 className="text-2xl font-bold text-gray-100">실시간 화력 분석 <span className="text-sm font-normal text-gray-500 ml-2">ID: {streamId}</span></h2>
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">실시간 화력 분석</h2>
         </div>
 
-        {(isLoading || rawPoints.length === 0) && !error ? (
-            <div className="h-64 flex items-center justify-center text-gray-500 bg-gray-800/50 rounded-xl border border-gray-700 animate-pulse">
-              {isGathering ? "데이터 수집 시작 중..." : "데이터 연결 중..."}
-            </div>
-        ) : (
-            <div className="p-5 bg-gray-800 border border-gray-700 rounded-xl shadow-lg">
-              <div className="flex items-center justify-between mb-8">
-                <h3 className="text-lg font-semibold text-gray-100">채널 화력 트렌드 (최근 20개 고정)</h3>
-                <span className="flex items-center text-[#00FFA3] text-xs font-bold animate-pulse">
-              <span className="w-2 h-2 bg-[#00FFA3] rounded-full mr-2"></span> LIVE
-            </span>
+        <div className="p-6 bg-white dark:bg-[#0c0d0f] border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm relative overflow-hidden">
+
+          {/* 심플 로딩 UI */}
+          {(isLoading || isGathering || stableData.length === 0) && !error && (
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[1px]">
+                <div className="flex flex-col items-center animate-pulse">
+                  <div className="w-12 h-12 border-4 border-[#00FFA3] border-t-transparent rounded-full animate-spin mb-4" />
+                  <p className="text-gray-100 text-lg font-bold tracking-widest">데이터 연결 중</p>
+                </div>
               </div>
+          )}
 
-              <div className="h-[400px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={streamingData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={CONFIG.CHART_COLOR} stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor={CONFIG.CHART_COLOR} stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} opacity={0.2} />
-
-                    <XAxis
-                        dataKey="timestamp"
-                        tickFormatter={formatXAxis}
-                        stroke="#444"
-                        fontSize={11}
-                        tickMargin={15}
-                        interval={1}
-                    />
-
-                    <YAxis
-                        stroke="#444"
-                        fontSize={11}
-                        tickMargin={10}
-                        domain={[0, 'auto']}
-                    />
-
-                    <Tooltip
-                        labelFormatter={(ts) => formatXAxis(ts as number) ? `시간: ${formatXAxis(ts as number)}` : ''}
-                        contentStyle={{ backgroundColor: CONFIG.BG_DARK, border: '1px solid #333', borderRadius: '8px' }}
-                        itemStyle={{ color: CONFIG.CHART_COLOR }}
-                    />
-
-                    <Area
-                        type="monotone"
-                        dataKey="value"
-                        stroke={CONFIG.CHART_COLOR}
-                        strokeWidth={3}
-                        fill="url(#colorValue)"
-                        isAnimationActive={true}
-                        animationDuration={CONFIG.POLLING_INTERVAL}
-                        animationEasing="linear"
-                        connectNulls={false}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+          {/* 에러 UI */}
+          {error && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm">
+                <div className="text-center p-6 bg-gray-800 border border-rose-500/30 rounded-xl">
+                  <p className="text-rose-400 font-bold mb-2 text-lg">연결 에러 발생</p>
+                  <p className="text-gray-300 text-sm">{error}</p>
+                </div>
               </div>
-            </div>
-        )}
+          )}
+
+          <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-8 px-1">실시간 채팅 화력</h3>
+
+          <div className="h-[400px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartDisplayData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={CONFIG.CHART_COLOR} stopOpacity={0.25}/>
+                    <stop offset="95%" stopColor={CONFIG.CHART_COLOR} stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.5} />
+
+                {/* 💡 [수정] X축: stroke를 더 밝은 흰색(#e2e8f0)으로 변경 */}
+                <XAxis
+                    dataKey="slotIndex"
+                    tickFormatter={formatXAxis}
+                    stroke="#e2e8f0"
+                    fontSize={11}
+                    tickMargin={12}
+                    interval={0}
+                    axisLine={false}
+                    tickLine={false}
+                />
+
+                {/* 💡 [수정] Y축: stroke를 더 밝은 흰색(#e2e8f0)으로 변경 */}
+                <YAxis
+                    stroke="#e2e8f0"
+                    fontSize={11}
+                    tickMargin={10}
+                    domain={[0, maxY]}
+                    allowDecimals={false}
+                    axisLine={false}
+                    tickLine={false}
+                />
+
+                <Tooltip
+                    labelFormatter={(idx) => {
+                      const label = formatXAxis(0, idx as number);
+                      return label ? `시간: ${label}` : '';
+                    }}
+                    contentStyle={{ backgroundColor: CONFIG.BG_DARK, border: '1px solid #334155', borderRadius: '8px', color: '#f8fafc' }}
+                    itemStyle={{ color: CONFIG.CHART_COLOR }}
+                />
+
+                <Area
+                    type="monotone"
+                    dataKey="value"
+                    stroke={CONFIG.CHART_COLOR}
+                    strokeWidth={3}
+                    fill="url(#colorValue)"
+                    isAnimationActive={false}
+                    connectNulls={false}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
   );
 };
