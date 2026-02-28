@@ -1,23 +1,28 @@
-// ... 상단 import 문에서 ThemeToggle 제거
+import React from 'react';
 import UserMenu from '../components/DropdownProfile.jsx';
-// import ThemeToggle from '../components/ThemeToggle.jsx'; // 💡 제거
 
-function Header({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
+// 💡 선언과 동시에 export default를 수행하여 'named export' 에러를 방지합니다.
+export default function Header({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
   return (
-      <header className="...">
+      <header className={`sticky top-0 before:absolute before:inset-0 before:backdrop-blur-md max-lg:before:bg-white/90 dark:max-lg:before:bg-gray-800/90 before:-z-10 z-30 ${variant === 'v2' || variant === 'v3' ? 'before:bg-white after:absolute after:h-px after:inset-x-0 after:top-full after:bg-gray-200 dark:after:bg-gray-700/60 after:-z-10' : 'max-lg:shadow-xs lg:before:bg-gray-100/90 dark:lg:before:bg-gray-900/90'} ${variant === 'v2' ? 'dark:before:bg-gray-800' : ''} ${variant === 'v3' ? 'dark:before:bg-gray-900' : ''}`}>
         <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 ...">
-            {/* Header: Left side */}
-            <div className="flex">{/* 햄버거 버튼 생략 */}</div>
+          <div className={`flex items-center justify-between h-16 ${variant === 'v2' || variant === 'v3' ? '' : 'lg:border-b border-gray-200 dark:border-gray-700/60'}`}>
+            <div className="flex">
+              {/* Hamburger button */}
+              <button
+                  className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 lg:hidden"
+                  onClick={(e) => { e.stopPropagation(); setSidebarOpen(!sidebarOpen); }}
+              >
+                <span className="sr-only">Open sidebar</span>
+                <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="4" y="5" width="16" height="2" /><rect x="4" y="11" width="16" height="2" /><rect x="4" y="17" width="16" height="2" />
+                </svg>
+              </button>
+            </div>
 
-            {/* Header: Right side */}
             <div className="flex items-center space-x-3">
-              {/* 💡 ThemeToggle 컴포넌트가 있던 자리를 삭제했습니다. */}
-
-              {/* Divider */}
+              {/* 💡 검색, 알림, 도움말 아이콘을 모두 제거하고 프로필만 남겼습니다. */}
               <hr className="w-px h-6 bg-gray-200 dark:bg-gray-700/60 border-none" />
-
-              {/* User Menu */}
               <UserMenu align="right" />
             </div>
           </div>
