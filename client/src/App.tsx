@@ -2,13 +2,12 @@
 import React, { useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Sidebar from './partials/Sidebar.jsx';
-import Header from './partials/Header.jsx'; // 💡 .jsx 확장자를 명시하여 인식률을 높입니다.
+import Header from './partials/Header.jsx';
 import { StreamCard } from './components/stream/StreamCard';
 import { StreamAnalysisDashboard } from './components/stream/StreamAnalysisDashboard';
 import { useStreams } from './hooks/useStreams';
 import './css/style.css';
 
-// 💡 1. 메인 페이지 컴포넌트: 여기서 useStreams를 호출해야 15초마다 폴링이 돕니다.
 const MainPage = () => {
   const { streams, isLoading, error } = useStreams(15000);
 
@@ -16,7 +15,8 @@ const MainPage = () => {
   if (error) return <div className="text-red-500 p-8">에러 발생: {error}</div>;
 
   return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      /* 💡 그리드 반응형 강화: 모바일 1열 -> 태블릿 2열 -> 노트북 3열 -> 대형 4열 */
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
         {streams.map((stream) => (
             <StreamCard key={stream.streamId} stream={stream} />
         ))}
@@ -24,7 +24,6 @@ const MainPage = () => {
   );
 };
 
-// 💡 2. 전체 레이아웃 및 라우팅 설정
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -37,9 +36,8 @@ export default function App() {
         <div className="relative flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
           <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
-          <main>
-            <div className="px-4 sm:px-6 lg:px-8 py-8 w-full max-w-9xl mx-auto">
-              {/* 💡 Routes를 통해 URL에 맞는 컴포넌트를 이 자리에 렌더링합니다. */}
+          <main className="grow">
+            <div className="px-8 lg:px-10 py-8 w-full max-w-9xl mx-auto">
               <Routes>
                 <Route path="/" element={<MainPage />} />
                 <Route path="/streams/:streamId" element={<StreamAnalysisDashboard />} />
