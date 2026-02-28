@@ -1,5 +1,8 @@
+// @ts-nocheck
 import React, { useState, useEffect, useRef } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+
+// 💡 SidebarLinkGroup은 이제 쓰지 않으므로 임포트를 삭제해도 됩니다.
 
 function Sidebar({
   sidebarOpen,
@@ -15,7 +18,7 @@ function Sidebar({
   const storedSidebarExpanded = localStorage.getItem("sidebar-expanded");
   const [sidebarExpanded, setSidebarExpanded] = useState(storedSidebarExpanded === null ? false : storedSidebarExpanded === "true");
 
-  // close on click outside
+  // 외부 클릭 시 닫기 (모바일)
   useEffect(() => {
     const clickHandler = ({ target }) => {
       if (!sidebar.current || !trigger.current) return;
@@ -26,7 +29,7 @@ function Sidebar({
     return () => document.removeEventListener("click", clickHandler);
   });
 
-  // close if the esc key is pressed
+  // ESC 키 누를 시 닫기
   useEffect(() => {
     const keyHandler = ({ keyCode }) => {
       if (!sidebarOpen || keyCode !== 27) return;
@@ -78,36 +81,30 @@ function Sidebar({
             </button>
             {/* Logo */}
             <NavLink end to="/" className="block">
-              {/* 치지직 느낌의 형광 연두색 로고로 변경 */}
               <svg className="fill-[#00FFA3]" xmlns="http://www.w3.org/2000/svg" width={32} height={32}>
                 <path d="M31.956 14.8C31.372 6.92 25.08.628 17.2.044V5.76a9.04 9.04 0 0 0 9.04 9.04h5.716ZM14.8 26.24v5.716C6.92 31.372.63 25.08.044 17.2H5.76a9.04 9.04 0 0 1 9.04 9.04Zm11.44-9.04h5.716c-.584 7.88-6.876 14.172-14.756 14.756V26.24a9.04 9.04 0 0 1 9.04-9.04ZM.044 14.8C.63 6.92 6.92.628 14.8.044V5.76a9.04 9.04 0 0 1-9.04 9.04H.044Z" />
               </svg>
             </NavLink>
           </div>
 
-          {/* 💡 엄청나게 길었던 Links 영역을 이걸로 깔끔하게 대체했습니다! */}
+          {/* Links */}
           <div className="space-y-8">
             <div>
               <h3 className="text-xs uppercase text-gray-400 dark:text-gray-500 font-semibold pl-3">
-              <span className="hidden lg:block lg:sidebar-expanded:hidden 2xl:hidden text-center w-6" aria-hidden="true">
-                •••
-              </span>
+                <span className="hidden lg:block lg:sidebar-expanded:hidden 2xl:hidden text-center w-6" aria-hidden="true">•••</span>
                 <span className="lg:hidden lg:sidebar-expanded:block 2xl:block">Menu</span>
               </h3>
               <ul className="mt-3">
-                {/* 내 방송 목록 메뉴 */}
-                <li className={`px-3 py-2 rounded-lg mb-0.5 last:mb-0 bg-gray-900/50 dark:bg-gray-900`}>
+                {/* 1. 실시간 방송 목록 */}
+                <li className={`px-3 py-2 rounded-lg mb-0.5 last:mb-0 ${pathname === '/' && 'bg-gray-100 dark:bg-gray-900'}`}>
                   <NavLink
                       end
                       to="/"
-                      className={`block text-gray-800 dark:text-gray-200 truncate transition duration-150 hover:text-gray-900 dark:hover:text-white`}
+                      className={`block text-gray-800 dark:text-gray-100 truncate transition duration-150 ${pathname === '/' ? '' : 'hover:text-gray-900 dark:hover:text-white'}`}
                   >
-                    <div className="flex items-center text-[#00FFA3]">
-                      <svg className="shrink-0 h-6 w-6" viewBox="0 0 24 24">
-                        <path
-                            className={`fill-current text-[#00FFA3]`}
-                            d="M12 0C5.383 0 0 5.383 0 12s5.383 12 12 12 12-5.383 12-12S18.617 0 12 0z"
-                        />
+                    <div className="flex items-center">
+                      <svg className={`shrink-0 h-6 w-6 fill-current ${pathname === '/' ? 'text-[#00FFA3]' : 'text-gray-400 dark:text-gray-500'}`} viewBox="0 0 24 24">
+                        <path d="M12 0C5.383 0 0 5.383 0 12s5.383 12 12 12 12-5.383 12-12S18.617 0 12 0z" />
                       </svg>
                       <span className="text-sm font-medium ml-3 lg:opacity-0 lg:sidebar-expanded:opacity-100 2xl:opacity-100 duration-200">
                       실시간 방송 목록
@@ -115,6 +112,8 @@ function Sidebar({
                     </div>
                   </NavLink>
                 </li>
+
+                {/* 💡 나중에 '타임스탬프'나 '채팅 클라우드' 메뉴가 필요하면 여기에 <li>를 추가하기만 하면 됩니다! */}
               </ul>
             </div>
           </div>

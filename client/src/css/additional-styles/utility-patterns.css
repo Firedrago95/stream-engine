@@ -15,7 +15,7 @@
     @apply text-2xl font-extrabold tracking-tight;
 }
 
-@media (width >= theme(--breakpoint-md)) {
+@media (min-width: 768px) {
     .h1 {
         @apply text-5xl;
     }
