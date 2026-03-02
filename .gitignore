@@ -38,3 +38,8 @@ out/
 
 ### 사용자 설정
 .env
+
+# Repomix Output
+repomix-output.xml
+repomix-output.txt
+repomix-output.json
