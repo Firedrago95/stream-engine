@@ -38,15 +38,19 @@ public class ChatFirepowerDetector implements HighlightDetector {
     public DetectionResult detect(String chatRoomId) {
         List<List<Object>> cumulativeValues = fetchCumulativeValues(chatRoomId);
 
-        int size = (cumulativeValues == null) ? 0 : cumulativeValues.size();
         if (cumulativeValues == null || cumulativeValues.size() < MIN_DATA_POINTS_FOR_ANALYSIS + 1) {
-            log.info("[Analysis-Step 1] 데이터 부족 (WAITING) - Stream: {}, 수집된 포인트: {}/6", chatRoomId, size);
+            if (log.isDebugEnabled()) {
+                int size = (cumulativeValues == null) ? 0 : cumulativeValues.size();
+                log.info("[Analysis-Step 1] 데이터 부족 (WAITING) - Stream: {}, 수집된 포인트: {}/6", chatRoomId, size);
+            }
             return DetectionResult.waiting();
         }
 
         List<Long> deltas = convertToDeltas(cumulativeValues, chatRoomId);
 
-        log.info("[Analysis-Step 2] 변화량 확인 - Stream: {}, Deltas: {}", chatRoomId, deltas);
+        if (log.isDebugEnabled()) {
+            log.debug("[Analysis-Step 2] 변화량 확인 - Stream: {}, Deltas: {}", chatRoomId, deltas);
+        }
 
         return analyzeFirepower(deltas, chatRoomId);
     }
@@ -55,9 +59,6 @@ public class ChatFirepowerDetector implements HighlightDetector {
         String key = String.format(Rediskeys.CHAT_AGGREGATION_PREFIX, chatRoomId);
         long toTs = clock.instant().toEpochMilli();
         long fromTs = toTs - highlightRange.toMillis();
-
-        log.info("[Redis-Fetch] 조회 요청 - Key: {}, Range: {} ~ {} (차이: {}ms)",
-            key, fromTs, toTs, highlightRange.toMillis());
 
         @SuppressWarnings("unchecked")
         List<List<Object>> result = (List<List<Object>>) redisTemplate.execute(
@@ -68,9 +69,10 @@ public class ChatFirepowerDetector implements HighlightDetector {
             MAX_FETCH_COUNT
         );
 
-        log.info("[Redis-Fetch] 조회 결과 - Stream: {}, 수집갯수: {}, 데이터내용: {}",
-            chatRoomId, (result == null ? 0 : result.size()), result);
-
+        if (log.isDebugEnabled()) {
+            log.debug("[Redis-Fetch] 조회 결과 - Stream: {}, 수집갯수: {}, 데이터내용: {}",
+                chatRoomId, (result == null ? 0 : result.size()), result);
+        }
         return result;
     }
 
@@ -83,7 +85,7 @@ public class ChatFirepowerDetector implements HighlightDetector {
             long delta = currentValue - previousValue;
 
             if (delta < 0) {
-                log.warn("음수 변화량 감지(카운터 리셋 의심) - chatRoomId: {}, 이전 누적: {}, 현재 누적: {}. 변화량을 0으로 처리합니다.",
+                log.warn("음수 변화량 감지 - chatRoomId: {}, 이전 누적: {}, 현재 누적: {}. 변화량을 0으로 처리합니다.",
                     chatRoomId, previousValue, currentValue);
                 delta = 0;
             }
@@ -111,9 +113,10 @@ public class ChatFirepowerDetector implements HighlightDetector {
 
         ChatFirepowerStatus status = (lastValue > threshold) ? ChatFirepowerStatus.PEAK : ChatFirepowerStatus.NORMAL;
 
-        log.info("[Analysis-Step 3] 판정 완료 - Stream: {}, 상태: {}, 현재: {}, 평균: {}, 임계치: {}",
-            chatRoomId, status, lastValue, String.format("%.2f", avgValue), String.format("%.2f", threshold));
-
+        if (log.isDebugEnabled()) {
+            log.info("[Analysis-Step 3] 판정 완료 - Stream: {}, 상태: {}, 현재: {}, 평균: {}, 임계치: {}",
+                chatRoomId, status, lastValue, String.format("%.2f", avgValue), String.format("%.2f", threshold));
+        }
         return new DetectionResult(status, lastValue);
     }
 }
