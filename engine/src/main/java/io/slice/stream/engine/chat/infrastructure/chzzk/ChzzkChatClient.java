@@ -37,7 +37,7 @@ public class ChzzkChatClient implements ChatClient {
     }
 
     @Override
-    public void connect(String chatChannelId, ChatMessageListener listener) throws URISyntaxException {
+    public void connect(String channelId, String chatChannelId, ChatMessageListener listener) throws URISyntaxException {
         this.listener = listener;
 
         String accessToken = chzzkApiClient.getAccessToken(chatChannelId);
@@ -46,6 +46,7 @@ public class ChzzkChatClient implements ChatClient {
 
         ChzzkWebSocketListener webSocketListener = new ChzzkWebSocketListener(
             listener,
+            channelId,
             chatChannelId,
             accessToken,
             jsonMapper,

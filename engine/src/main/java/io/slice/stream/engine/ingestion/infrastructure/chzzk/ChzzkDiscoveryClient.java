@@ -98,7 +98,7 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
                 topLive.liveId(),
                 topLive.liveTitle(),
                 topLive.concurrentUserCount(),
-                topLive.getFormattedThumbnailUrl(),
+                topLive.channel().channelImageUrl(),
                 topLive.liveCategoryValue()
             );
         } catch (Exception e) {

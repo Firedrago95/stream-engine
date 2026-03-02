@@ -1,21 +1,17 @@
-import { defineConfig, loadEnv } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
-export default defineConfig(({ mode }) => {
-  // 현재 작업 디렉토리의 환경 변수를 불러옵니다.
-  const env = loadEnv(mode, process.cwd(), '');
-
-  return {
-    plugins: [react()],
-    server: {
-      port: Number(env.CLIENT_EXTERNAL_PORT) || 3000,
-      proxy: {
-        '/api': {
-          // .env에 정의된 VITE_API_BASE_URL을 사용합니다.
-          target: env.VITE_API_BASE_URL || 'http://localhost:8080',
-          changeOrigin: true,
-        }
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    host: '0.0.0.0', // 도커 컨테이너 외부 접근 허용
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://api:8080',
+        changeOrigin: true,
+        secure: false, // SSL 오류 무시
       }
     }
   }
-})
+});

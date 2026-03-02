@@ -58,8 +58,8 @@ class ChzzkDiscoveryClientTest {
     void 인기_라이브_스트림_목록을_가져와_도메인_모델로_매핑한다() throws Exception {
         // Given
         int limit = 5;
-        ChzzkLive live1 = new ChzzkLive(1001L, "침착맨의 일상", "https://thumb.com/1_{type}.jpg", "소통", "5000", 5000, new Channel("ch1", "침착맨"));
-        ChzzkLive live2 = new ChzzkLive(1002L, "게임 방송", "https://thumb.com/2_{type}.jpg", "게임", "3000", 3000, new Channel("ch2", "게이머A"));
+        ChzzkLive live1 = new ChzzkLive(1001L, "침착맨의 일상", "https://thumb.com/1_{type}.jpg", "소통", "5000", 5000, new Channel("ch1", "침착맨", "imageUrl"));
+        ChzzkLive live2 = new ChzzkLive(1002L, "게임 방송", "https://thumb.com/2_{type}.jpg", "게임", "3000", 3000, new Channel("ch2", "게이머A", "imageUrl"));
 
         // 1. live-fetch (상위 라이브 목록 조회) 응답 Mocking
         ChzzkLiveResponse topLiveResponse = createMockResponse(List.of(live1, live2));

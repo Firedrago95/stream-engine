@@ -21,9 +21,12 @@ public class ChatAnalysisKafkaConsumer {
     )
     public void consume(ChatMessage chatMessage, Acknowledgment ack) {
         try {
+            if (log.isDebugEnabled()) {
+                log.debug("[Kafka-Input] 메시지 도달 - Stream: {}, Msg: {}", chatMessage.streamId(), chatMessage.message());
+            }
             chatAggregationService.aggregate(chatMessage);
         } catch (Exception e) {
-            log.error("분석 실패, 다음 메시지로 진행합니다: {}", e.getMessage());
+            log.error("[Kafka-Error] 컨슈밍 실패: {}", e.getMessage(), e);
         } finally {
             ack.acknowledge();
         }

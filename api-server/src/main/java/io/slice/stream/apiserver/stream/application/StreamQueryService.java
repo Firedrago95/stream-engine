@@ -20,21 +20,20 @@ public class StreamQueryService {
         List<StreamSyncRequest> allStreams = streamService.getAllStreams();
 
         Set<String> channelIds = allStreams.stream()
-            .map(StreamSyncRequest::channelId)
+            .map(StreamSyncRequest::streamId)
             .collect(Collectors.toSet());
 
         Set<String> analyzingIds = analysisRepository.findChannelsWithRecentSignals(channelIds);
 
         return allStreams.stream()
             .map(s -> new StreamResponse(
-                s.channelId(),
-                s.channelName(),
+                s.streamId(),
+                s.streamerName(),
                 s.liveTitle(),
-                s.thumbnailUrl(),
+                s.profileImageUrl(),
                 s.categoryName(),
-                analyzingIds.contains(s.channelId()) ? "ANALYZING" : "LIVE"
+                analyzingIds.contains(s.streamId()) ? "ANALYZING" : "LIVE"
             ))
-            .sorted()
             .toList();
     }
 }

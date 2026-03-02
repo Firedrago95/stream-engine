@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/streams")
+@RequestMapping("${analysis.sync.path}")
 @RequiredArgsConstructor
 public class StreamSyncController {
 

@@ -20,7 +20,7 @@ Java 25 가상 스레드(Virtual Threads) 기반의 고성능 실시간 스트�
 
 ### Backend (Core & API)
 - **Language**: Java 25 (Virtual Threads)
-- **Framework**: Spring Boot 3.x
+- **Framework**: Spring Boot 4.0.1
 - **Data & Messaging**: Spring Data Redis, Spring Kafka
 - **Utils**: Spring Scheduling, Jackson, SLF4J
 
@@ -29,9 +29,12 @@ Java 25 가상 스레드(Virtual Threads) 기반의 고성능 실시간 스트�
 - **Message Broker**: Apache Kafka (Kraft Mode)
 - **Containerization**: Docker, Docker Compose
 
-### Frontend (Client) (AI 담당)
+### Frontend (Client) 🤖
+> 프로젝트의 핵심 역량은 **백엔드 대용량 트래픽 처리 및 데이터 파이프라인 설계**에 집중되어 있습니다.
+> 프론트엔드(`client` 모듈)는 백엔드 엔진의 실시간 데이터(SSE, 화력 차트)를 시각적으로 검증하기 위해 **100% AI (LLM) 기반으로 생성된 MVP 코드**입니다.
 - **Framework**: React 18, Vite, TypeScript
-- **Styling / UI**: Tailwind CSS
+- **Routing & State**: React Router, Zod (Runtime Type Validation)
+- **Styling / UI**: Tailwind CSS, Recharts (Data Visualization)
 
 ---
 
@@ -40,28 +43,28 @@ Java 25 가상 스레드(Virtual Threads) 기반의 고성능 실시간 스트�
 시스템은 역할에 따라 **Engine**, **API Server**, **Client**로 명확히 분리되어 동작합니다.
 
 ```mermaid
-graph TD
-    %% Subgraph: Engine Module (핵심 로직)
-    subgraph Engine_Scope ["1. engine (Data Processing)"]
+flowchart TD
+    %% Subgraph: Engine Module
+    subgraph Engine_Scope [1. engine - Data Processing]
         direction TB
         Ingestion[IngestionService] -->|Polling| ChzzkAPI[Chzzk API]
-        Ingestion --> Redis_DB[(Redis)]
-        Redis_DB -- "스트림 감지" --> ChatListener[ChatEventListener]
+        Ingestion --> RedisDB[(Redis)]
+        RedisDB -->|스트림 감지| ChatListener[ChatEventListener]
         
         ChatListener --> WebSocket[Chzzk Chat WebSocket]
-        WebSocket -- "채팅 메시지" --> Kafka_Topic((Kafka))
+        WebSocket -->|채팅 메시지| KafkaTopic((Kafka))
         
-        Kafka_Topic -- "Consume" --> AggService[ChatAggregationService]
-        AggService -- "시계열 저장" --> RedisTS[(RedisTimeSeries)]
+        KafkaTopic -->|Consume| AggService[ChatAggregationService]
+        AggService -->|시계열 저장| RedisTS[(RedisTimeSeries)]
         
-        RedisTS -- "화력 감지" --> Detector{HighlightDetector}
-        Detector -- "PEAK 신호" --> SignalClient[HighlightSignalClient]
+        RedisTS -->|화력 감지| Detector{HighlightDetector}
+        Detector -->|PEAK 신호 발송| SignalClient[HighlightSignalClient]
     end
 
-    %% Subgraph: API Server Module (은닉 경로 및 보안)
-    subgraph API_Scope ["2. api-server (API & Real-time Broadcast)"]
+    %% Subgraph: API Server Module
+    subgraph API_Scope [2. api-server - API & Real-time Broadcast]
         direction TB
-        InternalAPI{Webhook Endpoint 은닉 경로}
+        InternalAPI{Webhook 은닉 경로}
         TokenCheck[EngineTokenFilter]
         SignalService[AnalysisService]
         SSE_Endpoint{SSE Endpoint}
@@ -71,14 +74,17 @@ graph TD
         SignalService --> SSE_Endpoint
     end
 
+    %% Client
+    ReactUI([React Client UI])
+
     %% Connections
-    SignalClient -- "HTTP Webhook" ---> InternalAPI
-    SSE_Endpoint -- "실시간 Push" ---> ReactUI([React UI])
+    SignalClient ===>|HTTP Webhook| InternalAPI
+    SSE_Endpoint ===>|실시간 Push| ReactUI
 
     %% Styling
     style Engine_Scope fill:#f9f9f9,stroke:#333,stroke-width:2px
     style API_Scope fill:#e6f3ff,stroke:#0056b3,stroke-width:2px
-    style ReactUI fill:#fff5f5,stroke:#d63384,stroke-dasharray: 5 5
+    style ReactUI fill:#fff5f5,stroke:#d63384,stroke-width:2px
 ```
 
 ---

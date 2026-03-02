@@ -14,7 +14,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     protected ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
-        log.error("[예외] 요청 데이터 검증 실패: {}건의 필드에서 오류 발생", e.getBindingResult().getErrorCount());
+        log.warn("[예외] 요청 데이터 검증 실패: {}건의 필드에서 오류 발생", e.getBindingResult().getErrorCount());
 
         HashMap<String, String> errors = new HashMap<>();
         e.getBindingResult().getAllErrors().forEach((error) -> {
@@ -30,7 +30,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
     protected ResponseEntity<ErrorResponse> handleBusinessException(final BusinessException e) {
-        log.error("[비즈니스 예외] 발생 코드: {}, 상세 메시지: {}", e.getErrorCode().getCode(), e.getMessage());
+        log.warn("[비즈니스 예외] 발생 코드: {}, 상세 메시지: {}", e.getErrorCode().getCode(), e.getMessage());
 
         final ErrorCode errorCode = e.getErrorCode();
         final ErrorResponse response = ErrorResponse.of(errorCode, e.getMessage());

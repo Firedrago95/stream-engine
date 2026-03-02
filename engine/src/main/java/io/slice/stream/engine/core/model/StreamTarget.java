@@ -7,7 +7,7 @@ public record StreamTarget(
     long liveId,
     String liveTitle,
     int concurrentUserCount,
-    String thumbnailUri,
+    String profileImageUrl,
     String categoryName
 ) {
 

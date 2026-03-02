@@ -2,9 +2,9 @@ package io.slice.stream.apiserver.stream.application;
 
 import io.slice.stream.apiserver.stream.presentation.dto.StreamSyncRequest;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -14,11 +14,12 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class StreamService {
 
-    private final Map<String, StreamSyncRequest> streamCache = new ConcurrentHashMap<>();
+    private volatile Map<String, StreamSyncRequest> streamCache = Map.of();
 
     public void syncAll(List<StreamSyncRequest> streams) {
-        streamCache.clear();
-        streams.forEach(s -> streamCache.put(s.channelId(), s));
+        HashMap<String, StreamSyncRequest> newCache = new HashMap<>();
+        streams.forEach(s -> newCache.put(s.streamId(), s));
+        this.streamCache = newCache;
         log.info("[Sync] 현재 서버 캐시 방송 수 : {}", streamCache.size());
     }
 

@@ -6,7 +6,7 @@ public record StreamSyncRequest(
     String streamId,
     String streamerName,
     String liveTitle,
-    String thumbnailUrl,
+    String profileImageUrl,
     String categoryName
 ) {
     public static StreamSyncRequest from(StreamTarget target) {
@@ -14,7 +14,7 @@ public record StreamSyncRequest(
             target.channelId(),
             target.channelName(),
             target.liveTitle(),
-            target.thumbnailUri(),
+            target.profileImageUrl(),
             target.categoryName()
         );
     }

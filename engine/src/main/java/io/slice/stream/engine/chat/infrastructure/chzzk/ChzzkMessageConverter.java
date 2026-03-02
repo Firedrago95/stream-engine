@@ -24,7 +24,7 @@ public class ChzzkMessageConverter {
 
     private final JsonMapper jsonMapper;
 
-    public List<ChatMessage> convert(JsonNode rootNode) {
+    public List<ChatMessage> convert(JsonNode rootNode, String channelId) {
         int cmd = rootNode.path("cmd").asInt();
         CmdType cmdType = CmdType.fromInt(cmd);
 
@@ -39,39 +39,44 @@ public class ChzzkMessageConverter {
             return Collections.emptyList(); // 데이터 없음 (정상)
         }
 
-        String streamId = response.cid();
-
         return StreamSupport.stream(response.bdy().spliterator(), false)
-            .map(bodyNode -> parseSingleMessage(bodyNode, cmdType, streamId))
+            .map(bodyNode -> parseSingleMessage(bodyNode, cmdType, channelId))
             .filter(Objects::nonNull)
             .toList();
     }
 
     private ChatMessage parseSingleMessage(JsonNode bodyNode, CmdType cmdType, String streamId) {
         try {
-            ChzzkResponseMessage.Profile profile = jsonMapper.readValue(
-                bodyNode.path("profile").asString(),
-                ChzzkResponseMessage.Profile.class
-            );
-
             MessageType messageType = (cmdType == CmdType.DONATION) ? MessageType.DONATION : MessageType.TEXT;
+            Author author;
 
-            Author author = new Author(
-                profile.userIdHash(),
-                profile.nickname(),
-                profile.profileImageUrl()
-            );
+            JsonNode profileNode = bodyNode.path("profile");
+            if (profileNode.isMissingNode() || profileNode.isNull() || profileNode.asText().isBlank() || profileNode.asText().equals("null")) {
+                author = new Author("anonymous", "익명", null);
+            } else {
+                ChzzkResponseMessage.Profile profile = jsonMapper.readValue(
+                    profileNode.asText(),
+                    ChzzkResponseMessage.Profile.class
+                );
+                author = new Author(
+                    profile.userIdHash(),
+                    profile.nickname(),
+                    profile.profileImageUrl()
+                );
+            }
 
-            return new ChatMessage(
+            ChatMessage chatMessage = new ChatMessage(
                 messageType,
                 author,
-                bodyNode.path("msg").asString(),
+                bodyNode.path("msg").asText(""), // asString() 대신 asText("")로 null 방어
                 Instant.ofEpochMilli(bodyNode.path("msgTime").asLong()),
                 streamId,
                 Map.of()
             );
+
+            return chatMessage;
         } catch (Exception e) {
-            log.error("단일 채팅 메시지 파싱 실패: {} | 원인: {}", bodyNode.toString().replaceAll("[\r\n]", " "), e.getMessage());
+            log.error("단일 채팅 메시지 파싱 실패: {} | 원인: {}", bodyNode.toString().replaceAll("[\r\n]", " "), e.getMessage(), e);
             return null;
         }
     }

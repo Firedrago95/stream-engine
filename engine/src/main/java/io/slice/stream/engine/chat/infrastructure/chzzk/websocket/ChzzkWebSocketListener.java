@@ -16,6 +16,7 @@ import tools.jackson.databind.json.JsonMapper;
 public class ChzzkWebSocketListener implements Listener {
 
     private final ChatMessageListener messageListener;
+    private final String channelId;
     private final String chatChannelId;
     private final String accessToken;
     private final JsonMapper jsonMapper;
@@ -27,12 +28,14 @@ public class ChzzkWebSocketListener implements Listener {
 
     public ChzzkWebSocketListener(
         ChatMessageListener messageListener,
+        String channelId,
         String chatChannelId,
         String accessToken,
         JsonMapper jsonMapper,
         ChzzkMessageConverter messageConverter
     ) {
         this.messageListener = messageListener;
+        this.channelId = channelId;
         this.chatChannelId = chatChannelId;
         this.accessToken = accessToken;
         this.jsonMapper = jsonMapper;
@@ -70,8 +73,14 @@ public class ChzzkWebSocketListener implements Listener {
             int cmd = rootNode.path("cmd").asInt();
             CmdType cmdType = CmdType.fromInt(rootNode.path("cmd").asInt());
 
+            if (cmdType == CmdType.UNKNOWN) {
+                String sanitized = message.replaceAll("[\\r\\n]", " ");
+                String preview = sanitized.length() > 200 ? sanitized.substring(0, 200) + "..." : sanitized;
+                log.warn("[{}] 정의되지 않은 cmd 값 수신: {}, raw message: {}", chatChannelId, cmd, preview);
+            }
+
             if (cmdType != CmdType.CHAT && cmdType != CmdType.PING && cmdType != CmdType.PONG) {
-                log.info("[{}] 시스템 메시지 수신: cmd={}", chatChannelId, cmdType);
+                log.debug("[{}] 시스템 메시지 수신: cmd={}", chatChannelId, cmdType);
             }
 
             dispatchCommand(cmdType, rootNode);
@@ -101,10 +110,15 @@ public class ChzzkWebSocketListener implements Listener {
     }
 
     private void handleChatMessage(JsonNode rootNode) {
-        List<ChatMessage> messages = messageConverter.convert(rootNode);
+        List<ChatMessage> messages = messageConverter.convert(rootNode, channelId);
         if (!messages.isEmpty()) {
-            for (ChatMessage msg : messages) {
-                log.info("[{}] {}: {}", chatChannelId, msg.author().nickname().replaceAll("[\r\n]", " "), msg.message());
+            if (log.isDebugEnabled()) {
+                for (ChatMessage msg : messages) {
+                    log.debug("[{}] {}: {}",
+                        chatChannelId,
+                        msg.author().nickname().replaceAll("[\r\n]", " "),
+                        msg.message());
+                }
             }
             messageListener.onMessages(messages);
         }

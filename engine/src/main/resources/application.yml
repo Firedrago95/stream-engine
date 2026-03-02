@@ -28,6 +28,15 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
+logging:
+  level:
+    # 채팅 메시지 한 줄씩 찍히는 노이즈 차단 (WARN 레벨 이상만 출력)
+    io.slice.stream.engine.chat.infrastructure.chzzk.websocket.ChzzkWebSocketListener: WARN
+    # 채팅 수집기 연결 로그 차단
+    io.slice.stream.engine.chat.infrastructure.kafka.ChzzkChatCollector: WARN
+    # (선택 사항) Kafka 컨슈머의 노이즈가 많을 경우 추가
+    org.apache.kafka: WARN
+
 chzzk:
   # 1. 치지직 오픈 API (방송 정보 조회 등)
   api:

@@ -17,13 +17,18 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
     volumes:
       - kafka_data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 15s
 
   redis:
     image: redis/redis-stack-server:${REDIS_IMAGE_TAG}
@@ -56,6 +61,8 @@ services:
       SERVER_HOST: http://api:8080
       SERVER_SECRET: ${SERVER_SECRET}
       SERVER_HEADER: ${SERVER_HEADER}
+      SIGNAL_PATH: ${SIGNAL_PATH}
+      SYNC_PATH: ${SYNC_PATH}
     depends_on:
       kafka:
         condition: service_healthy
@@ -77,6 +84,8 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
       SERVER_SECRET: ${SERVER_SECRET}
       SERVER_HEADER: ${SERVER_HEADER}
+      SIGNAL_PATH: ${SIGNAL_PATH}
+      SYNC_PATH: ${SYNC_PATH}
     depends_on:
       kafka:
         condition: service_healthy

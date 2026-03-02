@@ -21,7 +21,8 @@ public record ChzzkLiveResponse(
         ) {
             public record Channel(
                 String channelId,
-                String channelName
+                String channelName,
+                String channelImageUrl
             ) { }
 
             public String getFormattedThumbnailUrl() {

@@ -19,16 +19,13 @@ public class ChatAggregationService {
 
     private final Cache<String, ChatRoomAggregation> chatRoomAggregations;
     private final ChatRoomAggregationRepository chatRoomAggregationRepository;
-    private final Clock clock;
 
     public ChatAggregationService(ChatRoomAggregationRepository chatRoomAggregationRepository, Clock clock) {
         this.chatRoomAggregationRepository = chatRoomAggregationRepository;
-        this.clock = clock;
         this.chatRoomAggregations = Caffeine.newBuilder()
             .expireAfterAccess(10, TimeUnit.MINUTES)
             .removalListener((String key, ChatRoomAggregation value, RemovalCause cause) -> {
                 if (cause != RemovalCause.REPLACED) {
-                    log.info("캐시 만료로 최종 저장 실행: {}", key);
                     saveToRepository(key, value);
                 }
             })
@@ -49,14 +46,20 @@ public class ChatAggregationService {
 
     @Scheduled(fixedRate = 3_000)
     public void saveAggregations() {
+        log.info("[Scheduler] 저장 스케줄러 작동 중... 현재 캐시된 스트림 수: {}", chatRoomAggregations.asMap().size());
         chatRoomAggregations.asMap().forEach(this::saveToRepository);
     }
 
     private void saveToRepository(String key, ChatRoomAggregation aggregation) {
         try {
+            if (log.isDebugEnabled()) {
+                log.info("[Redis-Save] 저장 시도 - Key: {}, 누적카운트: {}, 마지막채팅: {}",
+                    key, aggregation.getCount(), aggregation.getLastChatTime());
+            }
             chatRoomAggregationRepository.save(aggregation, aggregation.getLastChatTime());
+
         } catch (Exception e) {
-            log.error("채팅 집계 결과 저장 실패 : {}", key, e);
+            log.error("[Redis-Save] 저장 실패 - Key: {}", key, e);
         }
     }
 

@@ -14,15 +14,17 @@ public class ChatConnectionManager implements ChatCollector, ChatMessageListener
     private final ChatClient chatClient;
     private final ChatMessageListener downstreamListener;
     private final String chatChannelId;
+    private final String channelId;
 
     private final AtomicBoolean isReconnecting = new AtomicBoolean(false);
     private volatile boolean isManualDisconnect = false;
     private volatile int retryCount = 0;
 
-    public ChatConnectionManager(ChatClient chatClient, ChatMessageListener downstreamListener, String chatChannelId) {
+    public ChatConnectionManager(ChatClient chatClient, ChatMessageListener downstreamListener, String chatChannelId, String channelId) {
         this.chatClient = chatClient;
         this.downstreamListener = downstreamListener;
         this.chatChannelId = chatChannelId;
+        this.channelId = channelId;
     }
 
     @Override
@@ -46,7 +48,7 @@ public class ChatConnectionManager implements ChatCollector, ChatMessageListener
 
         try {
             log.info("[{}] 채팅 채널 연결을 시도합니다.", chatChannelId);
-            chatClient.connect(chatChannelId, this);
+            chatClient.connect(channelId, chatChannelId, this);
         } catch (Exception e) {
             log.error("[{}] 채팅 연결에 실패했습니다.", chatChannelId, e);
             scheduleReconnect();

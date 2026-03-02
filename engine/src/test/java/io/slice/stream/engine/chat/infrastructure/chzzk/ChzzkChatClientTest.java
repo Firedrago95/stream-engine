@@ -52,6 +52,7 @@ class ChzzkChatClientTest {
     private ChzzkChatClient chzzkChatClient;
 
     private static final String CHANNEL_ID = "testChannel";
+    private static final String CHAT_CHANNEL_ID = "testChatChannel";
     private static final String ACCESS_TOKEN = "testToken";
 
     @BeforeEach
@@ -64,29 +65,29 @@ class ChzzkChatClientTest {
     @Test
     void connect는_AccessToken을_받아_웹소켓_연결을_시도해야_한다() throws URISyntaxException {
         // given
-        when(chzzkApiClient.getAccessToken(CHANNEL_ID)).thenReturn(ACCESS_TOKEN);
+        when(chzzkApiClient.getAccessToken(CHAT_CHANNEL_ID)).thenReturn(ACCESS_TOKEN);
         when(webSocketBuilder.buildAsync(any(URI.class), any(ChzzkWebSocketListener.class)))
             .thenReturn(CompletableFuture.completedFuture(webSocket));
 
         // when
-        chzzkChatClient.connect(CHANNEL_ID, listener);
+        chzzkChatClient.connect(CHANNEL_ID, CHAT_CHANNEL_ID, listener);
 
         // then
-        verify(chzzkApiClient).getAccessToken(CHANNEL_ID);
+        verify(chzzkApiClient).getAccessToken(CHAT_CHANNEL_ID);
         verify(webSocketBuilder).buildAsync(any(URI.class), any(ChzzkWebSocketListener.class));
     }
-    
+
     @Test
     void 웹소켓_연결이_실패하면_listener의_onError가_호출되어야_한다() throws URISyntaxException {
         // given
         RuntimeException testException = new RuntimeException("Connection failed");
-        when(chzzkApiClient.getAccessToken(CHANNEL_ID)).thenReturn(ACCESS_TOKEN);
+        when(chzzkApiClient.getAccessToken(CHAT_CHANNEL_ID)).thenReturn(ACCESS_TOKEN);
         when(webSocketBuilder.buildAsync(any(URI.class), any(ChzzkWebSocketListener.class)))
             .thenReturn(CompletableFuture.failedFuture(testException));
 
         // when
-        chzzkChatClient.connect(CHANNEL_ID, listener);
-        
+        chzzkChatClient.connect(CHANNEL_ID, CHAT_CHANNEL_ID, listener);
+
         // then
         verify(listener).onError(testException);
     }
@@ -94,10 +95,10 @@ class ChzzkChatClientTest {
     @Test
     void disconnect는_활성화된_웹소켓의_sendClose를_호출해야_한다() throws URISyntaxException {
         // given
-        when(chzzkApiClient.getAccessToken(CHANNEL_ID)).thenReturn(ACCESS_TOKEN);
+        when(chzzkApiClient.getAccessToken(CHAT_CHANNEL_ID)).thenReturn(ACCESS_TOKEN);
         when(webSocketBuilder.buildAsync(any(URI.class), any(ChzzkWebSocketListener.class)))
             .thenReturn(CompletableFuture.completedFuture(webSocket));
-        chzzkChatClient.connect(CHANNEL_ID, listener);
+        chzzkChatClient.connect(CHANNEL_ID, CHAT_CHANNEL_ID, listener);
 
         // when
         chzzkChatClient.disconnect();

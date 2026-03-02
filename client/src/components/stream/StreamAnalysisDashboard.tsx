@@ -1,3 +1,4 @@
+// client/src/components/stream/StreamAnalysisDashboard.tsx
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -15,7 +16,17 @@ const DashboardSkeleton = () => (
 export const StreamAnalysisDashboard: React.FC = () => {
   const { streamId } = useParams<{ streamId: string }>();
   const navigate = useNavigate();
-  const { data, isLoading, error } = useStreamAnalysis(streamId);
+
+  const { analysisData, isLoading, error, isGathering } = useStreamAnalysis(streamId || '');
+
+  // 💡 백엔드 응답(객체)에서 'dataPoints' 배열만 안전하게 꺼냅니다!
+  // 데이터가 없거나 배열이 아니면 빈 배열([])을 반환합니다.
+  const chartData = analysisData?.dataPoints || [];
+
+  // 💡 3. streamId가 아예 없으면 조기 종료합니다.
+  if (!streamId) {
+    return <div className="p-10 text-center text-white">잘못된 접근입니다.</div>;
+  }
 
   return (
       <div className="max-w-[1800px] mx-auto p-6 md:p-10">
@@ -34,7 +45,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
         </div>
 
         {/* 상태별 UI 렌더링 */}
-        {isLoading && data.length === 0 ? (
+        {/* 💡 4. isLoading뿐만 아니라 수집 중(isGathering)이거나 차트 데이터가 없을 때 멋진 스켈레톤을 보여줍니다. */}
+        {(isLoading || isGathering || chartData.length === 0) && !error ? (
             <DashboardSkeleton />
         ) : error ? (
             <div className="h-96 flex flex-col items-center justify-center text-red-400 border border-red-400/20 rounded-xl bg-red-400/5">
@@ -44,7 +56,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
         ) : (
             <div className="h-[500px] w-full p-6 border border-white/10 rounded-xl bg-[#141517] shadow-xl">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                {/* 💡 5. analysisData(chartData)를 차트에 주입합니다. */}
+                <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorChat" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#00FFA3" stopOpacity={0.8}/>
