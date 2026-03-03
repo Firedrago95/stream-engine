@@ -45,6 +45,8 @@ public class ChatFirepowerDetector implements HighlightDetector {
         }
 
         List<Long> deltas = convertToDeltas(cumulativeValues, chatRoomId);
+        if (deltas.size() < MIN_DATA_POINTS_FOR_ANALYSIS) return DetectionResult.waiting();
+
         return analyzeWithZScore(deltas, chatRoomId);
     }
 

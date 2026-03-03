@@ -152,18 +152,19 @@ class ChatFirepowerDetectorTest implements RedisTestSupport {
     @Test
     void 통계적으로_유의미한_폭발인_경우_ZScore_판정에_의해_PEAK를_반환한다() {
         // given
-        String roomId = "active_room";
+        String roomId = "burst_room";
         ChatRoomAggregation aggregation = new ChatRoomAggregation(roomId, Instant.EPOCH);
         Instant now = clock.instant();
 
-        // 평소 채팅량 10개 내외로 꾸준함 (표준편차 작음)
-        for (int i = 1; i <= 15; i++) {
+        // 과거(33초 전)부터 현재(3초 전)까지 3초 단위로 데이터 적재
+        for (int i = 11; i >= 1; i--) {
             Instant t = now.minusSeconds(i * 3L);
-            for(int j=0; j<10; j++) aggregation.increaseCount(t);
+            // 평소 화력 5
+            for(int j=0; j<5; j++) aggregation.increaseCount(t);
             repository.save(aggregation, t);
         }
 
-        // 갑자기 채팅 30개 발생 (Z-Score가 매우 높게 형성됨)
+        // 현재 시점: 화력 30으로 폭발
         for(int j=0; j<30; j++) aggregation.increaseCount(now);
         repository.save(aggregation, now);
 
