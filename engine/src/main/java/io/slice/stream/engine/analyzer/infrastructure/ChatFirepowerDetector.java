@@ -1,14 +1,13 @@
 package io.slice.stream.engine.analyzer.infrastructure;
 
 import io.slice.stream.engine.analyzer.domain.ChatFirepowerStatus;
-import io.slice.stream.engine.analyzer.domain.DetectionResult; // import 추가
+import io.slice.stream.engine.analyzer.domain.DetectionResult;
 import io.slice.stream.engine.analyzer.domain.HighlightDetector;
 import io.slice.stream.engine.core.redis.Rediskeys;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.OptionalDouble;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,9 +22,6 @@ public class ChatFirepowerDetector implements HighlightDetector {
 
     private static final int MIN_DATA_POINTS_FOR_ANALYSIS = 10;
     private static final String MAX_FETCH_COUNT = "100";
-
-    @Value("${highlight.chat-firepower-multiplier}")
-    private double chatFirepowerMultiplier;
 
     @Value("${highlight.range}")
     private Duration highlightRange;
@@ -126,31 +122,6 @@ public class ChatFirepowerDetector implements HighlightDetector {
             previousValue = currentValue;
         }
         return deltas;
-    }
-
-    private DetectionResult analyzeFirepower(List<Long> deltas, String chatRoomId) {
-        if (deltas.size() < MIN_DATA_POINTS_FOR_ANALYSIS) {
-            return DetectionResult.waiting();
-        }
-
-        long lastValue = deltas.get(deltas.size() - 1);
-        OptionalDouble average = deltas.stream()
-            .limit(deltas.size() - 1)
-            .mapToLong(v -> v)
-            .average();
-
-        if (average.isEmpty()) return DetectionResult.waiting();
-
-        double avgValue = average.getAsDouble();
-        double threshold = avgValue * chatFirepowerMultiplier;
-
-        ChatFirepowerStatus status = (lastValue > threshold) ? ChatFirepowerStatus.PEAK : ChatFirepowerStatus.NORMAL;
-
-        if (log.isDebugEnabled()) {
-            log.info("[Analysis-Step 3] 판정 완료 - Stream: {}, 상태: {}, 현재: {}, 평균: {}, 임계치: {}",
-                chatRoomId, status, lastValue, String.format("%.2f", avgValue), String.format("%.2f", threshold));
-        }
-        return new DetectionResult(status, lastValue);
     }
 }
 
