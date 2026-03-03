@@ -7,9 +7,13 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Repository;
 
+@Slf4j
 @Repository
 @RequiredArgsConstructor
 public class AnalysisRepositoryImpl implements AnalysisRepository {
@@ -17,14 +21,24 @@ public class AnalysisRepositoryImpl implements AnalysisRepository {
     private final JpaAnalysisSignalRepository jpaRepository;
 
     @Override
+    @Retryable(
+        includes = DataAccessException.class,
+        maxRetries = 2,
+        delay = 1000
+    )
     public void save(AnalysisSignal signal) {
-        AnalysisSignalEntity entity = new AnalysisSignalEntity(
-            signal.streamId(),
-            signal.status(),
-            signal.timestamp(),
-            signal.firepower()
-        );
-        jpaRepository.save(entity);
+        try {
+            AnalysisSignalEntity entity = new AnalysisSignalEntity(
+                signal.streamId(),
+                signal.status(),
+                signal.timestamp(),
+                signal.firepower()
+            );
+            jpaRepository.save(entity);
+        } catch (DataAccessException e) {
+            log.error("[DB Error] 분석 신호 저장 실패 - StreamId: {}, Error: {}", signal.streamId(), e.getMessage());
+            throw e;
+        }
     }
 
     @Override
