@@ -47,6 +47,23 @@ services:
       timeout: 3s
       retries: 5
 
+  postgres:
+    image: postgres:${POSTGRES_IMAGE_TAG}
+    container_name: slice-postgres
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   engine:
     build:
       context: ./engine
@@ -86,6 +103,9 @@ services:
       SERVER_HEADER: ${SERVER_HEADER}
       SIGNAL_PATH: ${SIGNAL_PATH}
       SYNC_PATH: ${SYNC_PATH}
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
     depends_on:
       kafka:
         condition: service_healthy
