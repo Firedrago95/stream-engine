@@ -35,6 +35,7 @@ public class AnalysisDataCleanupScheduler {
             log.info("[Cleanup] 3일이 지난 원본 데이터 {} 건이 삭제되었습니다.", deleteCount);
         } catch (Exception e) {
             log.error("[Cleanup] 작업 중 오류 발생", e);
+            throw e;
         }
     }
 }
