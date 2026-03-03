@@ -52,26 +52,22 @@ class ChatFirepowerDetectorTest implements RedisTestSupport {
     @Test
     void 평상시에는_NORMAL_상태를_유지한다() {
         // given
-        String roomId = "room1";
+        String roomId = "stable_room";
         ChatRoomAggregation aggregation = new ChatRoomAggregation(roomId, Instant.EPOCH);
-
         Instant now = clock.instant();
-        long windowSeconds = highlightRange.toSeconds();
-        long intervalSeconds = (long) (windowSeconds * 0.8 / 10);
-        Instant startTime = now.minus(highlightRange).plusSeconds(windowSeconds / 10);
 
-        for (int i = 0; i < 10; i++) {
-            Instant currentTime = startTime.plusSeconds(i * intervalSeconds);
-            aggregation.increaseCount(currentTime);
-            aggregation.increaseCount(currentTime);
-            repository.save(aggregation, currentTime);
+        // 충분한 표본(15개)을 넣고, 변화량을 일정하게 유지
+        for (int i = 0; i < 15; i++) {
+            Instant t = now.minusSeconds(i * 3L);
+            aggregation.increaseCount(t); // 매 버킷당 채팅 1개씩
+            repository.save(aggregation, t);
         }
 
         // when
-        DetectionResult detectionResult = detector.detect(roomId);
+        DetectionResult result = detector.detect(roomId);
 
         // then
-        assertThat(detectionResult.status()).isEqualTo(ChatFirepowerStatus.NORMAL);
+        assertThat(result.status()).isEqualTo(ChatFirepowerStatus.NORMAL);
     }
 
     @Test
@@ -114,17 +110,67 @@ class ChatFirepowerDetectorTest implements RedisTestSupport {
         ChatRoomAggregation aggregation = new ChatRoomAggregation(roomId, Instant.EPOCH);
         Instant now = clock.instant();
 
-        // 데이터가 MIN_DATA_POINTS(5개) 보다 적은 경우
-        for (int i = 0; i < 4; i++) {
-            Instant currentTime = now.minusSeconds(i * 2L);
+        // 분석에 필요한 최소 포인트가 10개라면, 9개까지만 넣어서 테스트
+        for (int i = 0; i < 9; i++) {
+            Instant currentTime = now.minusSeconds(i * 3L);
             aggregation.increaseCount(currentTime);
             repository.save(aggregation, currentTime);
         }
 
         // when
-        DetectionResult detectionResult = detector.detect(roomId);
+        DetectionResult result = detector.detect(roomId);
 
         // then
-        assertThat(detectionResult.status()).isEqualTo(ChatFirepowerStatus.WAITING);
+        assertThat(result.status()).isEqualTo(ChatFirepowerStatus.WAITING);
+    }
+
+    @Test
+    void 최소_화력_임계치보다_낮으면_아무리_상대적_배수가_높아도_NORMAL을_반환한다() {
+        // given
+        String roomId = "quiet_room";
+        ChatRoomAggregation aggregation = new ChatRoomAggregation(roomId, Instant.EPOCH);
+        Instant now = clock.instant();
+
+        // 평소 채팅량 0.1개 수준
+        for (int i = 0; i < 15; i++) {
+            repository.save(aggregation, now.minusSeconds(i * 3L));
+        }
+
+        // 갑자기 채팅 2개 발생
+        aggregation.increaseCount(now);
+        aggregation.increaseCount(now);
+        repository.save(aggregation, now);
+
+        // when
+        DetectionResult result = detector.detect(roomId);
+
+        // then
+        assertThat(result.status()).isEqualTo(ChatFirepowerStatus.NORMAL);
+        assertThat(result.firepower()).isEqualTo(2L);
+    }
+
+    @Test
+    void 통계적으로_유의미한_폭발인_경우_ZScore_판정에_의해_PEAK를_반환한다() {
+        // given
+        String roomId = "active_room";
+        ChatRoomAggregation aggregation = new ChatRoomAggregation(roomId, Instant.EPOCH);
+        Instant now = clock.instant();
+
+        // 평소 채팅량 10개 내외로 꾸준함 (표준편차 작음)
+        for (int i = 1; i <= 15; i++) {
+            Instant t = now.minusSeconds(i * 3L);
+            for(int j=0; j<10; j++) aggregation.increaseCount(t);
+            repository.save(aggregation, t);
+        }
+
+        // 갑자기 채팅 30개 발생 (Z-Score가 매우 높게 형성됨)
+        for(int j=0; j<30; j++) aggregation.increaseCount(now);
+        repository.save(aggregation, now);
+
+        // when
+        DetectionResult result = detector.detect(roomId);
+
+        // then
+        assertThat(result.status()).isEqualTo(ChatFirepowerStatus.PEAK);
     }
 }

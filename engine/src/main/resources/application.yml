@@ -57,6 +57,10 @@ highlight:
   chat-firepower-multiplier: 3.0
   # 채팅 평균 산출 기간
   range: 2m
+  # Z-Score 임계치 (보통 2.0 ~ 3.0이 통계적 유의미 구간)
+  z-score-threshold: 2.5
+  # 최소 화력 변화량
+  min-firepower-delta: 5
 
 api-server:
   host: ${SERVER_HOST}

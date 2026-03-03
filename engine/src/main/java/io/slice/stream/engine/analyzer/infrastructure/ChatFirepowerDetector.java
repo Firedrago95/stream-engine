@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ChatFirepowerDetector implements HighlightDetector {
 
-    private static final int MIN_DATA_POINTS_FOR_ANALYSIS = 5;
+    private static final int MIN_DATA_POINTS_FOR_ANALYSIS = 10;
     private static final String MAX_FETCH_COUNT = "100";
 
     @Value("${highlight.chat-firepower-multiplier}")
@@ -29,6 +29,12 @@ public class ChatFirepowerDetector implements HighlightDetector {
 
     @Value("${highlight.range}")
     private Duration highlightRange;
+
+    @Value("${highlight.z-score-threshold}")
+    private double zScoreThreshold;
+
+    @Value("${highlight.min-firepower-delta}")
+    private long minFirepowerDelta;
 
     private final StringRedisTemplate redisTemplate;
     private final RedisScript<List> tsRangeScript;
@@ -38,21 +44,48 @@ public class ChatFirepowerDetector implements HighlightDetector {
     public DetectionResult detect(String chatRoomId) {
         List<List<Object>> cumulativeValues = fetchCumulativeValues(chatRoomId);
 
-        if (cumulativeValues == null || cumulativeValues.size() < MIN_DATA_POINTS_FOR_ANALYSIS + 1) {
-            if (log.isDebugEnabled()) {
-                int size = (cumulativeValues == null) ? 0 : cumulativeValues.size();
-                log.info("[Analysis-Step 1] 데이터 부족 (WAITING) - Stream: {}, 수집된 포인트: {}/6", chatRoomId, size);
-            }
+        if (cumulativeValues == null || cumulativeValues.size() < MIN_DATA_POINTS_FOR_ANALYSIS) {
             return DetectionResult.waiting();
         }
 
         List<Long> deltas = convertToDeltas(cumulativeValues, chatRoomId);
+        return analyzeWithZScore(deltas, chatRoomId);
+    }
 
-        if (log.isDebugEnabled()) {
-            log.debug("[Analysis-Step 2] 변화량 확인 - Stream: {}, Deltas: {}", chatRoomId, deltas);
+    private DetectionResult analyzeWithZScore(List<Long> deltas, String chatRoomId) {
+        Long currentDelta = deltas.get(deltas.size() - 1);
+
+        if (currentDelta < minFirepowerDelta) {
+            return new DetectionResult(ChatFirepowerStatus.NORMAL, currentDelta);
         }
 
-        return analyzeFirepower(deltas, chatRoomId);
+        List<Long> history = deltas.subList(0, deltas.size() - 1);
+
+        double mean = history.stream().mapToLong(Long::longValue).average().orElse(0.0);
+        double stdDev = calculateStandardDeviation(history, mean);
+
+        if (stdDev < 0.0001) {
+            ChatFirepowerStatus status = (currentDelta > mean) ? ChatFirepowerStatus.PEAK : ChatFirepowerStatus.NORMAL;
+            return new DetectionResult(status, currentDelta);
+        }
+
+        double zScore = (currentDelta - mean) / stdDev;
+
+        ChatFirepowerStatus status = (zScore > zScoreThreshold) ? ChatFirepowerStatus.PEAK : ChatFirepowerStatus.NORMAL;
+        if (status == ChatFirepowerStatus.PEAK) {
+            log.info("[PEAK 감지] Stream: {}, Z-Score: {}, 현재화력: {}, 평균: {}, 표준편차: {}", chatRoomId,
+                String.format("%.2f", zScore), currentDelta, String.format("%.2f", mean), String.format("%.2f", stdDev));
+        }
+
+        return new DetectionResult(status, currentDelta);
+    }
+
+    private double calculateStandardDeviation(List<Long> data, double mean) {
+        double variance = data.stream()
+            .mapToDouble(v -> Math.pow(v - mean, 2))
+            .average()
+            .orElse(0.0);
+        return Math.sqrt(variance);
     }
 
     private List<List<Object>> fetchCumulativeValues(String chatRoomId) {
