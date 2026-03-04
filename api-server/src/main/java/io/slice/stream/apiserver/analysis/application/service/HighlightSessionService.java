@@ -9,6 +9,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,10 @@ public class HighlightSessionService {
     @Value("${highlight.cooldown}")
     private Duration cooldown;
 
+    @Retryable(
+        maxRetries = 2,
+        delay = 1000
+    )
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleSignal(AnalysisSignal signal) {
         Optional<HighlightEventEntity> ongoingSession = repository.findOngoingSession(signal.streamId(), "ONGOING");

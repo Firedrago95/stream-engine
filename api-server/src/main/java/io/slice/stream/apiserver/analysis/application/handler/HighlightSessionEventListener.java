@@ -4,6 +4,7 @@ import io.slice.stream.apiserver.analysis.application.service.HighlightSessionSe
 import io.slice.stream.apiserver.analysis.domain.event.SignalSavedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -15,6 +16,7 @@ public class HighlightSessionEventListener {
 
     private final HighlightSessionService highlightSessionService;
 
+    @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onSignalSaved(SignalSavedEvent event) {
         try {
