@@ -6,6 +6,7 @@ import io.slice.stream.apiserver.analysis.infrastructure.entity.HighlightEventEn
 import io.slice.stream.apiserver.testcontainer.postgres.PostgresTestSupport;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -64,5 +65,32 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
 
         // then
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void 특정_날짜_범위의_하이라이트만_시작시간_순으로_조회한다() {
+        // given
+        String streamId = "test-stream";
+        // 2026-03-04 데이터
+        Instant target1 = Instant.parse("2026-03-04T10:00:00Z");
+        Instant target2 = Instant.parse("2026-03-04T15:00:00Z");
+        // 2026-03-03 데이터 (경계값 제외용)
+        Instant otherDay = Instant.parse("2026-03-03T23:59:59Z");
+
+        repository.save(new HighlightEventEntity(streamId, target2, target2.plusSeconds(10), 200L));
+        repository.save(new HighlightEventEntity(streamId, target1, target1.plusSeconds(10), 100L));
+        repository.save(new HighlightEventEntity(streamId, otherDay, otherDay.plusSeconds(10), 50L));
+
+        Instant start = Instant.parse("2026-03-04T00:00:00Z");
+        Instant end = Instant.parse("2026-03-05T00:00:00Z");
+
+        // when
+        List<HighlightEventEntity> results = repository.findAllByStreamIdAndDateRange(streamId, start, end);
+
+        // then
+        assertThat(results).hasSize(2);
+        assertThat(results.get(0).getStartTime()).isEqualTo(target1); // 정렬 확인 (ASC)
+        assertThat(results.get(1).getStartTime()).isEqualTo(target2);
+        assertThat(results).extracting(HighlightEventEntity::getStartTime).doesNotContain(otherDay);
     }
 }
