@@ -58,7 +58,9 @@ public class HighlightEventEntity {
     }
 
     public void updateLastPeakTime(Instant lastPeakTime) {
-        this.lastPeakTime = lastPeakTime;
+        if (lastPeakTime != null && lastPeakTime.isAfter(this.lastPeakTime)) {
+            this.lastPeakTime = lastPeakTime;
+        }
     }
 
     public void finish(Instant endTime) {
