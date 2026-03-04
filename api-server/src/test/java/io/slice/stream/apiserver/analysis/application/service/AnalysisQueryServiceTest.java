@@ -1,4 +1,4 @@
-package io.slice.stream.apiserver.analysis.application;
+package io.slice.stream.apiserver.analysis.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;

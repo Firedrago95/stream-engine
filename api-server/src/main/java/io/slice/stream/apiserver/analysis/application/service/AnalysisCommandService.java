@@ -1,4 +1,4 @@
-package io.slice.stream.apiserver.analysis.application;
+package io.slice.stream.apiserver.analysis.application.service;
 
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import java.util.List;

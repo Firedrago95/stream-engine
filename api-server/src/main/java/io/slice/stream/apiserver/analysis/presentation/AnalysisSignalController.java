@@ -1,6 +1,6 @@
 package io.slice.stream.apiserver.analysis.presentation;
 
-import io.slice.stream.apiserver.analysis.application.AnalysisCommandService;
+import io.slice.stream.apiserver.analysis.application.service.AnalysisCommandService;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisSignalRequest;
 import jakarta.validation.Valid;

@@ -33,3 +33,9 @@ analysis:
     header: ${SERVER_HEADER}
   sync:
     path: ${SYNC_PATH}
+
+highlight:
+  # 하이라이트 감지 시 앞당길 시간
+  leading-buffer: 10s
+  # 마지막 PEAK 이후 종료까지 대기할 시간
+  cooldown: 10s

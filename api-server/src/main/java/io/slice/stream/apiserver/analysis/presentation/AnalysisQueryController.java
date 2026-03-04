@@ -1,6 +1,6 @@
 package io.slice.stream.apiserver.analysis.presentation;
 
-import io.slice.stream.apiserver.analysis.application.AnalysisQueryService;
+import io.slice.stream.apiserver.analysis.application.service.AnalysisQueryService;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
