@@ -2,3 +2,9 @@ spring:
   task:
     scheduling:
       enabled: false
+
+  flyway:
+    # 1. 검증 에러(실패 기록 등)가 있으면 기존 스키마를 싹 지우고(Clean) 다시 시작합니다.
+    clean-on-validation-error: true
+    # 2. 스프링 부트 3.x 이상에서는 Clean 기능을 명시적으로 활성화해야 합니다.
+    clean-disabled: false

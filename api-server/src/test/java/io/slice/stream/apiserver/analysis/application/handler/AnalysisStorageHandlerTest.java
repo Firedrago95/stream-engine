@@ -1,21 +1,27 @@
-package io.slice.stream.apiserver.analysis.application;
+package io.slice.stream.apiserver.analysis.application.handler;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 
 import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
+import io.slice.stream.apiserver.analysis.domain.event.SignalSavedEvent;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class AnalysisStorageHandlerTest {
 
     @Mock
     private AnalysisRepository analysisRepository;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private AnalysisStorageHandler analysisStorageHandler;
@@ -30,5 +36,6 @@ class AnalysisStorageHandlerTest {
 
         // then
         verify(analysisRepository).save(signal);
+        verify(eventPublisher).publishEvent(any(SignalSavedEvent.class));
     }
 }

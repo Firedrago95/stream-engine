@@ -1,4 +1,4 @@
-package io.slice.stream.apiserver.analysis.application;
+package io.slice.stream.apiserver.analysis.application.service;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;

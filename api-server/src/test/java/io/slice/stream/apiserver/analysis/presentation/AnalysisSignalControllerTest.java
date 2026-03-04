@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import io.slice.stream.apiserver.analysis.application.AnalysisCommandService;
+import io.slice.stream.apiserver.analysis.application.service.AnalysisCommandService;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisSignalRequest;
 import java.time.Instant;
 import java.util.List;
