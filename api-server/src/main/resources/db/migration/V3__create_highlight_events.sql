@@ -11,5 +11,9 @@ CREATE TABLE highlight_events (
     created_at      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE UNIQUE INDEX uidx_highlight_ongoing_session
+    ON highlight_events (stream_id)
+    WHERE status = 'ONGOING';
+
 CREATE INDEX idx_highlight_session_find ON highlight_events (stream_id, status);
 CREATE INDEX idx_highlight_streamer_date ON highlight_events (stream_id, start_time DESC);
