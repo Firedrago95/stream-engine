@@ -54,7 +54,7 @@ class HighlightQueryServiceTest {
             .willReturn(List.of(entity));
 
         // when
-        List<HighlightResponse> results = highlightQueryService.getHighLightsByDate(streamId, date);
+        List<HighlightResponse> results = highlightQueryService.getHighlightsByDate(streamId, date);
 
         // then
         assertThat(results).hasSize(1);
@@ -71,7 +71,7 @@ class HighlightQueryServiceTest {
         // atStartOfDay()는 서비스 코드의 ZoneId.systemDefault() 설정을 따름
 
         // when
-        highlightQueryService.getHighLightsByDate(streamId, date);
+        highlightQueryService.getHighlightsByDate(streamId, date);
 
         // then
         // 정확히 1일(24시간) 간격으로 쿼리가 날아가는지 검증

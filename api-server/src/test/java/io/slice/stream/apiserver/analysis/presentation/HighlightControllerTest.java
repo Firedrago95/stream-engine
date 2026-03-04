@@ -40,7 +40,7 @@ class HighlightControllerTest {
             new HighlightResponse(1L, streamId, "FINISHED", Instant.now().minusSeconds(100), Instant.now().minusSeconds(50), 500L, 50L)
         );
 
-        given(highlightQueryService.getHighLightsByDate(streamId, date)).willReturn(mockResponses);
+        given(highlightQueryService.getHighlightsByDate(streamId, date)).willReturn(mockResponses);
 
         // when & then
         mockMvc.perform(get("/api/v1/analysis/streams/{streamId}/highlights", streamId)
@@ -54,7 +54,7 @@ class HighlightControllerTest {
     void 날짜_파라미터가_없으면_오늘_날짜를_기본으로_조회한다() throws Exception {
         // given
         String streamId = "stream-123";
-        given(highlightQueryService.getHighLightsByDate(eq(streamId), any(LocalDate.class)))
+        given(highlightQueryService.getHighlightsByDate(eq(streamId), any(LocalDate.class)))
             .willReturn(List.of());
 
         // when & then
@@ -62,6 +62,6 @@ class HighlightControllerTest {
             .andExpect(status().isOk());
 
         // LocalDate.now()가 인자로 넘어갔는지 확인
-        verify(highlightQueryService).getHighLightsByDate(eq(streamId), eq(LocalDate.now()));
+        verify(highlightQueryService).getHighlightsByDate(eq(streamId), eq(LocalDate.now()));
     }
 }
