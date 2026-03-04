@@ -5,6 +5,7 @@ import io.slice.stream.apiserver.analysis.presentation.dto.HighlightResponse;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,7 +23,8 @@ public class HighlightController {
     @GetMapping("/streams/{streamId}/highlights")
     public ResponseEntity<List<HighlightResponse>> getHighlights(
         @PathVariable String streamId,
-        @RequestParam(name = "date", required = false) LocalDate date
+        @RequestParam(name = "date", required = false)
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
         ) {
         LocalDate targetDate = (date != null) ? date : LocalDate.now();
         return ResponseEntity.ok(highlightQueryService.getHighlightsByDate(streamId, targetDate));

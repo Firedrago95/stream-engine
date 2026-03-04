@@ -33,7 +33,7 @@ public class HighlightSessionService {
     )
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleSignal(AnalysisSignal signal) {
-        Optional<HighlightEventEntity> ongoingSession = repository.findOngoingSession(signal.streamId(), "ONGOING");
+        Optional<HighlightEventEntity> ongoingSession = repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(signal.streamId(), "ONGOING");
 
         if ("PEAK".equals(signal.status())) {
             ongoingSession.ifPresentOrElse(
@@ -64,7 +64,9 @@ public class HighlightSessionService {
     }
 
     private void checkAndFinishSession(AnalysisSignal signal, HighlightEventEntity session) {
-        if (signal.timestamp().isAfter(session.getLastPeakTime().plus(cooldown))) {
+        Instant threshold = session.getLastPeakTime().plus(cooldown);
+
+        if (!signal.timestamp().isBefore(threshold)) {
             Instant finalEndTime = session.getLastPeakTime().plus(cooldown);
             session.finish(finalEndTime);
             log.info("[Session-Finish] 하이라이트 세션 종료 Stream:{}, Duration: {}",

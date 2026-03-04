@@ -50,7 +50,7 @@ class HighlightSessionServiceTest {
         // given
         Instant now = Instant.now();
         AnalysisSignal signal = AnalysisSignal.of(STREAM_ID, "PEAK", now, 100L);
-        when(repository.findOngoingSession(STREAM_ID, "ONGOING")).thenReturn(Optional.empty());
+        when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING")).thenReturn(Optional.empty());
 
         // when
         highlightSessionService.handleSignal(signal);
@@ -77,7 +77,7 @@ class HighlightSessionServiceTest {
         Instant now = Instant.now();
         AnalysisSignal signal = AnalysisSignal.of(STREAM_ID, "PEAK", now, 150L);
 
-        when(repository.findOngoingSession(STREAM_ID, "ONGOING")).thenReturn(Optional.of(ongoingSession));
+        when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING")).thenReturn(Optional.of(ongoingSession));
 
         // when
         highlightSessionService.handleSignal(signal);
@@ -98,7 +98,7 @@ class HighlightSessionServiceTest {
 
         AnalysisSignal signal = AnalysisSignal.of(STREAM_ID, "NORMAL", now, 10L);
 
-        when(repository.findOngoingSession(STREAM_ID, "ONGOING")).thenReturn(Optional.of(ongoingSession));
+        when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING")).thenReturn(Optional.of(ongoingSession));
 
         // when
         highlightSessionService.handleSignal(signal);
@@ -117,7 +117,7 @@ class HighlightSessionServiceTest {
 
         AnalysisSignal signal = AnalysisSignal.of(STREAM_ID, "NORMAL", now, 10L);
 
-        when(repository.findOngoingSession(STREAM_ID, "ONGOING")).thenReturn(Optional.of(ongoingSession));
+        when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING")).thenReturn(Optional.of(ongoingSession));
 
         // when
         highlightSessionService.handleSignal(signal);
@@ -131,7 +131,7 @@ class HighlightSessionServiceTest {
     void NORMAL_신호가_오고_진행중인_세션이_없으면_아무_동작도_하지_않는다() {
         // given
         AnalysisSignal signal = AnalysisSignal.of(STREAM_ID, "NORMAL", Instant.now(), 10L);
-        when(repository.findOngoingSession(STREAM_ID, "ONGOING")).thenReturn(Optional.empty());
+        when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING")).thenReturn(Optional.empty());
 
         // when
         highlightSessionService.handleSignal(signal);

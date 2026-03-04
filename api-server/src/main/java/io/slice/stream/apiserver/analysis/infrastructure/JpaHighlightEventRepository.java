@@ -10,12 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface JpaHighlightEventRepository extends JpaRepository<HighlightEventEntity, Long> {
 
-    @Query("""
-          SELECT h FROM HighlightEventEntity h
-          WHERE h.streamId = :streamId AND h.status = :status
-          ORDER BY h.startTime DESC LIMIT 1
-          """)
-    Optional<HighlightEventEntity> findOngoingSession(
+    Optional<HighlightEventEntity> findFirstByStreamIdAndStatusOrderByStartTimeDesc(
         @Param("streamId") String streamId,
         @Param("status") String status
     );

@@ -41,7 +41,7 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
         repository.save(recentSession);
 
         // when
-        Optional<HighlightEventEntity> result = repository.findOngoingSession(streamId, "ONGOING");
+        Optional<HighlightEventEntity> result = repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(streamId, "ONGOING");
 
         // then
         assertThat(result).isPresent();
@@ -61,7 +61,7 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
         repository.save(finishedSession);
 
         // when
-        Optional<HighlightEventEntity> result = repository.findOngoingSession(streamId, "ONGOING");
+        Optional<HighlightEventEntity> result = repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(streamId, "ONGOING");
 
         // then
         assertThat(result).isEmpty();

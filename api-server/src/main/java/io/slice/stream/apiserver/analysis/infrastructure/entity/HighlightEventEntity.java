@@ -51,7 +51,8 @@ public class HighlightEventEntity {
     }
 
     public void updatePeakFirepower(Long currentFirepower) {
-        if (currentFirepower > this.peakFirepower) {
+        if (currentFirepower == null) return;
+        if (this.peakFirepower == null || currentFirepower > this.peakFirepower) {
             this.peakFirepower = currentFirepower;
         }
     }
