@@ -1,6 +1,8 @@
 package io.slice.stream.apiserver.analysis.application.scheduler;
 
 import io.slice.stream.apiserver.analysis.application.service.AnalysisDataCleanupService;
+import io.slice.stream.apiserver.global.error.BusinessException;
+import io.slice.stream.apiserver.global.error.ErrorCode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,8 @@ public class AnalysisDataCleanupScheduler {
             log.info("[Cleanup] 데이터 정리 작업이 성공적으로 완료되었습니다.");
         } catch (Exception e) {
             log.error("[Cleanup] 작업 중 오류 발생. (데이터는 안전하게 롤백되었습니다.)", e);
+
+            throw new BusinessException(ErrorCode.CLEANUP_FAILED, "[Cleanup] 데이터 정리 중 오류 발생: " + e.getMessage());
         }
     }
 }

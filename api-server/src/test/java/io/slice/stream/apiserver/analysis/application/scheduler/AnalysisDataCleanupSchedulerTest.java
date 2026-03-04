@@ -1,12 +1,15 @@
 package io.slice.stream.apiserver.analysis.application.scheduler;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import io.slice.stream.apiserver.analysis.application.service.AnalysisDataCleanupService;
+import io.slice.stream.apiserver.global.error.BusinessException;
+import io.slice.stream.apiserver.global.error.ErrorCode;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -36,13 +39,20 @@ class AnalysisDataCleanupSchedulerTest {
     }
 
     @Test
-    void 서비스_로직에서_예외가_발생해도_스케줄러는_예외를_밖으로_던지지_않는다() {
-        // given: 서비스에서 에러가 발생하는 상황
-        doThrow(new RuntimeException("Service Failure"))
+    void 서비스_로직에서_예외가_발생하면_CLEANUP_FAILED_에러코드를_가진_BusinessException을_던진다() {
+        // given
+        String errorMessage = "DB Connection Timeout";
+        doThrow(new RuntimeException(errorMessage))
             .when(cleanupService).cleanupOldData(any(Instant.class));
 
-        // when & then: 예외가 발생해도 runDataCleanUp 메서드는 정상 종료되어야 함 (assertDoesNotThrow)
-        assertDoesNotThrow(() -> cleanupScheduler.runDataCleanUp());
+        // when & then
+        assertThatThrownBy(() -> cleanupScheduler.runDataCleanUp())
+            .isInstanceOf(BusinessException.class)
+            .satisfies(e -> {
+                BusinessException be = (BusinessException) e;
+                assertThat(be.getErrorCode()).isEqualTo(ErrorCode.CLEANUP_FAILED);
+                assertThat(be.getMessage()).contains(errorMessage);
+            });
 
         verify(cleanupService, times(1)).cleanupOldData(any(Instant.class));
     }
