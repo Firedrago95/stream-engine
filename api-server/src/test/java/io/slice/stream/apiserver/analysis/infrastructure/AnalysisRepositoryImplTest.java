@@ -126,13 +126,12 @@ class AnalysisRepositoryImplTest implements PostgresTestSupport {
         String streamId = "stream-dates";
         analysisRepository.save(AnalysisSignal.of(streamId, "NORMAL", Instant.now(), 50L));
 
-        LocalDate cursor = LocalDate.MAX;
+        LocalDate cursor = LocalDate.now().plusYears(1);
 
         // when
         List<LocalDate> dates = analysisRepository.findAvailableDates(streamId, cursor, 10);
 
         // then
         assertThat(dates).isNotEmpty();
-        // UTC와 KST 차이가 있을 수 있으나, 정상적으로 날짜가 뽑히는지 검증
     }
 }

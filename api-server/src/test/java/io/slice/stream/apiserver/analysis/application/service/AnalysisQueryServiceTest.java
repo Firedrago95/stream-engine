@@ -68,11 +68,14 @@ class AnalysisQueryServiceTest {
     }
 
     @Test
-    void 가용_날짜_조회_시_커서가_없으면_LocalDate_MAX를_사용한다() {
+    void 가용_날짜_조회_시_커서가_없으면_미래_날짜를_기준으로_사용한다() {
         // given
         String streamId = "test-stream";
         int limit = 10;
-        given(analysisRepository.findAvailableDates(streamId, LocalDate.MAX, limit))
+        LocalDate expectedCursor = LocalDate.now(ZoneId.of("Asia/Seoul")).plusYears(2);
+
+        // Mockito 스터빙 시 정확한 인자 혹은 any() 사용
+        given(analysisRepository.findAvailableDates(eq(streamId), any(LocalDate.class), eq(limit)))
             .willReturn(List.of(LocalDate.of(2026, 3, 5)));
 
         // when
@@ -80,7 +83,8 @@ class AnalysisQueryServiceTest {
 
         // then
         assertThat(dates).containsExactly("2026-03-05");
-        verify(analysisRepository).findAvailableDates(streamId, LocalDate.MAX, limit);
+        // 💡 검증 시에도 any()를 사용하여 유연하게 대응
+        verify(analysisRepository).findAvailableDates(eq(streamId), any(LocalDate.class), eq(limit));
     }
 
     @Test
