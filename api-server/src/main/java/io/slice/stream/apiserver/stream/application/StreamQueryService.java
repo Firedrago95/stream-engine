@@ -21,9 +21,15 @@ public class StreamQueryService {
     private final StreamRepository streamRepository;
     private final AnalysisRepository analysisRepository;
 
-    public List<StreamResponse> getBrowserList() {
-        Instant threshold = Instant.now().minus(3, ChronoUnit.MINUTES);
-        List<StreamEntity> activeStreams = streamRepository.findActiveStreams(threshold);
+    public List<StreamResponse> getBrowserList(String keyword) {
+        List<StreamEntity> activeStreams;
+
+        if (keyword != null && !keyword.isBlank()) {
+            activeStreams = streamRepository.findByStreamerNameContainingIgnoreCase(keyword);
+        } else {
+            Instant threshold = Instant.now().minus(3, ChronoUnit.MINUTES);
+            activeStreams = streamRepository.findActiveStreams(threshold);
+        }
 
         Set<String> streamIds = activeStreams.stream()
             .map(StreamEntity::getStreamId)

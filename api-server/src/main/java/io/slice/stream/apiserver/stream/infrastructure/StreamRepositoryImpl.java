@@ -19,6 +19,11 @@ public class StreamRepositoryImpl implements StreamRepository {
     }
 
     @Override
+    public List<StreamEntity> findByStreamerNameContainingIgnoreCase(String keyword) {
+        return jpaStreamRepository.findByStreamerNameContainingIgnoreCase(keyword);
+    }
+
+    @Override
     public void upsertStream(StreamEntity request, Instant currentTime) {
         jpaStreamRepository.upsertStream(request, currentTime);
     }

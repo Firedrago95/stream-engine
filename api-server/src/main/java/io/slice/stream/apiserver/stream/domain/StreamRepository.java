@@ -8,5 +8,7 @@ public interface StreamRepository {
 
     List<StreamEntity> findActiveStreams(Instant threshold);
 
+    List<StreamEntity> findByStreamerNameContainingIgnoreCase(String keyword);
+
     void upsertStream(StreamEntity request, Instant currentTime);
 }
