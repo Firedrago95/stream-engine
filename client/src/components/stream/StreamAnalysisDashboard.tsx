@@ -46,7 +46,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
       const lastTimestamp = prev.length > 0 ? prev[prev.length - 1].timestamp : 0;
       const trulyNew = incomingPoints.filter((p: any) => p.timestamp > lastTimestamp);
       if (trulyNew.length === 0) return prev;
-      return [...prev, ...trulyNew].slice(-CONFIG.DISPLAY_POINTS);
+      const newData = [...prev, ...trulyNew];
+      return newData.slice(-CONFIG.DISPLAY_POINTS);
     });
   }, [analysisData, selectedTab]);
 
@@ -72,9 +73,13 @@ export const StreamAnalysisDashboard: React.FC = () => {
     const currentSource = selectedTab === "realtime" ? stableData : historicalData;
     const totalSlots = CONFIG.DISPLAY_POINTS;
     const result = new Array(totalSlots);
+
     for (let i = 0; i < totalSlots; i++) {
-      const dataIndex = i - (totalSlots - currentSource.length);
-      result[i] = dataIndex >= 0 ? { ...currentSource[dataIndex], slotIndex: i, hasData: true } : { timestamp: null, value: null, slotIndex: i, hasData: false };
+      if (i < currentSource.length) {
+        result[i] = { ...currentSource[i], slotIndex: i, hasData: true };
+      } else {
+        result[i] = { timestamp: null, value: null, slotIndex: i, hasData: false };
+      }
     }
     return result;
   }, [stableData, historicalData, selectedTab]);
