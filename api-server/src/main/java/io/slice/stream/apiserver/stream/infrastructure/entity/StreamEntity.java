@@ -27,6 +27,7 @@ public class StreamEntity {
     @Column(columnDefinition = "TEXT")
     private String profileImageUrl;
 
+    @Column(name = "category_name", length = 100)
     private String categoryName;
 
     @Column(nullable = false)
