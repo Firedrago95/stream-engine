@@ -1,16 +1,19 @@
-// client/src/hooks/useStreams.ts
 import { useState, useEffect, useCallback } from 'react';
 import { type StreamItem, StreamItemSchema } from '../types/stream';
 import { z } from 'zod';
 
-export const useStreams = (interval = 15000) => {
+export const useStreams = (keyword = '', interval = 15000) => {
   const [streams, setStreams] = useState<StreamItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch('/api/v1/streams', { signal });
+      const url = keyword
+          ? `/api/v1/streams?keyword=${encodeURIComponent(keyword)}`
+          : '/api/v1/streams';
+
+      const res = await fetch(url, { signal });
       if (!res.ok) throw new Error('데이터를 가져오지 못했습니다.');
       const data = await res.json();
 
@@ -28,7 +31,7 @@ export const useStreams = (interval = 15000) => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [keyword]); // 💡 keyword가 바뀔 때마다 fetchData가 갱신됩니다.
 
   useEffect(() => {
     const controller = new AbortController();
