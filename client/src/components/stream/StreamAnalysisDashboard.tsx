@@ -17,28 +17,23 @@ export const StreamAnalysisDashboard: React.FC = () => {
   const [isLive, setIsLive] = useState(true);
   const [selectedTab, setSelectedTab] = useState("realtime");
 
-  // 가용한 날짜 목록 (추후 API 연동)
   const availableDates = ["realtime", "2026-03-05", "2026-03-04"];
 
-  // 실시간 분석 데이터 훅
   const { analysisData, isLoading, error, isGathering } = useStreamAnalysis(
       streamId || '',
       CONFIG.POLLING_INTERVAL
   );
 
-  // 하이라이트 데이터 훅
   const { highlights } = useHighlights(streamId || "", selectedTab, CONFIG.POLLING_INTERVAL);
 
   const [stableData, setStableData] = useState<any[]>([]);
-  const [historicalData, setHistoricalData] = useState<any[]>([]); // 과거 데이터용 별도 상태
+  const [historicalData, setHistoricalData] = useState<any[]>([]);
   const [maxY, setMaxY] = useState(10);
   const [hoveredData, setHoveredData] = useState<{ value: number | null; time: string | null }>({
     value: null, time: null,
   });
 
-  // 실시간 데이터 누적 로직
   useEffect(() => {
-    // 실시간 탭이 아닐 때는 데이터를 쌓지 않음
     if (selectedTab !== "realtime") return;
 
     const incomingPoints = analysisData?.dataPoints || [];
@@ -53,10 +48,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
     });
   }, [analysisData, selectedTab]);
 
-  // 과거 탭 선택 시 로직 (임시로 빈 배열 처리하여 실시간 차트 노출 방지)
   useEffect(() => {
     if (selectedTab !== "realtime") {
-      // TODO: 백엔드 API 완성 시 fetchHistoricalData(selectedTab) 호출
       setHistoricalData([]);
     }
   }, [selectedTab]);
@@ -69,13 +62,21 @@ export const StreamAnalysisDashboard: React.FC = () => {
     }
   }, [stableData, historicalData, selectedTab, maxY]);
 
+  // 💡 [버그 수정] CodeRabbit 리뷰 반영: Epoch Seconds 방어 로직 추가
   const formatTime = (ts: any) => {
     if (!ts) return "";
-    const d = new Date(ts);
+    let d;
+    // 숫자로 들어왔을 경우 (Spring Boot Instant 직렬화 이슈 대응)
+    if (typeof ts === 'number') {
+      // 10자리 숫자(초 단위)면 밀리초로 변환 (10000000000 미만인지 체크)
+      d = ts < 10000000000 ? new Date(ts * 1000) : new Date(ts);
+    } else {
+      // 문자열(ISO 8601 등)로 들어왔을 경우
+      d = new Date(ts);
+    }
     return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
   };
 
-  // 💡 [버그 수정] 차트 데이터 소스 분리 (과거 탭 클릭 시 실시간 차트 안 나오게)
   const chartDisplayData = useMemo(() => {
     const currentSource = selectedTab === "realtime" ? stableData : historicalData;
     const totalSlots = CONFIG.DISPLAY_POINTS;
@@ -92,7 +93,6 @@ export const StreamAnalysisDashboard: React.FC = () => {
     return result;
   }, [stableData, historicalData, selectedTab]);
 
-  // 💡 [요구사항] 실시간이라도 호버 기능 무조건 작동
   const handleMouseMove = (state: any) => {
     if (state?.activePayload?.[0]?.payload?.hasData) {
       const p = state.activePayload[0].payload;
@@ -155,12 +155,18 @@ export const StreamAnalysisDashboard: React.FC = () => {
         </div>
 
         <div className="p-8 bg-[#0c0d0f] border border-gray-800 rounded-3xl relative overflow-hidden min-h-[500px]">
-          {/* 로딩 표시: 실시간 데이터가 아직 없거나 과거 데이터를 불러올 때 */}
-          {((selectedTab === "realtime" && (isLoading || isGathering || stableData.length === 0)) ||
-              (selectedTab !== "realtime" && historicalData.length === 0)) && !error && (
+          {/* 💡 [버그 수정] CodeRabbit 리뷰 반영: 무한 스피너 방지 및 미구현 안내 */}
+          {selectedTab === "realtime" && (isLoading || isGathering || stableData.length === 0) && !error && (
               <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
                 <div className="w-12 h-12 border-4 border-[#00FFA3] border-t-transparent rounded-full animate-spin mb-4" />
                 <p className="text-[#00FFA3] font-black tracking-widest">데이터 로딩 중...</p>
+              </div>
+          )}
+
+          {selectedTab !== "realtime" && historicalData.length === 0 && (
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
+                <span className="text-5xl mb-4">🚧</span>
+                <p className="text-gray-300 font-bold tracking-widest">과거 데이터 조회 API 연결 준비 중입니다.</p>
               </div>
           )}
 
@@ -188,7 +194,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
                     <stop offset="95%" stopColor={CONFIG.CHART_COLOR} stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} opacity={0.3} />
                 <XAxis
                     dataKey="slotIndex"
                     tickFormatter={(idx) => chartDisplayData[idx]?.timestamp ? formatTime(chartDisplayData[idx].timestamp) : ""}
@@ -200,7 +206,6 @@ export const StreamAnalysisDashboard: React.FC = () => {
                 />
                 <YAxis stroke="#475569" fontSize={11} domain={[0, maxY]} axisLine={false} tickLine={false} />
 
-                {/* 💡 [한국어 적용] 툴팁 라벨 및 포맷 */}
                 <Tooltip
                     cursor={{ stroke: CONFIG.CHART_COLOR, strokeWidth: 1, strokeDasharray: '4 4' }}
                     contentStyle={{ backgroundColor: "#1a1a1c", border: '1px solid #334155', borderRadius: '12px' }}
