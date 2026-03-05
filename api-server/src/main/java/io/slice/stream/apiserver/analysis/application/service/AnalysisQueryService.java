@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AnalysisQueryService {
 
     private static final int FIND_LIMIT = 100;
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final AnalysisRepository analysisRepository;
 
@@ -47,15 +48,22 @@ public class AnalysisQueryService {
     }
 
     public AnalysisResponse getHistoryAnalysis(String streamId, LocalDate date) {
-        Instant startOfDay = date.atStartOfDay(ZoneId.of("Asia/Seoul")).toInstant();
+        Instant startOfDay = date.atStartOfDay(KST).toInstant();
         Instant endOfDay = startOfDay.plus(1, ChronoUnit.DAYS);
 
-        LocalDate boundaryDate = LocalDate.now(ZoneId.of("Asia/Seoul")).minusDays(3);
+        LocalDate boundaryDate = LocalDate.now(KST).minusDays(3);
 
         if (!date.isBefore(boundaryDate)) {
             List<AnalysisDataPoint> rawDataPoints = analysisRepository.findRawHistory(streamId, startOfDay, endOfDay);
+            if (rawDataPoints.isEmpty() && date.isEqual(boundaryDate)) {
+                log.info("[Query] 경계 날짜({}) Raw 데이터 부재로 Summary 데이터 폴백 조회", date);
+                List<AnalysisDataPoint> summaryDataPoints = analysisRepository.findSummaryHistory(streamId, startOfDay, endOfDay);
+                return new AnalysisResponse(streamId, summaryDataPoints);
+            }
+
             return new AnalysisResponse(streamId, rawDataPoints);
-        } else {
+        }
+        else {
             List<AnalysisDataPoint> summaryDataPoints = analysisRepository.findSummaryHistory(streamId, startOfDay, endOfDay);
             return new AnalysisResponse(streamId, summaryDataPoints);
         }

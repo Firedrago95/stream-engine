@@ -58,7 +58,8 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
             SELECT DATE(timestamp AT TIME ZONE 'Asia/Seoul') AS day
             FROM analysis_signals_summary
             WHERE stream_id = :streamId
-        ) combined.day < :beforeDate
+        )AS combined
+        WHERE combined.day < :beforeDate
         ORDER BY combined.day DESC
         LIMIT :limit
         """, nativeQuery = true)
