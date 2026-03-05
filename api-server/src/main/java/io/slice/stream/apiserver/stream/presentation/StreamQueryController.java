@@ -20,6 +20,6 @@ public class StreamQueryController {
 
     @GetMapping
     public ResponseEntity<List<StreamResponse>> getStreams() {
-        return ResponseEntity.ok(streamQueryService.getBrowseList());
+        return ResponseEntity.ok(streamQueryService.getBrowserList());
     }
 }
