@@ -119,14 +119,14 @@ class AnalysisRepositoryImplTest implements PostgresTestSupport {
         assertThat(history.get(0).value()).isEqualTo(200L);
     }
 
-    // 💡 [추가 2] 가용 날짜 목록 조회 쿼리 정상 실행 검증
+    // 💡 [해결] LocalDate.MAX 대신 안전한 미래 날짜를 사용하여 PostgreSQL 범위 오류를 방지합니다.
     @Test
     void 커서를_이용한_가용_날짜_목록을_조회한다() {
         // given
         String streamId = "stream-dates";
         analysisRepository.save(AnalysisSignal.of(streamId, "NORMAL", Instant.now(), 50L));
 
-        LocalDate cursor = LocalDate.MAX;
+        LocalDate cursor = LocalDate.now().plusYears(1);
 
         // when
         List<LocalDate> dates = analysisRepository.findAvailableDates(streamId, cursor, 10);
