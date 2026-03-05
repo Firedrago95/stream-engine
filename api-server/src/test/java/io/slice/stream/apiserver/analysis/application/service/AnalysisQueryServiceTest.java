@@ -1,12 +1,18 @@
 package io.slice.stream.apiserver.analysis.application.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse;
+import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -59,5 +65,55 @@ class AnalysisQueryServiceTest {
         // then
         assertThat(response.streamId()).isEqualTo(streamId);
         assertThat(response.dataPoints()).isEmpty();
+    }
+
+    @Test
+    void 가용_날짜_조회_시_커서가_없으면_LocalDate_MAX를_사용한다() {
+        // given
+        String streamId = "test-stream";
+        int limit = 10;
+        given(analysisRepository.findAvailableDates(streamId, LocalDate.MAX, limit))
+            .willReturn(List.of(LocalDate.of(2026, 3, 5)));
+
+        // when
+        List<String> dates = analysisQueryService.getAvailableDates(streamId, null, limit);
+
+        // then
+        assertThat(dates).containsExactly("2026-03-05");
+        verify(analysisRepository).findAvailableDates(streamId, LocalDate.MAX, limit);
+    }
+
+    @Test
+    void 과거_데이터_조회_시_3일_이내_날짜면_원본_데이터를_조회한다() {
+        // given
+        String streamId = "test-stream";
+        LocalDate targetDate = LocalDate.now(ZoneId.of("Asia/Seoul")).minusDays(1); // 1일 전 (Hot)
+
+        given(analysisRepository.findRawHistory(eq(streamId), any(), any()))
+            .willReturn(List.of(new AnalysisDataPoint(12345L, 100L, "NORMAL")));
+
+        // when
+        AnalysisResponse response = analysisQueryService.getHistoryAnalysis(streamId, targetDate);
+
+        // then
+        assertThat(response.dataPoints()).hasSize(1);
+        verify(analysisRepository).findRawHistory(eq(streamId), any(), any());
+    }
+
+    @Test
+    void 과거_데이터_조회_시_3일_이전_날짜면_요약_데이터를_조회한다() {
+        // given
+        String streamId = "test-stream";
+        LocalDate targetDate = LocalDate.now(ZoneId.of("Asia/Seoul")).minusDays(5); // 5일 전 (Warm)
+
+        given(analysisRepository.findSummaryHistory(eq(streamId), any(), any()))
+            .willReturn(List.of(new AnalysisDataPoint(12345L, 200L, "PEAK")));
+
+        // when
+        AnalysisResponse response = analysisQueryService.getHistoryAnalysis(streamId, targetDate);
+
+        // then
+        assertThat(response.dataPoints()).hasSize(1);
+        verify(analysisRepository).findSummaryHistory(eq(streamId), any(), any());
     }
 }

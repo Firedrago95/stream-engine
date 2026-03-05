@@ -4,6 +4,10 @@ import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AnalysisQueryService {
 
     private static final int FIND_LIMIT = 100;
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final AnalysisRepository analysisRepository;
 
@@ -32,5 +37,35 @@ public class AnalysisQueryService {
             .toList();
 
         return new AnalysisResponse(streamId, dataPoints);
+    }
+
+    public List<String> getAvailableDates(String streamId, LocalDate before, int limit) {
+        LocalDate cursorDate = (before != null) ? before : LocalDate.now(KST).plusYears(2);
+
+        return analysisRepository.findAvailableDates(streamId, cursorDate, limit).stream()
+            .map(LocalDate::toString)
+            .toList();
+    }
+
+    public AnalysisResponse getHistoryAnalysis(String streamId, LocalDate date) {
+        Instant startOfDay = date.atStartOfDay(KST).toInstant();
+        Instant endOfDay = startOfDay.plus(1, ChronoUnit.DAYS);
+
+        LocalDate boundaryDate = LocalDate.now(KST).minusDays(3);
+
+        if (!date.isBefore(boundaryDate)) {
+            List<AnalysisDataPoint> rawDataPoints = analysisRepository.findRawHistory(streamId, startOfDay, endOfDay);
+            if (rawDataPoints.isEmpty() && date.isEqual(boundaryDate)) {
+                log.info("[Query] 경계 날짜({}) Raw 데이터 부재로 Summary 데이터 폴백 조회", date);
+                List<AnalysisDataPoint> summaryDataPoints = analysisRepository.findSummaryHistory(streamId, startOfDay, endOfDay);
+                return new AnalysisResponse(streamId, summaryDataPoints);
+            }
+
+            return new AnalysisResponse(streamId, rawDataPoints);
+        }
+        else {
+            List<AnalysisDataPoint> summaryDataPoints = analysisRepository.findSummaryHistory(streamId, startOfDay, endOfDay);
+            return new AnalysisResponse(streamId, summaryDataPoints);
+        }
     }
 }

@@ -21,7 +21,9 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   const [isLive, setIsLive] = useState(true);
   const [selectedTab, setSelectedTab] = useState("realtime");
-  const availableDates = ["realtime", "2026-03-05", "2026-03-04"];
+
+  // 💡 [API 연동 1] 하드코딩 제거 및 State로 변경
+  const [availableDates, setAvailableDates] = useState<string[]>(["realtime"]);
 
   const { analysisData, isLoading, error, isGathering } = useStreamAnalysis(
       streamId || '',
@@ -38,6 +40,16 @@ export const StreamAnalysisDashboard: React.FC = () => {
   });
 
   useEffect(() => {
+    if (!streamId) return;
+    fetch(`/api/v1/analysis/streams/${streamId}/available-dates?limit=10`)
+    .then(res => res.ok ? res.json() : [])
+    .then((dates: string[]) => {
+      setAvailableDates(["realtime", ...dates]);
+    })
+    .catch(err => console.error("날짜 목록을 불러오지 못했습니다.", err));
+  }, [streamId]);
+
+  useEffect(() => {
     if (selectedTab !== "realtime") return;
     const incomingPoints = analysisData?.dataPoints || [];
     if (incomingPoints.length === 0) return;
@@ -52,8 +64,21 @@ export const StreamAnalysisDashboard: React.FC = () => {
   }, [analysisData, selectedTab]);
 
   useEffect(() => {
-    if (selectedTab !== "realtime") setHistoricalData([]);
-  }, [selectedTab]);
+    if (selectedTab === "realtime" || !streamId) {
+      setHistoricalData([]);
+      return;
+    }
+
+    fetch(`/api/v1/analysis/streams/${streamId}/history?date=${selectedTab}`)
+    .then(res => res.ok ? res.json() : { dataPoints: [] })
+    .then(data => {
+      setHistoricalData(data.dataPoints || []);
+    })
+    .catch(err => {
+      console.error("과거 데이터를 불러오지 못했습니다.", err);
+      setHistoricalData([]);
+    });
+  }, [selectedTab, streamId]);
 
   useEffect(() => {
     const targetData = selectedTab === "realtime" ? stableData : historicalData;
