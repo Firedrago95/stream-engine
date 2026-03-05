@@ -15,4 +15,5 @@ CREATE TABLE streams
 CREATE INDEX idx_streams_live_status ON streams (is_live, last_update_at DESC);
 
 -- 3. 스트리머 이름 검색용 인덱스
-CREATE INDEX idx_streams_streamer_name ON streams (streamer_name);
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX idx_streams_streamer_name_trgm ON streams USING gin (LOWER(streamer_name) gin_trgm_ops);
