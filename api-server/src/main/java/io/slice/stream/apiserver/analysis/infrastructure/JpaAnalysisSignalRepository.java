@@ -55,7 +55,7 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
             WHERE stream_id = :streamId
               AND timestamp >= CURRENT_TIMESTAMP - INTERVAL '3 days'
             UNION
-            SELECT DATE(timestamp AT TIME ZONE 'Asia/Seoul') AS day
+            SELECT DATE(timestamp_minute AT TIME ZONE 'Asia/Seoul') AS day
             FROM analysis_signals_summary
             WHERE stream_id = :streamId
         )AS combined
