@@ -14,11 +14,10 @@ export const useStreams = (interval = 15000) => {
       if (!res.ok) throw new Error('데이터를 가져오지 못했습니다.');
       const data = await res.json();
 
-      // Zod를 사용하여 백엔드 응답 규격 검증
       const parsedData = z.array(StreamItemSchema).parse(data);
 
       const sorted = [...parsedData].sort((a, b) =>
-          a.streamerName.localeCompare(b.streamerName)
+          (a.streamerName || '').localeCompare(b.streamerName || '')
       );
 
       setStreams(sorted);
