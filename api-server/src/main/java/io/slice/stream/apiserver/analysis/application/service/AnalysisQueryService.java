@@ -40,7 +40,7 @@ public class AnalysisQueryService {
     }
 
     public List<String> getAvailableDates(String streamId, LocalDate before, int limit) {
-        LocalDate cursorDate = (before != null) ? before : LocalDate.MAX;
+        LocalDate cursorDate = (before != null) ? before : LocalDate.now(KST).plusYears(2);
 
         return analysisRepository.findAvailableDates(streamId, cursorDate, limit).stream()
             .map(LocalDate::toString)

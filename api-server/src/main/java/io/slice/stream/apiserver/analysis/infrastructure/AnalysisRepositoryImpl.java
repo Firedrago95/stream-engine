@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -72,7 +73,7 @@ public class AnalysisRepositoryImpl implements AnalysisRepository {
 
     @Override
     public List<AnalysisDataPoint> findRawHistory(String streamId, Instant start, Instant end) {
-        return jpaRepository.findRawHistoryByData(streamId, start, end).stream()
+        return jpaRepository.findRawHistoryByDate(streamId, start, end).stream()
             .map(e -> new AnalysisDataPoint(e.getTimestamp().toEpochMilli(), e.getFirepower(), e.getStatus()))
             .toList();
     }
@@ -80,7 +81,15 @@ public class AnalysisRepositoryImpl implements AnalysisRepository {
     @Override
     public List<AnalysisDataPoint> findSummaryHistory(String streamId, Instant start, Instant end) {
         return jpaRepository.findSummaryHistoryByDate(streamId, start, end).stream()
-            .map(p -> new AnalysisDataPoint(p.getTimestampMinute().getTime(), p.getFirepowerMax(), p.getStatus()))
+            .map(p -> {
+                if (p.getTimestampMinute() == null) return null;
+                return new AnalysisDataPoint(
+                    p.getTimestampMinute().getTime(),
+                    p.getFirepowerMax(),
+                    p.getStatus()
+                );
+            })
+            .filter(Objects::nonNull)
             .toList();
     }
 }

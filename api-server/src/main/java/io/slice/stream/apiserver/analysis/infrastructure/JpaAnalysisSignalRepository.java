@@ -54,12 +54,13 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
             FROM analysis_signals
             WHERE stream_id = :streamId
               AND timestamp >= CURRENT_TIMESTAMP - INTERVAL '3 days'
+              AND DATE(timestamp AT TIME ZONE 'Asia/Seoul') < :beforeDate
             UNION
             SELECT DATE(timestamp_minute AT TIME ZONE 'Asia/Seoul') AS day
             FROM analysis_signals_summary
             WHERE stream_id = :streamId
-        )AS combined
-        WHERE combined.day < :beforeDate
+              AND DATE(timestamp_minute AT TIME ZONE 'Asia/Seoul') < :beforeDate
+        ) AS combined
         ORDER BY combined.day DESC
         LIMIT :limit
         """, nativeQuery = true)
@@ -70,31 +71,34 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
     );
 
     @Query("""
-           SELECT a FROM AnalysisSignalEntity  a
-           WHERE a.streamId = :streamId
-           AND a.timestamp >= :start
-           AND a.timestamp < :end
-           ORDER BY a.timestamp ASC
-           """)
-    List<AnalysisSignalEntity> findRawHistoryByData(
+        SELECT a FROM AnalysisSignalEntity  a
+        WHERE a.streamId = :streamId
+        AND a.timestamp >= :start
+        AND a.timestamp < :end
+        ORDER BY a.timestamp ASC
+        """)
+    List<AnalysisSignalEntity> findRawHistoryByDate(
         @Param("streamId") String streamId,
         @Param("start") Instant start,
         @Param("end") Instant end
     );
 
     interface SummaryDataProjection {
+
         Timestamp getTimestampMinute();
+
         Long getFirepowerMax();
+
         String getStatus();
     }
 
     @Query(value = """
-           SELECT timestamp_minute AS timestampMinute, firepower_max AS firepowerMax, status AS status
-           FROM analysis_signals_summary
-           WHERE stream_id = :streamId
-           AND timestamp_minute >= :start AND timestamp_minute < :end
-           ORDER BY timestamp_minute ASC
-           """, nativeQuery = true)
+        SELECT timestamp_minute AS timestampMinute, firepower_max AS firepowerMax, status AS status
+        FROM analysis_signals_summary
+        WHERE stream_id = :streamId
+        AND timestamp_minute >= :start AND timestamp_minute < :end
+        ORDER BY timestamp_minute ASC
+        """, nativeQuery = true)
     List<SummaryDataProjection> findSummaryHistoryByDate(
         @Param("streamId") String streamId,
         @Param("start") Instant start,
