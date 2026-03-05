@@ -3,6 +3,9 @@ package io.slice.stream.apiserver.analysis.infrastructure;
 import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import io.slice.stream.apiserver.analysis.infrastructure.entity.AnalysisSignalEntity;
+import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -60,5 +63,24 @@ public class AnalysisRepositoryImpl implements AnalysisRepository {
             return Set.of();
         }
         return jpaRepository.findDistinctStreamIdByStreamIdIn(streamIds);
+    }
+
+    @Override
+    public List<LocalDate> findAvailableDates(String streamId, LocalDate beforeDate, int limit) {
+        return jpaRepository.findAvailableDatesWithCursor(streamId, beforeDate, limit);
+    }
+
+    @Override
+    public List<AnalysisDataPoint> findRawHistory(String streamId, Instant start, Instant end) {
+        return jpaRepository.findRawHistoryByData(streamId, start, end).stream()
+            .map(e -> new AnalysisDataPoint(e.getTimestamp().toEpochMilli(), e.getFirepower(), e.getStatus()))
+            .toList();
+    }
+
+    @Override
+    public List<AnalysisDataPoint> findSummaryHistory(String streamId, Instant start, Instant end) {
+        return jpaRepository.findSummaryHistoryByDate(streamId, start, end).stream()
+            .map(p -> new AnalysisDataPoint(p.getTimestampMinute().getTime(), p.getFirepowerMax(), p.getStatus()))
+            .toList();
     }
 }
