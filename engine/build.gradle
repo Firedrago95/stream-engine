@@ -19,21 +19,30 @@ repositories {
 }
 
 dependencies {
+    // Core Starters
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-    implementation 'org.springframework.boot:spring-boot-starter-kafka'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-aspectj'
+
+    // Data & Messaging
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-kafka'
+
+    // Utility & Security
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     implementation 'com.github.ben-manes.caffeine:caffeine'
-
     // 에러 방지 목적으로 필수적으로 필요
     implementation 'org.bitbucket.b_c:jose4j:0.9.6'
 
+    // Monitoring
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
     annotationProcessor 'org.projectlombok:lombok'
 
+    // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-data-redis-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-kafka-test'

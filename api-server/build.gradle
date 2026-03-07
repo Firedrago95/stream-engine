@@ -35,6 +35,9 @@ dependencies {
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     implementation 'org.bitbucket.b_c:jose4j:0.9.6'
 
+    // monitoring
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
