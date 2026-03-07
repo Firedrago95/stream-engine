@@ -6,6 +6,7 @@ import io.lettuce.core.resource.ClientResources;
 import io.lettuce.core.resource.DefaultClientResources;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.List;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,7 +27,13 @@ public class RedisConfig {
     private int port;
 
     @Bean
-    public ClientResources clientResources(MeterRegistry meterRegistry) {
+    public ClientResources clientResources(ObjectProvider<MeterRegistry> meterRegistryProvider) {
+        MeterRegistry meterRegistry = meterRegistryProvider.getIfAvailable();
+
+        if (meterRegistry == null) {
+            return DefaultClientResources.create();
+        }
+
         return DefaultClientResources.builder()
             .commandLatencyRecorder(new MicrometerCommandLatencyRecorder(
                 meterRegistry,

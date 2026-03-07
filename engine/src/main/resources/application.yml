@@ -50,6 +50,9 @@ management:
   metrics:
     tags:
       application: engine
+    distribution:
+      percentiles-histogram:
+        analysis.processing.time: true
 
 chzzk:
   # 1. 치지직 오픈 API (방송 정보 조회 등)
