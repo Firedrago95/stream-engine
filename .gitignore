@@ -38,6 +38,7 @@ out/
 
 ### 사용자 설정
 .env
+.env.local
 
 # Repomix Output
 repomix-output.xml
