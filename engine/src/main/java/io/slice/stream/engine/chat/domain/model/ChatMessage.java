@@ -9,6 +9,7 @@ public record ChatMessage(
     String message,
     Instant time,
     String streamId,
+    long ingestedAt,
     Map<String, Object> headers
 ) {
 }

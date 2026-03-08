@@ -1,0 +1,20 @@
+# monitor/prometheus/prometheus.yml
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  # 1. 로컬 엔진 모듈 수집 (변경 필요 없음)
+  # - 도커 내부망(slice-network)을 통해 engine 컨테이너의 9090 포트로 접근
+  - job_name: 'engine-module'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['engine:9090']
+
+  # 2. 원격 API 서버 모듈 수집
+  - job_name: 'api-server-module'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      # 현재 상태: 로컬에서 테스트하기 위해 도커 내부 컨테이너 이름(api-server)을 바라본다.
+      # 배포 후 상태: api-server가 EC2로 넘어가면 아래 타겟을 EC2의 공인 IP로 변경해야 한다.
+      # 예시: - targets: ['3.3.3.3:9090'] 
+      - targets: ['api:9090'] # docker-compose.yml의 api-server 서비스 이름('api')과 맞춰줍니다.

@@ -36,7 +36,7 @@ class ChatAggregationServiceTest {
     private ChatAggregationService chatAggregationService;
 
     private ChatMessage createChatMessage(String streamId, Instant time) {
-        return new ChatMessage(null, null, "message", time, streamId, null);
+        return new ChatMessage(null, null, "message", time, streamId, 0L, null);
     }
 
     @Test

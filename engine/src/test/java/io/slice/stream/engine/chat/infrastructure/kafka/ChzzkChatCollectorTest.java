@@ -78,7 +78,7 @@ class ChzzkChatCollectorTest implements KafkaTestSupport {
         // given
         String streamId = "channelAId";
         Author author = new Author("hash123", "testUser", "img_url");
-        ChatMessage message = new ChatMessage(MessageType.TEXT, author, "Hello Kafka", Instant.now(), streamId, Map.of());
+        ChatMessage message = new ChatMessage(MessageType.TEXT, author, "Hello Kafka", Instant.now(), streamId, 0L, Map.of());
         List<ChatMessage> messages = List.of(message);
         
         // when
@@ -111,9 +111,9 @@ class ChzzkChatCollectorTest implements KafkaTestSupport {
         // given
         String streamId = "channelAId";
         Author author1 = new Author("hash1", "user1", "img_url1");
-        ChatMessage message1 = new ChatMessage(MessageType.TEXT, author1, "First message", Instant.now(), streamId, Map.of());
+        ChatMessage message1 = new ChatMessage(MessageType.TEXT, author1, "First message", Instant.now(), streamId, 0L, Map.of());
         Author author2 = new Author("hash2", "user2", "img_url2");
-        ChatMessage message2 = new ChatMessage(MessageType.TEXT, author2, "Second message", Instant.now(), streamId, Map.of());
+        ChatMessage message2 = new ChatMessage(MessageType.TEXT, author2, "Second message", Instant.now(), streamId, 0L, Map.of());
         List<ChatMessage> multipleMessages = List.of(message1, message2);
 
         // when

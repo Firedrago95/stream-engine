@@ -37,6 +37,25 @@ logging:
     # (선택 사항) Kafka 컨슈머의 노이즈가 많을 경우 추가
     org.apache.kafka: WARN
 
+management:
+  server:
+    port: 9090
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus
+
+  endpoint:
+    prometheus:
+      enabled: true
+
+  metrics:
+    tags:
+      application: engine
+    distribution:
+      percentiles-histogram:
+        analysis.processing.time: true
+
 chzzk:
   # 1. 치지직 오픈 API (방송 정보 조회 등)
   api:
