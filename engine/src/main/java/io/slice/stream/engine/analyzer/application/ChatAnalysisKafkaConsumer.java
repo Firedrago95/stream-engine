@@ -29,9 +29,12 @@ public class ChatAnalysisKafkaConsumer {
             }
             chatAggregationService.aggregate(chatMessage);
 
-            long latency = System.currentTimeMillis() - chatMessage.ingestedAt();
-            meterRegistry.timer("analysis.processing.time")
-                .record(latency, TimeUnit.MILLISECONDS);
+            long now = System.currentTimeMillis();
+            long ingestedAt = chatMessage.ingestedAt();
+            if (ingestedAt > 0 && ingestedAt <= now) {
+                meterRegistry.timer("analysis.processing.time")
+                    .record(now - ingestedAt, TimeUnit.MILLISECONDS);
+            }
 
         } catch (Exception e) {
             log.error("[Kafka-Error] 컨슈밍 실패: {}", e.getMessage(), e);
