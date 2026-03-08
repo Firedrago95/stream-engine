@@ -146,4 +146,5 @@ volumes:
 
 networks:
   slice-network:
+    driver: bridge
     name: slice-network
