@@ -89,6 +89,9 @@ services:
         condition: service_healthy
     volumes:
       - ./logs:/app/logs
+    networks:
+      - default
+      - slice-network
 
   api:
     build:
@@ -119,6 +122,9 @@ services:
         condition: service_healthy
     volumes:
       - ./logs:/app/logs
+    networks:
+      - default
+      - slice-network
 
   client:
     build:
