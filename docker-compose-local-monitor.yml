@@ -33,3 +33,7 @@ services:
     depends_on:
       - prometheus
       - loki
+
+networks:
+  slice-network:
+    external: true

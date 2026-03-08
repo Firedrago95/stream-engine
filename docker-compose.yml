@@ -137,3 +137,7 @@ volumes:
   kafka_data:
   redis_data:
   postgres_data:
+
+networks:
+  slice-network:
+    external: true
