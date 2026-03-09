@@ -1,0 +1,50 @@
+services:
+  database:
+    image: postgres:17-alpine
+    container_name: slice-db
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    networks:
+      - slice-network
+
+  api:
+    image: ${DOCKER_HUB_ID}/api-server:latest
+    container_name: slice-api
+    environment:
+      - DB_URL=jdbc:postgresql://database:5432/${DB_NAME}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - JAVA_OPTS=-Xmx768m -Xms768m
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+    depends_on:
+      - database
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    networks:
+      - slice-network
+
+  client:
+    image: ${DOCKER_HUB_ID}/client:latest
+    container_name: slice-client
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    networks:
+      - slice-network
+
+networks:
+  slice-network:
+    driver: bridge
