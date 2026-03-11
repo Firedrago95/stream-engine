@@ -9,6 +9,9 @@ import { AnalysisTabs } from './dashboard/AnalysisTabs';
 import { AnalysisChart } from './dashboard/AnalysisChart';
 import { HighlightSection } from './dashboard/HighlightSection';
 
+// [배포 환경 대응] API 베이스 URL 설정
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
 const CONFIG = {
   POLLING_INTERVAL: 5000,
   DISPLAY_POINTS: 20,
@@ -22,7 +25,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
   const [isLive, setIsLive] = useState(true);
   const [selectedTab, setSelectedTab] = useState("realtime");
 
-  // 💡 [API 연동 1] 하드코딩 제거 및 State로 변경
+  // [API 연동] 사용 가능한 날짜 목록 관리
   const [availableDates, setAvailableDates] = useState<string[]>(["realtime"]);
 
   const { analysisData, isLoading, error, isGathering } = useStreamAnalysis(
@@ -39,9 +42,10 @@ export const StreamAnalysisDashboard: React.FC = () => {
     value: null, time: null,
   });
 
+  // 💡 [수정] 날짜 목록 API 호출 주소에 API_BASE_URL 추가
   useEffect(() => {
     if (!streamId) return;
-    fetch(`/api/v1/analysis/streams/${streamId}/available-dates?limit=10`)
+    fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/available-dates?limit=10`)
     .then(res => res.ok ? res.json() : [])
     .then((dates: string[]) => {
       setAvailableDates(["realtime", ...dates]);
@@ -63,13 +67,14 @@ export const StreamAnalysisDashboard: React.FC = () => {
     });
   }, [analysisData, selectedTab]);
 
+  // 과거 기록 API 호출 주소에 API_BASE_URL 추가
   useEffect(() => {
     if (selectedTab === "realtime" || !streamId) {
       setHistoricalData([]);
       return;
     }
 
-    fetch(`/api/v1/analysis/streams/${streamId}/history?date=${selectedTab}`)
+    fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/history?date=${selectedTab}`)
     .then(res => res.ok ? res.json() : { dataPoints: [] })
     .then(data => {
       setHistoricalData(data.dataPoints || []);

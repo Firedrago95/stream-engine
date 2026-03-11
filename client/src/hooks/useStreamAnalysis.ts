@@ -1,30 +1,30 @@
-// client/src/hooks/useStreamAnalysis.ts
 import { useState, useEffect, useCallback } from 'react';
+
+// 1. API 베이스 URL 설정 (환경 변수에서 가져오고 없으면 빈 문자열)
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export const useStreamAnalysis = (streamId: string, interval = 5000) => {
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // 상태 추가: 404 에러일 경우 수집 중임을 나타내는 플래그
   const [isGathering, setIsGathering] = useState(false);
 
   const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch(`/api/v1/analysis/${streamId}`, { signal });
+      // 2. fetch 주소에 API_BASE_URL을 붙여줍니다.
+      const res = await fetch(`${API_BASE_URL}/api/v1/analysis/${streamId}`, { signal });
 
-      // 💡 핵심 수정: 404 에러(데이터 없음) 처리
       if (res.status === 404) {
-        setIsGathering(true); // 수집 중 상태로 변경
+        setIsGathering(true);
         setError(null);
-        return; // 에러를 던지지 않고 조용히 빠져나감
+        return;
       }
 
       if (!res.ok) throw new Error('분석 데이터를 가져오지 못했습니다.');
 
       const data = await res.json();
-      setIsGathering(false); // 데이터가 도착하면 수집 중 상태 해제
-      setAnalysisData(data); // 데이터 저장
+      setIsGathering(false);
+      setAnalysisData(data);
       setError(null);
 
     } catch (err: any) {
@@ -35,19 +35,14 @@ export const useStreamAnalysis = (streamId: string, interval = 5000) => {
     }
   }, [streamId]);
 
-  // 💡 생략했던 useEffect 로직 원상복구!
   useEffect(() => {
     const controller = new AbortController();
-
-    // 컴포넌트 마운트 시 즉시 1회 호출
     fetchData(controller.signal);
 
-    // interval(5초)마다 주기적으로 호출
     const timer = setInterval(() => {
       fetchData(controller.signal);
     }, interval);
 
-    // 컴포넌트 언마운트 시 타이머 및 fetch 취소 정리
     return () => {
       clearInterval(timer);
       controller.abort();
