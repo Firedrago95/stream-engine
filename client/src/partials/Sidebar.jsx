@@ -41,7 +41,7 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
 
               {/* 💡 브랜드 텍스트: 숨김 클래스(opacity-0 등)를 전부 제거하여 무조건 보이게 수정 */}
               <span className="text-white font-extrabold text-xl tracking-tighter whitespace-nowrap mt-1">
-                Cheese<span className="text-[#00FFA3]">Slice</span>
+                Cheese<span className="text-[#00FFA3]">Pick</span>
               </span>
 
             </NavLink>

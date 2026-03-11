@@ -14,7 +14,7 @@ export const StreamCard: React.FC<{ stream: StreamItem }> = ({ stream }) => {
         {/* 좌측: 프로필 이미지 */}
         <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden shrink-0 border-2 border-gray-600 group-hover:border-[#00FFA3] transition-colors">
           <img
-              src={stream.profileImageUrl}
+              src={stream.profileImageUrl ?? undefined}
               alt={stream.streamerName}
               className="w-full h-full object-cover"
           />
