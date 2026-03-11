@@ -9,9 +9,10 @@ export const useStreams = (keyword = '', interval = 15000) => {
 
   const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
+      const baseUrl = import.meta.env.VITE_API_URL || '';
       const url = keyword
-          ? `/api/v1/streams?keyword=${encodeURIComponent(keyword)}`
-          : '/api/v1/streams';
+          ? `${baseUrl}/api/v1/streams?keyword=${encodeURIComponent(keyword)}`
+          : `${baseUrl}/api/v1/streams`;
 
       const res = await fetch(url, { signal });
       if (!res.ok) throw new Error('데이터를 가져오지 못했습니다.');

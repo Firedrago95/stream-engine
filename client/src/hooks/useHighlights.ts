@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 
+// 💡 환경 변수 설정 (Cloudflare Pages에서 설정한 값)
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
 export interface HighlightResponse {
   id: number;
   streamId: string;
@@ -17,9 +20,10 @@ export const useHighlights = (streamId: string, dateStr?: string, interval = 500
   const fetchData = useCallback(async (signal?: AbortSignal) => {
     if (!streamId) return;
     try {
-      // dateStr가 'realtime'이면 오늘 날짜, 아니면 선택된 날짜로 요청
       const queryDate = (!dateStr || dateStr === 'realtime') ? '' : `?date=${dateStr}`;
-      const url = `/api/v1/analysis/streams/${streamId}/highlights${queryDate}`;
+
+      // 💡 주소 앞에 API_BASE_URL을 추가합니다.
+      const url = `${API_BASE_URL}/api/v1/analysis/streams/${streamId}/highlights${queryDate}`;
 
       const res = await fetch(url, { signal });
       if (!res.ok) throw new Error('하이라이트 데이터를 가져오지 못했습니다.');
