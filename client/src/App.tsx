@@ -9,21 +9,20 @@ import { useStreams } from './hooks/useStreams';
 import './css/style.css';
 
 const MainPage = () => {
-  // 1. 검색어 상태 관리 추가
   const [searchTerm, setSearchTerm] = useState("");
-
-  // 2. useStreams에 검색어 전달
   const { streams, isLoading, error } = useStreams(searchTerm, 15000);
 
   if (error) return <div className="text-rose-500 p-8 text-center">에러: {error}</div>;
 
   return (
-      <div className="w-full max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 px-1">
-          <h2 className="text-2xl font-bold text-gray-100 italic uppercase tracking-tighter">실시간 라이브</h2>
+      <div className="w-full">
 
-          {/* 3. 검색 입력창 UI 추가 */}
-          <div className="relative w-full md:w-80">
+        <div className="flex flex-row items-center justify-between gap-4 mb-8 px-1 mt-4">
+          <h2 className="text-2xl font-bold text-gray-100 italic uppercase tracking-tighter whitespace-nowrap">
+            실시간 라이브
+          </h2>
+
+          <div className="relative w-full max-w-xs shrink-0">
             <input
                 type="text"
                 placeholder="스트리머 검색..."
@@ -34,7 +33,7 @@ const MainPage = () => {
             {searchTerm && (
                 <button
                     onClick={() => setSearchTerm("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white text-xs"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white text-xs font-bold"
                 >
                   ✕
                 </button>
@@ -54,7 +53,8 @@ const MainPage = () => {
             </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* 80% 뷰포트에 맞게 카드 그리드 배치 최적화 (가장 넓을 땐 3열) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
           {streams.map((stream) => (
               <StreamCard key={stream.streamId} stream={stream} />
           ))}
@@ -74,7 +74,8 @@ export default function App() {
           <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
           <main className="grow">
-            <div className="px-4 sm:px-6 lg:px-8 py-8 w-full">
+            {/* 앞으로 추가될 모든 페이지가 이 80% 중앙 정렬 룰을 따릅니다! */}
+            <div className="w-[95%] lg:w-[80%] mx-auto py-8">
               <Routes>
                 <Route path="/" element={<MainPage />} />
                 <Route path="/streams/:streamId" element={<StreamAnalysisDashboard />} />
