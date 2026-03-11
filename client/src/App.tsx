@@ -17,12 +17,13 @@ const MainPage = () => {
   return (
       <div className="w-full">
 
-        <div className="flex flex-row items-center justify-between gap-4 mb-8 px-1 mt-4">
-          <h2 className="text-2xl font-bold text-gray-100 italic uppercase tracking-tighter whitespace-nowrap">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 px-1 mt-4">
+          <h2 className="text-2xl font-bold text-gray-100 italic uppercase tracking-tighter whitespace-nowrap mb-2 sm:mb-0">
             실시간 라이브
           </h2>
 
-          <div className="relative w-full max-w-xs shrink-0">
+          {/* shrink-0을 빼고 유연하게 줄어들 수 있도록 min-w-[140px] 추가 */}
+          <div className="relative w-full sm:max-w-xs min-w-[140px]">
             <input
                 type="text"
                 placeholder="스트리머 검색..."
