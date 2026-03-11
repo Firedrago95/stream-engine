@@ -66,6 +66,7 @@ class ChatAnalysisKafkaConsumerTest {
             content,
             Instant.now(),
             "abcde1234",
+            0L,
             Map.of()
         );
     }

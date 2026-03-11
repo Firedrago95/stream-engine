@@ -9,6 +9,39 @@ spring:
     virtual:
       enabled: true
 
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/slicedb}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  flyway:
+    enabled: true
+
+management:
+  server:
+    port: 9090
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus
+
+  endpoint:
+    prometheus:
+      enabled: true
+
+  metrics:
+    tags:
+      application: api-server
+
 analysis:
   signal:
     path: ${SIGNAL_PATH}
@@ -16,3 +49,9 @@ analysis:
     header: ${SERVER_HEADER}
   sync:
     path: ${SYNC_PATH}
+
+highlight:
+  # 하이라이트 감지 시 앞당길 시간
+  leading-buffer: 10s
+  # 마지막 PEAK 이후 종료까지 대기할 시간
+  cooldown: 10s

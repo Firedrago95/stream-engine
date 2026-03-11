@@ -37,6 +37,25 @@ logging:
     # (선택 사항) Kafka 컨슈머의 노이즈가 많을 경우 추가
     org.apache.kafka: WARN
 
+management:
+  server:
+    port: 9090
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus
+
+  endpoint:
+    prometheus:
+      enabled: true
+
+  metrics:
+    tags:
+      application: engine
+    distribution:
+      percentiles-histogram:
+        analysis.processing.time: true
+
 chzzk:
   # 1. 치지직 오픈 API (방송 정보 조회 등)
   api:
@@ -53,10 +72,12 @@ chzzk:
     limit: 5
 
 highlight:
-  # 피크 채팅 화력 배수
-  chat-firepower-multiplier: 3.0
   # 채팅 평균 산출 기간
   range: 2m
+  # Z-Score 임계치 (보통 2.0 ~ 3.0이 통계적 유의미 구간)
+  z-score-threshold: 2.5
+  # 최소 화력 변화량
+  min-firepower-delta: 5
 
 api-server:
   host: ${SERVER_HOST}

@@ -71,6 +71,7 @@ public class ChzzkMessageConverter {
                 bodyNode.path("msg").asText(""), // asString() 대신 asText("")로 null 방어
                 Instant.ofEpochMilli(bodyNode.path("msgTime").asLong()),
                 streamId,
+                System.currentTimeMillis(),
                 Map.of()
             );
 

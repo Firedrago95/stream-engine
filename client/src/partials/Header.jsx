@@ -20,11 +20,7 @@ export default function Header({ sidebarOpen, setSidebarOpen, variant = 'default
               </button>
             </div>
 
-            <div className="flex items-center space-x-3">
-              {/* 💡 검색, 알림, 도움말 아이콘을 모두 제거하고 프로필만 남겼습니다. */}
-              <hr className="w-px h-6 bg-gray-200 dark:bg-gray-700/60 border-none" />
-              <UserMenu align="right" />
-            </div>
+
           </div>
         </div>
       </header>
