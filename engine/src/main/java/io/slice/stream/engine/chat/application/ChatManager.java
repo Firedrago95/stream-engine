@@ -20,6 +20,11 @@ public class ChatManager {
         if (!newStreamTargets.isEmpty()) {
             newStreamTargets.forEach(streamTarget -> {
                 chatCollectors.put(streamTarget.chatChannelId(), manageNewStreams(streamTarget));
+                try {
+                    Thread.sleep(600);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
             });
         }
 

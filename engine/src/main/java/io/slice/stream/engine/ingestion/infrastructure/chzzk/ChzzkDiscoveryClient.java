@@ -89,6 +89,7 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
     private StreamTarget convertToStreamTarget(ChzzkLive topLive) {
         String channelId = topLive.channel().channelId();
         try {
+            Thread.sleep((long) (Math.random() * 2000));
             log.debug("채널 id로 상세 조회 시작: {}", channelId);
             ChzzkLiveDetailResponse.Content detailContent = fetchLiveDetail(channelId);
             return new StreamTarget(
