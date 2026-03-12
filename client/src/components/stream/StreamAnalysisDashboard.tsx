@@ -56,8 +56,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
       const lastTimestamp = prev.length > 0 ? prev[prev.length - 1].timestamp : 0;
       const trulyNew = incomingPoints.filter((p: any) => p.timestamp > lastTimestamp);
       if (trulyNew.length === 0) return prev;
-      const newData = [...prev, ...trulyNew];
-      return newData.slice(-CONFIG.DISPLAY_POINTS);
+      const combined = [...prev, ...trulyNew].sort((a, b) => a.timestamp - b.timestamp);
+      return combined.slice(-CONFIG.DISPLAY_POINTS);
     });
   }, [analysisData, selectedTab]);
 
