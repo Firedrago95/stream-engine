@@ -25,12 +25,12 @@ public class StreamQueryService {
     private final AnalysisRepository analysisRepository;
 
     public List<StreamResponse> getBrowserList(String keyword) {
+        Instant threshold = Instant.now().minus(3, ChronoUnit.MINUTES);
         List<StreamEntity> activeStreams;
 
         if (keyword != null && !keyword.isBlank()) {
-            activeStreams = streamRepository.searchByStreamerName(keyword);
+            activeStreams = streamRepository.searchByStreamerName(keyword, threshold);
         } else {
-            Instant threshold = Instant.now().minus(3, ChronoUnit.MINUTES);
             activeStreams = streamRepository.findActiveStreams(threshold);
         }
 
@@ -48,7 +48,9 @@ public class StreamQueryService {
                 s.getProfileImageUrl(),
                 s.getCategoryName(),
                 s.getConcurrentUserCount(),
-                StreamStatus.determine(s.isLive(), analyzingIds.contains(s.getStreamId()))
+                StreamStatus.determine(
+                    s.isLive() && s.getLastUpdateAt().isAfter(threshold),
+                    analyzingIds.contains(s.getStreamId()))
             ))
             .toList();
     }
@@ -56,6 +58,7 @@ public class StreamQueryService {
     public StreamResponse getStreamInfo(String streamId) {
         StreamEntity s = streamRepository.findById(streamId)
             .orElseThrow(() -> new BusinessException(ErrorCode.STREAM_NOT_FOUND, "존재하지 않는 방송입니다."));
+        Instant threshold = Instant.now().minus(3, ChronoUnit.MINUTES);
 
         // 현재 분석 중인지 체크
         Set<String> analyzingIds = analysisRepository.findChannelsWithRecentSignals(Set.of(streamId));
@@ -67,7 +70,9 @@ public class StreamQueryService {
             s.getProfileImageUrl(),
             s.getCategoryName(),
             s.getConcurrentUserCount(),
-            StreamStatus.determine(s.isLive(), analyzingIds.contains(streamId))
+            StreamStatus.determine(
+                s.isLive() & s.getLastUpdateAt().isAfter(threshold),
+                analyzingIds.contains(streamId))
         );
     }
 }

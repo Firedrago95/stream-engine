@@ -17,6 +17,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -79,7 +80,8 @@ class StreamRepositoryImplTest implements PostgresTestSupport {
         jpaStreamRepository.saveAll(List.of(liveStream, offlineStream, otherStream));
 
         // when
-        List<StreamEntity> results = repository.searchByStreamerName("침착");
+        Instant threshold = Instant.now().minus(3, ChronoUnit.MINUTES);
+        List<StreamEntity> results = repository.searchByStreamerName("침착", threshold);
 
         // then
         assertThat(results).hasSize(2);
@@ -87,6 +89,34 @@ class StreamRepositoryImplTest implements PostgresTestSupport {
         assertThat(results.get(0).getStreamerName()).isEqualTo("침착맨");
         // 2순위: 오프라인 상태인 '침착맨원본박물관' (시청자 1000)
         assertThat(results.get(1).getStreamerName()).isEqualTo("침착맨원본박물관");
+    }
+
+    // 💡 [신규 추가] 좀비 스트림 정렬 방어 테스트!
+    @Test
+    void 좀비_스트림은_라이브_상태여도_검색_시_오프라인으로_간주되어_후순위로_밀린다() {
+        // given
+        Instant now = Instant.now();
+        Instant threshold = now.minus(3, ChronoUnit.MINUTES);
+
+        StreamEntity normalLive = new StreamEntity("ch-1", "정상침착맨");
+        normalLive.heartbeat("정상침착맨", "정상방송", "url", "게임", 100);
+
+        StreamEntity zombieLive = new StreamEntity("ch-2", "좀비침착맨");
+        zombieLive.heartbeat("좀비침착맨", "좀비방송", "url", "게임", 5000); // 시청자가 훨씬 많음!
+
+        // Reflection을 사용해 강제로 lastUpdateAt을 임계값 이전으로 조작 (좀비 상태 만들기)
+        ReflectionTestUtils.setField(zombieLive, "lastUpdateAt", now.minus(10, ChronoUnit.MINUTES));
+
+        jpaStreamRepository.saveAll(List.of(normalLive, zombieLive));
+
+        // when
+        List<StreamEntity> results = repository.searchByStreamerName("침착", threshold);
+
+        // then
+        assertThat(results).hasSize(2);
+        // 좀비 방송이 시청자가 50배 더 많아도, TTL을 지났으므로 CASE WHEN 로직에 의해 후순위로 밀려야 성공!
+        assertThat(results.get(0).getStreamerName()).isEqualTo("정상침착맨");
+        assertThat(results.get(1).getStreamerName()).isEqualTo("좀비침착맨");
     }
 
     @Test

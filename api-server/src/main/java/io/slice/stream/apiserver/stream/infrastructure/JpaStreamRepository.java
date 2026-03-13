@@ -42,7 +42,9 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
     @Query("""
            SELECT s FROM StreamEntity s
            WHERE LOWER(s.streamerName) LIKE LOWER(CONCAT('%', :keyword, '%'))
-           ORDER BY s.isLive DESC, s.concurrentUserCount DESC
+           ORDER BY
+            CASE WHEN s.isLive = true AND s.lastUpdateAt > :threshold THEN 1 ELSE 0 END DESC,
+            s.concurrentUserCount DESC
            """)
-    List<StreamEntity> searchByStreamerName(@Param("keyword") String keyword);
+    List<StreamEntity> searchByStreamerName(@Param("keyword") String keyword, @Param("threshold") Instant threshold);
 }
