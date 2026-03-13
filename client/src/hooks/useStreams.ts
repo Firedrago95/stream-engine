@@ -20,11 +20,7 @@ export const useStreams = (keyword = '', interval = 15000) => {
 
       const parsedData = z.array(StreamItemSchema).parse(data);
 
-      const sorted = [...parsedData].sort((a, b) =>
-          (a.streamerName || '').localeCompare(b.streamerName || '')
-      );
-
-      setStreams(sorted);
+      setStreams(parsedData);
       setError(null);
     } catch (err: any) {
       if (err.name === 'AbortError') return;
