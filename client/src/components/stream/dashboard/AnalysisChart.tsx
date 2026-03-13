@@ -57,7 +57,7 @@ export const AnalysisChart: React.FC<Props> = ({
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} opacity={0.3} />
-            <XAxis dataKey="slotIndex" tickFormatter={(idx) => chartData[idx]?.timestamp ? formatTime(chartData[idx].timestamp) : ""} stroke="#475569" fontSize={11} tickMargin={15} axisLine={false} tickLine={false} />
+            <XAxis dataKey="slotIndex" tickFormatter={(idx) => chartData[idx]?.timestamp ? formatTime(chartData[idx].timestamp) : ""} interval={0} minTickGap={5} stroke="#475569" fontSize={10} tickMargin={15} axisLine={false} tickLine={false} />
             <YAxis stroke="#475569" fontSize={11} domain={[0, maxY]} axisLine={false} tickLine={false} />
             <Tooltip cursor={{ stroke: "#00FFA3", strokeWidth: 1, strokeDasharray: '4 4' }} contentStyle={{ backgroundColor: "#1a1a1c", border: '1px solid #334155', borderRadius: '12px' }} labelFormatter={(idx) => chartData[idx as number]?.timestamp ? `시점: ${formatTime(chartData[idx as number].timestamp)}` : ''} formatter={(val) => [`${val} 건/초`, '화력']} />
             <Area type="monotone" dataKey="value" stroke="#00FFA3" strokeWidth={4} fill="url(#colorValue)" isAnimationActive={false} connectNulls={false} />

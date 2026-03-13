@@ -9,9 +9,6 @@ import { AnalysisTabs } from './dashboard/AnalysisTabs';
 import { AnalysisChart } from './dashboard/AnalysisChart';
 import { HighlightSection } from './dashboard/HighlightSection';
 
-// [배포 환경 대응] API 베이스 URL 설정
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
-
 const CONFIG = {
   POLLING_INTERVAL: 5000,
   DISPLAY_POINTS: 20,
@@ -24,9 +21,13 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   const [isLive, setIsLive] = useState(true);
   const [selectedTab, setSelectedTab] = useState("realtime");
-
-  // [API 연동] 사용 가능한 날짜 목록 관리
   const [availableDates, setAvailableDates] = useState<string[]>(["realtime"]);
+  const [streamerInfo, setStreamerInfo] = useState<{
+    streamerName: string;
+    profileImageUrl: string;
+    liveTitle: string;
+    status: string;
+  } | null>(null);
 
   const { analysisData, isLoading, error, isGathering } = useStreamAnalysis(
       streamId || '',
@@ -42,10 +43,22 @@ export const StreamAnalysisDashboard: React.FC = () => {
     value: null, time: null,
   });
 
-  // 💡 [수정] 날짜 목록 API 호출 주소에 API_BASE_URL 추가
   useEffect(() => {
     if (!streamId) return;
-    fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/available-dates?limit=10`)
+    fetch(`/api/v1/streams/${streamId}`)
+    .then(res => res.ok ? res.json() : null)
+    .then(data => {
+      if (data) {
+        setStreamerInfo(data);
+        setIsLive(data.status != 'OFFLINE');
+      }
+    })
+    .catch(err => console.error("스트리머 정보를 불러오는데 실패했습니다.",err));
+  }, [streamId]);
+
+  useEffect(() => {
+    if (!streamId) return;
+    fetch(`/api/v1/analysis/streams/${streamId}/available-dates?limit=10`)
     .then(res => res.ok ? res.json() : [])
     .then((dates: string[]) => {
       setAvailableDates(["realtime", ...dates]);
@@ -62,22 +75,22 @@ export const StreamAnalysisDashboard: React.FC = () => {
       const lastTimestamp = prev.length > 0 ? prev[prev.length - 1].timestamp : 0;
       const trulyNew = incomingPoints.filter((p: any) => p.timestamp > lastTimestamp);
       if (trulyNew.length === 0) return prev;
-      const newData = [...prev, ...trulyNew];
-      return newData.slice(-CONFIG.DISPLAY_POINTS);
+      const combined = [...prev, ...trulyNew].sort((a, b) => a.timestamp - b.timestamp);
+      return combined.slice(-CONFIG.DISPLAY_POINTS);
     });
   }, [analysisData, selectedTab]);
 
-  // 과거 기록 API 호출 주소에 API_BASE_URL 추가
   useEffect(() => {
     if (selectedTab === "realtime" || !streamId) {
       setHistoricalData([]);
       return;
     }
 
-    fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/history?date=${selectedTab}`)
+    fetch(`/api/v1/analysis/streams/${streamId}/history?date=${selectedTab}`)
     .then(res => res.ok ? res.json() : { dataPoints: [] })
     .then(data => {
-      setHistoricalData(data.dataPoints || []);
+      const sortedHistory = (data.dataPoints || []).sort((a: any, b: any) => a.timestamp - b.timestamp);
+      setHistoricalData(sortedHistory);
     })
     .catch(err => {
       console.error("과거 데이터를 불러오지 못했습니다.", err);
@@ -130,9 +143,15 @@ export const StreamAnalysisDashboard: React.FC = () => {
   if (!streamId) return <div className="p-10 text-center text-slate-400">잘못된 접근입니다.</div>;
 
   return (
-      <div className="w-full max-w-7xl mx-auto px-4 pb-20">
+      <div className="w-full pb-20">
         <DashboardHeader onBack={() => navigate(-1)} />
-        <StreamProfileHeader streamId={streamId} isLive={isLive} onToggleLive={() => setIsLive(!isLive)} />
+        <StreamProfileHeader
+            streamId={streamId}
+            streamerName={streamerInfo?.streamerName}
+            profileImageUrl={streamerInfo?.profileImageUrl}
+            isLive={isLive}
+            onToggleLive={() => setIsLive(!isLive)}
+        />
         <AnalysisTabs availableDates={availableDates} selected={selectedTab} onSelect={(tab) => { setSelectedTab(tab); setHoveredData({ value: null, time: null }); }} />
         <AnalysisChart
             chartData={chartDisplayData} metric={metric} maxY={maxY} isLoading={isLoading} isGathering={isGathering}

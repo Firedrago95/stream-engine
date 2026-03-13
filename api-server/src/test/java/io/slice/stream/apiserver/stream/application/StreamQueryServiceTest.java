@@ -1,6 +1,7 @@
 package io.slice.stream.apiserver.stream.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -9,11 +10,13 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
 import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
+import io.slice.stream.apiserver.global.error.BusinessException;
 import io.slice.stream.apiserver.stream.domain.StreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamResponse;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -93,5 +96,57 @@ class StreamQueryServiceTest {
 
         // then
         assertThat(result.get(0).status()).isEqualTo("ANALYZING");
+    }
+
+    @Test
+    void 존재하는_스트림_아이디로_상세_정보를_조회한다() {
+        // given
+        String streamId = "ch1";
+        StreamEntity entity = new StreamEntity(streamId, "스트리머");
+        entity.heartbeat("스트리머", "라이브 제목", "http://profile.url", "게임");
+
+        given(streamRepository.findById(streamId))
+            .willReturn(Optional.of(entity));
+        given(analysisRepository.findChannelsWithRecentSignals(Set.of(streamId)))
+            .willReturn(Set.of(streamId)); // 분석 중인 상태로 설정
+
+        // when
+        StreamResponse result = streamQueryService.getStreamInfo(streamId);
+
+        // then
+        assertThat(result.streamId()).isEqualTo(streamId);
+        assertThat(result.streamerName()).isEqualTo("스트리머");
+        assertThat(result.status()).isEqualTo("ANALYZING");
+        then(streamRepository).should().findById(streamId);
+    }
+
+    @Test
+    void 최근_신호가_없는_방송은_상세_조회에서도_LIVE_상태여야_한다() {
+        // given
+        String streamId = "ch1";
+        StreamEntity entity = new StreamEntity(streamId, "스트리머");
+
+        given(streamRepository.findById(streamId))
+            .willReturn(Optional.of(entity));
+        given(analysisRepository.findChannelsWithRecentSignals(Set.of(streamId)))
+            .willReturn(Set.of()); // 분석 신호 없음
+
+        // when
+        StreamResponse result = streamQueryService.getStreamInfo(streamId);
+
+        // then
+        assertThat(result.status()).isEqualTo("LIVE");
+    }
+
+    @Test
+    void 존재하지_않는_스트림_아이디로_조회하면_예외가_발생한다() {
+        // given
+        String streamId = "non-existent";
+        given(streamRepository.findById(streamId))
+            .willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> streamQueryService.getStreamInfo(streamId))
+            .isInstanceOf(BusinessException.class);
     }
 }

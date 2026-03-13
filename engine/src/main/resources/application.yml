@@ -69,15 +69,15 @@ chzzk:
 
   # 3. 수집할 방송 갯수
   discovery:
-    limit: 5
+    limit: 50
 
 highlight:
   # 채팅 평균 산출 기간
   range: 2m
   # Z-Score 임계치 (보통 2.0 ~ 3.0이 통계적 유의미 구간)
-  z-score-threshold: 2.5
+  z-score-threshold: 5.0
   # 최소 화력 변화량
-  min-firepower-delta: 5
+  min-firepower-delta: 15
 
 api-server:
   host: ${SERVER_HOST}

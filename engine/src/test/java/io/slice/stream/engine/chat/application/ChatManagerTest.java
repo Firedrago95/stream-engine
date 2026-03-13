@@ -1,11 +1,11 @@
 package io.slice.stream.engine.chat.application;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.ArgumentMatchers.any;
 
 import io.slice.stream.engine.chat.domain.ChatCollector;
 import io.slice.stream.engine.chat.domain.ChatCollectorFactory;
@@ -52,8 +52,8 @@ class ChatManagerTest {
         chatManager.manageStreams(newStreamTargets, closedChatChannelIds);
 
         // then
-        verify(chatCollectorFactory, times(1)).start(streamTarget1);
-        verify(chatCollectorFactory, times(1)).start(streamTarget2);
+        verify(chatCollectorFactory, timeout(2000).times(1)).start(streamTarget1);
+        verify(chatCollectorFactory, timeout(2000).times(1)).start(streamTarget2);
     }
 
     @Test
@@ -64,6 +64,8 @@ class ChatManagerTest {
         ChatCollector collectorToStop = mock(ChatCollector.class);
         when(chatCollectorFactory.start(streamTarget1)).thenReturn(collectorToStop);
         chatManager.manageStreams(initialStreamTargets, Collections.emptySet());
+
+        verify(chatCollectorFactory, timeout(2000)).start(streamTarget1);
 
         Set<StreamTarget> newStreamTargets = Collections.emptySet();
         Set<String> closedChatChannelIds = Set.of(streamTarget1.chatChannelId());
@@ -82,6 +84,7 @@ class ChatManagerTest {
         ChatCollector collectorToStop = mock(ChatCollector.class);
         when(chatCollectorFactory.start(streamTargetToClose)).thenReturn(collectorToStop);
         chatManager.manageStreams(Set.of(streamTargetToClose), Collections.emptySet());
+        verify(chatCollectorFactory, timeout(2000)).start(streamTargetToClose);
 
         StreamTarget streamTargetNew1 = new StreamTarget("streamNew1", "신규1", "chatNew1", 101L, "신규제목1", 111, "https://thumb.com/new1.jpg", "게임");
         StreamTarget streamTargetNew2 = new StreamTarget("streamNew2", "신규2", "chatNew2", 102L, "신규제목2", 222, "https://thumb.com/new2.jpg", "먹방");
@@ -96,8 +99,8 @@ class ChatManagerTest {
         chatManager.manageStreams(newStreamTargets, closedChatChannelIds);
 
         // then
-        verify(chatCollectorFactory, times(1)).start(streamTargetNew1);
-        verify(chatCollectorFactory, times(1)).start(streamTargetNew2);
+        verify(chatCollectorFactory, timeout(2000).times(1)).start(streamTargetNew1);
+        verify(chatCollectorFactory, timeout(2000).times(1)).start(streamTargetNew2);
         verify(collectorToStop).disconnect();
     }
 
