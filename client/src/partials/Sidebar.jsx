@@ -34,8 +34,8 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
               {/* 💡 직접 만드신 로고를 넣을 자리입니다 (더미 이미지 적용) */}
               {/* 나중에 src="이미지경로" 로 수정하시면 됩니다! */}
               <img
-                  src="https://via.placeholder.com/32x32/00FFA3/1a1a1c?text=LOGO"
-                  alt="CheeseSlice Logo"
+                  src="/cheese-pick-logo.png"
+                  alt="Cheese-Pick Logo"
                   className="w-8 h-8 shrink-0 rounded"
               />
 

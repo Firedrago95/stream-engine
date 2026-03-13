@@ -1,7 +1,14 @@
-# 🚀 Slice Stream Engine (chzzSlice Core)
+<div align="center">
+  <h1>
+    <img src="./client/public/cheese-pick-logo.png" alt="치즈픽 로고" width="60" align="absmiddle" />치즈픽 (Cheese-Pick)
+  </h1>
+  <p>
+    <b>🚀 실시간 스트림 화력 분석 엔진</b> <br/>
+    <a href="https://cheesepick.me">cheesepick.me 바로가기</a>
+  </p>
+</div>
 
-### 🌐 서비스 주소 [cheesepick.me](https://cheesepick.me)
-
+<br/>
 ## 📖 프로젝트 소개
 Java 25 가상 스레드(Virtual Threads) 기반의 고성능 실시간 스트림 데이터 수집 및 분석 엔진입니다.
 라이브 스트리밍 플랫폼(Chzzk 등)의 대규모 채팅 및 스트림 데이터를 실시간으로 수집하여, 화력이 폭발하는 하이라이트 구간을 자동으로 추출하는 chzzSlice 서비스의 핵심 코어 시스템입니다.
