@@ -13,7 +13,7 @@ export const StreamCard: React.FC<{ stream: StreamItem }> = ({ stream }) => {
       <div
           onClick={() => navigate(`/streams/${stream.streamId}`)}
           /* 오프라인일 경우 투명도와 흑백(grayscale) 필터를 적용하여 시각적으로 구분 */
-          className={`flex items-center p-3 sm:p-4 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-500 rounded-xl cursor-pointer hover:border-[#00FFA3]/50 hover:shadow-lg transition-all duration-200 group ${isOffline ? 'opacity-50 grayscale' : ''}`}
+          className={`flex items-center p-3 sm:p-4 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-500 rounded-xl cursor-pointer hover:border-[#00FFA3] hover:ring-1 hover:ring-[#00FFA3] hover:shadow-lg transition-all duration-200 group ${isOffline ? 'opacity-50 grayscale' : ''}`}
       >
         <div className={`relative w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden shrink-0 border-2 ${isOffline ? 'border-gray-600' : 'border-gray-600 group-hover:border-[#00FFA3]'} transition-colors`}>
           <img

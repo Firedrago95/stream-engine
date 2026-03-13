@@ -30,6 +30,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
     liveTitle: string;
     status: string;
     concurrentUserCount?: number;
+    categoryName?: string;
   } | null>(null);
 
   const { analysisData, isLoading, error, isGathering } = useStreamAnalysis(
@@ -155,6 +156,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
             isLive={isLive}
             status={streamerInfo?.status}
             viewers={streamerInfo?.concurrentUserCount}
+            liveTitle={streamerInfo?.liveTitle}
+            categoryName={streamerInfo?.categoryName}
         />
         <AnalysisTabs availableDates={availableDates} selected={selectedTab} onSelect={(tab) => { setSelectedTab(tab); setHoveredData({ value: null, time: null }); }} />
         <AnalysisChart

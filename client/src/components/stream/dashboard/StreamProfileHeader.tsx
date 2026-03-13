@@ -7,9 +7,11 @@ interface Props {
   isLive: boolean;
   status?: string;
   viewers?: number;
+  liveTitle?: string;
+  categoryName?: string;
 }
 
-export const StreamProfileHeader: React.FC<Props> = ({ streamId, streamerName, profileImageUrl, isLive, status, viewers }) => (
+export const StreamProfileHeader: React.FC<Props> = ({ streamId, streamerName, profileImageUrl, isLive, status, viewers, liveTitle, categoryName }) => (
     <div className="mb-8 p-6 bg-[#1a1a1c] border border-gray-800 rounded-2xl flex items-center gap-6">
       <div className={`w-20 h-20 rounded-full border-2 ${isLive ? 'border-[#00FFA3]/20' : 'border-gray-600 grayscale'} overflow-hidden bg-gray-900 shadow-xl`}>
         <img
@@ -32,8 +34,17 @@ export const StreamProfileHeader: React.FC<Props> = ({ streamId, streamerName, p
               👤 {viewers.toLocaleString()}명 시청 중
             </span>
           )}
+
+          {/* 카테고리 뱃지 추가 */}
+          {categoryName && (
+              <span className="px-2 py-0.5 bg-purple-900/40 border border-purple-500/50 text-purple-300 text-[11px] font-bold rounded-sm whitespace-nowrap">
+              {categoryName}
+            </span>
+          )}
         </div>
-        <h1 className="text-2xl font-black text-white">치즈슬라이스 실시간 대시보드</h1>
+        <h1 className="text-xl sm:text-2xl font-black text-white truncate" title={liveTitle || '방송 제목 정보 없음'}>
+          {liveTitle || '방송 제목 정보 없음'}
+        </h1>
       </div>
     </div>
 );

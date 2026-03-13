@@ -63,8 +63,13 @@ public class HighlightService {
         try {
             DetectionResult detectionResult = detector.detect(streamId);
             if (detectionResult.status() == ChatFirepowerStatus.WAITING) {
-                log.info("[Analysis-Step 4] WAITING 상태로 시그널 전송 스킵 - Stream: {}", streamId);
-                return Optional.empty();
+                log.info("[Analysis-Step 4] WAITING 상태지만 차트 렌더링을 위해 기본 화력 전송 - Stream: {}", streamId);
+                return Optional.of(new AnalysisSignal(
+                    streamId,
+                    ChatFirepowerStatus.NORMAL.name(), // 상태를 NORMAL로 변경
+                    clock.instant(),
+                    detectionResult.firepower()
+                ));
             }
 
             log.info("[Analysis-Step 4] 시그널 전송 결정 - Stream: {}, 상태: {}, 수치: {}",

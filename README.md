@@ -1,5 +1,7 @@
 # 🚀 Slice Stream Engine (chzzSlice Core)
 
+### 🌐 서비스 주소 [cheesepick.me](https://cheesepick.me)
+
 ## 📖 프로젝트 소개
 Java 25 가상 스레드(Virtual Threads) 기반의 고성능 실시간 스트림 데이터 수집 및 분석 엔진입니다.
 라이브 스트리밍 플랫폼(Chzzk 등)의 대규모 채팅 및 스트림 데이터를 실시간으로 수집하여, 화력이 폭발하는 하이라이트 구간을 자동으로 추출하는 chzzSlice 서비스의 핵심 코어 시스템입니다.
@@ -31,7 +33,7 @@ Java 25 가상 스레드(Virtual Threads) 기반의 고성능 실시간 스트�
 
 ### Frontend (Client) 🤖
 > 프로젝트의 핵심 역량은 **백엔드 대용량 트래픽 처리 및 데이터 파이프라인 설계**에 집중되어 있습니다.
-> 프론트엔드(`client` 모듈)는 백엔드 엔진의 실시간 데이터(SSE, 화력 차트)를 시각적으로 검증하기 위해 **100% AI (LLM) 기반으로 생성된 MVP 코드**입니다.
+> 프론트엔드(`client` 모듈)는 백엔드 엔진의 실시간 데이터(화력 차트)를 시각적으로 검증하기 위해 **LLM을 적극 활용하여 구축한 사용자/관리자 통합 대시보드**입니다.
 - **Framework**: React 18, Vite, TypeScript
 - **Routing & State**: React Router, Zod (Runtime Type Validation)
 - **Styling / UI**: Tailwind CSS, Recharts (Data Visualization)
@@ -91,5 +93,5 @@ flowchart TD
 
 ## 📂 모듈 구조 상세
 - **`engine`**: 외부 API 개입 없이 순수하게 백그라운드에서 데이터를 수집하고 분석하는 헤드리스(Headless) 워커입니다. 화력을 감지하면 API 서버로 신호를 발송합니다.
-- **`api-server`**: 클라이언트가 접근하는 관문입니다. Engine이 보내는 신호를 받아 검증하고, 이를 접속 중인 사용자들에게 실시간으로 중계(SSE/WebSocket)하거나 DB에 저장합니다.
+- **`api-server`**: 클라이언트가 접근하는 관문입니다. Engine이 보내는 신호를 받아 검증하고, 이를 접속 중인 사용자들에게 실시간으로 중계(현재 폴링 방식 적용, 향후 SSE 도입 예정)하거나 DB에 저장합니다.
 - **`client`**: 수집된 하이라이트 데이터를 시각화하는 관리자/사용자용 웹 대시보드입니다.
