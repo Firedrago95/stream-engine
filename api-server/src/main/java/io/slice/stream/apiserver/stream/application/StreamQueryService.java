@@ -4,6 +4,7 @@ import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
 import io.slice.stream.apiserver.global.error.BusinessException;
 import io.slice.stream.apiserver.global.error.ErrorCode;
 import io.slice.stream.apiserver.stream.domain.StreamRepository;
+import io.slice.stream.apiserver.stream.domain.StreamStatus;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamResponse;
 import java.time.Instant;
@@ -27,7 +28,7 @@ public class StreamQueryService {
         List<StreamEntity> activeStreams;
 
         if (keyword != null && !keyword.isBlank()) {
-            activeStreams = streamRepository.findByStreamerNameContainingIgnoreCase(keyword);
+            activeStreams = streamRepository.searchByStreamerName(keyword);
         } else {
             Instant threshold = Instant.now().minus(3, ChronoUnit.MINUTES);
             activeStreams = streamRepository.findActiveStreams(threshold);
@@ -46,7 +47,8 @@ public class StreamQueryService {
                 s.getLiveTitle(),
                 s.getProfileImageUrl(),
                 s.getCategoryName(),
-                analyzingIds.contains(s.getStreamId()) ? "ANALYZING" : "LIVE"
+                s.getConcurrentUserCount(),
+                StreamStatus.determine(s.isLive(), analyzingIds.contains(s.getStreamId()))
             ))
             .toList();
     }
@@ -64,7 +66,8 @@ public class StreamQueryService {
             s.getLiveTitle(),
             s.getProfileImageUrl(),
             s.getCategoryName(),
-            analyzingIds.contains(streamId) ? "ANALYZING" : "LIVE"
+            s.getConcurrentUserCount(),
+            StreamStatus.determine(s.isLive(), analyzingIds.contains(streamId))
         );
     }
 }

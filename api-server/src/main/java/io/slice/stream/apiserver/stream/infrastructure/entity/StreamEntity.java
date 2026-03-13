@@ -27,6 +27,8 @@ public class StreamEntity {
     @Column(columnDefinition = "TEXT")
     private String profileImageUrl;
 
+    private int concurrentUserCount;
+
     @Column(name = "category_name", length = 100)
     private String categoryName;
 
@@ -44,11 +46,12 @@ public class StreamEntity {
         this.lastUpdateAt = Instant.now();
     }
 
-    public void heartbeat(String streamerName, String liveTitle, String profileImageUrl, String categoryName) {
+    public void heartbeat(String streamerName, String liveTitle, String profileImageUrl, String categoryName, int concurrentUserCount) {
         this.streamerName = streamerName;
         this.liveTitle = liveTitle;
         this.profileImageUrl = profileImageUrl;
         this.categoryName = categoryName;
+        this.concurrentUserCount = concurrentUserCount;
         this.isLive = true;
         this.lastUpdateAt = Instant.now(); // 명시적 갱신
     }

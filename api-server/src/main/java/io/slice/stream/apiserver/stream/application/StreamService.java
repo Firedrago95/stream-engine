@@ -36,7 +36,13 @@ public class StreamService {
 
         for (StreamSyncRequest req : uniqueRequests.values()) {
             StreamEntity entity = new StreamEntity(req.streamId(), req.streamerName());
-            entity.heartbeat(req.streamerName(), req.liveTitle(), req.profileImageUrl(), req.categoryName());
+            entity.heartbeat(
+                req.streamerName(),
+                req.liveTitle(),
+                req.profileImageUrl(),
+                req.categoryName(),
+                req.concurrentUserCount()
+            );
 
             streamRepository.upsertStream(entity, currentTime);
         }
