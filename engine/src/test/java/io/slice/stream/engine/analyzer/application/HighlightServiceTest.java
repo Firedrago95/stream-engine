@@ -2,10 +2,8 @@ package io.slice.stream.engine.analyzer.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -61,15 +59,16 @@ class HighlightServiceTest {
     }
 
     @Test
-    void WAITING이_아닌_상태인_NORMAL과_PEAK는_모두_전송되어야_한다() {
+    void WAITING_상태는_NORMAL로_변환되어_전송되고_나머지는_상태_그대로_전송된다() {
         // given
         when(clock.instant()).thenReturn(FIXED_NOW);
         List<String> streamIds = List.of("stream-normal", "stream-peak", "stream-waiting");
         when(streamProvider.getActiveStreamIds()).thenReturn(streamIds);
 
-        when(detector.detect("stream-normal")).thenReturn(new DetectionResult(ChatFirepowerStatus.NORMAL, 10L)); // firepower 추가
-        when(detector.detect("stream-peak")).thenReturn(new DetectionResult(ChatFirepowerStatus.PEAK, 100L)); // firepower 추가
-        when(detector.detect("stream-waiting")).thenReturn(DetectionResult.waiting()); // DetectionResult.waiting() 사용
+        when(detector.detect("stream-normal")).thenReturn(new DetectionResult(ChatFirepowerStatus.NORMAL, 10L));
+        when(detector.detect("stream-peak")).thenReturn(new DetectionResult(ChatFirepowerStatus.PEAK, 100L));
+        // WAITING 상태 주입
+        when(detector.detect("stream-waiting")).thenReturn(DetectionResult.waiting());
 
         // when
         highlightService.monitorHighlights();
@@ -81,28 +80,43 @@ class HighlightServiceTest {
         List<AnalysisSignal> capturedSignals = captor.getValue();
 
         assertAll(
-            () -> assertThat(capturedSignals).hasSize(2),
+            // 3개의 스트림이 모두 버려지지 않고 전송되어야 함
+            () -> assertThat(capturedSignals).hasSize(3),
+            // WAITING이 NORMAL로 둔갑했으므로 NORMAL 2개, PEAK 1개여야 함
             () -> assertThat(capturedSignals)
                 .extracting(AnalysisSignal::status)
-                .containsExactlyInAnyOrder("NORMAL", "PEAK")
+                .containsExactlyInAnyOrder("NORMAL", "PEAK", "NORMAL")
                 .doesNotContain("WAITING"),
             () -> assertThat(capturedSignals)
                 .extracting(AnalysisSignal::streamId)
-                .containsExactlyInAnyOrder("stream-normal", "stream-peak")
+                .containsExactlyInAnyOrder("stream-normal", "stream-peak", "stream-waiting")
         );
     }
 
     @Test
-    void 분석_가능한_신호가_하나도_없으면_클라이언트를_호출하지_않는다() {
+    void 분석_결과가_모두_WAITING이어도_차트_렌더링을_위해_NORMAL로_변환하여_클라이언트를_호출한다() {
         // given
+        // WAITING이어도 AnalysisSignal 객체를 만들기 위해 clock이 호출되므로 Mock 설정 추가
+        when(clock.instant()).thenReturn(FIXED_NOW);
         when(streamProvider.getActiveStreamIds()).thenReturn(List.of("stream-waiting1", "stream-waiting2"));
-        when(detector.detect(anyString())).thenReturn(DetectionResult.waiting()); // DetectionResult.waiting() 사용
+        when(detector.detect(anyString())).thenReturn(DetectionResult.waiting());
 
         // when
         highlightService.monitorHighlights();
 
         // then
-        verify(signalClient, never()).send(anyList());
+        ArgumentCaptor<List<AnalysisSignal>> captor = ArgumentCaptor.forClass(List.class);
+
+        // 예전엔 never()였지만, 이제는 전송해야 성공!
+        verify(signalClient, times(1)).send(captor.capture());
+
+        List<AnalysisSignal> capturedSignals = captor.getValue();
+        assertAll(
+            () -> assertThat(capturedSignals).hasSize(2),
+            () -> assertThat(capturedSignals)
+                .extracting(AnalysisSignal::status)
+                .containsOnly("NORMAL") // 💡 모두 NORMAL로 변환되었는지 검증
+        );
     }
 
     @Test
@@ -112,9 +126,10 @@ class HighlightServiceTest {
         List<String> streamIds = List.of("stream-normal", "stream-exception", "stream-peak");
         when(streamProvider.getActiveStreamIds()).thenReturn(streamIds);
 
-        when(detector.detect("stream-normal")).thenReturn(new DetectionResult(ChatFirepowerStatus.NORMAL, 20L)); // firepower 추가
+        when(detector.detect("stream-normal")).thenReturn(new DetectionResult(ChatFirepowerStatus.NORMAL, 20L));
+        // 예외 발생 시나리오
         when(detector.detect("stream-exception")).thenThrow(new RuntimeException("Detector temporary error"));
-        when(detector.detect("stream-peak")).thenReturn(new DetectionResult(ChatFirepowerStatus.PEAK, 200L)); // firepower 추가
+        when(detector.detect("stream-peak")).thenReturn(new DetectionResult(ChatFirepowerStatus.PEAK, 200L));
 
         // when
         highlightService.monitorHighlights();
@@ -124,6 +139,8 @@ class HighlightServiceTest {
         verify(signalClient, times(1)).send(captor.capture());
 
         List<AnalysisSignal> capturedSignals = captor.getValue();
+
+        // 예외가 발생한 스트림만 Optional.empty()로 걸러지고 나머지 2개는 정상 전송
         assertThat(capturedSignals).hasSize(2);
         assertThat(capturedSignals)
             .extracting(AnalysisSignal::streamId)
