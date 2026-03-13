@@ -34,7 +34,7 @@ const MainPage = () => {
             {searchTerm && (
                 <button
                     onClick={() => setSearchTerm("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white text-xs font-bold"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a1a1aa] hover:text-white text-xs font-bold"
                 >
                   ✕
                 </button>
@@ -44,12 +44,12 @@ const MainPage = () => {
 
         {/* 로딩 상태 표시 */}
         {isLoading && streams.length === 0 && (
-            <div className="text-gray-400 p-20 text-center animate-pulse">방송 목록을 불러오는 중...</div>
+            <div className="text-[#a1a1aa] p-20 text-center animate-pulse">방송 목록을 불러오는 중...</div>
         )}
 
         {/* 결과 없음 처리 */}
         {!isLoading && streams.length === 0 && (
-            <div className="text-center py-20 text-gray-500 bg-[#1a1a1c] rounded-2xl border border-gray-800">
+            <div className="text-center py-20 text-[#a1a1aa] bg-[#1a1a1c] rounded-2xl border border-gray-800">
               {searchTerm ? `'${searchTerm}'에 대한 검색 결과가 없습니다.` : "현재 라이브 중인 방송이 없습니다."}
             </div>
         )}

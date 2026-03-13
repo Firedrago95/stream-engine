@@ -27,6 +27,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
     profileImageUrl: string;
     liveTitle: string;
     status: string;
+    concurrentUserCount?: number;
   } | null>(null);
 
   const { analysisData, isLoading, error, isGathering } = useStreamAnalysis(
@@ -114,7 +115,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   const chartDisplayData = useMemo(() => {
     const currentSource = selectedTab === "realtime" ? stableData : historicalData;
-    const totalSlots = CONFIG.DISPLAY_POINTS;
+    const totalSlots = selectedTab === "realtime" ? CONFIG.DISPLAY_POINTS : currentSource.length;
     const result = new Array(totalSlots);
 
     for (let i = 0; i < totalSlots; i++) {
@@ -150,7 +151,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
             streamerName={streamerInfo?.streamerName}
             profileImageUrl={streamerInfo?.profileImageUrl}
             isLive={isLive}
-            onToggleLive={() => setIsLive(!isLive)}
+            status={streamerInfo?.status}
+            viewers={streamerInfo?.concurrentUserCount}
         />
         <AnalysisTabs availableDates={availableDates} selected={selectedTab} onSelect={(tab) => { setSelectedTab(tab); setHoveredData({ value: null, time: null }); }} />
         <AnalysisChart
