@@ -15,6 +15,8 @@ const CONFIG = {
   CHART_COLOR: "#00FFA3",
 };
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
 export const StreamAnalysisDashboard: React.FC = () => {
   const { streamId } = useParams<{ streamId: string }>();
   const navigate = useNavigate();
@@ -46,7 +48,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   useEffect(() => {
     if (!streamId) return;
-    fetch(`/api/v1/streams/${streamId}`)
+    fetch(`${API_BASE_URL}/api/v1/streams/${streamId}`)
     .then(res => res.ok ? res.json() : null)
     .then(data => {
       if (data) {
@@ -59,7 +61,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   useEffect(() => {
     if (!streamId) return;
-    fetch(`/api/v1/analysis/streams/${streamId}/available-dates?limit=10`)
+    fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/available-dates?limit=10`)
     .then(res => res.ok ? res.json() : [])
     .then((dates: string[]) => {
       setAvailableDates(["realtime", ...dates]);
@@ -87,7 +89,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
       return;
     }
 
-    fetch(`/api/v1/analysis/streams/${streamId}/history?date=${selectedTab}`)
+    fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/history?date=${selectedTab}`)
     .then(res => res.ok ? res.json() : { dataPoints: [] })
     .then(data => {
       const sortedHistory = (data.dataPoints || []).sort((a: any, b: any) => a.timestamp - b.timestamp);
