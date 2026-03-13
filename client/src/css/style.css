@@ -117,8 +117,6 @@
   --text-6xl: 3.75rem;
   --text-6xl--line-height: 1.2;
   --text-6xl--letter-spacing: -0.02em;
-
-  --breakpoint-xs: 480px;
 }
 
 @layer base {
