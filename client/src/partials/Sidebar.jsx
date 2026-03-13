@@ -35,7 +35,7 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
               <img
                   src="/cheese-pick-logo.png"
                   alt="Cheese-Pick Logo"
-                  className="w-8 h-16 shrink-0 rounded"
+                  className="w-16 h-16 shrink-0 rounded"
               />
 
               {/* 💡 브랜드 텍스트: 숨김 클래스(opacity-0 등)를 전부 제거하여 무조건 보이게 수정 */}
