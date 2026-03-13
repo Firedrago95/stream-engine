@@ -69,7 +69,7 @@ chzzk:
 
   # 3. 수집할 방송 갯수
   discovery:
-    limit: 5
+    limit: 50
 
 highlight:
   # 채팅 평균 산출 기간

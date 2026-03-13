@@ -3,6 +3,7 @@ package io.slice.stream.engine.chat.application;
 import io.slice.stream.engine.chat.domain.ChatCollector;
 import io.slice.stream.engine.chat.domain.ChatCollectorFactory;
 import io.slice.stream.engine.core.model.StreamTarget;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,14 +19,22 @@ public class ChatManager {
 
     public void manageStreams(Set<StreamTarget> newStreamTargets, Set<String> closedChatChannelIds) {
         if (!newStreamTargets.isEmpty()) {
-            newStreamTargets.forEach(streamTarget -> {
-                chatCollectors.put(streamTarget.chatChannelId(), manageNewStreams(streamTarget));
-                try {
-                    Thread.sleep(600);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            });
+            List<StreamTarget> targets = newStreamTargets.stream().toList();
+
+            for (int i = 0; i < targets.size(); i++) {
+                int index = i;
+                StreamTarget streamTarget = targets.get(i);
+
+                Thread.startVirtualThread(() -> {
+                    try {
+                        Thread.sleep(index * 600L);
+                        chatCollectors.computeIfAbsent(streamTarget.chatChannelId(),
+                            id -> manageNewStreams(streamTarget));
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                });
+            }
         }
 
         if (!closedChatChannelIds.isEmpty()) {

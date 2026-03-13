@@ -1,5 +1,6 @@
 package io.slice.stream.engine.ingestion.infrastructure.chzzk;
 
+import com.google.common.util.concurrent.RateLimiter;
 import io.slice.stream.engine.core.model.StreamTarget;
 import io.slice.stream.engine.global.error.ErrorCode;
 import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
@@ -11,9 +12,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +31,7 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
 
     private final RestClient restClient;
     private final ExecutorService virtualThreadExecutor;
+    private final RateLimiter rateLimiter = RateLimiter.create(10.0);
 
     @Value("${chzzk.api.live-fetch}")
     private final String liveFetch;
@@ -62,26 +63,19 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
     }
 
     private List<StreamTarget> fetchAllLiveDetailsConcurrently(List<ChzzkLive> lives) {
-        List<Callable<StreamTarget>> tasks = lives.stream()
-            .<Callable<StreamTarget>>map(live -> () -> convertToStreamTarget(live))
-            .toList();
+        List<CompletableFuture<StreamTarget>> futures = lives.stream()
+            .map(live -> CompletableFuture.supplyAsync(() -> {
+                rateLimiter.acquire();
+                return convertToStreamTarget(live);
+            }, virtualThreadExecutor)).toList();
 
         try {
-            List<Future<StreamTarget>> futures = virtualThreadExecutor.invokeAll(tasks);
             return futures.stream()
-                .map(future -> {
-                    try {
-                        return future.get();
-                    } catch (Exception e) {
-                        log.warn("상세 정보 조회 작업 결과 가져오기 실패", e);
-                        return null;
-                    }
-                })
+                .map(CompletableFuture::join)
                 .filter(Objects::nonNull)
                 .toList();
-        } catch (InterruptedException e) {
-            log.warn("상세 정보 조회 작업이 중단되었습니다.", e);
-            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            log.warn("상세 정보 조회 전체 대기 중 작업이 중단되었습니다.",e);
             return Collections.emptyList();
         }
     }
@@ -89,7 +83,6 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
     private StreamTarget convertToStreamTarget(ChzzkLive topLive) {
         String channelId = topLive.channel().channelId();
         try {
-            Thread.sleep((long) (Math.random() * 2000));
             log.debug("채널 id로 상세 조회 시작: {}", channelId);
             ChzzkLiveDetailResponse.Content detailContent = fetchLiveDetail(channelId);
             return new StreamTarget(
