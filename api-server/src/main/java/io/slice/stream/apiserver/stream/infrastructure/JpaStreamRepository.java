@@ -19,24 +19,32 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
            SELECT s FROM StreamEntity s 
            WHERE s.isLive = true 
              AND s.lastUpdateAt > :threshold 
-           ORDER BY s.lastUpdateAt DESC
+           ORDER BY s.concurrentUserCount DESC
            """)
     List<StreamEntity> findActiveStreams(@Param("threshold") Instant threshold);
 
-    List<StreamEntity> findByStreamerNameContainingIgnoreCase(String keyword);
-
     @Modifying
     @Query(value = """
-        INSERT INTO streams (stream_id, streamer_name, live_title, profile_image_url, category_name, is_live, last_update_at)
-        VALUES (:#{#s.streamId}, :#{#s.streamerName}, :#{#s.liveTitle}, :#{#s.profileImageUrl}, :#{#s.categoryName}, true, :currentTime)
-        ON CONFLICT (stream_id) 
-        DO UPDATE SET 
-            streamer_name = EXCLUDED.streamer_name,
-            live_title = EXCLUDED.live_title,
-            profile_image_url = EXCLUDED.profile_image_url,
-            category_name = EXCLUDED.category_name,
-            is_live = true,
-            last_update_at = EXCLUDED.last_update_at
+        INSERT INTO streams (stream_id, streamer_name, live_title, profile_image_url, category_name, concurrent_user_count, is_live, last_update_at)
+            VALUES (:#{#s.streamId}, :#{#s.streamerName}, :#{#s.liveTitle}, :#{#s.profileImageUrl}, :#{#s.categoryName}, :#{#s.concurrentUserCount}, true, :currentTime)
+            ON CONFLICT (stream_id)\s
+            DO UPDATE SET\s
+                streamer_name = EXCLUDED.streamer_name,
+                live_title = EXCLUDED.live_title,
+                profile_image_url = EXCLUDED.profile_image_url,
+                category_name = EXCLUDED.category_name,
+                concurrent_user_count = EXCLUDED.concurrent_user_count,
+                is_live = true,
+                last_update_at = EXCLUDED.last_update_at
         """, nativeQuery = true)
     void upsertStream(@Param("s") StreamEntity s, @Param("currentTime") Instant currentTime);
+
+    @Query("""
+           SELECT s FROM StreamEntity s
+           WHERE LOWER(s.streamerName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+           ORDER BY
+            CASE WHEN s.isLive = true AND s.lastUpdateAt > :threshold THEN 1 ELSE 0 END DESC,
+            s.concurrentUserCount DESC
+           """)
+    List<StreamEntity> searchByStreamerName(@Param("keyword") String keyword, @Param("threshold") Instant threshold);
 }

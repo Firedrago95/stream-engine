@@ -49,7 +49,7 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
 
           <div className="space-y-8">
             <div>
-              <h3 className="text-xs uppercase text-gray-500 font-semibold pl-3">
+              <h3 className="text-xs uppercase text-[#a1a1aa] font-semibold pl-3">
                 <span className="hidden md:block lg:sidebar-expanded:hidden 2xl:hidden text-center w-6" aria-hidden="true">•••</span>
                 <span className="md:hidden lg:sidebar-expanded:block 2xl:block">메뉴</span>
               </h3>

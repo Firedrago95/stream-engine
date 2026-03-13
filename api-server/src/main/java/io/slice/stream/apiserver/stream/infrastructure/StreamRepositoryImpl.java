@@ -20,8 +20,8 @@ public class StreamRepositoryImpl implements StreamRepository {
     }
 
     @Override
-    public List<StreamEntity> findByStreamerNameContainingIgnoreCase(String keyword) {
-        return jpaStreamRepository.findByStreamerNameContainingIgnoreCase(keyword);
+    public List<StreamEntity> searchByStreamerName(String keyword, Instant threshold) {
+        return jpaStreamRepository.searchByStreamerName(keyword, threshold);
     }
 
     @Override
