@@ -31,12 +31,11 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
           <div className="flex items-center justify-start mb-10 pl-1.5 pr-3 sm:px-2">
             <NavLink end to="/" className="flex items-center gap-3 overflow-hidden">
 
-              {/* 💡 직접 만드신 로고를 넣을 자리입니다 (더미 이미지 적용) */}
-              {/* 나중에 src="이미지경로" 로 수정하시면 됩니다! */}
+              {/* 로고 */}
               <img
                   src="/cheese-pick-logo.png"
                   alt="Cheese-Pick Logo"
-                  className="w-8 h-8 shrink-0 rounded"
+                  className="w-8 h-16 shrink-0 rounded"
               />
 
               {/* 💡 브랜드 텍스트: 숨김 클래스(opacity-0 등)를 전부 제거하여 무조건 보이게 수정 */}
