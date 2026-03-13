@@ -28,7 +28,7 @@ public class ChatManager {
                 Thread.startVirtualThread(() -> {
                     try {
                         Thread.sleep(index * 600L);
-                        chatCollectors.computeIfAbsent(streamTarget.chatChannelId(),
+                        chatCollectors.computeIfAbsent(streamTarget.channelId(),
                             id -> manageNewStreams(streamTarget));
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
@@ -38,8 +38,8 @@ public class ChatManager {
         }
 
         if (!closedChatChannelIds.isEmpty()) {
-            closedChatChannelIds.forEach(chatChannelId -> {
-                ChatCollector collector = chatCollectors.remove(chatChannelId);
+            closedChatChannelIds.forEach(channelId -> {
+                ChatCollector collector = chatCollectors.remove(channelId);
                 if (collector != null) {
                     collector.disconnect();
                 }

@@ -43,13 +43,13 @@ class ChatManagerTest {
         StreamTarget streamTarget1 = new StreamTarget("stream1", "스트리머1", "chat1", 1L, "제목1", 100, "https://thumb.com/1.jpg", "음악");
         StreamTarget streamTarget2 = new StreamTarget("stream2", "스트리머2", "chat2", 2L, "제목2", 200, "https://thumb.com/2.jpg", "게임");
         Set<StreamTarget> newStreamTargets = Set.of(streamTarget1, streamTarget2);
-        Set<String> closedChatChannelIds = Collections.emptySet();
+        Set<String> closedStreamIds = Collections.emptySet(); // 💡 변수명 변경 (ChatChannelId -> StreamId)
 
         when(chatCollectorFactory.start(streamTarget1)).thenReturn(mockCollector);
         when(chatCollectorFactory.start(streamTarget2)).thenReturn(mockCollector);
 
         // when
-        chatManager.manageStreams(newStreamTargets, closedChatChannelIds);
+        chatManager.manageStreams(newStreamTargets, closedStreamIds);
 
         // then
         verify(chatCollectorFactory, timeout(2000).times(1)).start(streamTarget1);
@@ -63,15 +63,16 @@ class ChatManagerTest {
         Set<StreamTarget> initialStreamTargets = Set.of(streamTarget1);
         ChatCollector collectorToStop = mock(ChatCollector.class);
         when(chatCollectorFactory.start(streamTarget1)).thenReturn(collectorToStop);
-        chatManager.manageStreams(initialStreamTargets, Collections.emptySet());
 
+        // 먼저 등록
+        chatManager.manageStreams(initialStreamTargets, Collections.emptySet());
         verify(chatCollectorFactory, timeout(2000)).start(streamTarget1);
 
         Set<StreamTarget> newStreamTargets = Collections.emptySet();
-        Set<String> closedChatChannelIds = Set.of(streamTarget1.chatChannelId());
+        Set<String> closedStreamIds = Set.of(streamTarget1.channelId());
 
         // when
-        chatManager.manageStreams(newStreamTargets, closedChatChannelIds);
+        chatManager.manageStreams(newStreamTargets, closedStreamIds);
 
         // then
         verify(collectorToStop).disconnect();
@@ -89,14 +90,15 @@ class ChatManagerTest {
         StreamTarget streamTargetNew1 = new StreamTarget("streamNew1", "신규1", "chatNew1", 101L, "신규제목1", 111, "https://thumb.com/new1.jpg", "게임");
         StreamTarget streamTargetNew2 = new StreamTarget("streamNew2", "신규2", "chatNew2", 102L, "신규제목2", 222, "https://thumb.com/new2.jpg", "먹방");
         Set<StreamTarget> newStreamTargets = Set.of(streamTargetNew1, streamTargetNew2);
-        Set<String> closedChatChannelIds = Set.of(streamTargetToClose.chatChannelId());
+
+        Set<String> closedStreamIds = Set.of(streamTargetToClose.channelId());
 
         ChatCollector newCollector = mock(ChatCollector.class);
         when(chatCollectorFactory.start(streamTargetNew1)).thenReturn(newCollector);
         when(chatCollectorFactory.start(streamTargetNew2)).thenReturn(newCollector);
 
         // when
-        chatManager.manageStreams(newStreamTargets, closedChatChannelIds);
+        chatManager.manageStreams(newStreamTargets, closedStreamIds);
 
         // then
         verify(chatCollectorFactory, timeout(2000).times(1)).start(streamTargetNew1);
@@ -108,10 +110,10 @@ class ChatManagerTest {
     void 스트림에_변화가_없을_경우_아무_동작도_하지_않아야_한다() {
         // given
         Set<StreamTarget> newStreamTargets = Collections.emptySet();
-        Set<String> closedChatChannelIds = Collections.emptySet();
+        Set<String> closedStreamIds = Collections.emptySet();
 
         // when
-        chatManager.manageStreams(newStreamTargets, closedChatChannelIds);
+        chatManager.manageStreams(newStreamTargets, closedStreamIds);
 
         // then
         verify(chatCollectorFactory, never()).start(any(StreamTarget.class));
@@ -121,10 +123,10 @@ class ChatManagerTest {
     void 관리하지_않는_스트림의_종료_요청은_무시해야_한다() {
         // given
         Set<StreamTarget> newStreamTargets = Collections.emptySet();
-        Set<String> closedChatChannelIds = Set.of("nonExistentChatChannel");
+        Set<String> closedStreamIds = Set.of("nonExistentStreamId");
 
         // when
-        chatManager.manageStreams(newStreamTargets, closedChatChannelIds);
+        chatManager.manageStreams(newStreamTargets, closedStreamIds);
 
         // then
         verify(mockCollector, never()).disconnect();
