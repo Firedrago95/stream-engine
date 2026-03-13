@@ -15,9 +15,7 @@ public class AnalysisCommandService {
     private final ApplicationEventPublisher eventPublisher;
 
     public void processSignals(List<AnalysisSignal> signals) {
-        signals.forEach(signal -> {
-            log.info("[Analysis] 신호 수신 - 스트림: {}, 상태: {}",signal.streamId(), signal.status());
-            eventPublisher.publishEvent(signal);
-        });
+        log.info("[Analysis] 신호 수신 - {}건의 방송 화력 신호 수신 완료", signals.size());
+        signals.forEach(eventPublisher::publishEvent);
     }
 }
