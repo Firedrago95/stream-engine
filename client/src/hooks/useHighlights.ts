@@ -11,6 +11,9 @@ export interface HighlightResponse {
   endTime: string | null;
   peakFirepower: number;
   durationSeconds: number;
+  startTimeOffset: number;
+  endTimeOffset: number | null;
+  externalVodId?: string | null;
 }
 
 export const useHighlights = (streamId: string, dateStr?: string, interval = 5000) => {

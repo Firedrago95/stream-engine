@@ -165,7 +165,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
             error={error} selectedTab={selectedTab} historyEmpty={historicalData.length === 0}
             onMouseMove={handleMouseMove} onMouseLeave={() => setHoveredData({value:null, time:null})} formatTime={formatTime}
         />
-        <HighlightSection highlights={highlights} formatTime={formatTime} />
+        <HighlightSection highlights={highlights}/>
       </div>
   );
 };
