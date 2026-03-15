@@ -20,7 +20,7 @@ class AnalysisSignalRequestTest {
     void 화력_수치가_음수이면_검증에_실패한다() {
         // given
         AnalysisSignalRequest request = new AnalysisSignalRequest(
-            "test-stream", "PEAK", Instant.now(), -100L // 음수 화력
+            "test-stream", "PEAK", Instant.now(), -100L, 1000L // 음수 화력
         );
 
         // when
@@ -35,7 +35,7 @@ class AnalysisSignalRequestTest {
     void 필수_값이_누락되면_검증에_실패한다() {
         // given
         AnalysisSignalRequest request = new AnalysisSignalRequest(
-            "", null, null, 500L // 빈 ID, null 상태, null 시간
+            "", null, null, 500L, 1000L // 빈 ID, null 상태, null 시간
         );
 
         // when
@@ -50,8 +50,9 @@ class AnalysisSignalRequestTest {
         // given
         String streamId = "valid-id";
         long firepower = 1234L;
+        long offsetMs = 5000L;
         AnalysisSignalRequest request = new AnalysisSignalRequest(
-            streamId, "NORMAL", Instant.now(), firepower
+            streamId, "NORMAL", Instant.now(), firepower, offsetMs
         );
 
         // when

@@ -29,15 +29,28 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
     @Test
     void 특정_스트림의_진행중인_세션을_가장_최근_시작시간_기준으로_조회한다() {
         // given
-        String streamId = "test-stream-session"; // 별도의 ID 사용
+        String streamId = "test-stream-session";
         Instant baseTime = Instant.now();
+        long baseOffset = 3600000L; // 1시간 지점
 
-        // 과거 세션은 FINISHED 상태여야 함
-        HighlightEventEntity oldSession = new HighlightEventEntity(streamId, baseTime.minus(1, ChronoUnit.HOURS), baseTime, 100L);
-        oldSession.finish(baseTime);
+        HighlightEventEntity oldSession = new HighlightEventEntity(
+            streamId,
+            baseTime.minus(1, ChronoUnit.HOURS),
+            baseOffset - 3600000L,
+            baseTime.minus(1, ChronoUnit.HOURS),
+            baseOffset - 3600000L,
+            100L
+        );
+        oldSession.finish(baseTime, baseOffset);
 
-        // 현재 진행 중인 세션 하나만 ONGOING 유지
-        HighlightEventEntity recentSession = new HighlightEventEntity(streamId, baseTime, baseTime, 200L);
+        HighlightEventEntity recentSession = new HighlightEventEntity(
+            streamId,
+            baseTime,
+            baseOffset,
+            baseTime,
+            baseOffset,
+            200L
+        );
 
         repository.save(oldSession);
         repository.save(recentSession);
@@ -48,6 +61,7 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
         // then
         assertThat(result).isPresent();
         assertThat(result.get().getPeakFirepower()).isEqualTo(200L);
+        assertThat(result.get().getStartTimeOffset()).isEqualTo(baseOffset);
     }
 
     @Test
@@ -55,9 +69,18 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
         // given
         String streamId = "test-stream-2";
         Instant baseTime = Instant.now();
+        long baseOffset = 5000L;
 
-        HighlightEventEntity finishedSession = new HighlightEventEntity(streamId, baseTime.minus(1, ChronoUnit.HOURS), baseTime, 100L);
-        finishedSession.finish(baseTime.plus(10, ChronoUnit.SECONDS)); // 상태를 FINISHED로 변경
+        HighlightEventEntity finishedSession = new HighlightEventEntity(
+            streamId,
+            baseTime.minus(1, ChronoUnit.HOURS),
+            0L,
+            baseTime.minus(1, ChronoUnit.HOURS),
+            0L,
+            100L
+        );
+
+        finishedSession.finish(baseTime.plus(10, ChronoUnit.SECONDS), baseOffset + 10000L);
 
         repository.save(finishedSession);
 
@@ -76,16 +99,18 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
         Instant target2 = Instant.parse("2026-03-04T15:00:00Z");
         Instant otherDay = Instant.parse("2026-03-03T23:59:59Z");
 
-        // 만약 생성자에서 기본 상태가 ONGOING이라면, 하나를 제외하고는 finish()를 호출해 상태를 변경해야 합니다.
-        HighlightEventEntity event1 = new HighlightEventEntity(streamId, target2, target2.plusSeconds(10), 200L);
-        event1.finish(target2.plusSeconds(10)); // 상태를 FINISHED로 변경하여 중복 회피
+        HighlightEventEntity event1 = new HighlightEventEntity(streamId, target2, 50000L, target2, 50000L, 200L);
+        event1.finish(target2.plusSeconds(10), 60000L);
 
-        HighlightEventEntity event2 = new HighlightEventEntity(streamId, target1, target1.plusSeconds(10), 100L);
-        event2.finish(target1.plusSeconds(10));
+        HighlightEventEntity event2 = new HighlightEventEntity(streamId, target1, 10000L, target1, 10000L, 100L);
+        event2.finish(target1.plusSeconds(10), 20000L);
 
         repository.save(event1);
         repository.save(event2);
-        repository.save(new HighlightEventEntity(streamId, otherDay, otherDay.plusSeconds(10), 50L));
+
+        HighlightEventEntity eventOther = new HighlightEventEntity(streamId, otherDay, 0L, otherDay, 0L, 50L);
+        eventOther.finish(otherDay.plusSeconds(10), 10000L);
+        repository.save(eventOther);
 
         Instant start = Instant.parse("2026-03-04T00:00:00Z");
         Instant end = Instant.parse("2026-03-05T00:00:00Z");
@@ -95,5 +120,7 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
 
         // then
         assertThat(results).hasSize(2);
+        // 시작 시간 기준 정렬 확인 (repository 쿼리에 정렬 조건이 있다면)
+        assertThat(results.get(0).getStartTimeOffset()).isLessThan(results.get(1).getStartTimeOffset());
     }
 }

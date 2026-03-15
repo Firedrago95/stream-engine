@@ -36,7 +36,8 @@ public class AnalysisRepositoryImpl implements AnalysisRepository {
                 signal.streamId(),
                 signal.status(),
                 signal.timestamp(),
-                signal.firepower()
+                signal.firepower(),
+                signal.offsetMs()
             );
             jpaRepository.save(entity);
         } catch (DataAccessException e) {
@@ -53,7 +54,8 @@ public class AnalysisRepositoryImpl implements AnalysisRepository {
                 e.getStreamId(),
                 e.getStatus(),
                 e.getTimestamp(),
-                e.getFirepower()
+                e.getFirepower(),
+                e.getOffsetMs()
             ))
             .toList();
     }
@@ -74,7 +76,7 @@ public class AnalysisRepositoryImpl implements AnalysisRepository {
     @Override
     public List<AnalysisDataPoint> findRawHistory(String streamId, Instant start, Instant end) {
         return jpaRepository.findRawHistoryByDate(streamId, start, end).stream()
-            .map(e -> new AnalysisDataPoint(e.getTimestamp().toEpochMilli(), e.getFirepower(), e.getStatus()))
+            .map(e -> new AnalysisDataPoint(e.getTimestamp().toEpochMilli(), e.getFirepower(), e.getStatus(), e.getOffsetMs()))
             .toList();
     }
 
@@ -86,7 +88,8 @@ public class AnalysisRepositoryImpl implements AnalysisRepository {
                 return new AnalysisDataPoint(
                     p.getTimestampMinute().getTime(),
                     p.getFirepowerMax(),
-                    p.getStatus()
+                    p.getStatus(),
+                    p.getOffsetMs()
                 );
             })
             .filter(Objects::nonNull)

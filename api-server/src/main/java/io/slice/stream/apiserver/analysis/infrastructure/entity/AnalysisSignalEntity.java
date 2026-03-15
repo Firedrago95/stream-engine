@@ -35,10 +35,14 @@ public class AnalysisSignalEntity {
     @Column(nullable = false)
     private Long firepower;
 
-    public AnalysisSignalEntity(String streamId, String status, Instant timestamp, Long firepower) {
+    @Column(name = "offset_ms")
+    private Long offsetMs;
+
+    public AnalysisSignalEntity(String streamId, String status, Instant timestamp, Long firepower, Long offsetMs) {
         this.streamId = streamId;
         this.status = status;
         this.timestamp = timestamp;
         this.firepower = firepower;
+        this.offsetMs = offsetMs;
     }
 }

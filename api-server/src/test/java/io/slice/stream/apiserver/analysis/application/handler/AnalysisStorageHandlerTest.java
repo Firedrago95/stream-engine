@@ -29,7 +29,7 @@ class AnalysisStorageHandlerTest {
     @Test
     void 이벤트가_방생하면_저장소_저장_메서드가_호출된다() {
         // given
-        AnalysisSignal signal = AnalysisSignal.of("test-stream", "NORMAL", Instant.now(), 100L);
+        AnalysisSignal signal = AnalysisSignal.of("test-stream", "NORMAL", Instant.now(), 100L, 1000L);
 
         // when
         analysisStorageHandler.handleAnalysisSignal(signal);
