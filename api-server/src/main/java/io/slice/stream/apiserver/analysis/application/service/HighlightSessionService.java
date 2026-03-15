@@ -108,7 +108,7 @@ public class HighlightSessionService {
             adjustedStart,
             startTimeOffset,
             signal.timestamp(), // 최초 피크 시간
-            signal.offsetMs(),
+            sateOffset,
             signal.firepower()
         );
 
