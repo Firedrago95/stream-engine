@@ -6,9 +6,10 @@ public record AnalysisSignal(
     String streamId,
     String status,
     Instant timestamp,
-    long firepower
+    long firepower,
+    Long offsetMs
 ) {
-    public static AnalysisSignal of (String streamId, String status, Instant timestamp, long firepower) {
-        return new AnalysisSignal(streamId, status, timestamp, firepower);
+    public static AnalysisSignal of(String streamId, String status, Instant timestamp, long firepower, Long offsetMs) {
+        return new AnalysisSignal(streamId, status, timestamp, firepower, offsetMs);
     }
 }

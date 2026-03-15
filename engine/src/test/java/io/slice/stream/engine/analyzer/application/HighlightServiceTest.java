@@ -69,7 +69,7 @@ class HighlightServiceTest {
         when(clock.instant()).thenReturn(FIXED_NOW);
         when(props.fetchBufferSeconds()).thenReturn(15); // YAML 설정값 Mocking
 
-        StreamTarget target = new StreamTarget("stream1", "침착맨", "chat1", 1L, "title", 1000, "url", "게임");
+        StreamTarget target = new StreamTarget("stream1", "침착맨", "chat1", 1L, "title", 1000, "url", "게임", Instant.EPOCH);
         when(streamProvider.getActiveStreamTargets()).thenReturn(List.of(target));
 
         StreamTierInfo mockTierInfo = StreamTierInfo.builder().tier(StreamTier.GROUP_A).windowSeconds(60).build();
@@ -101,7 +101,7 @@ class HighlightServiceTest {
         when(clock.instant()).thenReturn(FIXED_NOW);
         when(props.fetchBufferSeconds()).thenReturn(15);
 
-        StreamTarget target = new StreamTarget("stream-wait", "하꼬방", "chat1", 1L, "title", 10, "url", "소통");
+        StreamTarget target = new StreamTarget("stream-wait", "하꼬방", "chat1", 1L, "title", 10, "url", "소통", Instant.EPOCH);
         when(streamProvider.getActiveStreamTargets()).thenReturn(List.of(target));
 
         StreamTierInfo mockTierInfo = StreamTierInfo.builder().tier(StreamTier.GROUP_B).windowSeconds(120).build();

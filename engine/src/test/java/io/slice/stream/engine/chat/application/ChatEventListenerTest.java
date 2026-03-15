@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import io.slice.stream.engine.analyzer.domain.stream.ActiveStreamProvider;
 import io.slice.stream.engine.core.event.StreamChangedEvent;
 import io.slice.stream.engine.core.model.StreamTarget;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -36,7 +37,7 @@ class ChatEventListenerTest {
     @Test
     void 엔진_시작_시_활성_스트림이_존재하면_ChatManager의_manageStreams를_호출하여_재개해야_한다() {
         // given
-        StreamTarget target = new StreamTarget("stream1", "채널명", "chat1", 1L, "제목", 100, "url", "카테고리");
+        StreamTarget target = new StreamTarget("stream1", "채널명", "chat1", 1L, "제목", 100, "url", "카테고리", Instant.EPOCH);
         List<StreamTarget> activeTargets = List.of(target);
         when(activeStreamProvider.getActiveStreamTargets()).thenReturn(activeTargets);
 
@@ -62,7 +63,7 @@ class ChatEventListenerTest {
     @Test
     void StreamChangedEvent를_수신하면_ChatManager의_manageStreams를_호출해야_한다() {
         // given
-        StreamTarget streamTarget1 = new StreamTarget("stream1", "침착맨", "chat1", 1L, "title1", 100, "https://thumb.com/1.jpg", "소통");
+        StreamTarget streamTarget1 = new StreamTarget("stream1", "침착맨", "chat1", 1L, "title1", 100, "https://thumb.com/1.jpg", "소통", Instant.EPOCH);
         Set<StreamTarget> newStreamTargets = Set.of(streamTarget1);
         Set<String> closedStreamIds = Set.of("stream3");
         StreamChangedEvent event = new StreamChangedEvent(newStreamTargets, closedStreamIds);

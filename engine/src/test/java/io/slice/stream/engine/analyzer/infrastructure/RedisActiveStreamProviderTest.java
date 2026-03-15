@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import io.slice.stream.engine.core.model.StreamTarget;
 import io.slice.stream.engine.core.redis.Rediskeys;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -63,7 +64,7 @@ class RedisActiveStreamProviderTest {
         when(redisTemplate.execute(eq(getActiveTargetsScript), anyList())).thenReturn(rawResults);
 
         // Jackson 역직렬화 모킹
-        StreamTarget expectedTarget = new StreamTarget("id1", "name", "chat1", 1L, "title", 10, "url", "cat");
+        StreamTarget expectedTarget = new StreamTarget("id1", "name", "chat1", 1L, "title", 10, "url", "cat", Instant.EPOCH);
         when(jsonMapper.readValue(json1, StreamTarget.class)).thenReturn(expectedTarget);
 
         // when
@@ -93,7 +94,7 @@ class RedisActiveStreamProviderTest {
         String jsonError = "{\"channelId\":\"error\"}";
         when(redisTemplate.execute(eq(getActiveTargetsScript), anyList())).thenReturn(List.of(jsonNormal, jsonError));
 
-        StreamTarget normalTarget = new StreamTarget("normal", "n", "c", 1L, "t", 0, "u", "cat");
+        StreamTarget normalTarget = new StreamTarget("normal", "n", "c", 1L, "t", 0, "u", "cat", Instant.EPOCH);
         when(jsonMapper.readValue(jsonNormal, StreamTarget.class)).thenReturn(normalTarget);
         when(jsonMapper.readValue(jsonError, StreamTarget.class)).thenThrow(new RuntimeException("fail"));
 

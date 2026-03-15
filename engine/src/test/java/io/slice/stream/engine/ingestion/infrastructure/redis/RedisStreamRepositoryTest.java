@@ -7,6 +7,7 @@ import io.slice.stream.engine.core.model.StreamTarget;
 import io.slice.stream.engine.global.config.RedisConfig;
 import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
 import io.slice.stream.testcontainer.redis.RedisTestSupport;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
@@ -52,8 +53,8 @@ class RedisStreamRepositoryTest implements RedisTestSupport {
         stringRedisTemplate.opsForSet().add(STREAM_TARGET_KEY, "channel1", "channel3");
         stringRedisTemplate.opsForSet().add(ANALYSIS_INDEX_KEY, "channel1", "channel3");
 
-        StreamTarget streamTarget1 = new StreamTarget("channel1", "침착맨", "chat1", 100L, "title1", 1200, "https://thumb.com/1.jpg", "소통");
-        StreamTarget streamTarget2 = new StreamTarget("channel2", "풍월량", "chat2", 200L, "title2", 1000, "https://thumb.com/2.jpg", "게임");
+        StreamTarget streamTarget1 = new StreamTarget("channel1", "침착맨", "chat1", 100L, "title1", 1200, "https://thumb.com/1.jpg", "소통", Instant.EPOCH);
+        StreamTarget streamTarget2 = new StreamTarget("channel2", "풍월량", "chat2", 200L, "title2", 1000, "https://thumb.com/2.jpg", "게임", Instant.EPOCH);
 
         // 현재 상태: channel1(유지), channel2(신규), channel3(종료)
         List<StreamTarget> currentStreams = List.of(streamTarget1, streamTarget2);
@@ -106,8 +107,8 @@ class RedisStreamRepositoryTest implements RedisTestSupport {
     void 스트림_정보를_정확히_업데이트해야_한다() throws Exception {
         // given
         stringRedisTemplate.opsForSet().add(STREAM_TARGET_KEY, "channel1", "channel3");
-        StreamTarget streamTarget1 = new StreamTarget("channel1", "침착맨", "chat1", 100L, "title1", 1200, "https://thumb.com/1.jpg", "소통");
-        StreamTarget streamTarget2 = new StreamTarget("channel2", "풍월량", "chat2", 200L, "title2", 1000, "https://thumb.com/2.jpg", "게임");
+        StreamTarget streamTarget1 = new StreamTarget("channel1", "침착맨", "chat1", 100L, "title1", 1200, "https://thumb.com/1.jpg", "소통", Instant.EPOCH);
+        StreamTarget streamTarget2 = new StreamTarget("channel2", "풍월량", "chat2", 200L, "title2", 1000, "https://thumb.com/2.jpg", "게임", Instant.EPOCH);
         List<StreamTarget> currentStreams = List.of(streamTarget1, streamTarget2);
 
         // when

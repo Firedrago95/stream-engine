@@ -74,7 +74,7 @@ public class HighlightService {
             // 감지 로직 실행
             DetectionResult result = detector.detect(streamId, deltas, tierInfo);
 
-            return convertToSignal(streamId, result, now, tierInfo);
+            return convertToSignal(target, result, now, tierInfo);
         } catch (Exception e) {
             log.error("[Analysis-Error] 분석 중 예외 발생: {}", streamId, e);
             return Optional.empty();
@@ -87,11 +87,17 @@ public class HighlightService {
         return repository.getFirepowerDeltas(streamId, from, now);
     }
 
-    private Optional<AnalysisSignal> convertToSignal(String streamId, DetectionResult result, Instant now, StreamTierInfo tierInfo) {
+    private Optional<AnalysisSignal> convertToSignal(StreamTarget target, DetectionResult result, Instant now, StreamTierInfo tierInfo) {
+        Long offsetMs = null;
+        if (target.startedAt() != null) {
+            offsetMs = now.toEpochMilli() - target.startedAt().toEpochMilli();
+        }
+
+        String streamId = target.channelId();
         // 데이터 부족 상태인 경우 차트 렌더링을 위해 NORMAL 상태로 변환하여 전송
         if (result.status() == ChatFirepowerStatus.WAITING) {
             return Optional.of(new AnalysisSignal(streamId, ChatFirepowerStatus.NORMAL.name(), now,
-                result.firepower() != null ? result.firepower() : 0L));
+                result.firepower() != null ? result.firepower() : 0L, offsetMs));
         }
 
         if (result.status() == ChatFirepowerStatus.PEAK) {
@@ -99,6 +105,6 @@ public class HighlightService {
                 streamId, result.firepower(), tierInfo.tier().name());
         }
 
-        return Optional.of(new AnalysisSignal(streamId, result.status().name(), now, result.firepower()));
+        return Optional.of(new AnalysisSignal(streamId, result.status().name(), now, result.firepower(), offsetMs));
     }
 }

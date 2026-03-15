@@ -16,6 +16,7 @@ import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
 import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
 import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -50,7 +51,7 @@ class IngestionServiceTest {
     @Test
     void 새로운_스트림과_종료된_스트림이_있을때_StreamChangedEvent를_한번만_발행해야_한다() {
         // given
-        StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 123L, "title1", 10, "https://thumb.com/ch1.jpg", "GAME");
+        StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 123L, "title1", 10, "https://thumb.com/ch1.jpg", "GAME", Instant.EPOCH);
         List<StreamTarget> newStreams = List.of(streamTarget1);
         StreamUpdateResults results = new StreamUpdateResults(Set.of(streamTarget1), Set.of("ch2"));
 
@@ -74,7 +75,7 @@ class IngestionServiceTest {
     @Test
     void 변경되지_않은_스트림에_대해서는_이벤트를_발행하지_않아야_한다() {
         // given
-        StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 1L, "title1", 10, "https://thumb.com/ch1.jpg", "TALK");
+        StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 1L, "title1", 10, "https://thumb.com/ch1.jpg", "TALK", Instant.EPOCH);
         List<StreamTarget> liveStreams = List.of(streamTarget1);
         StreamUpdateResults results = new StreamUpdateResults(Collections.emptySet(), Collections.emptySet());
 
@@ -101,8 +102,8 @@ class IngestionServiceTest {
     @Test
     void 저장소의_스트림_상태를_업데이트해야_한다() {
         // given
-        StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 1L, "title1", 10, "https://thumb.com/ch1.jpg", "GAME");
-        StreamTarget streamTarget2 = new StreamTarget("ch2", "chName2", "chatCh2", 2L, "title2", 20, "https://thumb.com/ch2.jpg", "GAME");
+        StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 1L, "title1", 10, "https://thumb.com/ch1.jpg", "GAME", Instant.EPOCH);
+        StreamTarget streamTarget2 = new StreamTarget("ch2", "chName2", "chatCh2", 2L, "title2", 20, "https://thumb.com/ch2.jpg", "GAME", Instant.EPOCH);
         List<StreamTarget> liveStreams = List.of(streamTarget1, streamTarget2);
 
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(liveStreams);
@@ -119,7 +120,7 @@ class IngestionServiceTest {
     @Test
     void 방송_상태_변화가_없더라도_API_서버_동기화는_항상_호출되어야_한다() {
         // given
-        StreamTarget target = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 100, "url", "cat");
+        StreamTarget target = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 100, "url", "cat", Instant.EPOCH);
         List<StreamTarget> targets = List.of(target);
 
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(targets);
@@ -136,7 +137,7 @@ class IngestionServiceTest {
     @Test
     void 방송_상태_변화가_있으면_동기화와_이벤트_발행_둘_다_수행한다() {
         // given
-        StreamTarget target = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 100, "url", "cat");
+        StreamTarget target = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 100, "url", "cat", Instant.EPOCH);
         List<StreamTarget> targets = List.of(target);
 
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(targets);

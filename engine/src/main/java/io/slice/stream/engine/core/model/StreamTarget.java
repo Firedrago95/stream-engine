@@ -1,5 +1,7 @@
 package io.slice.stream.engine.core.model;
 
+import java.time.Instant;
+
 public record StreamTarget(
     String channelId,
     String channelName,
@@ -8,7 +10,8 @@ public record StreamTarget(
     String liveTitle,
     int concurrentUserCount,
     String profileImageUrl,
-    String categoryName
+    String categoryName,
+    Instant startedAt
 ) {
 
 }
