@@ -88,7 +88,7 @@ public class RedisChatRoomAggregationRepository implements ChatRoomAggregationRe
 
             if (delta < 0) {
                 log.warn("[Redis] 음수 변화량 감지 - streamId: {}, 이전: {}, 현재: {}. 0 처리함.", streamId, previousValue, currentValue);
-                delta = 0;
+                continue;
             }
             deltas.add(delta);
             previousValue = currentValue;
