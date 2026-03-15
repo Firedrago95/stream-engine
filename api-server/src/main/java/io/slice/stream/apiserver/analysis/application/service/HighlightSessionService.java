@@ -90,8 +90,9 @@ public class HighlightSessionService {
     }
 
     private void extendSession(AnalysisSignal signal, HighlightEventEntity session) {
+        long safeOffset = signal.offsetMs() != null ? signal.offsetMs() : 0L;
         session.updatePeakFirepower(signal.firepower());
-        session.updateLastPeakTime(signal.timestamp());
+        session.updateLastPeak(signal.timestamp(), safeOffset);
         log.info("[Session-Extend] 하이라이트 세션 연장 Stream: {}, Peak: {}", signal.streamId(), signal.firepower());
     }
 
@@ -99,10 +100,15 @@ public class HighlightSessionService {
         // 실제 피크가 터진 시간에서 leadingBuffer를 빼서 영상 시작점을 앞으로 당김
         Instant adjustedStart = signal.timestamp().minus(leadingBuffer);
 
+        long sateOffset = signal.offsetMs() != null ? signal.offsetMs() : 0L;
+        long startTimeOffset = Math.max(0L, sateOffset - leadingBuffer.toMillis());
+
         HighlightEventEntity newSession = new HighlightEventEntity(
             signal.streamId(),
             adjustedStart,
+            startTimeOffset,
             signal.timestamp(), // 최초 피크 시간
+            sateOffset,
             signal.firepower()
         );
 
@@ -131,7 +137,9 @@ public class HighlightSessionService {
         if (!signal.timestamp().isBefore(threshold)) {
             // 실제 저장될 하이라이트 종료시간은 마지막 피크 + trailingBuffer
             Instant finalEndTime = session.getLastPeakTime().plus(trailingBuffer);
-            session.finish(finalEndTime);
+            long lastOffset = session.getLastPeakOffset() != null ? session.getLastPeakOffset() : 0L;
+            long endTimeOffset = lastOffset + trailingBuffer.toMillis();
+            session.finish(finalEndTime, endTimeOffset);
 
             log.info("[Session-Finish] 하이라이트 세션 종료 Stream:{}, Duration: {}",
                 signal.streamId(), Duration.between(session.getStartTime(), finalEndTime));

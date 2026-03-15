@@ -47,7 +47,7 @@ class HttpHighlightSignalClientTest {
     void send_메서드_호출시_RestClient의_Post_체인이_올바르게_실행되어야_한다() {
         // given
         List<AnalysisSignal> signals = List.of(
-            new AnalysisSignal("stream1", "PEAK", Instant.now(), 100L)
+            new AnalysisSignal("stream1", "PEAK", Instant.now(), 100L, 100L)
         );
 
         // RestClient의 Fluent API 체이닝 모킹
@@ -79,7 +79,7 @@ class HttpHighlightSignalClientTest {
     @Test
     void 전송_중_예외가_발생해도_상위로_던지지_않고_로그만_남겨야_한다() {
         // given
-        List<AnalysisSignal> signals = List.of(new AnalysisSignal("stream1", "PEAK", Instant.now(), 50L));
+        List<AnalysisSignal> signals = List.of(new AnalysisSignal("stream1", "PEAK", Instant.now(), 50L, 100L));
 
         when(restClient.post()).thenThrow(new RuntimeException("Connection Refused"));
 

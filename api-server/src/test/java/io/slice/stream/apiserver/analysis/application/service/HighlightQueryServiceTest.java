@@ -36,19 +36,24 @@ class HighlightQueryServiceTest {
         String streamId = "stream-123";
         LocalDate date = LocalDate.of(2026, 3, 4);
 
-        // 1분 차이가 나도록 Instant 설정
         Instant start = Instant.parse("2026-03-04T10:00:00Z");
         Instant end = start.plusSeconds(60);
 
-        // 엔티티 생성 시 end 타임이 정확히 들어가는지 확인
-        // 생성자 파라미터 순서: (streamId, startTime, endTime, peakFirepower) 라고 가정
+        // VOD 오프셋 데이터 설정 (시작점: 1시간 지점, 종료점: 1시간 1분 지점)
+        long startOffset = 3600000L;
+        long endOffset = 3660000L;
+
         HighlightEventEntity entity = new HighlightEventEntity(
             streamId,
             start,
-            start,
+            startOffset,
+            start, // 최초 피크 시간
+            startOffset, // 최초 피크 오프셋
             500L
         );
-        entity.finish(end);
+
+        // [수정] finish 메서드에 종료 오프셋 추가
+        entity.finish(end, endOffset);
 
         given(repository.findAllByStreamIdAndDateRange(eq(streamId), any(Instant.class), any(Instant.class)))
             .willReturn(List.of(entity));
@@ -58,7 +63,11 @@ class HighlightQueryServiceTest {
 
         // then
         assertThat(results).hasSize(1);
-        assertThat(results.get(0).durationSeconds()).isEqualTo(60L); // 이제 60L이 정상적으로 나옵니다.
+        HighlightResponse response = results.get(0);
+
+        assertThat(response.durationSeconds()).isEqualTo(60L);
+        assertThat(response.startTimeOffset()).isEqualTo(startOffset);
+        assertThat(response.endTimeOffset()).isEqualTo(endOffset);
     }
 
     @Test
@@ -67,14 +76,10 @@ class HighlightQueryServiceTest {
         String streamId = "stream-123";
         LocalDate date = LocalDate.of(2026, 3, 4);
 
-        // expected range (시스템 타임존에 따라 달라질 수 있으나 로직 검증 위주)
-        // atStartOfDay()는 서비스 코드의 ZoneId.systemDefault() 설정을 따름
-
         // when
         highlightQueryService.getHighlightsByDate(streamId, date);
 
         // then
-        // 정확히 1일(24시간) 간격으로 쿼리가 날아가는지 검증
         verify(repository).findAllByStreamIdAndDateRange(
             eq(streamId),
             any(Instant.class),

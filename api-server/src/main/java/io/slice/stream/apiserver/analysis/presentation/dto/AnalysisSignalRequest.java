@@ -17,9 +17,11 @@ public record AnalysisSignalRequest(
     Instant timestamp,
 
     @PositiveOrZero(message = "화력 수치는 0 이상이어야 합니다.")
-    long firepower
+    long firepower,
+
+    Long offsetMs
 ) {
     public AnalysisSignal toDomain() {
-        return AnalysisSignal.of(streamId, status, timestamp, firepower);
+        return AnalysisSignal.of(streamId, status, timestamp, firepower, offsetMs);
     }
 }

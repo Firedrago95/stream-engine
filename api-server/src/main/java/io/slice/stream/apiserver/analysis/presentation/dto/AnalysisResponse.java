@@ -8,7 +8,12 @@ public record AnalysisResponse(
 ) {
     public record AnalysisDataPoint(
         long timestamp,
-        long value,
-        String status
-    ) {}
+        long value,   // firepower
+        String status,
+        Long offsetMs
+    ) {
+        public AnalysisDataPoint(long timestamp, long value, String status) {
+            this(timestamp, value, status, null);
+        }
+    }
 }

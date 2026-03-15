@@ -1,3 +1,4 @@
+-- 2. 분석 신호 요약 테이블
 CREATE TABLE analysis_signals_summary
 (
     id               BIGSERIAL PRIMARY KEY,
@@ -6,6 +7,7 @@ CREATE TABLE analysis_signals_summary
     firepower_avg    BIGINT       NOT NULL,
     firepower_max    BIGINT       NOT NULL,
     timestamp_minute TIMESTAMPTZ  NOT NULL,
+    offset_ms        BIGINT,
     UNIQUE (stream_id, status, timestamp_minute)
 );
 

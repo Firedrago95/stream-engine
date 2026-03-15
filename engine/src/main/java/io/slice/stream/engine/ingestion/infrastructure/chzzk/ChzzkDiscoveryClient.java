@@ -8,6 +8,8 @@ import io.slice.stream.engine.ingestion.domain.error.IngestionException;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveDetailResponse;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.ChzzkLive;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -85,6 +87,7 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
         try {
             log.debug("채널 id로 상세 조회 시작: {}", channelId);
             ChzzkLiveDetailResponse.Content detailContent = fetchLiveDetail(channelId);
+            Instant startedAt = detailContent.openDate().toInstant(ZoneOffset.of("+09:00"));
             return new StreamTarget(
                 channelId,
                 topLive.channel().channelName(),
@@ -93,7 +96,8 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
                 topLive.liveTitle(),
                 topLive.concurrentUserCount(),
                 topLive.channel().channelImageUrl(),
-                topLive.liveCategoryValue()
+                topLive.liveCategoryValue(),
+                startedAt
             );
         } catch (Exception e) {
             log.warn("방송 상세 정보 조회 중 에러 발생. channelName: {}", topLive.channel().channelName());

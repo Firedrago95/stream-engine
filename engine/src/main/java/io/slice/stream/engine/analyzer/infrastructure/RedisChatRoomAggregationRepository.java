@@ -22,6 +22,8 @@ public class RedisChatRoomAggregationRepository implements ChatRoomAggregationRe
 
     private static final String MAX_COUNT_FOR_FIND = "1000";
     private static final String MAX_COUNT_FOR_HISTORY = "2000";
+    private static final long TICK_INTERVAL_MS = 3000L; // 수집기 동작 주기 (3초)
+    private static final long TICK_TOLERANCE_MS = 3500L; // 네트워크 지연 허용 오차
 
     private final StringRedisTemplate redisTemplate;
     private final RedisScript<Long> tsAddScript;
@@ -80,19 +82,36 @@ public class RedisChatRoomAggregationRepository implements ChatRoomAggregationRe
 
     private static List<Long> calculateDeltas(String streamId, List<List<Object>> rawData) {
         List<Long> deltas = new ArrayList<>();
+
+        // 타임스탬프와 누적 값을 모두 추적
+        long previousTimestamp = ((Number) rawData.getFirst().get(0)).longValue();
         long previousValue = Long.parseLong((String) rawData.getFirst().get(1));
 
         for (int i = 1; i < rawData.size(); i++) {
+            long currentTimestamp = ((Number) rawData.get(i).get(0)).longValue();
             long currentValue = Long.parseLong((String) rawData.get(i).get(1));
-            long delta = currentValue - previousValue;
 
+            // Zero-Padding: 틱 간격(3초)를 초과하는 데이터 공백이 있으면 그만큼 0으로 채운다.
+            long timeGap = currentTimestamp - previousTimestamp;
+            if (timeGap > TICK_INTERVAL_MS) {
+                int missingTicks = (int) (timeGap / TICK_INTERVAL_MS) - 1;
+                for (int j = 0; j < missingTicks; j++) {
+                    // 비어있는 시간대는 화력이 0임을 명시
+                    deltas.add(0L);
+                }
+            }
+            // 델타 계산 및 카운터 리셋(음수) 방어
+            long delta = currentValue - previousValue;
             if (delta < 0) {
-                log.warn("[Redis] 음수 변화량 감지 - streamId: {}, 이전: {}, 현재: {}", streamId, previousValue, currentValue);
+                log.warn("[Redis] 카운터 리셋 감지 - streamId: {}, 이전: {}, 현재: {}. 스킵합니다.", streamId, previousValue, currentValue);
                 previousValue = currentValue;
+                previousTimestamp = currentTimestamp;
                 continue;
             }
+
             deltas.add(delta);
             previousValue = currentValue;
+            previousTimestamp = currentTimestamp;
         }
         return deltas;
     }

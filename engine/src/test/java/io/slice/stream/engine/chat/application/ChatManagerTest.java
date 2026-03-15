@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import io.slice.stream.engine.chat.domain.ChatCollector;
 import io.slice.stream.engine.chat.domain.ChatCollectorFactory;
 import io.slice.stream.engine.core.model.StreamTarget;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,8 +41,8 @@ class ChatManagerTest {
     @Test
     void 새로운_스트림에_대해_채팅_수집을_시작해야_한다() {
         // given
-        StreamTarget streamTarget1 = new StreamTarget("stream1", "스트리머1", "chat1", 1L, "제목1", 100, "https://thumb.com/1.jpg", "음악");
-        StreamTarget streamTarget2 = new StreamTarget("stream2", "스트리머2", "chat2", 2L, "제목2", 200, "https://thumb.com/2.jpg", "게임");
+        StreamTarget streamTarget1 = new StreamTarget("stream1", "스트리머1", "chat1", 1L, "제목1", 100, "https://thumb.com/1.jpg", "음악", Instant.EPOCH);
+        StreamTarget streamTarget2 = new StreamTarget("stream2", "스트리머2", "chat2", 2L, "제목2", 200, "https://thumb.com/2.jpg", "게임", Instant.EPOCH);
         Set<StreamTarget> newStreamTargets = Set.of(streamTarget1, streamTarget2);
         Set<String> closedStreamIds = Collections.emptySet(); // 💡 변수명 변경 (ChatChannelId -> StreamId)
 
@@ -59,7 +60,7 @@ class ChatManagerTest {
     @Test
     void 종료된_스트림에_대해_채팅_수집을_중단해야_한다() {
         // given
-        StreamTarget streamTarget1 = new StreamTarget("stream1", "스트리머1", "chat1", 1L, "제목1", 100, "https://thumb.com/1.jpg", "게임");
+        StreamTarget streamTarget1 = new StreamTarget("stream1", "스트리머1", "chat1", 1L, "제목1", 100, "https://thumb.com/1.jpg", "게임", Instant.EPOCH);
         Set<StreamTarget> initialStreamTargets = Set.of(streamTarget1);
         ChatCollector collectorToStop = mock(ChatCollector.class);
         when(chatCollectorFactory.start(streamTarget1)).thenReturn(collectorToStop);
@@ -81,14 +82,14 @@ class ChatManagerTest {
     @Test
     void 새로운_스트림과_종료된_스트림을_동시에_처리해야_한다() {
         // given
-        StreamTarget streamTargetToClose = new StreamTarget("streamToClose", "종료스트리머", "chatClose", 99L, "종료제목", 999, "https://thumb.com/close.jpg", "소통");
+        StreamTarget streamTargetToClose = new StreamTarget("streamToClose", "종료스트리머", "chatClose", 99L, "종료제목", 999, "https://thumb.com/close.jpg", "소통", Instant.EPOCH);
         ChatCollector collectorToStop = mock(ChatCollector.class);
         when(chatCollectorFactory.start(streamTargetToClose)).thenReturn(collectorToStop);
         chatManager.manageStreams(Set.of(streamTargetToClose), Collections.emptySet());
         verify(chatCollectorFactory, timeout(2000)).start(streamTargetToClose);
 
-        StreamTarget streamTargetNew1 = new StreamTarget("streamNew1", "신규1", "chatNew1", 101L, "신규제목1", 111, "https://thumb.com/new1.jpg", "게임");
-        StreamTarget streamTargetNew2 = new StreamTarget("streamNew2", "신규2", "chatNew2", 102L, "신규제목2", 222, "https://thumb.com/new2.jpg", "먹방");
+        StreamTarget streamTargetNew1 = new StreamTarget("streamNew1", "신규1", "chatNew1", 101L, "신규제목1", 111, "https://thumb.com/new1.jpg", "게임", Instant.EPOCH);
+        StreamTarget streamTargetNew2 = new StreamTarget("streamNew2", "신규2", "chatNew2", 102L, "신규제목2", 222, "https://thumb.com/new2.jpg", "먹방", Instant.EPOCH);
         Set<StreamTarget> newStreamTargets = Set.of(streamTargetNew1, streamTargetNew2);
 
         Set<String> closedStreamIds = Set.of(streamTargetToClose.channelId());

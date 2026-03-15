@@ -1,5 +1,6 @@
 package io.slice.stream.apiserver.analysis.presentation;
 
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -36,8 +37,24 @@ class HighlightControllerTest {
         // given
         String streamId = "stream-123";
         LocalDate date = LocalDate.of(2026, 3, 4);
+
+        Instant start = Instant.now().minusSeconds(100);
+        Instant end = start.plusSeconds(50);
+        long startOffset = 3600000L; // 1시간 지점
+        long endOffset = 3650000L;
+
         List<HighlightResponse> mockResponses = List.of(
-            new HighlightResponse(1L, streamId, "FINISHED", Instant.now().minusSeconds(100), Instant.now().minusSeconds(50), 500L, 50L)
+            new HighlightResponse(
+                1L,
+                streamId,
+                start,
+                end,
+                50L,
+                startOffset,
+                endOffset,
+                500L,
+                "FINISHED"
+            )
         );
 
         given(highlightQueryService.getHighlightsByDate(streamId, date)).willReturn(mockResponses);
@@ -47,7 +64,10 @@ class HighlightControllerTest {
                 .param("date", "2026-03-04"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.length()").value(1))
-            .andExpect(jsonPath("$[0].streamId").value(streamId));
+            .andExpect(jsonPath("$[0].streamId").value(streamId))
+            .andExpect(jsonPath("$[0].startTimeOffset").value(startOffset))
+            .andExpect(jsonPath("$[0].endTimeOffset").value(endOffset))
+            .andExpect(jsonPath("$[0].durationSeconds").value(50));
     }
 
     @Test
@@ -61,7 +81,6 @@ class HighlightControllerTest {
         mockMvc.perform(get("/api/v1/analysis/streams/{streamId}/highlights", streamId))
             .andExpect(status().isOk());
 
-        // LocalDate.now()가 인자로 넘어갔는지 확인
         verify(highlightQueryService).getHighlightsByDate(eq(streamId), eq(LocalDate.now()));
     }
 }

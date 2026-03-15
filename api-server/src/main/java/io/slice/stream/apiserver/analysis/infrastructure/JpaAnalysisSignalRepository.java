@@ -26,20 +26,22 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
 
     @Modifying
     @Query(value = """
-        INSERT INTO analysis_signals_summary (stream_id, status, firepower_avg, firepower_max, timestamp_minute)
+        INSERT INTO analysis_signals_summary (stream_id, status, firepower_avg, firepower_max, timestamp_minute, offset_ms)
         SELECT
              stream_id,
              status,
              CAST(AVG(firepower) AS BIGINT),
              MAX(firepower),
-             date_trunc('minute', timestamp)
+             date_trunc('minute', timestamp),
+             MIN(offset_ms)
         FROM analysis_signals
         WHERE timestamp < :cutoffTime
         GROUP BY stream_id, status, date_trunc('minute', timestamp)
         ON CONFLICT (stream_id, status, timestamp_minute)
         DO UPDATE SET
            firepower_avg = EXCLUDED.firepower_avg,
-           firepower_max = EXCLUDED.firepower_max
+           firepower_max = EXCLUDED.firepower_max,
+           offset_ms = EXCLUDED.offset_ms -- [추가]
         """, nativeQuery = true)
     int rollupOldSignals(@Param("cutoffTime") Instant cutoffTime);
 
@@ -84,16 +86,18 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
     );
 
     interface SummaryDataProjection {
-
         Timestamp getTimestampMinute();
-
         Long getFirepowerMax();
-
         String getStatus();
+        Long getOffsetMs();
     }
 
     @Query(value = """
-        SELECT timestamp_minute AS timestampMinute, firepower_max AS firepowerMax, status AS status
+        SELECT 
+            timestamp_minute AS timestampMinute, 
+            firepower_max AS firepowerMax, 
+            status AS status,
+            offset_ms AS offsetMs -- [추가]
         FROM analysis_signals_summary
         WHERE stream_id = :streamId
         AND timestamp_minute >= :start AND timestamp_minute < :end

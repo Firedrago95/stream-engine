@@ -1,11 +1,6 @@
 package io.slice.stream.apiserver.analysis.infrastructure.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -24,16 +19,25 @@ public class HighlightEventEntity {
     private String streamId;
 
     @Column(nullable = false)
-    private String category; // 'GENERAL', 'FUNNY' 등 (확장성용)
+    private String category = "GENERAL";
 
     @Column(name = "start_time", nullable = false)
     private Instant startTime;
 
+    @Column(name = "start_time_offset", nullable = false)
+    private Long startTimeOffset;
+
     @Column(name = "last_peak_time", nullable = false)
-    private Instant lastPeakTime; // 10초 유예 계산을 위한 기준점
+    private Instant lastPeakTime;
+
+    @Column(name = "last_peak_offset", nullable = false)
+    private Long lastPeakOffset;
 
     @Column(name = "end_time")
     private Instant endTime;
+
+    @Column(name = "end_time_offset")
+    private Long endTimeOffset;
 
     @Column(name = "peak_firepower", nullable = false)
     private Long peakFirepower;
@@ -41,30 +45,35 @@ public class HighlightEventEntity {
     @Column(nullable = false)
     private String status;
 
-    public HighlightEventEntity(String streamId, Instant startTime, Instant lastPeakTime, Long peakFirepower) {
+    // 세션 시작 생성자
+    public HighlightEventEntity(String streamId, Instant startTime, Long startTimeOffset,
+        Instant lastPeakTime, Long lastPeakOffset, Long peakFirepower) {
         this.streamId = streamId;
-        this.category = "GENERAL";
         this.startTime = startTime;
+        this.startTimeOffset = startTimeOffset;
         this.lastPeakTime = lastPeakTime;
+        this.lastPeakOffset = lastPeakOffset;
         this.peakFirepower = peakFirepower;
         this.status = "ONGOING";
     }
 
     public void updatePeakFirepower(Long currentFirepower) {
-        if (currentFirepower == null) return;
-        if (this.peakFirepower == null || currentFirepower > this.peakFirepower) {
+        if (currentFirepower != null && (this.peakFirepower == null || currentFirepower > this.peakFirepower)) {
             this.peakFirepower = currentFirepower;
         }
     }
 
-    public void updateLastPeakTime(Instant lastPeakTime) {
+    // 시간과 오프셋은 항상 세트로 업데이트되어야 함
+    public void updateLastPeak(Instant lastPeakTime, Long lastPeakOffset) {
         if (lastPeakTime != null && lastPeakTime.isAfter(this.lastPeakTime)) {
             this.lastPeakTime = lastPeakTime;
+            this.lastPeakOffset = lastPeakOffset;
         }
     }
 
-    public void finish(Instant endTime) {
+    public void finish(Instant endTime, Long endTimeOffset) {
         this.endTime = endTime;
+        this.endTimeOffset = endTimeOffset;
         this.status = "FINISHED";
     }
 }

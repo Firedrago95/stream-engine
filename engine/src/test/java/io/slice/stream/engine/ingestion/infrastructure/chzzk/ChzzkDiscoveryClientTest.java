@@ -15,6 +15,7 @@ import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkL
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.ChzzkLive;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.ChzzkLive.Channel;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -135,7 +136,7 @@ class ChzzkDiscoveryClientTest {
 
     private void mockDetailApi(String channelId, String chatChannelId) throws Exception {
         ChzzkLiveDetailResponse detailResponse = new ChzzkLiveDetailResponse(
-            new ChzzkLiveDetailResponse.Content("OPEN", chatChannelId)
+            new ChzzkLiveDetailResponse.Content("OPEN", chatChannelId, LocalDateTime.now())
         );
         mockServer.expect(requestTo(buildLiveDetailApiUri(channelId)))
             .andRespond(withSuccess(objectMapper.writeValueAsString(detailResponse), MediaType.APPLICATION_JSON));
