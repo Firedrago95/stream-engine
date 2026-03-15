@@ -1,4 +1,4 @@
-package io.slice.stream.engine.analyzer.domain;
+package io.slice.stream.engine.analyzer.domain.signal;
 
 import java.time.Instant;
 

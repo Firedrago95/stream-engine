@@ -3,9 +3,9 @@ package io.slice.stream.engine.analyzer.infrastructure;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
-import io.slice.stream.engine.analyzer.domain.ChatAggregationResult;
-import io.slice.stream.engine.analyzer.domain.ChatAggregationResult.DataPoint;
-import io.slice.stream.engine.analyzer.domain.ChatRoomAggregation;
+import io.slice.stream.engine.analyzer.domain.aggregation.ChatAggregationResult;
+import io.slice.stream.engine.analyzer.domain.aggregation.ChatAggregationResult.DataPoint;
+import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregation;
 import io.slice.stream.engine.global.config.RedisConfig;
 import io.slice.stream.testcontainer.redis.RedisTestSupport;
 import java.time.Instant;

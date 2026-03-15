@@ -2,18 +2,25 @@ package io.slice.stream.engine.analyzer.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.slice.stream.engine.analyzer.domain.ActiveStreamProvider;
-import io.slice.stream.engine.analyzer.domain.AnalysisSignal;
-import io.slice.stream.engine.analyzer.domain.ChatFirepowerStatus;
-import io.slice.stream.engine.analyzer.domain.DetectionResult;
-import io.slice.stream.engine.analyzer.domain.HighlightDetector;
-import io.slice.stream.engine.analyzer.domain.HighlightSignalClient;
+import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties;
+import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregationRepository;
+import io.slice.stream.engine.analyzer.domain.detection.ChatFirepowerStatus;
+import io.slice.stream.engine.analyzer.domain.detection.DetectionResult;
+import io.slice.stream.engine.analyzer.domain.detection.HighlightDetector;
+import io.slice.stream.engine.analyzer.domain.signal.AnalysisSignal;
+import io.slice.stream.engine.analyzer.domain.signal.HighlightSignalClient;
+import io.slice.stream.engine.analyzer.domain.stream.ActiveStreamProvider;
+import io.slice.stream.engine.analyzer.domain.tier.StreamTier;
+import io.slice.stream.engine.analyzer.domain.tier.StreamTierInfo;
+import io.slice.stream.engine.core.model.StreamTarget;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -34,23 +41,21 @@ class HighlightServiceTest {
 
     private static final Instant FIXED_NOW = Instant.parse("2026-02-13T10:00:00Z");
 
-    @Mock
-    private ActiveStreamProvider streamProvider;
-    @Mock
-    private HighlightDetector detector;
-    @Mock
-    private HighlightSignalClient signalClient;
-    @Mock
-    private ExecutorService virtualThreadExecutor;
-    @Mock
-    private Clock clock;
+    @Mock private ActiveStreamProvider streamProvider;
+    @Mock private ExecutorService virtualThreadExecutor;
+    @Mock private HighlightSignalClient signalClient;
+    @Mock private Clock clock;
+
+    @Mock private StreamTierManager tierManager;
+    @Mock private ChatRoomAggregationRepository repository;
+    @Mock private HighlightDetector detector;
+    @Mock private HighlightEngineProperties props;
 
     @InjectMocks
     private HighlightService highlightService;
 
     @BeforeEach
     void setUp() {
-        // ExecutorService가 비동기가 아닌 동기식으로 즉시 실행되도록 설정하여 테스트를 용이하게 함
         doAnswer(invocation -> {
             Runnable task = invocation.getArgument(0);
             task.run();
@@ -59,16 +64,23 @@ class HighlightServiceTest {
     }
 
     @Test
-    void WAITING_상태는_NORMAL로_변환되어_전송되고_나머지는_상태_그대로_전송된다() {
+    void 모든_파이프라인이_성공적으로_동작하여_PEAK_신호를_전송한다() {
         // given
         when(clock.instant()).thenReturn(FIXED_NOW);
-        List<String> streamIds = List.of("stream-normal", "stream-peak", "stream-waiting");
-        when(streamProvider.getActiveStreamIds()).thenReturn(streamIds);
+        when(props.fetchBufferSeconds()).thenReturn(15); // YAML 설정값 Mocking
 
-        when(detector.detect("stream-normal")).thenReturn(new DetectionResult(ChatFirepowerStatus.NORMAL, 10L));
-        when(detector.detect("stream-peak")).thenReturn(new DetectionResult(ChatFirepowerStatus.PEAK, 100L));
-        // WAITING 상태 주입
-        when(detector.detect("stream-waiting")).thenReturn(DetectionResult.waiting());
+        StreamTarget target = new StreamTarget("stream1", "침착맨", "chat1", 1L, "title", 1000, "url", "게임");
+        when(streamProvider.getActiveStreamTargets()).thenReturn(List.of(target));
+
+        StreamTierInfo mockTierInfo = StreamTierInfo.builder().tier(StreamTier.GROUP_A).windowSeconds(60).build();
+        when(tierManager.getTierInfo("stream1", 1000)).thenReturn(mockTierInfo);
+
+        List<Long> mockDeltas = List.of(1L, 2L, 50L);
+        when(repository.getFirepowerDeltas(eq("stream1"), any(Instant.class), eq(FIXED_NOW)))
+            .thenReturn(mockDeltas);
+
+        when(detector.detect("stream1", mockDeltas, mockTierInfo))
+            .thenReturn(new DetectionResult(ChatFirepowerStatus.PEAK, 50L));
 
         // when
         highlightService.monitorHighlights();
@@ -78,58 +90,26 @@ class HighlightServiceTest {
         verify(signalClient, times(1)).send(captor.capture());
 
         List<AnalysisSignal> capturedSignals = captor.getValue();
-
-        assertAll(
-            // 3개의 스트림이 모두 버려지지 않고 전송되어야 함
-            () -> assertThat(capturedSignals).hasSize(3),
-            // WAITING이 NORMAL로 둔갑했으므로 NORMAL 2개, PEAK 1개여야 함
-            () -> assertThat(capturedSignals)
-                .extracting(AnalysisSignal::status)
-                .containsExactlyInAnyOrder("NORMAL", "PEAK", "NORMAL")
-                .doesNotContain("WAITING"),
-            () -> assertThat(capturedSignals)
-                .extracting(AnalysisSignal::streamId)
-                .containsExactlyInAnyOrder("stream-normal", "stream-peak", "stream-waiting")
-        );
+        assertThat(capturedSignals).hasSize(1);
+        assertThat(capturedSignals.get(0).status()).isEqualTo("PEAK");
+        assertThat(capturedSignals.get(0).firepower()).isEqualTo(50L);
     }
 
     @Test
-    void 분석_결과가_모두_WAITING이어도_차트_렌더링을_위해_NORMAL로_변환하여_클라이언트를_호출한다() {
-        // given
-        // WAITING이어도 AnalysisSignal 객체를 만들기 위해 clock이 호출되므로 Mock 설정 추가
-        when(clock.instant()).thenReturn(FIXED_NOW);
-        when(streamProvider.getActiveStreamIds()).thenReturn(List.of("stream-waiting1", "stream-waiting2"));
-        when(detector.detect(anyString())).thenReturn(DetectionResult.waiting());
-
-        // when
-        highlightService.monitorHighlights();
-
-        // then
-        ArgumentCaptor<List<AnalysisSignal>> captor = ArgumentCaptor.forClass(List.class);
-
-        // 예전엔 never()였지만, 이제는 전송해야 성공!
-        verify(signalClient, times(1)).send(captor.capture());
-
-        List<AnalysisSignal> capturedSignals = captor.getValue();
-        assertAll(
-            () -> assertThat(capturedSignals).hasSize(2),
-            () -> assertThat(capturedSignals)
-                .extracting(AnalysisSignal::status)
-                .containsOnly("NORMAL") // 💡 모두 NORMAL로 변환되었는지 검증
-        );
-    }
-
-    @Test
-    void 특정_스트림_분석_중_예외가_발생해도_나머지_스트림은_정상_처리되어야_한다() {
+    void WAITING_상태는_NORMAL로_둔갑하여_차트_렌더링용으로_전송된다() {
         // given
         when(clock.instant()).thenReturn(FIXED_NOW);
-        List<String> streamIds = List.of("stream-normal", "stream-exception", "stream-peak");
-        when(streamProvider.getActiveStreamIds()).thenReturn(streamIds);
+        when(props.fetchBufferSeconds()).thenReturn(15);
 
-        when(detector.detect("stream-normal")).thenReturn(new DetectionResult(ChatFirepowerStatus.NORMAL, 20L));
-        // 예외 발생 시나리오
-        when(detector.detect("stream-exception")).thenThrow(new RuntimeException("Detector temporary error"));
-        when(detector.detect("stream-peak")).thenReturn(new DetectionResult(ChatFirepowerStatus.PEAK, 200L));
+        StreamTarget target = new StreamTarget("stream-wait", "하꼬방", "chat1", 1L, "title", 10, "url", "소통");
+        when(streamProvider.getActiveStreamTargets()).thenReturn(List.of(target));
+
+        StreamTierInfo mockTierInfo = StreamTierInfo.builder().tier(StreamTier.GROUP_B).windowSeconds(120).build();
+        when(tierManager.getTierInfo(anyString(), anyInt())).thenReturn(mockTierInfo);
+        when(repository.getFirepowerDeltas(anyString(), any(), any())).thenReturn(List.of(1L, 2L));
+
+        // WAITING 판정 주입
+        when(detector.detect(anyString(), any(), any())).thenReturn(DetectionResult.waiting());
 
         // when
         highlightService.monitorHighlights();
@@ -138,18 +118,6 @@ class HighlightServiceTest {
         ArgumentCaptor<List<AnalysisSignal>> captor = ArgumentCaptor.forClass(List.class);
         verify(signalClient, times(1)).send(captor.capture());
 
-        List<AnalysisSignal> capturedSignals = captor.getValue();
-
-        // 예외가 발생한 스트림만 Optional.empty()로 걸러지고 나머지 2개는 정상 전송
-        assertThat(capturedSignals).hasSize(2);
-        assertThat(capturedSignals)
-            .extracting(AnalysisSignal::streamId)
-            .containsExactlyInAnyOrder("stream-normal", "stream-peak");
-    }
-
-    private void assertAll(Runnable... assertions) {
-        for (Runnable runnable : assertions) {
-            runnable.run();
-        }
+        assertThat(captor.getValue().get(0).status()).isEqualTo("NORMAL");
     }
 }

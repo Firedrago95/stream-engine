@@ -1,4 +1,4 @@
-package io.slice.stream.engine.analyzer.domain;
+package io.slice.stream.engine.analyzer.domain.stream;
 
 import io.slice.stream.engine.core.model.StreamTarget;
 import java.util.List;
