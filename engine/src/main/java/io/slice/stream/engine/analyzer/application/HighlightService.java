@@ -1,12 +1,17 @@
 package io.slice.stream.engine.analyzer.application;
 
-import io.slice.stream.engine.analyzer.domain.stream.ActiveStreamProvider;
-import io.slice.stream.engine.analyzer.domain.signal.AnalysisSignal;
+import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties;
+import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregationRepository;
 import io.slice.stream.engine.analyzer.domain.detection.ChatFirepowerStatus;
 import io.slice.stream.engine.analyzer.domain.detection.DetectionResult;
 import io.slice.stream.engine.analyzer.domain.detection.HighlightDetector;
+import io.slice.stream.engine.analyzer.domain.signal.AnalysisSignal;
 import io.slice.stream.engine.analyzer.domain.signal.HighlightSignalClient;
+import io.slice.stream.engine.analyzer.domain.stream.ActiveStreamProvider;
+import io.slice.stream.engine.analyzer.domain.tier.StreamTierInfo;
+import io.slice.stream.engine.core.model.StreamTarget;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -23,35 +28,25 @@ public class HighlightService {
 
     private final ActiveStreamProvider streamProvider;
     private final ExecutorService virtualThreadExecutor;
-    private final HighlightDetector detector;
     private final HighlightSignalClient signalClient;
     private final Clock clock;
+    private final StreamTierManager tierManager;
+    private final ChatRoomAggregationRepository repository;
+    private final HighlightDetector detector;
+    private final HighlightEngineProperties props;
 
-    /**
-    *  TODO: [Thundering Herd] 현재 모든 활성 스트림에 대해 동시에 Redis 조회를 요청하고 있음.
-    *  향후 활성 스트림 수가 수천 개 이상으로 증가할 경우, Redis에 순간적인 과부하를 유발할 수 있음 (Thundering Herd 문제).
-    *  스트림 수가 500개를 초과하는 시점에는 요청을 배치(Batch)로 나누어 처리하거나
-    *  Guava의 RateLimiter와 같은 도구를 사용해 요청을 분산시키는 로직을 추가하는 것을 고려해야 함.
-    **/
-    @Scheduled(fixedRate = 3000)
+    @Scheduled(fixedRateString = "${highlight.engine.scheduler-interval-ms}")
     public void monitorHighlights() {
-        List<String> activeStreamIds = streamProvider.getActiveStreamIds();
+        List<StreamTarget> activeTargets = streamProvider.getActiveStreamTargets();
+        validateTrafficLoad(activeTargets.size());
 
-        // [방어 코드] 위 TODO 상황 감지
-        if (activeStreamIds.size() > 500) {
-            log.warn("[Thundering Herd Warning] 활성 스트림이 {}개입니다. Redis 부하 방지를 위해 위 TODO의 리팩토링을 진행해주세요.", activeStreamIds.size());
-        }
-
-        List<CompletableFuture<Optional<AnalysisSignal>>> futures = activeStreamIds.stream()
-            .map(id -> CompletableFuture.supplyAsync(() -> processStream(id), virtualThreadExecutor))
+        List<CompletableFuture<Optional<AnalysisSignal>>> futures = activeTargets.stream()
+            .map(target -> CompletableFuture.supplyAsync(() -> processStream(target), virtualThreadExecutor))
             .toList();
-
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
         List<AnalysisSignal> signals = futures.stream()
             .map(CompletableFuture::join)
-            .filter(Optional::isPresent)
-            .map(Optional::get)
+            .flatMap(Optional::stream)
             .toList();
 
         if (!signals.isEmpty()) {
@@ -59,26 +54,51 @@ public class HighlightService {
         }
     }
 
-    private Optional<AnalysisSignal> processStream(String streamId) {
+    private void validateTrafficLoad(int targetCount) {
+        if (targetCount > 500) {
+            log.warn("[Thundering Herd Warning] 활성 스트림이 {}개 입니다. Redis 부하 방지를 고려하세요.", targetCount);
+        }
+    }
+
+    private Optional<AnalysisSignal> processStream(StreamTarget target) {
+        String streamId = target.channelId();
+        int currentViewers = target.concurrentUserCount();
+
         try {
-            DetectionResult detectionResult = detector.detect(streamId);
-            if (detectionResult.status() == ChatFirepowerStatus.WAITING) {
-                log.info("[Analysis-Step 4] WAITING 상태지만 차트 렌더링을 위해 기본 화력 전송 - Stream: {}", streamId);
-                return Optional.of(new AnalysisSignal(
-                    streamId,
-                    ChatFirepowerStatus.NORMAL.name(), // 상태를 NORMAL로 변경
-                    clock.instant(),
-                    detectionResult.firepower()
-                ));
-            }
+            Instant now = clock.instant();
+            StreamTierInfo tierInfo = tierManager.getTierInfo(streamId, currentViewers);
 
-            log.info("[Analysis-Step 4] 시그널 전송 결정 - Stream: {}, 상태: {}, 수치: {}",
-                streamId, detectionResult.status(), detectionResult.firepower());
+            // 분석에 필요한 델타 데이터 리스트 조회
+            List<Long> deltas = fetchDeltas(streamId, now, tierInfo);
 
-            return Optional.of(new AnalysisSignal(streamId, detectionResult.status().name(), clock.instant(), detectionResult.firepower()));
+            // 감지 로직 실행
+            DetectionResult result = detector.detect(streamId, deltas, tierInfo);
+
+            return convertToSignal(streamId, result, now, tierInfo);
         } catch (Exception e) {
             log.error("[Analysis-Error] 분석 중 예외 발생: {}", streamId, e);
             return Optional.empty();
         }
+    }
+
+    private List<Long> fetchDeltas(String streamId, Instant now, StreamTierInfo tierInfo) {
+        // 체급별 윈도우 사이즈와 여유분을 합산하여 데이터 조회
+        Instant from = now.minusSeconds(tierInfo.windowSeconds() + props.fetchBufferSeconds());
+        return repository.getFirepowerDeltas(streamId, from, now);
+    }
+
+    private Optional<AnalysisSignal> convertToSignal(String streamId, DetectionResult result, Instant now, StreamTierInfo tierInfo) {
+        // 데이터 부족 상태인 경우 차트 렌더링을 위해 NORMAL 상태로 변환하여 전송
+        if (result.status() == ChatFirepowerStatus.WAITING) {
+            return Optional.of(new AnalysisSignal(streamId, ChatFirepowerStatus.NORMAL.name(), now,
+                result.firepower() != null ? result.firepower() : 0L));
+        }
+
+        if (result.status() == ChatFirepowerStatus.PEAK) {
+            log.info("[Analysis] PEAK 시그널 전송 - Stream: {}, 수치: {}, 체급: {}",
+                streamId, result.firepower(), tierInfo.tier().name());
+        }
+
+        return Optional.of(new AnalysisSignal(streamId, result.status().name(), now, result.firepower()));
     }
 }
