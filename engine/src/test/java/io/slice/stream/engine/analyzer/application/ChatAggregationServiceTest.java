@@ -7,8 +7,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.github.benmanes.caffeine.cache.Cache;
-import io.slice.stream.engine.analyzer.domain.ChatRoomAggregation;
-import io.slice.stream.engine.analyzer.domain.ChatRoomAggregationRepository;
+import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregation;
+import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregationRepository;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import java.time.Clock;
 import java.time.Instant;

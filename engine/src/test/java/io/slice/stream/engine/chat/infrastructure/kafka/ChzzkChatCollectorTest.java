@@ -2,8 +2,8 @@ package io.slice.stream.engine.chat.infrastructure.kafka;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.slice.stream.engine.analyzer.domain.ActiveStreamProvider;
-import io.slice.stream.engine.analyzer.domain.HighlightSignalClient;
+import io.slice.stream.engine.analyzer.domain.stream.ActiveStreamProvider;
+import io.slice.stream.engine.analyzer.domain.signal.HighlightSignalClient;
 import io.slice.stream.engine.chat.domain.model.Author;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import io.slice.stream.engine.chat.domain.model.MessageType;

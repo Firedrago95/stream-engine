@@ -1,6 +1,6 @@
 package io.slice.stream.engine.chat.application;
 
-import io.slice.stream.engine.analyzer.domain.ActiveStreamProvider;
+import io.slice.stream.engine.analyzer.domain.stream.ActiveStreamProvider;
 import io.slice.stream.engine.core.event.StreamChangedEvent;
 import io.slice.stream.engine.core.model.StreamTarget;
 import java.util.Collections;

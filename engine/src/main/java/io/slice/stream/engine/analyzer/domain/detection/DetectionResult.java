@@ -1,4 +1,4 @@
-package io.slice.stream.engine.analyzer.domain;
+package io.slice.stream.engine.analyzer.domain.detection;
 
 public record DetectionResult(
     ChatFirepowerStatus status,

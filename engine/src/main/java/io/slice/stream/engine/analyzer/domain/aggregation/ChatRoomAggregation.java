@@ -1,4 +1,4 @@
-package io.slice.stream.engine.analyzer.domain;
+package io.slice.stream.engine.analyzer.domain.aggregation;
 
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;

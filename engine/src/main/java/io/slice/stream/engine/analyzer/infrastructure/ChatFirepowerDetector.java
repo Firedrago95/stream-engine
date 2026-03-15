@@ -1,8 +1,8 @@
 package io.slice.stream.engine.analyzer.infrastructure;
 
-import io.slice.stream.engine.analyzer.domain.ChatFirepowerStatus;
-import io.slice.stream.engine.analyzer.domain.DetectionResult;
-import io.slice.stream.engine.analyzer.domain.HighlightDetector;
+import io.slice.stream.engine.analyzer.domain.detection.ChatFirepowerStatus;
+import io.slice.stream.engine.analyzer.domain.detection.DetectionResult;
+import io.slice.stream.engine.analyzer.domain.detection.HighlightDetector;
 import io.slice.stream.engine.core.redis.Rediskeys;
 import java.time.Clock;
 import java.time.Duration;

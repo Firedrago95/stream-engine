@@ -2,11 +2,11 @@ package io.slice.stream.engine.analyzer.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.slice.stream.engine.analyzer.domain.ChatFirepowerStatus;
-import io.slice.stream.engine.analyzer.domain.ChatRoomAggregation;
-import io.slice.stream.engine.analyzer.domain.ChatRoomAggregationRepository;
-import io.slice.stream.engine.analyzer.domain.DetectionResult;
-import io.slice.stream.engine.analyzer.domain.HighlightDetector; // HighlightDetector import
+import io.slice.stream.engine.analyzer.domain.detection.ChatFirepowerStatus;
+import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregation;
+import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregationRepository;
+import io.slice.stream.engine.analyzer.domain.detection.DetectionResult;
+import io.slice.stream.engine.analyzer.domain.detection.HighlightDetector; // HighlightDetector import
 import io.slice.stream.engine.global.config.RedisConfig;
 import io.slice.stream.engine.global.config.TimeConfig;
 import io.slice.stream.testcontainer.redis.RedisTestSupport;

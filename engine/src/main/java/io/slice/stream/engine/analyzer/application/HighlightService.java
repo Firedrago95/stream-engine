@@ -1,11 +1,11 @@
 package io.slice.stream.engine.analyzer.application;
 
-import io.slice.stream.engine.analyzer.domain.ActiveStreamProvider;
-import io.slice.stream.engine.analyzer.domain.AnalysisSignal;
-import io.slice.stream.engine.analyzer.domain.ChatFirepowerStatus;
-import io.slice.stream.engine.analyzer.domain.DetectionResult;
-import io.slice.stream.engine.analyzer.domain.HighlightDetector;
-import io.slice.stream.engine.analyzer.domain.HighlightSignalClient;
+import io.slice.stream.engine.analyzer.domain.stream.ActiveStreamProvider;
+import io.slice.stream.engine.analyzer.domain.signal.AnalysisSignal;
+import io.slice.stream.engine.analyzer.domain.detection.ChatFirepowerStatus;
+import io.slice.stream.engine.analyzer.domain.detection.DetectionResult;
+import io.slice.stream.engine.analyzer.domain.detection.HighlightDetector;
+import io.slice.stream.engine.analyzer.domain.signal.HighlightSignalClient;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;

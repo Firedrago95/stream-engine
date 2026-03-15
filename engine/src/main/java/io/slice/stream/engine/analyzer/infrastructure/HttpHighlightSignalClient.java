@@ -1,7 +1,7 @@
 package io.slice.stream.engine.analyzer.infrastructure;
 
-import io.slice.stream.engine.analyzer.domain.AnalysisSignal;
-import io.slice.stream.engine.analyzer.domain.HighlightSignalClient;
+import io.slice.stream.engine.analyzer.domain.signal.AnalysisSignal;
+import io.slice.stream.engine.analyzer.domain.signal.HighlightSignalClient;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
