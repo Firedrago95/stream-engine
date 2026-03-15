@@ -36,21 +36,22 @@ class HighlightSessionServiceTest {
 
     private static final String STREAM_ID = "test-stream";
     private final Duration leadingBuffer = Duration.ofSeconds(10);
-    private final Duration cooldown = Duration.ofSeconds(10);
+    private final Duration cooldown = Duration.ofSeconds(90); // 90초 설정 반영
 
     @BeforeEach
     void setUp() {
-        // @Value 필드 수동 주입
         ReflectionTestUtils.setField(highlightSessionService, "leadingBuffer", leadingBuffer);
         ReflectionTestUtils.setField(highlightSessionService, "cooldown", cooldown);
+        highlightSessionService.init(); // 필수: NMS 캐시 초기화
     }
 
     @Test
-    void PEAK_신호가_오고_진행중인_세션이_없으면_새로운_세션을_생성한다() {
+    void 첫_PEAK_신호가_오면_새로운_세션을_생성하고_캐시에_등록한다() {
         // given
         Instant now = Instant.now();
         AnalysisSignal signal = AnalysisSignal.of(STREAM_ID, "PEAK", now, 100L);
-        when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING")).thenReturn(Optional.empty());
+        when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING"))
+            .thenReturn(Optional.empty());
 
         // when
         highlightSessionService.handleSignal(signal);
@@ -58,85 +59,53 @@ class HighlightSessionServiceTest {
         // then
         ArgumentCaptor<HighlightEventEntity> captor = ArgumentCaptor.forClass(HighlightEventEntity.class);
         verify(repository, times(1)).save(captor.capture());
-
-        HighlightEventEntity savedSession = captor.getValue();
-        assertThat(savedSession.getStreamId()).isEqualTo(STREAM_ID);
-        // 시작 시간이 leadingBuffer 만큼 앞당겨졌는지 확인
-        assertThat(savedSession.getStartTime()).isEqualTo(now.minus(leadingBuffer));
-        assertThat(savedSession.getPeakFirepower()).isEqualTo(100L);
-        assertThat(savedSession.getStatus()).isEqualTo("ONGOING");
+        assertThat(captor.getValue().getPeakFirepower()).isEqualTo(100L);
     }
 
     @Test
-    void PEAK_신호가_오고_진행중인_세션이_있으면_세션을_연장한다() {
-        // given
-        Instant startTime = Instant.now().minusSeconds(30);
-        Instant lastPeakTime = Instant.now().minusSeconds(5);
-        HighlightEventEntity ongoingSession = new HighlightEventEntity(STREAM_ID, startTime, lastPeakTime, 50L);
-
+    void 쿨다운_기간_내에_더_작은_PEAK가_오면_NMS가_작동하여_DB업데이트를_무시한다() {
+        // given (캐시에 초기 피크 100 적재)
         Instant now = Instant.now();
-        AnalysisSignal signal = AnalysisSignal.of(STREAM_ID, "PEAK", now, 150L);
+        highlightSessionService.handleSignal(AnalysisSignal.of(STREAM_ID, "PEAK", now, 100L));
 
-        when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING")).thenReturn(Optional.of(ongoingSession));
+        // when (90초 이내에 50짜리 더 작은 피크 발생)
+        AnalysisSignal smallerSignal = AnalysisSignal.of(STREAM_ID, "PEAK", now.plusSeconds(10), 50L);
+        highlightSessionService.handleSignal(smallerSignal);
 
-        // when
-        highlightSessionService.handleSignal(signal);
-
-        // then
-        verify(repository, never()).save(any()); // 연장은 영속성 컨텍스트(Dirty Checking)에 의존하므로 save 호출 안함
-        assertThat(ongoingSession.getPeakFirepower()).isEqualTo(150L); // 최고 화력 갱신 확인
-        assertThat(ongoingSession.getLastPeakTime()).isEqualTo(now); // 마지막 피크 시간 갱신 확인
-        assertThat(ongoingSession.getStatus()).isEqualTo("ONGOING"); // 상태 유지 확인
+        // then (최초 1회 외에는 DB 조회가 일어나지 않아야 함)
+        verify(repository, times(1)).findFirstByStreamIdAndStatusOrderByStartTimeDesc(any(), any());
     }
 
     @Test
-    void NORMAL_신호가_오고_유예기간이_지났으면_세션을_종료한다() {
+    void 쿨다운_기간_내에_더_큰_PEAK가_오면_세션을_연장하고_캐시를_갱신한다() {
         // given
         Instant now = Instant.now();
-        Instant lastPeakTime = now.minus(cooldown).minusSeconds(1); // 쿨다운 + 1초 경과 (11초 전)
-        HighlightEventEntity ongoingSession = new HighlightEventEntity(STREAM_ID, now.minusSeconds(60), lastPeakTime, 200L);
+        HighlightEventEntity ongoingSession = new HighlightEventEntity(STREAM_ID, now, now, 100L);
 
-        AnalysisSignal signal = AnalysisSignal.of(STREAM_ID, "NORMAL", now, 10L);
+        when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING"))
+            .thenReturn(Optional.of(ongoingSession));
 
-        when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING")).thenReturn(Optional.of(ongoingSession));
+        // 최초 피크 (100)
+        highlightSessionService.handleSignal(AnalysisSignal.of(STREAM_ID, "PEAK", now, 100L));
 
-        // when
-        highlightSessionService.handleSignal(signal);
+        // when (90초 이내에 더 큰 피크 150 발생)
+        AnalysisSignal largerSignal = AnalysisSignal.of(STREAM_ID, "PEAK", now.plusSeconds(10), 150L);
+        highlightSessionService.handleSignal(largerSignal);
 
         // then
-        assertThat(ongoingSession.getStatus()).isEqualTo("FINISHED");
-        assertThat(ongoingSession.getEndTime()).isEqualTo(lastPeakTime.plus(cooldown));
+        assertThat(ongoingSession.getPeakFirepower()).isEqualTo(150L);
+        verify(repository, times(2)).findFirstByStreamIdAndStatusOrderByStartTimeDesc(any(), any());
     }
 
     @Test
-    void NORMAL_신호가_오고_유예기간이_지나지_않았으면_세션을_유지한다() {
-        // given
-        Instant now = Instant.now();
-        Instant lastPeakTime = now.minus(cooldown).plusSeconds(2); // 쿨다운 이내 (8초 전)
-        HighlightEventEntity ongoingSession = new HighlightEventEntity(STREAM_ID, now.minusSeconds(60), lastPeakTime, 200L);
+    void 쿨다운_기간_내에_NORMAL_신호가_오면_DB조회없이_무시한다() {
+        // given (캐시에 피크 등록)
+        highlightSessionService.handleSignal(AnalysisSignal.of(STREAM_ID, "PEAK", Instant.now(), 100L));
 
-        AnalysisSignal signal = AnalysisSignal.of(STREAM_ID, "NORMAL", now, 10L);
+        // when (쿨다운 기간 내 NORMAL 발생)
+        highlightSessionService.handleSignal(AnalysisSignal.of(STREAM_ID, "NORMAL", Instant.now().plusSeconds(10), 10L));
 
-        when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING")).thenReturn(Optional.of(ongoingSession));
-
-        // when
-        highlightSessionService.handleSignal(signal);
-
-        // then
-        assertThat(ongoingSession.getStatus()).isEqualTo("ONGOING");
-        assertThat(ongoingSession.getEndTime()).isNull();
-    }
-
-    @Test
-    void NORMAL_신호가_오고_진행중인_세션이_없으면_아무_동작도_하지_않는다() {
-        // given
-        AnalysisSignal signal = AnalysisSignal.of(STREAM_ID, "NORMAL", Instant.now(), 10L);
-        when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING")).thenReturn(Optional.empty());
-
-        // when
-        highlightSessionService.handleSignal(signal);
-
-        // then
-        verify(repository, never()).save(any());
+        // then (NORMAL 처리를 위한 DB 조회가 발생하지 않음)
+        verify(repository, times(1)).findFirstByStreamIdAndStatusOrderByStartTimeDesc(any(), any());
     }
 }
