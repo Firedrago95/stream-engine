@@ -97,4 +97,40 @@ class RedisChatRoomAggregationRepositoryTest implements RedisTestSupport {
             () -> assertThat(dataPoints.get(1).value()).isEqualTo(2)
         );
     }
+
+    @Test
+    void 데이터_누락_구간이_발생하면_중간_이빨을_0으로_채워서_반환한다() {
+        // given
+        Instant now = Instant.now();
+        String streamId = "sparse_room";
+
+        // T=0 (채팅 10개 누적)
+        ChatRoomAggregation agg1 = new ChatRoomAggregation(streamId, now);
+        for(int i=0; i<10; i++) agg1.increaseCount(now);
+        repository.save(agg1, now);
+
+        // T=3초 (채팅 2개 추가, 누적 12개) -> 정상 델타: 2
+        Instant t1 = now.plusSeconds(3);
+        agg1.increaseCount(t1);
+        agg1.increaseCount(t1);
+        repository.save(agg1, t1);
+
+        // T=12초 (T=6초, T=9초 구간은 채팅이 없어 저장되지 않음 -> 공백 발생)
+        // (채팅 3개 추가, 누적 15개) -> 이전 기록과의 시간 차이가 9초이므로 누락 틱은 2개(0, 0), 마지막 델타는 3
+        Instant t2 = now.plusSeconds(12);
+        agg1.increaseCount(t2);
+        agg1.increaseCount(t2);
+        agg1.increaseCount(t2);
+        repository.save(agg1, t2);
+
+        // when
+        List<Long> deltas = repository.getFirepowerDeltas(streamId, now.minusSeconds(1), now.plusSeconds(15));
+
+        // then
+        // T=3초의 델타: 2
+        // T=6초의 패딩: 0
+        // T=9초의 패딩: 0
+        // T=12초의 델타: 3
+        assertThat(deltas).containsExactly(2L, 0L, 0L, 3L);
+    }
 }
