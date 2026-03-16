@@ -160,7 +160,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
       const lastValue = stableData.length > 0 ? stableData[stableData.length - 1].value : 0;
       return { label: "현재 실시간 화력", value: lastValue };
     }
-    return { label: `${selectedTab} 분석 리포트`, value: historicalData.length > 0 ? "조회 완료" : "-" };
+    const maxVal = historicalData.length > 0 ? Math.max(...historicalData.map(d => d.value || 0)) : 0;
+    return { label: `${selectedTab.slice(5)} 최고 화력`, value: maxVal };
   }, [selectedTab, stableData, historicalData, hoveredData]);
 
   if (!streamId) return <div className="p-10 text-center text-slate-400">잘못된 접근입니다.</div>;

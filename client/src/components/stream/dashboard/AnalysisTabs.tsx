@@ -20,11 +20,11 @@ export const AnalysisTabs: React.FC<{
   selected: string;
   onSelect: (tab: string) => void;
 }> = ({ availableDates, selected, onSelect }) => (
-    <div className="mb-8 mt-4 relative z-10 w-full overflow-hidden">
+    <div className="mb-8 mt-4 relative z-10 w-full">
 
       {/* 헤더 부분 */}
       <div className="flex items-center mb-3 px-1">
-        <span className="text-sm font-black text-gray-400 uppercase tracking-widest">날짜 선택</span>
+        <span className="text-sm font-black text-gray-200 uppercase tracking-widest">날짜 선택</span>
         <InfoTooltip text="자정을 넘긴 방송도 흐름이 끊기지 않게!\n매일 새벽 6시를 기준으로 하루치 방송을 묶어서 보여드려요. 📅" />
       </div>
 

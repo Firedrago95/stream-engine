@@ -1,5 +1,18 @@
 import React from 'react';
 
+const InfoTooltip = ({ text }: { text: string }) => (
+    <div className="group relative inline-flex items-center ml-1.5 cursor-help z-50">
+    <span className="text-gray-300 hover:text-[#00FFA3] transition-colors">
+      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+      </svg>
+    </span>
+      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-56 p-3 bg-[#1a1a1c] text-gray-200 text-xs rounded-xl shadow-2xl border border-gray-600 pointer-events-none text-left whitespace-pre-line leading-relaxed">
+        {text}
+      </div>
+    </div>
+);
+
 const formatOffset = (ms: number | undefined | null) => {
   if (ms === null || ms === undefined) return "--:--:--";
   const totalSeconds = Math.floor(ms / 1000);
@@ -25,9 +38,11 @@ const formatAbsoluteTime = (isoString: string) => {
 
 export const HighlightSection: React.FC<{ highlights: any[] }> = ({highlights}) => (
     <div className="mt-12">
-      <div className="flex items-center mb-6 px-2">
-        <span className="text-2xl mr-2">🔥</span>
+      <div className="flex items-center mb-6 px-2 gap-2">
+        <span className="text-2xl">🔥</span>
         <h3 className="text-xl font-black text-white italic tracking-tighter">주요 하이라이트</h3>
+        <span className="px-2.5 py-0.5 bg-[#00FFA3]/20 border border-[#00FFA3]/30 text-[#00FFA3] rounded-lg text-sm font-black">{highlights.length}</span>
+        <InfoTooltip text="시청자들의 채팅이 가장 폭발적으로 발생했던 핵심 구간입니다. 🚀" />
       </div>
 
       <div className="grid gap-3">
@@ -41,7 +56,7 @@ export const HighlightSection: React.FC<{ highlights: any[] }> = ({highlights}) 
                      className={`flex items-center p-6 bg-[#1a1a1c] border ${hl.status === 'ONGOING' ? 'border-[#00FFA3] bg-[#00FFA3]/5' : 'border-gray-800'} rounded-2xl`}>
                   <div className="flex-1">
                     <span
-                        className="text-[10px] text-gray-400 font-black mb-1 block tracking-widest">발생 시점 (영상 기준)</span>
+                        className="text-[10px] text-gray-200 font-black mb-1 block tracking-widest">발생 시점 (영상 기준)</span>
                     <div className="flex items-center gap-2 h-8">
                 
                 <span className="text-white font-mono text-xl font-black flex items-center gap-1.5 shrink-0">
@@ -63,17 +78,15 @@ export const HighlightSection: React.FC<{ highlights: any[] }> = ({highlights}) 
                           <div className="flex items-center gap-2 shrink-0">
                             <span
                                 className="text-white font-mono text-xl font-black">{formatOffset(hl.endTimeOffset)}</span>
-                            <span
-                                className="text-gray-300 text-[11px] font-bold">({formatAbsoluteTime(hl.endTime)})</span>
                           </div>
                       )}
                     </div>
                   </div>
                   <div className="text-right">
                     <span
-                        className="text-[10px] text-gray-400 font-black mb-1 block tracking-widest">최고 화력</span>
+                        className="text-[10px] text-gray-200 font-black mb-1 block tracking-widest">최고 화력</span>
                     <span className="text-[#00FFA3] font-black text-2xl">{hl.peakFirepower}<span
-                        className="text-xs text-gray-500 ml-1">msg/s</span></span>
+                        className="text-xs text-gray-300 ml-1">msg/s</span></span>
                   </div>
                 </div>
             ))

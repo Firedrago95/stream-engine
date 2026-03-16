@@ -60,6 +60,26 @@ const MainPage = () => {
               <StreamCard key={stream.streamId} stream={stream} />
           ))}
         </div>
+
+        <footer className="mt-24 pt-12 pb-12 border-t border-gray-800/60 text-center w-full">
+          <div className="mb-6">
+            <span className="text-[#00FFA3] font-black text-xl italic tracking-tighter uppercase">Cheese Pick</span>
+          </div>
+          <a
+              href="https://forms.gle/hUkZBr9KCTDyTXLW9"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-gray-300 hover:text-[#00FFA3] transition-all text-sm font-bold bg-[#1a1a1c] px-8 py-3.5 rounded-full border border-gray-700 hover:border-[#00FFA3]/50 shadow-xl group"
+          >
+            💡 치즈픽 하이라이트 엔진 피드백 보내기
+            <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          </a>
+          <p className="mt-8 text-[11px] text-gray-500 font-medium tracking-widest uppercase">
+            © 2026 CheesePick. Advanced Stream Analytics Pipeline.
+          </p>
+        </footer>
       </div>
   );
 };
