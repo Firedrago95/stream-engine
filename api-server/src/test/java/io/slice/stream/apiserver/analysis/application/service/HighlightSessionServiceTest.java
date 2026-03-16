@@ -11,6 +11,7 @@ import io.slice.stream.apiserver.analysis.infrastructure.JpaHighlightEventReposi
 import io.slice.stream.apiserver.analysis.infrastructure.entity.HighlightEventEntity;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -124,5 +125,26 @@ class HighlightSessionServiceTest {
 
         // then
         verify(repository, times(1)).findFirstByStreamIdAndStatusOrderByStartTimeDesc(any(), any());
+    }
+
+    @Test
+    void 스케줄러가_동작하면_3분이상_방치된_좀비세션을_찾아_종료한다() {
+        // given
+        Instant peakTime = Instant.now().minus(Duration.ofMinutes(4));
+        long lastPeakOffset = 10000L;
+
+        HighlightEventEntity zombieSession = new HighlightEventEntity(
+            STREAM_ID, peakTime, lastPeakOffset, peakTime, lastPeakOffset, 100L
+        );
+
+        when(repository.findZombieSessions(any(Instant.class))).thenReturn(List.of(zombieSession));
+
+        // when
+        highlightSessionService.cleanUpZombieSessions();
+
+        // then
+        assertThat(zombieSession.getStatus()).isEqualTo("FINISHED");
+        long expectedEndTimeOffset = lastPeakOffset + trailingBuffer.toMillis();
+        assertThat(zombieSession.getEndTimeOffset()).isEqualTo(expectedEndTimeOffset);
     }
 }

@@ -8,12 +8,14 @@ import io.slice.stream.apiserver.analysis.infrastructure.entity.HighlightEventEn
 import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.resilience.annotation.Retryable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,6 +60,23 @@ public class HighlightSessionService {
             processPeakSignal(signal, streamId);
         } else {
             processNormalSignal(signal, streamId);
+        }
+    }
+
+    @Scheduled(fixedRate = 60_000)
+    @Transactional
+    public void cleanUpZombieSessions() {
+        // 3분 전 시간 계산
+        Instant zombieThreshold = Instant.now().minus(Duration.ofMinutes(3));
+
+        List<HighlightEventEntity> zombies = repository.findZombieSessions(zombieThreshold);
+
+        for (HighlightEventEntity session : zombies) {
+            Instant finalEndTime = session.getLastPeakTime().plus(trailingBuffer);
+            long lastOffset = session.getLastPeakOffset() != null ? session.getLastPeakOffset() : 0L;
+
+            session.finish(finalEndTime, lastOffset + trailingBuffer.toMillis());
+            log.info("[Session-Cleanup] 방치된 좀비 하이라이트 세션 강제 종료 Stream: {}", session.getStreamId());
         }
     }
 

@@ -123,4 +123,35 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
         // 시작 시간 기준 정렬 확인 (repository 쿼리에 정렬 조건이 있다면)
         assertThat(results.get(0).getStartTimeOffset()).isLessThan(results.get(1).getStartTimeOffset());
     }
+
+    @Test
+    void 임계시간_이전의_ONGOING_좀비세션만_조회한다() {
+        // given
+        Instant now = Instant.now();
+        Instant threshold = now.minus(3, ChronoUnit.MINUTES);
+
+        // 좀비 세션
+        HighlightEventEntity zombie = new HighlightEventEntity(
+            "zombie-stream", now.minus(4, ChronoUnit.MINUTES), 1000L, now.minus(4, ChronoUnit.MINUTES), 1000L, 100L);
+        repository.save(zombie);
+
+        // 정상 세션
+        HighlightEventEntity active = new HighlightEventEntity(
+            "active-stream", now.minus(1, ChronoUnit.MINUTES), 2000L, now.minus(1, ChronoUnit.MINUTES), 2000L, 200L);
+        repository.save(active);
+
+        // 종료된 세션
+        HighlightEventEntity finished = new HighlightEventEntity(
+            "finished-stream", now.minus(5, ChronoUnit.MINUTES), 0L, now.minus(5, ChronoUnit.MINUTES), 0L, 50L);
+        finished.finish(now.minus(4, ChronoUnit.MINUTES), 10000L);
+        repository.save(finished);
+
+        // when
+        List<HighlightEventEntity> results = repository.findZombieSessions(threshold);
+
+        // then
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getStreamId()).isEqualTo("zombie-stream");
+        assertThat(results.get(0).getStatus()).isEqualTo("ONGOING");
+    }
 }
