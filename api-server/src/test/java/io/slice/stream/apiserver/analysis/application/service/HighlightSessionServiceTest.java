@@ -11,6 +11,7 @@ import io.slice.stream.apiserver.analysis.infrastructure.JpaHighlightEventReposi
 import io.slice.stream.apiserver.analysis.infrastructure.entity.HighlightEventEntity;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -43,6 +44,7 @@ class HighlightSessionServiceTest {
         ReflectionTestUtils.setField(highlightSessionService, "leadingBuffer", leadingBuffer);
         ReflectionTestUtils.setField(highlightSessionService, "trailingBuffer", trailingBuffer);
         ReflectionTestUtils.setField(highlightSessionService, "cooldown", cooldown);
+        ReflectionTestUtils.setField(highlightSessionService, "extensionRatio", 0.7);
         highlightSessionService.init();
     }
 
@@ -87,7 +89,7 @@ class HighlightSessionServiceTest {
     }
 
     @Test
-    void 쿨다운_기간_내에_더_큰_PEAK가_오면_세션을_연장하고_캐시를_갱신한다() {
+    void 쿨다운_기간_내에_70퍼센트_이상의_여진이_오면_버퍼를_연장하고_최대화력은_유지한다() {
         // given
         Instant now = Instant.now();
         long initialOffset = 3600000L;
@@ -102,14 +104,14 @@ class HighlightSessionServiceTest {
         // 최초 피크 (100)
         highlightSessionService.handleSignal(AnalysisSignal.of(STREAM_ID, "PEAK", now, 100L, initialOffset));
 
-        // when (10초 뒤 더 큰 피크 150 발생)
-        long largerOffset = initialOffset + 10000L;
-        AnalysisSignal largerSignal = AnalysisSignal.of(STREAM_ID, "PEAK", now.plusSeconds(10), 150L, largerOffset);
-        highlightSessionService.handleSignal(largerSignal);
+        // when (10초 뒤 화력 80의 여진 발생)
+        long after10SecOffset = initialOffset + 10000L;
+        AnalysisSignal secondarySignal = AnalysisSignal.of(STREAM_ID, "PEAK", now.plusSeconds(10), 80L, after10SecOffset);
+        highlightSessionService.handleSignal(secondarySignal);
 
         // then
-        assertThat(ongoingSession.getPeakFirepower()).isEqualTo(150L);
-        assertThat(ongoingSession.getLastPeakOffset()).isEqualTo(largerOffset); // 오프셋 갱신 검증
+        assertThat(ongoingSession.getPeakFirepower()).isEqualTo(100L);
+        assertThat(ongoingSession.getLastPeakOffset()).isEqualTo(after10SecOffset);
         verify(repository, times(2)).findFirstByStreamIdAndStatusOrderByStartTimeDesc(any(), any());
     }
 
@@ -123,5 +125,26 @@ class HighlightSessionServiceTest {
 
         // then
         verify(repository, times(1)).findFirstByStreamIdAndStatusOrderByStartTimeDesc(any(), any());
+    }
+
+    @Test
+    void 스케줄러가_동작하면_3분이상_방치된_좀비세션을_찾아_종료한다() {
+        // given
+        Instant peakTime = Instant.now().minus(Duration.ofMinutes(4));
+        long lastPeakOffset = 10000L;
+
+        HighlightEventEntity zombieSession = new HighlightEventEntity(
+            STREAM_ID, peakTime, lastPeakOffset, peakTime, lastPeakOffset, 100L
+        );
+
+        when(repository.findZombieSessions(any(Instant.class))).thenReturn(List.of(zombieSession));
+
+        // when
+        highlightSessionService.cleanUpZombieSessions();
+
+        // then
+        assertThat(zombieSession.getStatus()).isEqualTo("FINISHED");
+        long expectedEndTimeOffset = lastPeakOffset + trailingBuffer.toMillis();
+        assertThat(zombieSession.getEndTimeOffset()).isEqualTo(expectedEndTimeOffset);
     }
 }

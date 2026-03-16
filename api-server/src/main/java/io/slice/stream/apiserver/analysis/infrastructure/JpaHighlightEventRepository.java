@@ -27,4 +27,11 @@ public interface JpaHighlightEventRepository extends JpaRepository<HighlightEven
         @Param("start") Instant start,
         @Param("end") Instant end
     );
+
+    @Query("""
+           SELECT h FROM HighlightEventEntity h
+           WHERE h.status = 'ONGOING'
+             AND h.lastPeakTime < :threshold
+           """)
+    List<HighlightEventEntity> findZombieSessions(@Param("threshold") Instant threshold);
 }

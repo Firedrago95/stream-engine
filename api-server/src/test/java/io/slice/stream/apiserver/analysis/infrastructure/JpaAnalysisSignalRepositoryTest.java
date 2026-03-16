@@ -30,17 +30,17 @@ class JpaAnalysisSignalRepositoryTest implements PostgresTestSupport {
     private EntityManager em;
 
     @Test
-    void 기준_시간_이전의_데이터를_1분_단위로_압축하여_요약_테이블에_저장한다() {
+    void 방송시간을_기준으로_1분_단위_버킷을_생성하여_요약_테이블에_압축_저장한다() {
         // given
         String streamId = "test-stream";
         Instant baseTime = Instant.parse("2024-01-01T10:00:00Z");
 
-        // 10:00:05 (Offset: 5s)
+        // 10:00:05 (Offset: 5s) -> [0ms 바구니]
         jpaRepository.save(new AnalysisSignalEntity(streamId, "NORMAL", baseTime.plusSeconds(5), 100L, 5000L));
-        // 10:00:40 (Offset: 40s)
+        // 10:00:40 (Offset: 40s) -> [0ms 바구니]
         jpaRepository.save(new AnalysisSignalEntity(streamId, "NORMAL", baseTime.plusSeconds(40), 200L, 40000L));
-        // 10:01:05 (Offset: 65s)
-        jpaRepository.save(new AnalysisSignalEntity(streamId, "NORMAL", baseTime.plus(1, ChronoUnit.MINUTES), 300L, 65000L));
+        // 10:01:05 (Offset: 65s) -> [6000ms 바구니]
+        jpaRepository.save(new AnalysisSignalEntity(streamId, "NORMAL", baseTime.plusSeconds(65), 300L, 65000L));
 
         Instant cutoffTime = baseTime.plus(5, ChronoUnit.MINUTES);
 
@@ -50,14 +50,23 @@ class JpaAnalysisSignalRepositoryTest implements PostgresTestSupport {
         // then
         assertThat(affectedRows).isEqualTo(2);
 
-        Object[] summary = (Object[]) em.createNativeQuery(
-                "SELECT firepower_avg, firepower_max, offset_ms FROM analysis_signals_summary WHERE timestamp_minute = '2024-01-01 10:00:00+00'")
+        // 1번 바구니(0ms 버킷) 검증
+        // timestamp_minute은 해당 버킷 내 가장 빠른 시간인 10:00:05 로 기록됨
+        Object[] summary1 = (Object[]) em.createNativeQuery(
+                "SELECT firepower_avg, firepower_max, offset_ms FROM analysis_signals_summary WHERE timestamp_minute = '2024-01-01 10:00:05+00'")
             .getSingleResult();
 
-        assertThat(((Number) summary[0]).longValue()).isEqualTo(150L); // 평균
-        assertThat(((Number) summary[1]).longValue()).isEqualTo(200L); // 최대값
-        // 5000L와 40000L 중 최소값인 5000L이 나와야 함
-        assertThat(((Number) summary[2]).longValue()).isEqualTo(5000L);
+        assertThat(((Number) summary1[0]).longValue()).isEqualTo(150L); // 100과 200의 평균
+        assertThat(((Number) summary1[1]).longValue()).isEqualTo(200L); // 최대값
+        // 5000L이 아니라, 정규화된 바구니의 시작 오프셋인 0L이 들어가야 함!
+        assertThat(((Number) summary1[2]).longValue()).isEqualTo(0L);
+
+        // 2번 바구니(60000ms 버킷) 검증
+        Object[] summary2 = (Object[]) em.createNativeQuery(
+                "SELECT firepower_avg, firepower_max, offset_ms FROM analysis_signals_summary WHERE timestamp_minute = '2024-01-01 10:01:05+00'")
+            .getSingleResult();
+        assertThat(((Number) summary2[0]).longValue()).isEqualTo(300L);
+        assertThat(((Number) summary2[2]).longValue()).isEqualTo(60000L);
     }
 
     @Test

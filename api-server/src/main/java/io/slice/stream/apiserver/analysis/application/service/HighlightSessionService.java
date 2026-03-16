@@ -8,12 +8,14 @@ import io.slice.stream.apiserver.analysis.infrastructure.entity.HighlightEventEn
 import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.resilience.annotation.Retryable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +35,9 @@ public class HighlightSessionService {
 
     @Value("${highlight.cooldown}")
     private Duration cooldown;
+
+    @Value("${highlight.extension-ratio}")
+    private double extensionRatio;
 
     private Cache<String, Long> nmsCache;
 
@@ -58,23 +63,41 @@ public class HighlightSessionService {
         }
     }
 
-    private void processPeakSignal(AnalysisSignal signal, String streamId) {
-        Long cachedMaxFirepower = nmsCache.getIfPresent(streamId);
+    @Scheduled(fixedRate = 60_000)
+    @Transactional
+    public void cleanUpZombieSessions() {
+        // 3분 전 시간 계산
+        Instant zombieThreshold = Instant.now().minus(Duration.ofMinutes(3));
 
-        if (cachedMaxFirepower == null) {
-            // 캐시에 없다면, 쿨다운이 끝난 후의 새로운 피크거나, 방송의 첫 피크
-            nmsCache.put(streamId, signal.firepower());
+        List<HighlightEventEntity> zombies = repository.findZombieSessions(zombieThreshold);
+
+        for (HighlightEventEntity session : zombies) {
+            Instant finalEndTime = session.getLastPeakTime().plus(trailingBuffer);
+            long lastOffset = session.getLastPeakOffset() != null ? session.getLastPeakOffset() : 0L;
+
+            session.finish(finalEndTime, lastOffset + trailingBuffer.toMillis());
+            log.info("[Session-Cleanup] 방치된 좀비 하이라이트 세션 강제 종료 Stream: {}", session.getStreamId());
+        }
+    }
+
+    private void processPeakSignal(AnalysisSignal signal, String streamId) {
+        Long cachedMaxFirepower = nmsCache.get(streamId, k -> {
+            // 캐시에 없으면 새 피크로 DB업데이트 후 값 반환
             updateDbSessionForPeak(signal, streamId);
-        } else {
-            // 캐시에 있다면, NMS 로직 적용
-            if (signal.firepower() > cachedMaxFirepower) {
-                // 비최댓값 억제 통과 : 쿨다운 중이더라도 기존보다 더 큰 피크라면 캐시와 db갱신
-                nmsCache.put(streamId, signal.firepower());
+            return signal.firepower();
+        });
+
+        if (cachedMaxFirepower != null && !cachedMaxFirepower.equals(signal.firepower())) {
+            long threshold = (long) (cachedMaxFirepower * extensionRatio);
+
+            if (signal.firepower() > threshold) {
+                // 임계치 통과시 캐시 갱신 및 세션 연장
+                long newMax = Math.max(signal.firepower(), cachedMaxFirepower);
+                nmsCache.put(streamId, newMax);
                 updateDbSessionForPeak(signal, streamId);
             } else {
-                // 비최댓값 억제 작동: 더 작은 피크는 뇌절 방지를 위해 DB 조회를 생략하고 무시
-                log.debug("[Session-NMS] 피크 억제됨 (쿨다운 진행중) - Stream: {}, Firepower: {} <= Max: {}",
-                    streamId, signal.firepower(), cachedMaxFirepower);
+                log.debug("[Session-NMS] 피크 억제됨 (쿨다운 진행중) - Stream: {}, Firepower: {} <= Threshold: {}",
+                    streamId, signal.firepower(), threshold);
             }
         }
     }
