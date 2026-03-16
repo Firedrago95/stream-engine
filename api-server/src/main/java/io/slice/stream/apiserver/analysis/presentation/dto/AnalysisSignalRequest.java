@@ -19,6 +19,7 @@ public record AnalysisSignalRequest(
     @PositiveOrZero(message = "화력 수치는 0 이상이어야 합니다.")
     long firepower,
 
+    @NotNull(message = "VOD 오프셋 시간은 필수입니다.")
     Long offsetMs
 ) {
     public AnalysisSignal toDomain() {

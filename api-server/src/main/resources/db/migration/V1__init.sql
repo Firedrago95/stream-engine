@@ -41,7 +41,7 @@ CREATE TABLE analysis_signals (
     status      VARCHAR(50)  NOT NULL,
     firepower   BIGINT       NOT NULL,
     timestamp   TIMESTAMPTZ  NOT NULL,
-    offset_ms   BIGINT
+    offset_ms   BIGINT       NOT NULL
 );
 -- 특정 스트리머의 전체 분석 신호를 시간 역순으로 빠르게 찾아올 때 사용
 CREATE INDEX idx_stream_timestamp ON analysis_signals (stream_id, timestamp DESC);
@@ -58,7 +58,7 @@ CREATE TABLE analysis_signals_summary (
     firepower_avg    BIGINT       NOT NULL,
     firepower_max    BIGINT       NOT NULL,
     timestamp_minute TIMESTAMPTZ  NOT NULL,
-    offset_ms        BIGINT,
+    offset_ms        BIGINT,      NOT NULL,
     UNIQUE (session_id, status, offset_ms)
 );
 -- 특정 스트리머의 전체 1분 요약 데이터를 시간 역순으로 조회할 때 사용
