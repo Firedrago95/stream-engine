@@ -53,7 +53,7 @@ class HighlightSessionServiceTest {
         // given
         Instant now = Instant.now();
         long offsetMs = 3600000L; // 방송 시작 1시간 지점
-        AnalysisSignal signal = AnalysisSignal.of(STREAM_ID, "PEAK", now, 100L, offsetMs);
+        AnalysisSignal signal = AnalysisSignal.of(STREAM_ID, "sessionId", "PEAK", now, 100L, offsetMs);
 
         when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING"))
             .thenReturn(Optional.empty());
@@ -78,10 +78,10 @@ class HighlightSessionServiceTest {
         Instant now = Instant.now();
         long offsetMs = 3600000L;
         // 최초 피크 100 적재
-        highlightSessionService.handleSignal(AnalysisSignal.of(STREAM_ID, "PEAK", now, 100L, offsetMs));
+        highlightSessionService.handleSignal(AnalysisSignal.of(STREAM_ID, "sessionId", "PEAK", now, 100L, offsetMs));
 
         // when (10초 뒤 50짜리 더 작은 피크 발생)
-        AnalysisSignal smallerSignal = AnalysisSignal.of(STREAM_ID, "PEAK", now.plusSeconds(10), 50L, offsetMs + 10000L);
+        AnalysisSignal smallerSignal = AnalysisSignal.of(STREAM_ID, "sessionId", "PEAK", now.plusSeconds(10), 50L, offsetMs + 10000L);
         highlightSessionService.handleSignal(smallerSignal);
 
         // then (최초 1회 외에는 DB 조회가 일어나지 않음)
@@ -95,18 +95,18 @@ class HighlightSessionServiceTest {
         long initialOffset = 3600000L;
 
         HighlightEventEntity ongoingSession = new HighlightEventEntity(
-            STREAM_ID, now, initialOffset - 10000L, now, initialOffset, 100L
+            STREAM_ID,"sessionId", now, initialOffset - 10000L, now, initialOffset, 100L
         );
 
         when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING"))
             .thenReturn(Optional.of(ongoingSession));
 
         // 최초 피크 (100)
-        highlightSessionService.handleSignal(AnalysisSignal.of(STREAM_ID, "PEAK", now, 100L, initialOffset));
+        highlightSessionService.handleSignal(AnalysisSignal.of(STREAM_ID, "sessionId", "PEAK", now, 100L, initialOffset));
 
         // when (10초 뒤 화력 80의 여진 발생)
         long after10SecOffset = initialOffset + 10000L;
-        AnalysisSignal secondarySignal = AnalysisSignal.of(STREAM_ID, "PEAK", now.plusSeconds(10), 80L, after10SecOffset);
+        AnalysisSignal secondarySignal = AnalysisSignal.of(STREAM_ID, "sessionId", "PEAK", now.plusSeconds(10), 80L, after10SecOffset);
         highlightSessionService.handleSignal(secondarySignal);
 
         // then
@@ -118,10 +118,10 @@ class HighlightSessionServiceTest {
     @Test
     void 쿨다운_기간_내에_NORMAL_신호가_오면_DB조회없이_무시한다() {
         // given
-        highlightSessionService.handleSignal(AnalysisSignal.of(STREAM_ID, "PEAK", Instant.now(), 100L, 3600000L));
+        highlightSessionService.handleSignal(AnalysisSignal.of(STREAM_ID, "sessionId", "PEAK", Instant.now(), 100L, 3600000L));
 
         // when (쿨다운 내 NORMAL 발생)
-        highlightSessionService.handleSignal(AnalysisSignal.of(STREAM_ID, "NORMAL", Instant.now().plusSeconds(10), 10L, 3610000L));
+        highlightSessionService.handleSignal(AnalysisSignal.of(STREAM_ID, "sessionId", "NORMAL", Instant.now().plusSeconds(10), 10L, 3610000L));
 
         // then
         verify(repository, times(1)).findFirstByStreamIdAndStatusOrderByStartTimeDesc(any(), any());
@@ -134,7 +134,7 @@ class HighlightSessionServiceTest {
         long lastPeakOffset = 10000L;
 
         HighlightEventEntity zombieSession = new HighlightEventEntity(
-            STREAM_ID, peakTime, lastPeakOffset, peakTime, lastPeakOffset, 100L
+            STREAM_ID, "sessionId", peakTime, lastPeakOffset, peakTime, lastPeakOffset, 100L
         );
 
         when(repository.findZombieSessions(any(Instant.class))).thenReturn(List.of(zombieSession));

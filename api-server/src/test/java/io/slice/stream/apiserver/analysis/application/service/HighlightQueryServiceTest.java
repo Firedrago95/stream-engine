@@ -34,6 +34,7 @@ class HighlightQueryServiceTest {
     void 특정_날짜의_하이라이트_목록을_조회하여_DTO로_변환한다() {
         // given
         String streamId = "stream-123";
+        String sessionId = "sessionId";
         LocalDate date = LocalDate.of(2026, 3, 4);
 
         Instant start = Instant.parse("2026-03-04T10:00:00Z");
@@ -45,6 +46,7 @@ class HighlightQueryServiceTest {
 
         HighlightEventEntity entity = new HighlightEventEntity(
             streamId,
+            sessionId,
             start,
             startOffset,
             start, // 최초 피크 시간

@@ -26,6 +26,9 @@ public class AnalysisSignalEntity {
     @Column(name = "stream_id", nullable = false)
     private String streamId;
 
+    @Column(name = "session_id", nullable = false)
+    private String sessionId;
+
     @Column(nullable = false)
     private String status;
 
@@ -35,11 +38,12 @@ public class AnalysisSignalEntity {
     @Column(nullable = false)
     private Long firepower;
 
-    @Column(name = "offset_ms")
+    @Column(name = "offset_ms", nullable = false)
     private Long offsetMs;
 
-    public AnalysisSignalEntity(String streamId, String status, Instant timestamp, Long firepower, Long offsetMs) {
+    public AnalysisSignalEntity(String streamId, String sessionId, String status, Instant timestamp, Long firepower, Long offsetMs) {
         this.streamId = streamId;
+        this.sessionId = sessionId;
         this.status = status;
         this.timestamp = timestamp;
         this.firepower = firepower;

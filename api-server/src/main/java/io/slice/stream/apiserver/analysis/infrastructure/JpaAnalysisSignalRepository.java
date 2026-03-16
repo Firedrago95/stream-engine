@@ -26,9 +26,10 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
 
     @Modifying
     @Query(value = """
-        INSERT INTO analysis_signals_summary (stream_id, status, firepower_avg, firepower_max, timestamp_minute, offset_ms)
+        INSERT INTO analysis_signals_summary (stream_id, session_id, status, firepower_avg, firepower_max, timestamp_minute, offset_ms)
         SELECT
-             stream_id,
+             MAX(stream_id),
+             session_id,
              status,
              CAST(AVG(firepower) AS BIGINT),
              MAX(firepower),
@@ -36,12 +37,12 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
              (CAST(FLOOR(offset_ms / 60000.0) AS BIGINT) * 60000) AS offset_ms
         FROM analysis_signals
         WHERE timestamp < :cutoffTime
-        GROUP BY stream_id, status, FLOOR(offset_ms / 60000.0)
-        ON CONFLICT (stream_id, status, timestamp_minute)
+        GROUP BY session_id, status, FLOOR(offset_ms / 60000.0)
+        ON CONFLICT (session_id, status, offset_ms)
         DO UPDATE SET
            firepower_avg = EXCLUDED.firepower_avg,
            firepower_max = EXCLUDED.firepower_max,
-           offset_ms = EXCLUDED.offset_ms
+           timestamp_minute = LEAST(analysis_signals_summary.timestamp_minute, EXCLUDED.timestamp_minute)
         """, nativeQuery = true)
     int rollupOldSignals(@Param("cutoffTime") Instant cutoffTime);
 
@@ -52,17 +53,18 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
     @Query(value = """
         SELECT combined.day
         FROM (
-            SELECT DATE(timestamp AT TIME ZONE 'Asia/Seoul') AS day
+            SELECT DATE((timestamp - INTERVAL '6 hours') AT TIME ZONE 'Asia/Seoul') AS day
             FROM analysis_signals
             WHERE stream_id = :streamId
               AND timestamp >= CURRENT_TIMESTAMP - INTERVAL '3 days'
-              AND DATE(timestamp AT TIME ZONE 'Asia/Seoul') < :beforeDate
+              AND DATE((timestamp - INTERVAL '6 hours') AT TIME ZONE 'Asia/Seoul') < :beforeDate
             UNION
-            SELECT DATE(timestamp_minute AT TIME ZONE 'Asia/Seoul') AS day
+            SELECT DATE((timestamp_minute - INTERVAL '6 hours') AT TIME ZONE 'Asia/Seoul') AS day
             FROM analysis_signals_summary
             WHERE stream_id = :streamId
-              AND DATE(timestamp_minute AT TIME ZONE 'Asia/Seoul') < :beforeDate
+              AND DATE((timestamp_minute - INTERVAL '6 hours') AT TIME ZONE 'Asia/Seoul') < :beforeDate
         ) AS combined
+        GROUP BY combined.day
         ORDER BY combined.day DESC
         LIMIT :limit
         """, nativeQuery = true)

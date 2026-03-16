@@ -128,6 +128,7 @@ public class HighlightSessionService {
 
         HighlightEventEntity newSession = new HighlightEventEntity(
             signal.streamId(),
+            signal.sessionId(),
             adjustedStart,
             startTimeOffset,
             signal.timestamp(), // 최초 피크 시간

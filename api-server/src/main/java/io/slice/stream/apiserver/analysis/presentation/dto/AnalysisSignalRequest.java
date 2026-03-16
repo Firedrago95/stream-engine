@@ -19,9 +19,11 @@ public record AnalysisSignalRequest(
     @PositiveOrZero(message = "화력 수치는 0 이상이어야 합니다.")
     long firepower,
 
+    @NotNull(message = "VOD 오프셋 시간은 필수입니다.")
     Long offsetMs
 ) {
     public AnalysisSignal toDomain() {
-        return AnalysisSignal.of(streamId, status, timestamp, firepower, offsetMs);
+        // 엔진은 세션 개념을 모르므로, sessionId는 null로 임시 세팅
+        return AnalysisSignal.of(streamId, null, status, timestamp, firepower, offsetMs);
     }
 }

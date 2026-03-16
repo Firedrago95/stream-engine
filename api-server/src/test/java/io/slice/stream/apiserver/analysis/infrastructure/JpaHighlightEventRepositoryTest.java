@@ -30,11 +30,13 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
     void 특정_스트림의_진행중인_세션을_가장_최근_시작시간_기준으로_조회한다() {
         // given
         String streamId = "test-stream-session";
+        String sessionId = "sessionId";
         Instant baseTime = Instant.now();
         long baseOffset = 3600000L; // 1시간 지점
 
         HighlightEventEntity oldSession = new HighlightEventEntity(
             streamId,
+            sessionId,
             baseTime.minus(1, ChronoUnit.HOURS),
             baseOffset - 3600000L,
             baseTime.minus(1, ChronoUnit.HOURS),
@@ -45,6 +47,7 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
 
         HighlightEventEntity recentSession = new HighlightEventEntity(
             streamId,
+            sessionId,
             baseTime,
             baseOffset,
             baseTime,
@@ -68,11 +71,13 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
     void 종료된_세션은_진행중인_세션_조회_시_포함되지_않는다() {
         // given
         String streamId = "test-stream-2";
+        String sessionId = "sessionId";
         Instant baseTime = Instant.now();
         long baseOffset = 5000L;
 
         HighlightEventEntity finishedSession = new HighlightEventEntity(
             streamId,
+            sessionId,
             baseTime.minus(1, ChronoUnit.HOURS),
             0L,
             baseTime.minus(1, ChronoUnit.HOURS),
@@ -95,20 +100,21 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
     void 특정_날짜_범위의_하이라이트만_시작시간_순으로_조회한다() {
         // given
         String streamId = "test-stream-range";
+        String sessionId = "sessionId";
         Instant target1 = Instant.parse("2026-03-04T10:00:00Z");
         Instant target2 = Instant.parse("2026-03-04T15:00:00Z");
         Instant otherDay = Instant.parse("2026-03-03T23:59:59Z");
 
-        HighlightEventEntity event1 = new HighlightEventEntity(streamId, target2, 50000L, target2, 50000L, 200L);
+        HighlightEventEntity event1 = new HighlightEventEntity(streamId, sessionId, target2, 50000L, target2, 50000L, 200L);
         event1.finish(target2.plusSeconds(10), 60000L);
 
-        HighlightEventEntity event2 = new HighlightEventEntity(streamId, target1, 10000L, target1, 10000L, 100L);
+        HighlightEventEntity event2 = new HighlightEventEntity(streamId, sessionId, target1, 10000L, target1, 10000L, 100L);
         event2.finish(target1.plusSeconds(10), 20000L);
 
         repository.save(event1);
         repository.save(event2);
 
-        HighlightEventEntity eventOther = new HighlightEventEntity(streamId, otherDay, 0L, otherDay, 0L, 50L);
+        HighlightEventEntity eventOther = new HighlightEventEntity(streamId, sessionId, otherDay, 0L, otherDay, 0L, 50L);
         eventOther.finish(otherDay.plusSeconds(10), 10000L);
         repository.save(eventOther);
 
@@ -132,17 +138,17 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
 
         // 좀비 세션
         HighlightEventEntity zombie = new HighlightEventEntity(
-            "zombie-stream", now.minus(4, ChronoUnit.MINUTES), 1000L, now.minus(4, ChronoUnit.MINUTES), 1000L, 100L);
+            "zombie-stream", "session-1", now.minus(4, ChronoUnit.MINUTES), 1000L, now.minus(4, ChronoUnit.MINUTES), 1000L, 100L);
         repository.save(zombie);
 
         // 정상 세션
         HighlightEventEntity active = new HighlightEventEntity(
-            "active-stream", now.minus(1, ChronoUnit.MINUTES), 2000L, now.minus(1, ChronoUnit.MINUTES), 2000L, 200L);
+            "active-stream", "session-2",now.minus(1, ChronoUnit.MINUTES), 2000L, now.minus(1, ChronoUnit.MINUTES), 2000L, 200L);
         repository.save(active);
 
         // 종료된 세션
         HighlightEventEntity finished = new HighlightEventEntity(
-            "finished-stream", now.minus(5, ChronoUnit.MINUTES), 0L, now.minus(5, ChronoUnit.MINUTES), 0L, 50L);
+            "finished-stream", "session-3",now.minus(5, ChronoUnit.MINUTES), 0L, now.minus(5, ChronoUnit.MINUTES), 0L, 50L);
         finished.finish(now.minus(4, ChronoUnit.MINUTES), 10000L);
         repository.save(finished);
 

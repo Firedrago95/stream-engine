@@ -38,7 +38,7 @@ class AnalysisQueryServiceTest {
         String streamId = "test-stream";
         Instant now = Instant.now();
         List<AnalysisSignal> signals = List.of(
-            AnalysisSignal.of(streamId, "PEAK", now, 100L, 1000L)
+            AnalysisSignal.of(streamId, "sessionId","PEAK", now, 100L, 1000L)
         );
         given(analysisRepository.findRecentSignals(streamId, 100)).willReturn(signals);
 

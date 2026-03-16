@@ -34,6 +34,7 @@ public class AnalysisRepositoryImpl implements AnalysisRepository {
         try {
             AnalysisSignalEntity entity = new AnalysisSignalEntity(
                 signal.streamId(),
+                signal.sessionId(),
                 signal.status(),
                 signal.timestamp(),
                 signal.firepower(),
@@ -52,6 +53,7 @@ public class AnalysisRepositoryImpl implements AnalysisRepository {
             .stream()
             .map(e -> AnalysisSignal.of(
                 e.getStreamId(),
+                e.getSessionId(),
                 e.getStatus(),
                 e.getTimestamp(),
                 e.getFirepower(),
