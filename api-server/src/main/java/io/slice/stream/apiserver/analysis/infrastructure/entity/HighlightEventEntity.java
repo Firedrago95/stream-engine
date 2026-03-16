@@ -18,6 +18,9 @@ public class HighlightEventEntity {
     @Column(name = "stream_id", nullable = false)
     private String streamId;
 
+    @Column(name = "session_id", nullable = false) // 👈 신규 추가
+    private String sessionId;
+
     @Column(nullable = false)
     private String category = "GENERAL";
 
@@ -46,9 +49,10 @@ public class HighlightEventEntity {
     private String status;
 
     // 세션 시작 생성자
-    public HighlightEventEntity(String streamId, Instant startTime, Long startTimeOffset,
+    public HighlightEventEntity(String streamId, String sessionId, Instant startTime, Long startTimeOffset,
         Instant lastPeakTime, Long lastPeakOffset, Long peakFirepower) {
         this.streamId = streamId;
+        this.sessionId = sessionId;
         this.startTime = startTime;
         this.startTimeOffset = startTimeOffset;
         this.lastPeakTime = lastPeakTime;

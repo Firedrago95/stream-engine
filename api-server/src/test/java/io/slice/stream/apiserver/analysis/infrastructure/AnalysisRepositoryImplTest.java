@@ -40,7 +40,7 @@ class AnalysisRepositoryImplTest implements PostgresTestSupport {
         Instant now = Instant.now();
         long offsetMs = 5000L;
         // [수정] 5번째 파라미터 offsetMs 추가
-        AnalysisSignal domainSignal = AnalysisSignal.of("stream-A", "NORMAL", now, 100L, offsetMs);
+        AnalysisSignal domainSignal = AnalysisSignal.of("stream-A","sessionId","NORMAL", now, 100L, offsetMs);
 
         // when
         analysisRepository.save(domainSignal);
@@ -60,8 +60,8 @@ class AnalysisRepositoryImplTest implements PostgresTestSupport {
         String streamId = "stream-1";
         Instant now = Instant.now();
 
-        analysisRepository.save(AnalysisSignal.of(streamId, "NORMAL", now.minusSeconds(10), 50L, 1000L));
-        analysisRepository.save(AnalysisSignal.of(streamId, "PEAK", now, 200L, 2000L));
+        analysisRepository.save(AnalysisSignal.of(streamId, "sessionId", "NORMAL", now.minusSeconds(10), 50L, 1000L));
+        analysisRepository.save(AnalysisSignal.of(streamId, "sessionId", "PEAK", now, 200L, 2000L));
 
         // when
         List<AnalysisSignal> results = analysisRepository.findRecentSignals(streamId, 1);
@@ -76,8 +76,8 @@ class AnalysisRepositoryImplTest implements PostgresTestSupport {
     @Test
     void 여러_스트림_ID_중_실제_데이터가_있는_ID만_추출한다() {
         // given
-        analysisRepository.save(AnalysisSignal.of("ch1", "NORMAL", Instant.now(), 10L, 0L));
-        analysisRepository.save(AnalysisSignal.of("ch2", "NORMAL", Instant.now(), 20L, 0L));
+        analysisRepository.save(AnalysisSignal.of("ch1", "sessionId", "NORMAL", Instant.now(), 10L, 0L));
+        analysisRepository.save(AnalysisSignal.of("ch2", "sessionId", "NORMAL", Instant.now(), 20L, 0L));
 
         List<String> requestIds = List.of("ch1", "ch2", "ch3");
 
@@ -98,8 +98,8 @@ class AnalysisRepositoryImplTest implements PostgresTestSupport {
         Instant yesterday = today.minus(1, ChronoUnit.DAYS);
         long targetOffset = 5000L;
 
-        analysisRepository.save(AnalysisSignal.of(streamId, "NORMAL", yesterday, 50L, 0L));
-        analysisRepository.save(AnalysisSignal.of(streamId, "PEAK", today, 200L, targetOffset));
+        analysisRepository.save(AnalysisSignal.of(streamId, "sessionId", "NORMAL", yesterday, 50L, 0L));
+        analysisRepository.save(AnalysisSignal.of(streamId, "sessionId", "PEAK", today, 200L, targetOffset));
 
         Instant start = today.minus(1, ChronoUnit.HOURS);
         Instant end = today.plus(1, ChronoUnit.HOURS);
@@ -119,7 +119,7 @@ class AnalysisRepositoryImplTest implements PostgresTestSupport {
     void 커서를_이용한_가용_날짜_목록을_조회한다() {
         // given
         String streamId = "stream-dates";
-        analysisRepository.save(AnalysisSignal.of(streamId, "NORMAL", Instant.now(), 50L, 0L));
+        analysisRepository.save(AnalysisSignal.of(streamId, "sessionId", "NORMAL", Instant.now(), 50L, 0L));
 
         LocalDate cursor = LocalDate.now().plusYears(1);
 

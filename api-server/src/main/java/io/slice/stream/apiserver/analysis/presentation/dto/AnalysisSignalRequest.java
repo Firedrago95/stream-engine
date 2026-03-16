@@ -22,6 +22,7 @@ public record AnalysisSignalRequest(
     Long offsetMs
 ) {
     public AnalysisSignal toDomain() {
-        return AnalysisSignal.of(streamId, status, timestamp, firepower, offsetMs);
+        // 엔진은 세션 개념을 모르므로, sessionId는 null로 임시 세팅
+        return AnalysisSignal.of(streamId, null, status, timestamp, firepower, offsetMs);
     }
 }

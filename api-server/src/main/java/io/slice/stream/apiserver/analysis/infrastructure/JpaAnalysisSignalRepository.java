@@ -26,9 +26,10 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
 
     @Modifying
     @Query(value = """
-        INSERT INTO analysis_signals_summary (stream_id, status, firepower_avg, firepower_max, timestamp_minute, offset_ms)
+        INSERT INTO analysis_signals_summary (stream_id, session_id, status, firepower_avg, firepower_max, timestamp_minute, offset_ms)
         SELECT
-             stream_id,
+             MAX(stream_id),
+             session_id,
              status,
              CAST(AVG(firepower) AS BIGINT),
              MAX(firepower),
@@ -36,12 +37,12 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
              (CAST(FLOOR(offset_ms / 60000.0) AS BIGINT) * 60000) AS offset_ms
         FROM analysis_signals
         WHERE timestamp < :cutoffTime
-        GROUP BY stream_id, status, FLOOR(offset_ms / 60000.0)
-        ON CONFLICT (stream_id, status, timestamp_minute)
+        GROUP BY session_id, status, FLOOR(offset_ms / 60000.0)
+        ON CONFLICT (session_id, status, offset_ms)
         DO UPDATE SET
            firepower_avg = EXCLUDED.firepower_avg,
            firepower_max = EXCLUDED.firepower_max,
-           offset_ms = EXCLUDED.offset_ms
+           timestamp_minute = LEAST(analysis_signals_summary.timestamp_minute, EXCLUDED.timestamp_minute)
         """, nativeQuery = true)
     int rollupOldSignals(@Param("cutoffTime") Instant cutoffTime);
 

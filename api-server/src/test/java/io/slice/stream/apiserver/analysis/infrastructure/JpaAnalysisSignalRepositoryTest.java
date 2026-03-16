@@ -36,11 +36,11 @@ class JpaAnalysisSignalRepositoryTest implements PostgresTestSupport {
         Instant baseTime = Instant.parse("2024-01-01T10:00:00Z");
 
         // 10:00:05 (Offset: 5s) -> [0ms 바구니]
-        jpaRepository.save(new AnalysisSignalEntity(streamId, "NORMAL", baseTime.plusSeconds(5), 100L, 5000L));
+        jpaRepository.save(new AnalysisSignalEntity(streamId, "sessionId","NORMAL", baseTime.plusSeconds(5), 100L, 5000L));
         // 10:00:40 (Offset: 40s) -> [0ms 바구니]
-        jpaRepository.save(new AnalysisSignalEntity(streamId, "NORMAL", baseTime.plusSeconds(40), 200L, 40000L));
+        jpaRepository.save(new AnalysisSignalEntity(streamId, "sessionId","NORMAL", baseTime.plusSeconds(40), 200L, 40000L));
         // 10:01:05 (Offset: 65s) -> [6000ms 바구니]
-        jpaRepository.save(new AnalysisSignalEntity(streamId, "NORMAL", baseTime.plusSeconds(65), 300L, 65000L));
+        jpaRepository.save(new AnalysisSignalEntity(streamId, "sessionId","NORMAL", baseTime.plusSeconds(65), 300L, 65000L));
 
         Instant cutoffTime = baseTime.plus(5, ChronoUnit.MINUTES);
 
@@ -76,8 +76,8 @@ class JpaAnalysisSignalRepositoryTest implements PostgresTestSupport {
         Instant oldTime = now.minus(4, ChronoUnit.DAYS);
         Instant recentTime = now.minus(1, ChronoUnit.DAYS);
 
-        jpaRepository.save(new AnalysisSignalEntity("stream-old", "NORMAL", oldTime, 100L, 0L));
-        jpaRepository.save(new AnalysisSignalEntity("stream-recent", "NORMAL", recentTime, 200L, 86400000L));
+        jpaRepository.save(new AnalysisSignalEntity("stream-old", "sessionId","NORMAL", oldTime, 100L, 0L));
+        jpaRepository.save(new AnalysisSignalEntity("stream-recent", "sessionId","NORMAL", recentTime, 200L, 86400000L));
 
         Instant cutoffTime = now.minus(3, ChronoUnit.DAYS);
 
