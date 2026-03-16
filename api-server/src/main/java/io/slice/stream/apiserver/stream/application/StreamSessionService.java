@@ -27,7 +27,7 @@ public class StreamSessionService {
     private final JpaStreamRepository streamRepository;
     private final CacheManager cacheManager;
 
-    @Cacheable(value = "activeSessions", key = "#streamId")
+    @Cacheable(value = "activeSessions", key = "#streamId", sync = true)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public String getOrCreateActiveSession(String streamId, Instant signalTime) {
         return sessionRepository.findActiveSession(streamId)
