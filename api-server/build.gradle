@@ -35,6 +35,7 @@ dependencies {
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     implementation 'org.bitbucket.b_c:jose4j:0.9.6'
     implementation 'com.github.ben-manes.caffeine:caffeine'
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
 
     // monitoring
     implementation 'io.micrometer:micrometer-registry-prometheus'
