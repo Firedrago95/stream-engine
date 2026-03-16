@@ -1,7 +1,6 @@
 package io.slice.stream.apiserver.analysis.application.service;
 
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
-import io.slice.stream.apiserver.analysis.domain.event.SignalSavedEvent;
 import io.slice.stream.apiserver.stream.application.StreamSessionService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +34,7 @@ public class AnalysisCommandService {
                 rawSignal.offsetMs()
             );
 
-            eventPublisher.publishEvent(new SignalSavedEvent(signalWithSession));
+            eventPublisher.publishEvent(signalWithSession);
         });
     }
 }

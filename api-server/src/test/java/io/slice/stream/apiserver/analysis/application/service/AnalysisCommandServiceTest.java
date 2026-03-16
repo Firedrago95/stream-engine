@@ -7,7 +7,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
-import io.slice.stream.apiserver.analysis.domain.event.SignalSavedEvent;
 import io.slice.stream.apiserver.stream.application.StreamSessionService;
 import java.time.Instant;
 import java.util.List;
@@ -48,7 +47,7 @@ class AnalysisCommandServiceTest {
         analysisCommandService.processSignals(signals);
 
         // then
-        verify(eventPublisher, times(2)).publishEvent(any(SignalSavedEvent.class));
+        verify(eventPublisher, times(2)).publishEvent(any(AnalysisSignal.class));
     }
 
     @Test
