@@ -32,8 +32,7 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
              status,
              CAST(AVG(firepower) AS BIGINT),
              MAX(firepower),
-             MIN(timestamp),
-             MIN(offset_ms) AS timestamp_minute,
+             MIN(timestamp) AS timestamp_minute,
              (CAST(FLOOR(offset_ms / 60000.0) AS BIGINT) * 60000) AS offset_ms
         FROM analysis_signals
         WHERE timestamp < :cutoffTime
@@ -42,7 +41,7 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
         DO UPDATE SET
            firepower_avg = EXCLUDED.firepower_avg,
            firepower_max = EXCLUDED.firepower_max,
-           offset_ms = EXCLUDED.offset_ms -- [추가]
+           offset_ms = EXCLUDED.offset_ms
         """, nativeQuery = true)
     int rollupOldSignals(@Param("cutoffTime") Instant cutoffTime);
 
@@ -87,9 +86,13 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
     );
 
     interface SummaryDataProjection {
+
         Timestamp getTimestampMinute();
+
         Long getFirepowerMax();
+
         String getStatus();
+
         Long getOffsetMs();
     }
 
