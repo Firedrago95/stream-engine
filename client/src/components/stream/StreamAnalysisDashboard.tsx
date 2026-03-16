@@ -1,52 +1,45 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useStreamAnalysis } from '../../hooks/useStreamAnalysis';
-import { useHighlights } from '../../hooks/useHighlights';
-
-import { DashboardHeader } from './dashboard/DashboardHeader';
-import { StreamProfileHeader } from './dashboard/StreamProfileHeader';
 import { AnalysisTabs } from './dashboard/AnalysisTabs';
 import { AnalysisChart } from './dashboard/AnalysisChart';
 import { HighlightSection } from './dashboard/HighlightSection';
+import { DashboardHeader } from './dashboard/DashboardHeader';
+import { StreamProfileHeader } from './dashboard/StreamProfileHeader';
 
+import { useStreamAnalysis } from '../../hooks/useStreamAnalysis';
+import { useHighlights } from '../../hooks/useHighlights';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 const CONFIG = {
-  POLLING_INTERVAL: 5000,
-  DISPLAY_POINTS: 20,
-  CHART_COLOR: "#00FFA3",
+  POLLING_INTERVAL: 3000,
+  DISPLAY_POINTS: 60,
 };
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export const StreamAnalysisDashboard: React.FC = () => {
   const { streamId } = useParams<{ streamId: string }>();
   const navigate = useNavigate();
 
-  const [isLive, setIsLive] = useState(true);
-  const [selectedTab, setSelectedTab] = useState("realtime");
-  const [availableDates, setAvailableDates] = useState<string[]>(["realtime"]);
-  const [streamerInfo, setStreamerInfo] = useState<{
-    streamerName: string;
-    profileImageUrl: string;
-    liveTitle: string;
-    status: string;
-    concurrentUserCount?: number;
-    categoryName?: string;
-  } | null>(null);
+  const [selectedTab, setSelectedTab] = useState<string>("realtime");
 
   const { analysisData, isLoading, error, isGathering } = useStreamAnalysis(
       streamId || '',
       CONFIG.POLLING_INTERVAL
   );
 
+  const stableData = useMemo(() => analysisData || [], [analysisData]);
+
   const { highlights } = useHighlights(streamId || "", selectedTab, CONFIG.POLLING_INTERVAL);
 
-  const [stableData, setStableData] = useState<any[]>([]);
+  const [streamerInfo, setStreamerInfo] = useState<any>(null);
+  const [isLive, setIsLive] = useState(false);
+  const [availableDates, setAvailableDates] = useState<string[]>(["realtime"]);
   const [historicalData, setHistoricalData] = useState<any[]>([]);
   const [maxY, setMaxY] = useState(10);
   const [hoveredData, setHoveredData] = useState<{ value: number | null; time: string | null }>({
     value: null, time: null,
   });
 
+  // 1. 스트리머 정보 및 라이브 상태 로드
   useEffect(() => {
     if (!streamId) return;
     fetch(`${API_BASE_URL}/api/v1/streams/${streamId}`)
@@ -60,6 +53,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
     .catch(err => console.error("스트리머 정보를 불러오는데 실패했습니다.", err));
   }, [streamId]);
 
+  // 2. 가용 날짜 목록 로드
   useEffect(() => {
     if (!streamId) return;
     fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/available-dates?limit=10`)
@@ -70,20 +64,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
     .catch(err => console.error("날짜 목록을 불러오지 못했습니다.", err));
   }, [streamId]);
 
-  useEffect(() => {
-    if (selectedTab !== "realtime") return;
-    const incomingPoints = analysisData?.dataPoints || [];
-    if (incomingPoints.length === 0) return;
-
-    setStableData(prev => {
-      const lastTimestamp = prev.length > 0 ? prev[prev.length - 1].timestamp : 0;
-      const trulyNew = incomingPoints.filter((p: any) => p.timestamp > lastTimestamp);
-      if (trulyNew.length === 0) return prev;
-      const combined = [...prev, ...trulyNew].sort((a, b) => a.timestamp - b.timestamp);
-      return combined.slice(-CONFIG.DISPLAY_POINTS);
-    });
-  }, [analysisData, selectedTab]);
-
+  // 3. 과거 탭 선택 시 데이터 로드
   useEffect(() => {
     if (selectedTab === "realtime" || !streamId) {
       setHistoricalData([]);
@@ -102,10 +83,11 @@ export const StreamAnalysisDashboard: React.FC = () => {
     });
   }, [selectedTab, streamId]);
 
+  // 4. 차트 Y축 최대값 동적 계산
   useEffect(() => {
     const targetData = selectedTab === "realtime" ? stableData : historicalData;
     if (targetData.length > 0) {
-      const currentMax = Math.max(...targetData.map(d => d.value || 0));
+      const currentMax = Math.max(...targetData.map((d: any) => d.value || 0));
       if (currentMax > maxY) setMaxY(currentMax + 5);
     }
   }, [stableData, historicalData, selectedTab, maxY]);
@@ -131,7 +113,6 @@ export const StreamAnalysisDashboard: React.FC = () => {
     return result;
   }, [stableData, historicalData, selectedTab]);
 
-  // 프론트엔드 자체 리방(세션 분리) 감지 로직 (6분 이상 갭 or offset 감소)
   const rebangIndexes = useMemo(() => {
     if (selectedTab === "realtime" || historicalData.length === 0) return [];
     const indexes: number[] = [];
@@ -140,7 +121,6 @@ export const StreamAnalysisDashboard: React.FC = () => {
       const curr = historicalData[i];
       const timeDiff = curr.timestamp - prev.timestamp;
 
-      // 360,000ms(6분) 이상 차이가 나거나, offsetMs가 이전보다 작아지면 리방으로 판단
       if (timeDiff > 360000 || (curr.offsetMs !== undefined && prev.offsetMs !== undefined && curr.offsetMs < prev.offsetMs)) {
         indexes.push(i);
       }
@@ -157,14 +137,18 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   const metric = useMemo(() => {
     if (hoveredData.value !== null) return { label: `시점 화력 (${hoveredData.time})`, value: hoveredData.value };
-    if (selectedTab === "realtime") return { label: "현재 실시간 화력", value: stableData.length > 0 ? stableData[stableData.length - 1].value : 0 };
-    return { label: "과거 분석 데이터를 확인하세요", value: "-" };
-  }, [selectedTab, stableData, hoveredData]);
+    if (selectedTab === "realtime") {
+      const lastValue = stableData.length > 0 ? stableData[stableData.length - 1].value : 0;
+      return { label: "현재 실시간 화력", value: lastValue };
+    }
+    return { label: `${selectedTab} 분석 리포트`, value: historicalData.length > 0 ? "조회 완료" : "-" };
+  }, [selectedTab, stableData, historicalData, hoveredData]);
 
   if (!streamId) return <div className="p-10 text-center text-slate-400">잘못된 접근입니다.</div>;
 
   return (
-      <div className="w-full pb-20">
+      <div className="w-full pb-20 bg-[#060606] min-h-screen text-white px-4 sm:px-8">
+        {/* ✨ 주석 제거됨: 헤더 섹션 활성화 */}
         <DashboardHeader onBack={() => navigate(-1)} />
         <StreamProfileHeader
             streamId={streamId}
@@ -180,7 +164,10 @@ export const StreamAnalysisDashboard: React.FC = () => {
         <AnalysisTabs
             availableDates={availableDates}
             selected={selectedTab}
-            onSelect={(tab) => { setSelectedTab(tab); setHoveredData({ value: null, time: null }); }}
+            onSelect={(tab) => {
+              setSelectedTab(tab);
+              setHoveredData({ value: null, time: null });
+            }}
         />
 
         <AnalysisChart
@@ -191,27 +178,32 @@ export const StreamAnalysisDashboard: React.FC = () => {
             isGathering={isGathering}
             error={error}
             selectedTab={selectedTab}
-            historyEmpty={historicalData.length === 0}
+            historyEmpty={selectedTab !== "realtime" && historicalData.length === 0}
             onMouseMove={handleMouseMove}
             onMouseLeave={() => setHoveredData({value:null, time:null})}
             formatTime={formatTime}
-            rebangIndexes={rebangIndexes} // 리방 인덱스 전달
+            rebangIndexes={rebangIndexes}
         />
 
         <HighlightSection highlights={highlights}/>
 
-        {/* ✨ 구글 폼 피드백 푸터 추가 */}
-        <footer className="mt-20 pt-10 border-t border-gray-800/60 text-center">
+        <footer className="mt-24 pt-12 border-t border-gray-800/60 text-center">
+          <div className="mb-6">
+            <span className="text-[#00FFA3] font-black text-xl italic tracking-tighter uppercase">Cheese Pick</span>
+          </div>
           <a
               href="https://forms.gle/hUkZBr9KCTDyTXLW9"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-gray-400 hover:text-[#00FFA3] transition-colors text-sm font-bold bg-[#1a1a1c] px-6 py-3 rounded-full border border-gray-800 hover:border-[#00FFA3]/50 shadow-lg"
+              className="inline-flex items-center gap-2 text-gray-400 hover:text-[#00FFA3] transition-all text-sm font-bold bg-[#1a1a1c] px-8 py-3.5 rounded-full border border-gray-800 hover:border-[#00FFA3]/50 shadow-xl group"
           >
-            💡 치즈픽 하이라이트 피드백 보내기 (의견/건의)
+            💡 치즈픽 하이라이트 엔진 피드백 보내기
+            <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
           </a>
-          <p className="mt-6 text-[11px] text-gray-600 font-medium">
-            © 2026 CheesePick. All rights reserved.
+          <p className="mt-8 text-[11px] text-gray-600 font-medium tracking-widest uppercase">
+            © 2026 CheesePick. Advanced Stream Analytics Pipeline.
           </p>
         </footer>
       </div>

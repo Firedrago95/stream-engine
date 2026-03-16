@@ -51,21 +51,15 @@ public class AnalysisQueryService {
         Instant startOfDay = date.atTime(6,0).atZone(KST).toInstant();
         Instant endOfDay = startOfDay.plus(1, ChronoUnit.DAYS);
 
-        LocalDate boundaryDate = LocalDate.now(KST).minusDays(3);
+        // 과거 날짜 탭으로 조회하는 경우, 가독성을 위해 1분 요약 데이터를 우선 조회
+        List<AnalysisDataPoint> summaryDataPoints = analysisRepository.findSummaryHistory(streamId, startOfDay, endOfDay);
 
-        if (!date.isBefore(boundaryDate)) {
+        // 만약 요약 데이터가 아직 생성되지 않은 아주 최근의 방송인 경우에만 Raw 데이터를 가져옴
+        if (summaryDataPoints.isEmpty()) {
             List<AnalysisDataPoint> rawDataPoints = analysisRepository.findRawHistory(streamId, startOfDay, endOfDay);
-            if (rawDataPoints.isEmpty() && date.isEqual(boundaryDate)) {
-                log.info("[Query] 경계 날짜({}) Raw 데이터 부재로 Summary 데이터 폴백 조회", date);
-                List<AnalysisDataPoint> summaryDataPoints = analysisRepository.findSummaryHistory(streamId, startOfDay, endOfDay);
-                return new AnalysisResponse(streamId, summaryDataPoints);
-            }
-
             return new AnalysisResponse(streamId, rawDataPoints);
         }
-        else {
-            List<AnalysisDataPoint> summaryDataPoints = analysisRepository.findSummaryHistory(streamId, startOfDay, endOfDay);
-            return new AnalysisResponse(streamId, summaryDataPoints);
-        }
+
+        return new AnalysisResponse(streamId, summaryDataPoints);
     }
 }
