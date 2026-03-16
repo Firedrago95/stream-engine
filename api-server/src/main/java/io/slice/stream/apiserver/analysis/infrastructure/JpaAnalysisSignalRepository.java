@@ -53,7 +53,7 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
     @Query(value = """
         SELECT combined.day
         FROM (
-            SELECT DATE(timestamp AT TIME ZONE 'Asia/Seoul') AS day
+            SELECT DATE((timestamp - INTERVAL '6 hours') AT TIME ZONE 'Asia/Seoul') AS day
             FROM analysis_signals
             WHERE stream_id = :streamId
               AND timestamp >= CURRENT_TIMESTAMP - INTERVAL '3 days'

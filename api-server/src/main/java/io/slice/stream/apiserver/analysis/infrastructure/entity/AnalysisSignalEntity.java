@@ -38,7 +38,7 @@ public class AnalysisSignalEntity {
     @Column(nullable = false)
     private Long firepower;
 
-    @Column(name = "offset_ms")
+    @Column(name = "offset_ms", nullable = false)
     private Long offsetMs;
 
     public AnalysisSignalEntity(String streamId, String sessionId, String status, Instant timestamp, Long firepower, Long offsetMs) {

@@ -48,7 +48,7 @@ public class AnalysisQueryService {
     }
 
     public AnalysisResponse getHistoryAnalysis(String streamId, LocalDate date) {
-        Instant startOfDay = date.atStartOfDay(KST).toInstant();
+        Instant startOfDay = date.atTime(6,0).atZone(KST).toInstant();
         Instant endOfDay = startOfDay.plus(1, ChronoUnit.DAYS);
 
         LocalDate boundaryDate = LocalDate.now(KST).minusDays(3);
