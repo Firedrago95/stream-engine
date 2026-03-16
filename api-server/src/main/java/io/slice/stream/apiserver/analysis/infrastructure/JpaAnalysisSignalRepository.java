@@ -32,11 +32,12 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
              status,
              CAST(AVG(firepower) AS BIGINT),
              MAX(firepower),
-             date_trunc('minute', timestamp),
-             MIN(offset_ms)
+             MIN(timestamp),
+             MIN(offset_ms) AS timestamp_minute,
+             (CAST(FLOOR(offset_ms / 60000.0) AS BIGINT) * 60000) AS offset_ms
         FROM analysis_signals
         WHERE timestamp < :cutoffTime
-        GROUP BY stream_id, status, date_trunc('minute', timestamp)
+        GROUP BY stream_id, status, FLOOR(offset_ms / 60000.0)
         ON CONFLICT (stream_id, status, timestamp_minute)
         DO UPDATE SET
            firepower_avg = EXCLUDED.firepower_avg,
