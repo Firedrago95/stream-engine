@@ -38,7 +38,7 @@ public class StreamSessionService {
     @Scheduled(fixedRate = 60_000)
     @Transactional
     public void closeOfflineSessions() {
-        Instant offlineThreshold = Instant.now().minus(Duration.ofMinutes(3));
+        Instant offlineThreshold = Instant.now().minus(Duration.ofMinutes(6));
         List<StreamSessionEntity> sessionsToClose = sessionRepository.findSessionsToClose(offlineThreshold);
 
         for (StreamSessionEntity session : sessionsToClose) {
