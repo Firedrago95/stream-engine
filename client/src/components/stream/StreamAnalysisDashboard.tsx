@@ -26,7 +26,26 @@ export const StreamAnalysisDashboard: React.FC = () => {
       CONFIG.POLLING_INTERVAL
   );
 
-  const stableData = useMemo(() => analysisData || [], [analysisData]);
+  const stableData = useMemo(() => {
+    if (!analysisData) return [];
+
+    let points = [];
+    if (Array.isArray(analysisData)) {
+      points = [...analysisData]; // 원본 훼손을 막기 위해 얕은 복사본 생성
+    } else if (analysisData.dataPoints) {
+      points = [...analysisData.dataPoints]; // JSON에 dataPoints가 배열로 올 경우 복사
+    } else {
+      points = Object.keys(analysisData)
+      .filter(k => !isNaN(Number(k)))
+      .map(k => analysisData[k]);
+    }
+
+    // 백엔드가 내림차순으로 주는 데이터를 오름차순으로 재정렬
+    points.sort((a: any, b: any) => a.timestamp - b.timestamp);
+
+    // 올바르게 정렬된 상태에서 화면에 보여줄 개수(60개)만큼 맨 뒤에서부터 잘라냄
+    return points.slice(-CONFIG.DISPLAY_POINTS);
+  }, [analysisData]);
 
   const { highlights } = useHighlights(streamId || "", selectedTab, CONFIG.POLLING_INTERVAL);
 

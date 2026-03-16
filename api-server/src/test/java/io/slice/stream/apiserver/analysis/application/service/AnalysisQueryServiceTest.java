@@ -58,10 +58,9 @@ class AnalysisQueryServiceTest {
         String streamId = "test-stream";
         LocalDate targetDate = LocalDate.of(2026, 3, 16);
         List<AnalysisDataPoint> summaryPoints = List.of(
-            new AnalysisDataPoint(1000L, 150L, "NORMAL")
+            new AnalysisDataPoint(1000L, 150L, "NORMAL", 5000L)
         );
 
-        // 요약 데이터가 있다고 가정
         given(analysisRepository.findSummaryHistory(eq(streamId), any(), any()))
             .willReturn(summaryPoints);
 
@@ -77,15 +76,19 @@ class AnalysisQueryServiceTest {
     }
 
     @Test
-    void 과거_데이터_조회_시_요약_데이터가_비어있으면_원본_데이터를_조회하여_반환한다() {
+    void 과거_데이터_조회_시_요약_데이터가_비어있으면_원본_데이터를_1분_단위로_압축하여_반환한다() {
         // given
         String streamId = "test-stream";
         LocalDate targetDate = LocalDate.of(2026, 3, 16);
+
+        // 0분대 데이터 2개 (ms: 1000, 1500) -> 평균: 250, 상태: PEAK 우선
+        // 1분대 데이터 1개 (ms: 65000) -> 평균: 50, 상태: NORMAL
         List<AnalysisDataPoint> rawPoints = List.of(
-            new AnalysisDataPoint(2000L, 300L, "PEAK")
+            new AnalysisDataPoint(1000L, 200L, "NORMAL", 1000L),
+            new AnalysisDataPoint(1500L, 300L, "PEAK", 1500L),
+            new AnalysisDataPoint(65000L, 50L, "NORMAL", 65000L)
         );
 
-        // 요약 데이터는 비어있고, 원본 데이터는 있다고 가정
         given(analysisRepository.findSummaryHistory(eq(streamId), any(), any()))
             .willReturn(List.of());
         given(analysisRepository.findRawHistory(eq(streamId), any(), any()))
@@ -95,8 +98,20 @@ class AnalysisQueryServiceTest {
         AnalysisResponse response = analysisQueryService.getHistoryAnalysis(streamId, targetDate);
 
         // then
-        assertThat(response.dataPoints()).hasSize(1);
-        assertThat(response.dataPoints().get(0).value()).isEqualTo(300L);
+        List<AnalysisDataPoint> points = response.dataPoints();
+
+        // 3개의 원본 데이터가 2개의 1분 단위 데이터로 묶여야 함
+        assertThat(points).hasSize(2);
+
+        // 첫 번째 1분 (0 ~ 59999ms) 검증
+        assertThat(points.get(0).timestamp()).isEqualTo(0L);
+        assertThat(points.get(0).value()).isEqualTo(250L);
+        assertThat(points.get(0).status()).isEqualTo("PEAK");
+
+        // 두 번째 1분 (60000 ~ 119999ms) 검증
+        assertThat(points.get(1).timestamp()).isEqualTo(60000L);
+        assertThat(points.get(1).value()).isEqualTo(50L);
+        assertThat(points.get(1).status()).isEqualTo("NORMAL");
 
         verify(analysisRepository).findSummaryHistory(eq(streamId), any(), any());
         verify(analysisRepository).findRawHistory(eq(streamId), any(), any());
