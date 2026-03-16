@@ -1,3 +1,5 @@
+// src/components/stream/dashboard/HighlightSection.tsx
+
 import React from 'react';
 
 const formatOffset = (ms: number | undefined | null) => {
@@ -21,7 +23,7 @@ export const HighlightSection: React.FC<{ highlights: any[] }> = ({ highlights }
     <div className="mt-12">
       <div className="flex items-center mb-6 px-2">
         <span className="text-2xl mr-2">🔥</span>
-        <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">Major Highlights</h3>
+        <h3 className="text-xl font-black text-white italic tracking-tighter">주요 하이라이트</h3>
       </div>
 
       <div className="grid gap-3">
@@ -31,33 +33,32 @@ export const HighlightSection: React.FC<{ highlights: any[] }> = ({ highlights }
             [...highlights].reverse().map((hl) => (
                 <div key={hl.id} className={`flex items-center p-6 bg-[#1a1a1c] border ${hl.status === 'ONGOING' ? 'border-[#00FFA3] bg-[#00FFA3]/5' : 'border-gray-800'} rounded-2xl`}>
                   <div className="flex-1">
-                    <span className="text-[10px] text-gray-500 font-black uppercase mb-1 block tracking-widest">Time range (VOD offset)</span>
+                    <span className="text-[10px] text-gray-400 font-black mb-1 block tracking-widest">발생 시점 (영상 기준)</span>
                     <div className="flex items-center gap-2 h-8">
-                      {/* 시작 시간 */}
-                      <span className="text-white font-mono text-xl font-black flex items-center gap-1.5">
+                
+                <span className="text-white font-mono text-xl font-black flex items-center gap-1.5">
                   <span className="text-gray-500 text-lg">🎬</span> {formatOffset(hl.startTimeOffset)}
                 </span>
-                      <span className="text-gray-600 text-[11px] font-bold">({formatAbsoluteTime(hl.startTime)})</span>
+                      <span className="text-gray-400 text-[11px] font-bold">({formatAbsoluteTime(hl.startTime)})</span>
 
-                      <span className="text-gray-700 font-black text-lg px-1">~</span>
+                      <span className="text-gray-400 font-black text-lg px-2">~</span>
 
-                      {/* 종료 시간 (분석 중 여부에 따른 분기) */}
                       {hl.status === 'ONGOING' ? (
                           <div className="flex items-center gap-1.5 px-2 py-1 bg-red-500/10 rounded-lg border border-red-500/20">
                             <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-                            <span className="text-red-500 text-[11px] font-black uppercase">분석중</span>
+                            <span className="text-red-500 text-[11px] font-black">분석 중</span>
                           </div>
                       ) : (
                           <div className="flex items-center gap-2">
                             <span className="text-white font-mono text-xl font-black">{formatOffset(hl.endTimeOffset)}</span>
-                            <span className="text-gray-600 text-[11px] font-bold">({formatAbsoluteTime(hl.endTime)})</span>
+                            <span className="text-gray-400 text-[11px] font-bold">({formatAbsoluteTime(hl.endTime)})</span>
                           </div>
                       )}
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-[10px] text-gray-500 font-black uppercase mb-1 block tracking-widest">Peak</span>
-                    <span className="text-[#00FFA3] font-black text-2xl">{hl.peakFirepower}<span className="text-xs text-gray-600 ml-1">msg/s</span></span>
+                    <span className="text-[10px] text-gray-400 font-black mb-1 block tracking-widest">최고 화력</span>
+                    <span className="text-[#00FFA3] font-black text-2xl">{hl.peakFirepower}<span className="text-xs text-gray-500 ml-1">msg/s</span></span>
                   </div>
                 </div>
             ))
