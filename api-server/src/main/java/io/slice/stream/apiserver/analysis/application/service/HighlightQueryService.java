@@ -18,10 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class HighlightQueryService {
 
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
     private final JpaHighlightEventRepository repository;
 
     public List<HighlightResponse> getHighlightsByDate(String streamId, LocalDate date) {
-        Instant startOfDay = date.atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant startOfDay = date.atStartOfDay(KST).toInstant();
         Instant endOfDay = startOfDay.plus(1, ChronoUnit.DAYS);
 
         return repository.findAllByStreamIdAndDateRange(streamId, startOfDay, endOfDay).stream()
