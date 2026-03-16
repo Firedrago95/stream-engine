@@ -43,6 +43,7 @@ class HighlightSessionServiceTest {
         ReflectionTestUtils.setField(highlightSessionService, "leadingBuffer", leadingBuffer);
         ReflectionTestUtils.setField(highlightSessionService, "trailingBuffer", trailingBuffer);
         ReflectionTestUtils.setField(highlightSessionService, "cooldown", cooldown);
+        ReflectionTestUtils.setField(highlightSessionService, "extensionRatio", 0.7);
         highlightSessionService.init();
     }
 
@@ -87,7 +88,7 @@ class HighlightSessionServiceTest {
     }
 
     @Test
-    void 쿨다운_기간_내에_더_큰_PEAK가_오면_세션을_연장하고_캐시를_갱신한다() {
+    void 쿨다운_기간_내에_70퍼센트_이상의_여진이_오면_버퍼를_연장하고_최대화력은_유지한다() {
         // given
         Instant now = Instant.now();
         long initialOffset = 3600000L;
@@ -102,14 +103,14 @@ class HighlightSessionServiceTest {
         // 최초 피크 (100)
         highlightSessionService.handleSignal(AnalysisSignal.of(STREAM_ID, "PEAK", now, 100L, initialOffset));
 
-        // when (10초 뒤 더 큰 피크 150 발생)
-        long largerOffset = initialOffset + 10000L;
-        AnalysisSignal largerSignal = AnalysisSignal.of(STREAM_ID, "PEAK", now.plusSeconds(10), 150L, largerOffset);
-        highlightSessionService.handleSignal(largerSignal);
+        // when (10초 뒤 화력 80의 여진 발생)
+        long after10SecOffset = initialOffset + 10000L;
+        AnalysisSignal secondarySignal = AnalysisSignal.of(STREAM_ID, "PEAK", now.plusSeconds(10), 80L, after10SecOffset);
+        highlightSessionService.handleSignal(secondarySignal);
 
         // then
-        assertThat(ongoingSession.getPeakFirepower()).isEqualTo(150L);
-        assertThat(ongoingSession.getLastPeakOffset()).isEqualTo(largerOffset); // 오프셋 갱신 검증
+        assertThat(ongoingSession.getPeakFirepower()).isEqualTo(100L);
+        assertThat(ongoingSession.getLastPeakOffset()).isEqualTo(after10SecOffset);
         verify(repository, times(2)).findFirstByStreamIdAndStatusOrderByStartTimeDesc(any(), any());
     }
 

@@ -54,3 +54,4 @@ highlight:
   leading-buffer: 10s      # 피크 발생 10초 전부터 영상 시작
   trailing-buffer: 10s     # 피크 발생 10초 후까지 영상 유지
   cooldown: 90s            # 새로운 세션 만들지 않고 무시/병합하는 억제 기간
+  extension-ratio: 0.7     # 기존 최대 화력 대비 여진으로 인정할 비율 (Dynamic Sliding Window)

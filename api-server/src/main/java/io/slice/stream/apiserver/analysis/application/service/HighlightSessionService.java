@@ -34,6 +34,9 @@ public class HighlightSessionService {
     @Value("${highlight.cooldown}")
     private Duration cooldown;
 
+    @Value("${highlight.extension-ratio}")
+    private double extensionRatio;
+
     private Cache<String, Long> nmsCache;
 
     @PostConstruct
@@ -67,8 +70,9 @@ public class HighlightSessionService {
             updateDbSessionForPeak(signal, streamId);
         } else {
             // 캐시에 있다면, NMS 로직 적용
-            if (signal.firepower() > cachedMaxFirepower) {
-                // 비최댓값 억제 통과 : 쿨다운 중이더라도 기존보다 더 큰 피크라면 캐시와 db갱신
+            long threshold = (long) (cachedMaxFirepower * extensionRatio);
+            if (signal.firepower() > threshold) {
+                // 비최댓값 억제 통과 : 쿨다운 중이더라도 기존의 extensionRatio 비율 이상이면 갱신
                 nmsCache.put(streamId, signal.firepower());
                 updateDbSessionForPeak(signal, streamId);
             } else {
