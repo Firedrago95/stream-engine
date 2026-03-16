@@ -54,10 +54,10 @@ export const StreamAnalysisDashboard: React.FC = () => {
     .then(data => {
       if (data) {
         setStreamerInfo(data);
-        setIsLive(data.status != 'OFFLINE');
+        setIsLive(data.status !== 'OFFLINE');
       }
     })
-    .catch(err => console.error("스트리머 정보를 불러오는데 실패했습니다.",err));
+    .catch(err => console.error("스트리머 정보를 불러오는데 실패했습니다.", err));
   }, [streamId]);
 
   useEffect(() => {
@@ -131,6 +131,23 @@ export const StreamAnalysisDashboard: React.FC = () => {
     return result;
   }, [stableData, historicalData, selectedTab]);
 
+  // 프론트엔드 자체 리방(세션 분리) 감지 로직 (6분 이상 갭 or offset 감소)
+  const rebangIndexes = useMemo(() => {
+    if (selectedTab === "realtime" || historicalData.length === 0) return [];
+    const indexes: number[] = [];
+    for (let i = 1; i < historicalData.length; i++) {
+      const prev = historicalData[i - 1];
+      const curr = historicalData[i];
+      const timeDiff = curr.timestamp - prev.timestamp;
+
+      // 360,000ms(6분) 이상 차이가 나거나, offsetMs가 이전보다 작아지면 리방으로 판단
+      if (timeDiff > 360000 || (curr.offsetMs !== undefined && prev.offsetMs !== undefined && curr.offsetMs < prev.offsetMs)) {
+        indexes.push(i);
+      }
+    }
+    return indexes;
+  }, [historicalData, selectedTab]);
+
   const handleMouseMove = (state: any) => {
     if (state?.activePayload?.[0]?.payload?.hasData) {
       const p = state.activePayload[0].payload;
@@ -159,13 +176,44 @@ export const StreamAnalysisDashboard: React.FC = () => {
             liveTitle={streamerInfo?.liveTitle}
             categoryName={streamerInfo?.categoryName}
         />
-        <AnalysisTabs availableDates={availableDates} selected={selectedTab} onSelect={(tab) => { setSelectedTab(tab); setHoveredData({ value: null, time: null }); }} />
-        <AnalysisChart
-            chartData={chartDisplayData} metric={metric} maxY={maxY} isLoading={isLoading} isGathering={isGathering}
-            error={error} selectedTab={selectedTab} historyEmpty={historicalData.length === 0}
-            onMouseMove={handleMouseMove} onMouseLeave={() => setHoveredData({value:null, time:null})} formatTime={formatTime}
+
+        <AnalysisTabs
+            availableDates={availableDates}
+            selected={selectedTab}
+            onSelect={(tab) => { setSelectedTab(tab); setHoveredData({ value: null, time: null }); }}
         />
+
+        <AnalysisChart
+            chartData={chartDisplayData}
+            metric={metric}
+            maxY={maxY}
+            isLoading={isLoading}
+            isGathering={isGathering}
+            error={error}
+            selectedTab={selectedTab}
+            historyEmpty={historicalData.length === 0}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={() => setHoveredData({value:null, time:null})}
+            formatTime={formatTime}
+            rebangIndexes={rebangIndexes} // 리방 인덱스 전달
+        />
+
         <HighlightSection highlights={highlights}/>
+
+        {/* ✨ 구글 폼 피드백 푸터 추가 */}
+        <footer className="mt-20 pt-10 border-t border-gray-800/60 text-center">
+          <a
+              href="https://forms.gle/hUkZBr9KCTDyTXLW9"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-gray-400 hover:text-[#00FFA3] transition-colors text-sm font-bold bg-[#1a1a1c] px-6 py-3 rounded-full border border-gray-800 hover:border-[#00FFA3]/50 shadow-lg"
+          >
+            💡 치즈픽 하이라이트 피드백 보내기 (의견/건의)
+          </a>
+          <p className="mt-6 text-[11px] text-gray-600 font-medium">
+            © 2026 CheesePick. All rights reserved.
+          </p>
+        </footer>
       </div>
   );
 };
