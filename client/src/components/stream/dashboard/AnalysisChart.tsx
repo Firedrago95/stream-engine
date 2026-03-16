@@ -45,7 +45,7 @@ const CustomTooltip = ({ active, payload, selectedTab, formatTime }: any) => {
                 <div className="text-sm text-gray-100 font-bold mb-0.5 italic">
                   🎬 영상 {formatOffset(data.offsetMs)}
                 </div>
-                <div className="text-[11px] text-gray-500 font-mono tracking-tighter">
+                <div className="text-[11px] text-gray-200 font-mono tracking-tighter">
                   (방송 시각 {formatTime(data.timestamp)})
                 </div>
               </div>
@@ -89,11 +89,11 @@ export const AnalysisChart: React.FC<Props> = ({
         )}
 
         <div className="flex justify-between items-start mb-10">
-          <h3 className="text-lg font-bold text-gray-400 uppercase tracking-widest italic">채팅 화력 추이</h3>
+          <h3 className="text-lg font-bold text-gray-200 uppercase tracking-widest italic">채팅 화력 추이</h3>
           <div className="text-right">
-            <span className="text-[10px] text-gray-500 font-bold block mb-1 uppercase tracking-tighter">{metric.label}</span>
+            <span className="text-[10px] text-gray-200 font-bold block mb-1 uppercase tracking-tighter">{metric.label}</span>
             <span className="text-4xl font-black text-[#00FFA3]">
-            {metric.value} <span className="text-xs text-gray-600 ml-2 italic">msg/s</span>
+            {metric.value} <span className="text-xs text-gray-300 ml-2 italic">msg/s</span>
           </span>
           </div>
         </div>
