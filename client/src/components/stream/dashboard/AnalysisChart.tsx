@@ -34,10 +34,10 @@ const CustomTooltip = ({ active, payload, selectedTab, formatTime }: any) => {
     return (
         <div className="bg-[#1a1a1c] border border-gray-700 p-3 rounded-xl shadow-2xl z-50">
           <div className="text-[#00FFA3] font-black text-lg mb-1">
-            🔥 {data.value} <span className="text-xs font-normal text-gray-400">건/초</span>
+            🔥 {data.value} <span className="text-xs font-normal text-gray-200">건/초</span>
           </div>
           {selectedTab === "realtime" ? (
-              <div className="text-[11px] text-gray-400 font-mono tracking-tighter">
+              <div className="text-[11px] text-gray-200 font-mono tracking-tighter">
                 실제 시각: {formatTime(data.timestamp)}
               </div>
           ) : (

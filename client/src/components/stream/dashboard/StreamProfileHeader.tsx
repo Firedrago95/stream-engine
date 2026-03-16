@@ -23,8 +23,7 @@ export const StreamProfileHeader: React.FC<Props> = ({ streamId, streamerName, p
         />
       </div>
 
-      {/* 이 박스가 화면 밖으로 밀려나지 않고 말줄임(...)을 허용하게 만듦 */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 w-full overflow-hidden">
 
         {/* 3. flex-wrap 추가: 화면이 좁을 때 뱃지들이 방제 위에서 예쁘게 줄바꿈되도록 처리 */}
         <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -47,7 +46,7 @@ export const StreamProfileHeader: React.FC<Props> = ({ streamId, streamerName, p
           )}
         </div>
 
-        <h1 className="text-xl sm:text-2xl font-black text-white truncate" title={liveTitle || '방송 제목 정보 없음'}>
+        <h1 className="text-xl sm:text-2xl font-black text-white truncate block w-full mt-1" title={liveTitle || '방송 제목 정보 없음'}>
           {liveTitle || '방송 제목 정보 없음'}
         </h1>
       </div>
