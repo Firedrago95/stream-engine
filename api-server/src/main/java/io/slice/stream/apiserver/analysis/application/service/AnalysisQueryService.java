@@ -4,10 +4,9 @@ import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
-import java.time.Instant;
-import java.time.LocalDate;
+import io.slice.stream.apiserver.analysis.presentation.dto.SessionResponse;
+import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -28,6 +27,7 @@ public class AnalysisQueryService {
     private static final long ONE_MINUTE_MS = 60_000L;
 
     private final AnalysisRepository analysisRepository;
+    private final JpaStreamSessionRepository sessionRepository;
 
     public AnalysisResponse getRecentAnalysis(String streamId) {
         List<AnalysisSignal> signals = analysisRepository.findRecentSignals(streamId, FIND_LIMIT);
@@ -43,30 +43,20 @@ public class AnalysisQueryService {
         return new AnalysisResponse(streamId, dataPoints);
     }
 
-    public List<String> getAvailableDates(String streamId, LocalDate before, int limit) {
-        LocalDate cursorDate = (before != null) ? before : LocalDate.now(KST).plusYears(2);
-
-        return analysisRepository.findAvailableDates(streamId, cursorDate, limit).stream()
-            .map(LocalDate::toString)
+    public List<SessionResponse> getAvailableSessions(String streamId, int limit) {
+        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("M월 d일 HH:mm 방송").withZone(KST);
+        return sessionRepository.findRecentSessionsByStreamId(streamId, org.springframework.data.domain.PageRequest.of(0, limit))
+            .stream()
+            .map(session -> new SessionResponse(session.getSessionId(), formatter.format(session.getStartedAt())))
             .toList();
     }
 
-    public AnalysisResponse getHistoryAnalysis(String streamId, LocalDate date) {
-        Instant startOfDay = date.atTime(6,0).atZone(KST).toInstant();
-        Instant endOfDay = startOfDay.plus(1, ChronoUnit.DAYS);
+    public AnalysisResponse getHistoryAnalysis(String streamId, String sessionId) {
+        List<AnalysisDataPoint> summaryDataPoints = analysisRepository.findSummaryHistory(streamId, sessionId);
+        if(!summaryDataPoints.isEmpty()) return new AnalysisResponse(streamId, summaryDataPoints);
 
-        // 과거 요약 데이터를 우선 조회
-        List<AnalysisDataPoint> summaryDataPoints = analysisRepository.findSummaryHistory(streamId, startOfDay, endOfDay);
-
-        if(!summaryDataPoints.isEmpty()) {
-            return new AnalysisResponse(streamId, summaryDataPoints);
-        }
-
-        // 요약 데이터가 없다면, 원본 데이터 조회 후 1분 단위 압축 처리
-        List<AnalysisDataPoint> rawDataPoints = analysisRepository.findRawHistory(streamId, startOfDay, endOfDay);
-        List<AnalysisDataPoint> aggregatedData =aggregateToOneMinuteIntervals(rawDataPoints);
-
-        return new AnalysisResponse(streamId, aggregatedData);
+        List<AnalysisDataPoint> rawDataPoints = analysisRepository.findRawHistory(streamId, sessionId);
+        return new AnalysisResponse(streamId, aggregateToOneMinuteIntervals(rawDataPoints));
     }
 
     private List<AnalysisDataPoint> aggregateToOneMinuteIntervals(List<AnalysisDataPoint> rawDataPoints) {

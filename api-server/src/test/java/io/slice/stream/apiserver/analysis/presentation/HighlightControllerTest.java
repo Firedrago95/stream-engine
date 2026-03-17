@@ -1,8 +1,5 @@
 package io.slice.stream.apiserver.analysis.presentation;
 
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -12,7 +9,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import io.slice.stream.apiserver.analysis.application.service.HighlightQueryService;
 import io.slice.stream.apiserver.analysis.presentation.dto.HighlightResponse;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -33,10 +29,10 @@ class HighlightControllerTest {
     private HighlightQueryService highlightQueryService;
 
     @Test
-    void 특정_날짜_파라미터로_하이라이트_목록을_조회한다() throws Exception {
+    void 특정_세션_파라미터로_하이라이트_목록을_조회한다() throws Exception {
         // given
         String streamId = "stream-123";
-        LocalDate date = LocalDate.of(2026, 3, 4);
+        String sessionId = "target-session";
 
         Instant start = Instant.now().minusSeconds(100);
         Instant end = start.plusSeconds(50);
@@ -57,11 +53,11 @@ class HighlightControllerTest {
             )
         );
 
-        given(highlightQueryService.getHighlightsByDate(streamId, date)).willReturn(mockResponses);
+        given(highlightQueryService.getHighlightsBySessionId(streamId, sessionId)).willReturn(mockResponses);
 
         // when & then
         mockMvc.perform(get("/api/v1/analysis/streams/{streamId}/highlights", streamId)
-                .param("date", "2026-03-04"))
+                .param("sessionId", sessionId))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.length()").value(1))
             .andExpect(jsonPath("$[0].streamId").value(streamId))
@@ -71,16 +67,20 @@ class HighlightControllerTest {
     }
 
     @Test
-    void 날짜_파라미터가_없으면_오늘_날짜를_기본으로_조회한다() throws Exception {
+    void 세션_파라미터가_없으면_null을_전달하여_실시간_조회를_수행한다() throws Exception {
         // given
         String streamId = "stream-123";
-        given(highlightQueryService.getHighlightsByDate(eq(streamId), any(LocalDate.class)))
+
+        // 파라미터가 없을 때 컨트롤러는 sessionId에 null을 담아서 서비스에 넘김
+        given(highlightQueryService.getHighlightsBySessionId(streamId, null))
             .willReturn(List.of());
 
-        // when & then
+        // when & then (파라미터 없이 요청)
         mockMvc.perform(get("/api/v1/analysis/streams/{streamId}/highlights", streamId))
-            .andExpect(status().isOk());
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(0));
 
-        verify(highlightQueryService).getHighlightsByDate(eq(streamId), eq(LocalDate.now()));
+        // 서비스의 getHighlightsBySessionId에 null이 제대로 전달되었는지 검증
+        verify(highlightQueryService).getHighlightsBySessionId(streamId, null);
     }
 }

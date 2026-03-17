@@ -9,10 +9,12 @@ import static org.mockito.Mockito.verify;
 
 import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
+import io.slice.stream.apiserver.analysis.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
+import io.slice.stream.apiserver.analysis.presentation.dto.SessionResponse;
+import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -21,6 +23,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
@@ -28,6 +31,9 @@ class AnalysisQueryServiceTest {
 
     @Mock
     private AnalysisRepository analysisRepository;
+
+    @Mock
+    private JpaStreamSessionRepository sessionRepository; // [추가] 탭 목록 조회용
 
     @InjectMocks
     private AnalysisQueryService analysisQueryService;
@@ -56,30 +62,30 @@ class AnalysisQueryServiceTest {
     void 과거_데이터_조회_시_요약_데이터가_존재하면_이를_우선적으로_반환한다() {
         // given
         String streamId = "test-stream";
-        LocalDate targetDate = LocalDate.of(2026, 3, 16);
+        String sessionId = "target-session"; // 날짜(LocalDate) -> 세션(sessionId)으로 변경
         List<AnalysisDataPoint> summaryPoints = List.of(
             new AnalysisDataPoint(1000L, 150L, "NORMAL", 5000L)
         );
 
-        given(analysisRepository.findSummaryHistory(eq(streamId), any(), any()))
+        given(analysisRepository.findSummaryHistory(streamId, sessionId))
             .willReturn(summaryPoints);
 
         // when
-        AnalysisResponse response = analysisQueryService.getHistoryAnalysis(streamId, targetDate);
+        AnalysisResponse response = analysisQueryService.getHistoryAnalysis(streamId, sessionId);
 
         // then
         assertThat(response.dataPoints()).hasSize(1);
         assertThat(response.dataPoints().get(0).value()).isEqualTo(150L);
 
-        verify(analysisRepository).findSummaryHistory(eq(streamId), any(), any());
-        verify(analysisRepository, never()).findRawHistory(any(), any(), any());
+        verify(analysisRepository).findSummaryHistory(streamId, sessionId);
+        verify(analysisRepository, never()).findRawHistory(any(), any());
     }
 
     @Test
     void 과거_데이터_조회_시_요약_데이터가_비어있으면_원본_데이터를_1분_단위로_압축하여_반환한다() {
         // given
         String streamId = "test-stream";
-        LocalDate targetDate = LocalDate.of(2026, 3, 16);
+        String sessionId = "target-session";
 
         // 0분대 데이터 2개 (ms: 1000, 1500) -> 평균: 250, 상태: PEAK 우선
         // 1분대 데이터 1개 (ms: 65000) -> 평균: 50, 상태: NORMAL
@@ -89,13 +95,13 @@ class AnalysisQueryServiceTest {
             new AnalysisDataPoint(65000L, 50L, "NORMAL", 65000L)
         );
 
-        given(analysisRepository.findSummaryHistory(eq(streamId), any(), any()))
-            .willReturn(List.of());
-        given(analysisRepository.findRawHistory(eq(streamId), any(), any()))
-            .willReturn(rawPoints);
+        given(analysisRepository.findSummaryHistory(streamId, sessionId))
+            .willReturn(List.of()); // 요약 데이터 없음
+        given(analysisRepository.findRawHistory(streamId, sessionId))
+            .willReturn(rawPoints); // 원본 데이터 있음
 
         // when
-        AnalysisResponse response = analysisQueryService.getHistoryAnalysis(streamId, targetDate);
+        AnalysisResponse response = analysisQueryService.getHistoryAnalysis(streamId, sessionId);
 
         // then
         List<AnalysisDataPoint> points = response.dataPoints();
@@ -104,7 +110,7 @@ class AnalysisQueryServiceTest {
         assertThat(points).hasSize(2);
 
         // 첫 번째 1분 (0 ~ 59999ms) 검증
-        assertThat(points.get(0).timestamp()).isEqualTo(0L);
+        assertThat(points.get(0).timestamp()).isEqualTo(0L); // timestamp 기준 (offset 아님)
         assertThat(points.get(0).value()).isEqualTo(250L);
         assertThat(points.get(0).status()).isEqualTo("PEAK");
 
@@ -113,24 +119,33 @@ class AnalysisQueryServiceTest {
         assertThat(points.get(1).value()).isEqualTo(50L);
         assertThat(points.get(1).status()).isEqualTo("NORMAL");
 
-        verify(analysisRepository).findSummaryHistory(eq(streamId), any(), any());
-        verify(analysisRepository).findRawHistory(eq(streamId), any(), any());
+        verify(analysisRepository).findSummaryHistory(streamId, sessionId);
+        verify(analysisRepository).findRawHistory(streamId, sessionId);
     }
 
     @Test
-    void 가용_날짜_조회_시_커서가_없으면_현재_시간_기준_논리적_날짜를_기준으로_사용한다() {
+    void 세션_목록_조회_시_포맷팅된_날짜_라벨과_함께_반환한다() {
         // given
         String streamId = "test-stream";
         int limit = 10;
 
-        given(analysisRepository.findAvailableDates(eq(streamId), any(LocalDate.class), eq(limit)))
-            .willReturn(List.of(LocalDate.of(2026, 3, 15)));
+        // 시간: 2026-03-17T20:30:00 KST
+        Instant startedAt = Instant.parse("2026-03-17T11:30:00Z");
+
+        StreamSessionEntity sessionEntity = new StreamSessionEntity(streamId, "session-123", "방제", "게임", startedAt);
+
+        given(sessionRepository.findRecentSessionsByStreamId(eq(streamId), any(Pageable.class)))
+            .willReturn(List.of(sessionEntity));
 
         // when
-        List<String> dates = analysisQueryService.getAvailableDates(streamId, null, limit);
+        List<SessionResponse> sessions = analysisQueryService.getAvailableSessions(streamId, limit);
 
         // then
-        assertThat(dates).containsExactly("2026-03-15");
-        verify(analysisRepository).findAvailableDates(eq(streamId), any(LocalDate.class), eq(limit));
+        assertThat(sessions).hasSize(1);
+        assertThat(sessions.get(0).sessionId()).isEqualTo("session-123");
+        // 포맷팅 검증 ("M월 d일 HH:mm 방송")
+        assertThat(sessions.get(0).label()).isEqualTo("3월 17일 20:30 방송");
+
+        verify(sessionRepository).findRecentSessionsByStreamId(eq(streamId), any(Pageable.class));
     }
 }

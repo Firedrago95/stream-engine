@@ -16,17 +16,15 @@ export interface HighlightResponse {
   externalVodId?: string | null;
 }
 
-export const useHighlights = (streamId: string, dateStr?: string, interval = 5000) => {
+export const useHighlights = (streamId: string, sessionId?: string, interval = 5000) => {
   const [highlights, setHighlights] = useState<HighlightResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = useCallback(async (signal?: AbortSignal) => {
     if (!streamId) return;
     try {
-      const queryDate = (!dateStr || dateStr === 'realtime') ? '' : `?date=${dateStr}`;
-
-      // 💡 주소 앞에 API_BASE_URL을 추가합니다.
-      const url = `${API_BASE_URL}/api/v1/analysis/streams/${streamId}/highlights${queryDate}`;
+      const queryParam = (!sessionId || sessionId === 'realtime') ? '' : `?sessionId=${sessionId}`;
+      const url = `${API_BASE_URL}/api/v1/analysis/streams/${streamId}/highlights${queryParam}`;
 
       const res = await fetch(url, { signal });
       if (!res.ok) throw new Error('하이라이트 데이터를 가져오지 못했습니다.');
@@ -38,7 +36,7 @@ export const useHighlights = (streamId: string, dateStr?: string, interval = 500
     } finally {
       setIsLoading(false);
     }
-  }, [streamId, dateStr]);
+  }, [streamId, sessionId]);
 
   useEffect(() => {
     const controller = new AbortController();

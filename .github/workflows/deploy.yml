@@ -1,0 +1,134 @@
+name: Production Deploy
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  # ---------------------------------------------------
+  # 0. 어떤 모듈이 변경되었는지 감지
+  # ---------------------------------------------------
+  detect-changes:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    outputs:
+      api_server: ${{ steps.filter.outputs.api_server }}
+      engine: ${{ steps.filter.outputs.engine }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Detect Changed Files
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api_server:
+              - 'api-server/**'
+            engine:
+              - 'engine/**'
+
+  # ---------------------------------------------------
+  # 1. API 서버 빌드 및 배포 (OCI Flex1 - ARM64)
+  # ---------------------------------------------------
+  deploy-api-server:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.api_server == 'true'
+    runs-on: [self-hosted, ARM64]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 커밋 해시 7자리 추출
+      - name: Set Image Tag
+        id: set-tag
+        run: echo "TAG=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build api-server with Gradle
+        run: ./gradlew :api-server:bootJar -x test
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push api-server
+        run: |
+          docker build -t firedrago/api-server:${{ env.TAG }} -f ./api-server/Dockerfile .
+          docker push firedrago/api-server:${{ env.TAG }}
+
+      - name: Deploy api-server
+        # 확인된 실제 경로 적용
+        working-directory: /home/ubuntu/cheese-pick/api
+        run: |
+          grep -v '^API_VERSION=' .env > .env.tmp || true
+          mv .env.tmp .env
+          echo "API_VERSION=${{ env.TAG }}" >> .env
+          
+          # 확인된 서비스명 'api' 적용
+          docker compose pull api
+          docker compose up -d --no-deps api
+
+  # ---------------------------------------------------
+  # 2. 엔진 빌드 및 배포 (홈서버 - AMD64)
+  # ---------------------------------------------------
+  deploy-engine:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.engine == 'true'
+    runs-on: [self-hosted, X64]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 커밋 해시 7자리 추출
+      - name: Set Image Tag
+        id: set-tag
+        run: echo "TAG=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_ENV
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build engine with Gradle
+        run: ./gradlew :engine:bootJar -x test
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push engine
+        run: |
+          docker build -t firedrago/engine:${{ env.TAG }} -f ./engine/Dockerfile .
+          docker push firedrago/engine:${{ env.TAG }}
+
+      - name: Deploy engine
+        # 확인된 실제 경로 적용
+        working-directory: /home/ubuntu/cheese-pick
+        run: |
+          grep -v '^ENGINE_VERSION=' .env > .env.tmp || true
+          mv .env.tmp .env
+          echo "ENGINE_VERSION=${{ env.TAG }}" >> .env
+          
+          docker compose pull engine
+          docker compose up -d --no-deps engine
