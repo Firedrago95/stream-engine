@@ -20,6 +20,10 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   const [selectedTab, setSelectedTab] = useState<string>("realtime");
 
+  const [availableSessions, setAvailableSessions] = useState<{ sessionId: string; label: string }[]>([
+    { sessionId: "realtime", label: "⚡ 실시간 분석" }
+  ]);
+
   const { analysisData, isLoading, error, isGathering } = useStreamAnalysis(
       streamId || '',
       CONFIG.POLLING_INTERVAL
@@ -45,7 +49,6 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   const [streamerInfo, setStreamerInfo] = useState<any>(null);
   const [isLive, setIsLive] = useState(false);
-  const [availableDates, setAvailableDates] = useState<string[]>(["realtime"]);
   const [historicalData, setHistoricalData] = useState<any[]>([]);
   const [maxY, setMaxY] = useState(10);
   const [hoveredData, setHoveredData] = useState<{ value: number | null; time: string | null }>({
@@ -67,12 +70,13 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   useEffect(() => {
     if (!streamId) return;
-    fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/available-dates?limit=10`)
+    fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/available-sessions?limit=10`)
     .then(res => res.ok ? res.json() : [])
-    .then((dates: string[]) => {
-      setAvailableDates(["realtime", ...dates]);
+    .then((sessions: { sessionId: string; label: string }[]) => {
+      // 실시간 탭을 항상 맨 앞에 두고 서버에서 온 세션 목록을 붙임
+      setAvailableSessions([{ sessionId: "realtime", label: "⚡ 실시간 분석" }, ...sessions]);
     })
-    .catch(err => console.error("날짜 목록을 불러오지 못했습니다.", err));
+    .catch(err => console.error("세션 목록을 불러오지 못했습니다.", err));
   }, [streamId]);
 
   useEffect(() => {
@@ -81,7 +85,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
       return;
     }
 
-    fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/history?date=${selectedTab}`)
+    fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/history?sessionId=${selectedTab}`)
     .then(res => res.ok ? res.json() : { dataPoints: [] })
     .then(data => {
       const sortedHistory = (data.dataPoints || []).sort((a: any, b: any) => a.timestamp - b.timestamp);
@@ -93,7 +97,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
     });
   }, [selectedTab, streamId]);
 
-  // 🚨 [핵심 추가] 프론트엔드 동적 압축(Dynamic Aggregation) 로직
+  // 프론트엔드 동적 압축(Dynamic Aggregation) 로직
   const compressedHistory = useMemo(() => {
     if (historicalData.length === 0) return [];
     const totalMinutes = historicalData.length;
@@ -211,7 +215,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
         />
 
         <AnalysisTabs
-            availableDates={availableDates}
+            availableSessions={availableSessions}
             selected={selectedTab}
             onSelect={(tab) => {
               setSelectedTab(tab);

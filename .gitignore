@@ -46,6 +46,10 @@ repomix-output.xml
 repomix-output.txt
 repomix-output.json
 repomix.config.json
+repomix.*
 
 # logs
 logs/
+
+# git
+*.diff

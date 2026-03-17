@@ -27,4 +27,7 @@ public interface JpaStreamSessionRepository extends JpaRepository<StreamSessionE
           AND s.lastUpdateAt < :threshold
         """)
     List<StreamSessionEntity> findSessionsToClose(@Param("threshold") Instant threshold);
+
+    @Query("SELECT ss FROM StreamSessionEntity ss WHERE ss.streamId = :streamId ORDER BY ss.startedAt DESC")
+    List<StreamSessionEntity> findRecentSessionsByStreamId(@Param("streamId") String streamId, org.springframework.data.domain.Pageable pageable);
 }

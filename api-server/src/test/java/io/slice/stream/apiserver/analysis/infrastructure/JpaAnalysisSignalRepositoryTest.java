@@ -91,4 +91,35 @@ class JpaAnalysisSignalRepositoryTest implements PostgresTestSupport {
         assertThat(remaining).hasSize(1);
         assertThat(remaining.get(0).getStreamId()).isEqualTo("stream-recent");
     }
+
+    @Test
+    void 특정_세션의_원본_데이터와_요약_데이터를_정확히_조회한다() {
+        // given
+        String streamId = "test-stream-session";
+        String targetSession = "target-session";
+        String otherSession = "other-session";
+        Instant now = Instant.now();
+
+        // 원본 데이터 세팅 (타겟 세션 2개, 다른 세션 1개)
+        jpaRepository.save(new AnalysisSignalEntity(streamId, targetSession, "NORMAL", now, 100L, 0L));
+        jpaRepository.save(new AnalysisSignalEntity(streamId, targetSession, "PEAK", now.plusSeconds(3), 500L, 3000L));
+        jpaRepository.save(new AnalysisSignalEntity(streamId, otherSession, "NORMAL", now, 50L, 0L));
+
+        // 요약 데이터 생성을 위해 강제 Rollup 실행
+        jpaRepository.rollupOldSignals(now.plus(5, ChronoUnit.MINUTES));
+
+        // when 1: 원본 데이터 세션 조회
+        List<AnalysisSignalEntity> rawHistory = jpaRepository.findRawHistoryBySession(streamId, targetSession);
+
+        // when 2: 요약 데이터 세션 조회 (Native Query + Projection 검증)
+        List<JpaAnalysisSignalRepository.SummaryDataProjection> summaryHistory =
+            jpaRepository.findSummaryHistoryBySession(streamId, targetSession);
+
+        // then
+        assertThat(rawHistory).hasSize(2); // targetSession 데이터 2개만 나와야 함
+        assertThat(rawHistory).extracting("sessionId").containsOnly(targetSession);
+
+        assertThat(summaryHistory).isNotEmpty();
+        assertThat(summaryHistory.get(0).getOffsetMs()).isNotNull(); // Projection 매핑이 잘 되었는지 확인
+    }
 }

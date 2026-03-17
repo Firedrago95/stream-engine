@@ -97,40 +97,6 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
     }
 
     @Test
-    void 특정_날짜_범위의_하이라이트만_시작시간_순으로_조회한다() {
-        // given
-        String streamId = "test-stream-range";
-        String sessionId = "sessionId";
-        Instant target1 = Instant.parse("2026-03-04T10:00:00Z");
-        Instant target2 = Instant.parse("2026-03-04T15:00:00Z");
-        Instant otherDay = Instant.parse("2026-03-03T23:59:59Z");
-
-        HighlightEventEntity event1 = new HighlightEventEntity(streamId, sessionId, target2, 50000L, target2, 50000L, 200L);
-        event1.finish(target2.plusSeconds(10), 60000L);
-
-        HighlightEventEntity event2 = new HighlightEventEntity(streamId, sessionId, target1, 10000L, target1, 10000L, 100L);
-        event2.finish(target1.plusSeconds(10), 20000L);
-
-        repository.save(event1);
-        repository.save(event2);
-
-        HighlightEventEntity eventOther = new HighlightEventEntity(streamId, sessionId, otherDay, 0L, otherDay, 0L, 50L);
-        eventOther.finish(otherDay.plusSeconds(10), 10000L);
-        repository.save(eventOther);
-
-        Instant start = Instant.parse("2026-03-04T00:00:00Z");
-        Instant end = Instant.parse("2026-03-05T00:00:00Z");
-
-        // when
-        List<HighlightEventEntity> results = repository.findAllByStreamIdAndDateRange(streamId, start, end);
-
-        // then
-        assertThat(results).hasSize(2);
-        // 시작 시간 기준 정렬 확인 (repository 쿼리에 정렬 조건이 있다면)
-        assertThat(results.get(0).getStartTimeOffset()).isLessThan(results.get(1).getStartTimeOffset());
-    }
-
-    @Test
     void 임계시간_이전의_ONGOING_좀비세션만_조회한다() {
         // given
         Instant now = Instant.now();
@@ -159,5 +125,44 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getStreamId()).isEqualTo("zombie-stream");
         assertThat(results.get(0).getStatus()).isEqualTo("ONGOING");
+    }
+
+    @Test
+    void 특정_세션의_하이라이트만_시작시간_순으로_조회한다() {
+        // given
+        String streamId = "test-stream-session-query";
+        String targetSession = "target-session";
+        String otherSession = "other-session";
+        Instant baseTime = Instant.now();
+
+        // 타겟 세션의 하이라이트 2개 (시작 시간 다르게 세팅)
+        // event1: 늦게 시작한 하이라이트
+        HighlightEventEntity event1 = new HighlightEventEntity(
+            streamId, targetSession, baseTime.plusSeconds(10), 10000L, baseTime.plusSeconds(10), 10000L, 200L
+        );
+        event1.finish(baseTime.plusSeconds(60), 60000L);
+
+        // event2: 일찍 시작한 하이라이트
+        HighlightEventEntity event2 = new HighlightEventEntity(
+            streamId, targetSession, baseTime, 0L, baseTime, 0L, 100L
+        );
+        event2.finish(baseTime.plusSeconds(30), 30000L);
+        repository.save(event1);
+        repository.save(event2);
+
+        // 다른 세션의 하이라이트 (조회되면 안 됨)
+        HighlightEventEntity eventOther = new HighlightEventEntity(
+            streamId, otherSession, baseTime, 0L, baseTime, 0L, 50L
+        );
+        repository.save(eventOther);
+
+        // when
+        List<HighlightEventEntity> results = repository.findAllByStreamIdAndSessionId(streamId, targetSession);
+
+        // then
+        assertThat(results).hasSize(2);
+        // startTime ASC (오름차순) 정렬이 제대로 되었는지 확인 (일찍 시작한 event2가 먼저 와야 함)
+        assertThat(results.get(0).getPeakFirepower()).isEqualTo(100L);
+        assertThat(results.get(1).getPeakFirepower()).isEqualTo(200L);
     }
 }

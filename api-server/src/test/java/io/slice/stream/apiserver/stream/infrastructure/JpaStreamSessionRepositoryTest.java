@@ -98,4 +98,29 @@ class JpaStreamSessionRepositoryTest implements PostgresTestSupport {
         assertThat(sessionsToClose.get(0).getStreamId()).isEqualTo("zombie-stream");
         assertThat(sessionsToClose.get(0).getSessionId()).isEqualTo("session-zombie");
     }
+
+    @Test
+    void 스트림의_최근_세션_목록을_최신순으로_가져온다() {
+        // given
+        String streamId = "test-stream-tabs";
+        Instant now = Instant.now();
+
+        // 3일 전, 1일 전, 방금 켠 세션 3개를 순서 섞어서 저장
+        sessionRepository.save(new StreamSessionEntity(streamId, "session-1", "방제1", "카테고리1", now.minus(3, ChronoUnit.DAYS)));
+        sessionRepository.save(new StreamSessionEntity(streamId, "session-3", "방제3", "카테고리3", now));
+        sessionRepository.save(new StreamSessionEntity(streamId, "session-2", "방제2", "카테고리2", now.minus(1, ChronoUnit.DAYS)));
+
+        // when (최대 10개까지만 최신순으로 페이징 조회)
+        List<StreamSessionEntity> recentSessions = sessionRepository.findRecentSessionsByStreamId(
+            streamId,
+            org.springframework.data.domain.PageRequest.of(0, 10)
+        );
+
+        // then
+        assertThat(recentSessions).hasSize(3);
+        // 가장 먼저 나와야 할 데이터는 방금 켠 session-3 (최신순 DESC)
+        assertThat(recentSessions.get(0).getSessionId()).isEqualTo("session-3");
+        // 가장 마지막에 나와야 할 데이터는 3일 전인 session-1
+        assertThat(recentSessions.get(2).getSessionId()).isEqualTo("session-1");
+    }
 }

@@ -4,8 +4,6 @@ import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import io.slice.stream.apiserver.analysis.infrastructure.entity.AnalysisSignalEntity;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
-import java.time.Instant;
-import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -71,20 +69,15 @@ public class AnalysisRepositoryImpl implements AnalysisRepository {
     }
 
     @Override
-    public List<LocalDate> findAvailableDates(String streamId, LocalDate beforeDate, int limit) {
-        return jpaRepository.findAvailableDatesWithCursor(streamId, beforeDate, limit);
-    }
-
-    @Override
-    public List<AnalysisDataPoint> findRawHistory(String streamId, Instant start, Instant end) {
-        return jpaRepository.findRawHistoryByDate(streamId, start, end).stream()
+    public List<AnalysisDataPoint> findRawHistory(String streamId, String sessionId) {
+        return jpaRepository.findRawHistoryBySession(streamId, sessionId).stream()
             .map(e -> new AnalysisDataPoint(e.getTimestamp().toEpochMilli(), e.getFirepower(), e.getStatus(), e.getOffsetMs()))
             .toList();
     }
 
     @Override
-    public List<AnalysisDataPoint> findSummaryHistory(String streamId, Instant start, Instant end) {
-        return jpaRepository.findSummaryHistoryByDate(streamId, start, end).stream()
+    public List<AnalysisDataPoint> findSummaryHistory(String streamId, String sessionId) {
+        return jpaRepository.findSummaryHistoryBySession(streamId, sessionId).stream()
             .map(p -> {
                 if (p.getTimestampMinute() == null) return null;
                 return new AnalysisDataPoint(

@@ -7,7 +7,6 @@ import io.slice.stream.apiserver.analysis.infrastructure.entity.AnalysisSignalEn
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
 import io.slice.stream.apiserver.testcontainer.postgres.PostgresTestSupport;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
@@ -91,42 +90,25 @@ class AnalysisRepositoryImplTest implements PostgresTestSupport {
     }
 
     @Test
-    void 특정_날짜_범위의_원본_데이터를_조회하여_DTO로_반환한다() {
+    void 특정_세션의_원본_데이터를_조회하여_DTO로_반환한다() {
         // given
         String streamId = "stream-history";
+        String targetSession = "target-session";
         Instant today = Instant.now();
-        Instant yesterday = today.minus(1, ChronoUnit.DAYS);
         long targetOffset = 5000L;
 
-        analysisRepository.save(AnalysisSignal.of(streamId, "sessionId", "NORMAL", yesterday, 50L, 0L));
-        analysisRepository.save(AnalysisSignal.of(streamId, "sessionId", "PEAK", today, 200L, targetOffset));
+        // 타겟 세션 데이터
+        analysisRepository.save(AnalysisSignal.of(streamId, targetSession, "PEAK", today, 200L, targetOffset));
+        // 다른 세션 데이터 (조회되면 안 됨)
+        analysisRepository.save(AnalysisSignal.of(streamId, "other-session", "NORMAL", today.minus(1, ChronoUnit.HOURS), 50L, 0L));
 
-        Instant start = today.minus(1, ChronoUnit.HOURS);
-        Instant end = today.plus(1, ChronoUnit.HOURS);
-
-        // when
-        List<AnalysisDataPoint> history = analysisRepository.findRawHistory(streamId, start, end);
-
-        // then
-        assertThat(history).hasSize(1);
-        assertThat(history.get(0).status()).isEqualTo("PEAK");
-        // DTO 필드명이 firepower(또는 value)인지 확인 필요. 여기선 firepower로 가정
-        assertThat(history.get(0).value()).isEqualTo(200L);
-        assertThat(history.get(0).offsetMs()).isEqualTo(targetOffset); // [추가] DTO 오프셋 검증
-    }
-
-    @Test
-    void 커서를_이용한_가용_날짜_목록을_조회한다() {
-        // given
-        String streamId = "stream-dates";
-        analysisRepository.save(AnalysisSignal.of(streamId, "sessionId", "NORMAL", Instant.now(), 50L, 0L));
-
-        LocalDate cursor = LocalDate.now().plusYears(1);
-
-        // when
-        List<LocalDate> dates = analysisRepository.findAvailableDates(streamId, cursor, 10);
+        // when (날짜 범위 start, end 대신 targetSession 전달)
+        List<AnalysisDataPoint> history = analysisRepository.findRawHistory(streamId, targetSession);
 
         // then
-        assertThat(dates).isNotEmpty();
+        assertThat(history).hasSize(1); // 타겟 세션의 데이터 1개만 나와야 함
+        assertThat(history.getFirst().status()).isEqualTo("PEAK");
+        assertThat(history.getFirst().value()).isEqualTo(200L);
+        assertThat(history.getFirst().offsetMs()).isEqualTo(targetOffset);
     }
 }
