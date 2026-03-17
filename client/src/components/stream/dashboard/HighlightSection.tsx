@@ -51,6 +51,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
 
   const processedHighlights = React.useMemo(() => {
     let list = [...highlights];
+    list.sort((a, b) => b.peakFirepower - a.peakFirepower);
     if (isRealtime) {
       return list;
     } else {
