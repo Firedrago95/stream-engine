@@ -59,3 +59,4 @@ highlight:
   realtime-limit: 6             # 실시간 하이라이트는 6개만 조회
   history-display-limit: 20     # 방종후 24시간 동안 하이라이트는 20개만 조회
   cleanup-retention-limit: 10   # 방종후 24시간 이후 하이라이트는 10개만 남기고 삭제
+  cleanup-grace-hours: 24       # 방종후 하이라이트 삭제 기간

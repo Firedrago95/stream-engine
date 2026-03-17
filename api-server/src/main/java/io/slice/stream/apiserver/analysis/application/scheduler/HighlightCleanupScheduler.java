@@ -25,7 +25,7 @@ public class HighlightCleanupScheduler {
     @Transactional
     public void cleanupOldHighlights() {
         // 현재 시간 기준 24시간 전 시점 계산
-        Instant twentyFourHoursAgo = Instant.now().minus(24, ChronoUnit.HOURS);
+        Instant twentyFourHoursAgo = Instant.now().minus(properties.cleanupGraceHours(), ChronoUnit.HOURS);
 
         // 종료된 세션 중, 종료 시간이 24시간을 넘긴 세션들만 조회
         sessionRepository.findFinishedSessionsOlderThan(twentyFourHoursAgo).forEach(session -> {

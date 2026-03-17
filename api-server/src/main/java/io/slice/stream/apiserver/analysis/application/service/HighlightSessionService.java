@@ -135,7 +135,7 @@ public class HighlightSessionService {
         Long cachedMaxFirepower = nmsCache.getIfPresent(streamId);
 
         if (cachedMaxFirepower != null) {
-            // 아직 90초 쿨다운 기간 중, DB조회를 생략하고 즉시 종료
+            // 아직 쿨다운 기간 중, DB조회를 생략하고 즉시 종료
             return;
         }
 
