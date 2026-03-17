@@ -5,6 +5,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import io.slice.stream.apiserver.analysis.infrastructure.JpaHighlightEventRepository;
 import io.slice.stream.apiserver.analysis.infrastructure.entity.HighlightEventEntity;
+import io.slice.stream.apiserver.global.config.HighlightProperties;
 import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.time.Instant;
@@ -13,7 +14,6 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.resilience.annotation.Retryable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -26,28 +26,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class HighlightSessionService {
 
     private final JpaHighlightEventRepository repository;
-
-    @Value("${highlight.leading-buffer}")
-    private Duration leadingBuffer;
-
-    @Value("${highlight.trailing-buffer}")
-    private Duration trailingBuffer;
-
-    @Value("${highlight.cooldown}")
-    private Duration cooldown;
-
-    @Value("${highlight.extension-ratio}")
-    private double extensionRatio;
-
-    @Value("${highlight.minimum}")
-    private int minimumFirepower;
+    private final HighlightProperties properties;
 
     private Cache<String, Long> nmsCache;
 
     @PostConstruct
     public void init() {
         nmsCache = Caffeine.newBuilder()
-            .expireAfterWrite(cooldown.getSeconds(), TimeUnit.SECONDS)
+            .expireAfterWrite(properties.cooldown().getSeconds(), TimeUnit.SECONDS)
             .build();
     }
 
@@ -57,7 +43,7 @@ public class HighlightSessionService {
     )
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleSignal(AnalysisSignal signal) {
-        if (signal.firepower() < minimumFirepower) return;
+        if (signal.firepower() < properties.minimum()) return;
 
         String streamId = signal.streamId();
 
@@ -77,10 +63,10 @@ public class HighlightSessionService {
         List<HighlightEventEntity> zombies = repository.findZombieSessions(zombieThreshold);
 
         for (HighlightEventEntity session : zombies) {
-            Instant finalEndTime = session.getLastPeakTime().plus(trailingBuffer);
+            Instant finalEndTime = session.getLastPeakTime().plus(properties.trailingBuffer());
             long lastOffset = session.getLastPeakOffset() != null ? session.getLastPeakOffset() : 0L;
 
-            session.finish(finalEndTime, lastOffset + trailingBuffer.toMillis());
+            session.finish(finalEndTime, lastOffset + properties.trailingBuffer().toMillis());
             log.info("[Session-Cleanup] 방치된 좀비 하이라이트 세션 강제 종료 Stream: {}", session.getStreamId());
         }
     }
@@ -93,7 +79,7 @@ public class HighlightSessionService {
         });
 
         if (cachedMaxFirepower != null && !cachedMaxFirepower.equals(signal.firepower())) {
-            long threshold = (long) (cachedMaxFirepower * extensionRatio);
+            long threshold = (long) (cachedMaxFirepower * properties.extensionRatio());
 
             if (signal.firepower() > threshold) {
                 // 임계치 통과시 캐시 갱신 및 세션 연장
@@ -126,10 +112,10 @@ public class HighlightSessionService {
 
     private void startNewSession(AnalysisSignal signal) {
         // 실제 피크가 터진 시간에서 leadingBuffer를 빼서 영상 시작점을 앞으로 당김
-        Instant adjustedStart = signal.timestamp().minus(leadingBuffer);
+        Instant adjustedStart = signal.timestamp().minus(properties.leadingBuffer());
 
         long sateOffset = signal.offsetMs() != null ? signal.offsetMs() : 0L;
-        long startTimeOffset = Math.max(0L, sateOffset - leadingBuffer.toMillis());
+        long startTimeOffset = Math.max(0L, sateOffset - properties.leadingBuffer().toMillis());
 
         HighlightEventEntity newSession = new HighlightEventEntity(
             signal.streamId(),
@@ -160,14 +146,14 @@ public class HighlightSessionService {
 
     private void checkAndFinishSession(AnalysisSignal signal, HighlightEventEntity session) {
         // 세션 닫기를 판단하는 억제 기준선은 마지막 피크 시간 + cooldown
-        Instant threshold = session.getLastPeakTime().plus(cooldown);
+        Instant threshold = session.getLastPeakTime().plus(properties.cooldown());
 
         // 현재시간이 기준을 넘으면 (쿨다운 동안 새로운 피크 없었다면 세션 확정)
         if (!signal.timestamp().isBefore(threshold)) {
             // 실제 저장될 하이라이트 종료시간은 마지막 피크 + trailingBuffer
-            Instant finalEndTime = session.getLastPeakTime().plus(trailingBuffer);
+            Instant finalEndTime = session.getLastPeakTime().plus(properties.trailingBuffer());
             long lastOffset = session.getLastPeakOffset() != null ? session.getLastPeakOffset() : 0L;
-            long endTimeOffset = lastOffset + trailingBuffer.toMillis();
+            long endTimeOffset = lastOffset + properties.trailingBuffer().toMillis();
             session.finish(finalEndTime, endTimeOffset);
 
             log.info("[Session-Finish] 하이라이트 세션 종료 Stream:{}, Duration: {}",

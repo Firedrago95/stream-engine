@@ -51,8 +51,11 @@ analysis:
     path: ${SYNC_PATH}
 
 highlight:
-  leading-buffer: 20s      # 피크 발생 20초 전부터 영상 시작
-  trailing-buffer: 5s      # 피크 발생 5초 후까지 영상 유지
-  cooldown: 90s            # 새로운 세션 만들지 않고 무시/병합하는 억제 기간
-  extension-ratio: 0.7     # 기존 최대 화력 대비 여진으로 인정할 비율 (Dynamic Sliding Window)
-  minimum: 5               # 하이라이트로 인정될 최소 화력 (절대값)
+  leading-buffer: 20s           # 피크 발생 20초 전부터 영상 시작
+  trailing-buffer: 5s           # 피크 발생 5초 후까지 영상 유지
+  cooldown: 60s                 # 새로운 세션 만들지 않고 무시/병합하는 억제 기간
+  extension-ratio: 0.7          # 기존 최대 화력 대비 여진으로 인정할 비율 (Dynamic Sliding Window)
+  minimum: 5                    # 하이라이트로 인정될 최소 화력 (절대값)
+  realtime-limit: 6             # 실시간 하이라이트는 6개만 조회
+  history-display-limit: 20     # 방종후 24시간 동안 하이라이트는 20개만 조회
+  cleanup-retention-limit: 10   # 방종후 24시간 이후 하이라이트는 10개만 남기고 삭제

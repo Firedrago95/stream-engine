@@ -2,6 +2,7 @@ package io.slice.stream.apiserver.analysis.application.service;
 
 import io.slice.stream.apiserver.analysis.infrastructure.JpaHighlightEventRepository;
 import io.slice.stream.apiserver.analysis.presentation.dto.HighlightResponse;
+import io.slice.stream.apiserver.global.config.HighlightProperties;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import java.time.ZoneId;
 import java.util.List;
@@ -20,6 +21,7 @@ public class HighlightQueryService {
 
     private final JpaHighlightEventRepository highlightRepository;
     private final JpaStreamSessionRepository sessionRepository;
+    private final HighlightProperties properties;
 
     public List<HighlightResponse> getHighlightsBySessionId(String streamId, String sessionId) {
         // 프론트엔드가 실시간 탭에 있어서 sessionId를 안 보낸 경우
@@ -29,7 +31,7 @@ public class HighlightQueryService {
                 .orElse(List.of()) // 만약 현재 방송 중이 아니면 빈 배열 반환
                 .stream()
                 .sorted((a, b) -> b.getPeakFirepower().compareTo(a.getPeakFirepower()))
-                .limit(6)
+                .limit(properties.realtimeLimit())
                 .map(HighlightResponse::from)
                 .toList();
         }
@@ -38,7 +40,7 @@ public class HighlightQueryService {
         return highlightRepository.findAllByStreamIdAndSessionId(streamId, sessionId)
             .stream()
             .sorted((a, b) -> b.getPeakFirepower().compareTo(a.getPeakFirepower())) // 화력순 정렬
-            .limit(20) // 상위 20개 추출
+            .limit(properties.historyDisplayLimit()) // 상위 20개 추출
             .sorted((a, b) -> a.getStartTime().compareTo(b.getStartTime())) // 다시 시간순 정렬
             .map(HighlightResponse::from)
             .toList();

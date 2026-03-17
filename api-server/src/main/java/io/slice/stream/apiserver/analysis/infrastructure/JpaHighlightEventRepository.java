@@ -34,8 +34,8 @@ public interface JpaHighlightEventRepository extends JpaRepository<HighlightEven
           SELECT id FROM highlight_events 
           WHERE session_id = :sessionId 
           ORDER BY peak_firepower DESC 
-          LIMIT 10
+          LIMIT :retentionLimit
       )
     """, nativeQuery = true)
-    int deleteExceptTop10(@Param("sessionId") String sessionId);
+    int deleteExceptTop10(@Param("sessionId") String sessionId, @Param("retentionLimit") int retentionLimit);
 }
