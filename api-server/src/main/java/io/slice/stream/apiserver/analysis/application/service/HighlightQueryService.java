@@ -37,6 +37,9 @@ public class HighlightQueryService {
         // 프론트엔드가 특정 과거 방송 탭을 누른 경우
         return highlightRepository.findAllByStreamIdAndSessionId(streamId, sessionId)
             .stream()
+            .sorted((a, b) -> b.getPeakFirepower().compareTo(a.getPeakFirepower())) // 화력순 정렬
+            .limit(20) // 상위 20개 추출
+            .sorted((a, b) -> a.getStartTime().compareTo(b.getStartTime())) // 다시 시간순 정렬
             .map(HighlightResponse::from)
             .toList();
     }
