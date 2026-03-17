@@ -50,6 +50,6 @@ class HighlightCleanupSchedulerTest {
         verify(sessionRepository).findFinishedSessionsOlderThan(any(Instant.class));
 
         // 2. 해당 세션 ID로 deleteExceptTop10이 호출되었는지 확인
-        verify(highlightRepository).deleteExceptTop10(sessionId);
+        verify(highlightRepository).deleteExceptTop(sessionId, 10);
     }
 }

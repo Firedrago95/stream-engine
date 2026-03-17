@@ -29,7 +29,7 @@ public class HighlightCleanupScheduler {
 
         // 종료된 세션 중, 종료 시간이 24시간을 넘긴 세션들만 조회
         sessionRepository.findFinishedSessionsOlderThan(twentyFourHoursAgo).forEach(session -> {
-            int deletedCount = highlightRepository.deleteExceptTop10(session.getSessionId(), properties.cleanupRetentionLimit());
+            int deletedCount = highlightRepository.deleteExceptTop(session.getSessionId(), properties.cleanupRetentionLimit());
             if (deletedCount > 0) {
                 log.info("[Cleanup] 세션 {} 의 데이터 {}개 정리 완료 (Top 10 유지)",
                     session.getSessionId(), deletedCount);

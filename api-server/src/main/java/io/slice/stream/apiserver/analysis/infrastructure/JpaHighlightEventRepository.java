@@ -37,5 +37,5 @@ public interface JpaHighlightEventRepository extends JpaRepository<HighlightEven
           LIMIT :retentionLimit
       )
     """, nativeQuery = true)
-    int deleteExceptTop10(@Param("sessionId") String sessionId, @Param("retentionLimit") int retentionLimit);
+    int deleteExceptTop(@Param("sessionId") String sessionId, @Param("retentionLimit") int retentionLimit);
 }

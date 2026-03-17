@@ -194,7 +194,7 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
         repository.flush();
 
         // when
-        int deletedCount = repository.deleteExceptTop10(sessionId);
+        int deletedCount = repository.deleteExceptTop(sessionId, 10);
 
         // then
         assertThat(deletedCount).isEqualTo(5); // 15개 중 10개 남기고 5개 삭제됨
