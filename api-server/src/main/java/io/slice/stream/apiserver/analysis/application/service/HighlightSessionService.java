@@ -39,6 +39,9 @@ public class HighlightSessionService {
     @Value("${highlight.extension-ratio}")
     private double extensionRatio;
 
+    @Value("${highlight.minimum}")
+    private int minimumFirepower;
+
     private Cache<String, Long> nmsCache;
 
     @PostConstruct
@@ -54,6 +57,8 @@ public class HighlightSessionService {
     )
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleSignal(AnalysisSignal signal) {
+        if (signal.firepower() < minimumFirepower) return;
+
         String streamId = signal.streamId();
 
         if ("PEAK".equals(signal.status())) {

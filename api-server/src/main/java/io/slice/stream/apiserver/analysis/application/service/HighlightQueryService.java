@@ -28,6 +28,8 @@ public class HighlightQueryService {
                 .map(session -> highlightRepository.findAllByStreamIdAndSessionId(streamId, session.getSessionId()))
                 .orElse(List.of()) // 만약 현재 방송 중이 아니면 빈 배열 반환
                 .stream()
+                .sorted((a, b) -> b.getPeakFirepower().compareTo(a.getPeakFirepower()))
+                .limit(6)
                 .map(HighlightResponse::from)
                 .toList();
         }

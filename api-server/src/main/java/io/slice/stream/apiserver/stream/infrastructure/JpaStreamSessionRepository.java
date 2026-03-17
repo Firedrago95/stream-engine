@@ -30,4 +30,12 @@ public interface JpaStreamSessionRepository extends JpaRepository<StreamSessionE
 
     @Query("SELECT ss FROM StreamSessionEntity ss WHERE ss.streamId = :streamId ORDER BY ss.startedAt DESC")
     List<StreamSessionEntity> findRecentSessionsByStreamId(@Param("streamId") String streamId, org.springframework.data.domain.Pageable pageable);
+
+    @Query("""
+        SELECT ss
+        FROM StreamSessionEntity ss
+        WHERE ss.endedAt IS NOT NULL
+          AND ss.endedAt < :threshold
+        """)
+    List<StreamSessionEntity> findFinishedSessionsOlderThan(@Param("threshold") Instant threshold);
 }
