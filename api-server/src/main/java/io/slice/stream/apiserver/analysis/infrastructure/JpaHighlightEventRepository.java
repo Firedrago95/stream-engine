@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -24,4 +25,17 @@ public interface JpaHighlightEventRepository extends JpaRepository<HighlightEven
              AND h.lastPeakTime < :threshold
            """)
     List<HighlightEventEntity> findZombieSessions(@Param("threshold") Instant threshold);
+
+    @Modifying
+    @Query(value = """
+    DELETE FROM highlight_events 
+    WHERE session_id = :sessionId 
+      AND id NOT IN (
+          SELECT id FROM highlight_events 
+          WHERE session_id = :sessionId 
+          ORDER BY peak_firepower DESC 
+          LIMIT 10
+      )
+    """, nativeQuery = true)
+    int deleteExceptTop10(@Param("sessionId") String sessionId);
 }
