@@ -7,7 +7,9 @@ import static org.mockito.Mockito.verify;
 
 import io.slice.stream.apiserver.analysis.infrastructure.JpaHighlightEventRepository;
 import io.slice.stream.apiserver.analysis.infrastructure.entity.StreamSessionEntity;
+import io.slice.stream.apiserver.global.config.HighlightProperties;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -30,6 +33,19 @@ class HighlightCleanupSchedulerTest {
 
     @InjectMocks
     private HighlightCleanupScheduler scheduler;
+
+    @Spy
+    private HighlightProperties properties = new HighlightProperties(
+        Duration.ofSeconds(20), // leadingBuffer
+        Duration.ofSeconds(5),  // trailingBuffer
+        Duration.ofSeconds(90), // cooldown
+        0.7,                    // extensionRatio
+        5,                      // minimum
+        6,                      // realtimeLimit
+        20,                     // historyDisplayLimit
+        10,                     // cleanupRetentionLimit
+        24
+    );
 
     @Test
     void 하루가_지난_종료된_세션들에_대해_청소_로직을_실행한다() {

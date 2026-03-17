@@ -11,7 +11,9 @@ import io.slice.stream.apiserver.analysis.infrastructure.JpaHighlightEventReposi
 import io.slice.stream.apiserver.analysis.infrastructure.entity.HighlightEventEntity;
 import io.slice.stream.apiserver.analysis.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.analysis.presentation.dto.HighlightResponse;
+import io.slice.stream.apiserver.global.config.HighlightProperties;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,7 +34,20 @@ class HighlightQueryServiceTest {
     private JpaHighlightEventRepository highlightRepository;
 
     @Mock
-    private JpaStreamSessionRepository sessionRepository; // [추가] 실시간 세션 조회용
+    private JpaStreamSessionRepository sessionRepository;
+
+    @Spy
+    private HighlightProperties properties = new HighlightProperties(
+        Duration.ofSeconds(20), // leadingBuffer
+        Duration.ofSeconds(5),  // trailingBuffer
+        Duration.ofSeconds(90), // cooldown
+        0.7,                    // extensionRatio
+        5,                      // minimum
+        6,                      // realtimeLimit
+        20,                     // historyDisplayLimit
+        10,                     // cleanupRetentionLimit
+        24
+    );
 
     @InjectMocks
     private HighlightQueryService highlightQueryService;

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import io.slice.stream.apiserver.analysis.infrastructure.JpaHighlightEventRepository;
 import io.slice.stream.apiserver.analysis.infrastructure.entity.HighlightEventEntity;
+import io.slice.stream.apiserver.global.config.HighlightProperties;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -21,8 +22,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
@@ -30,6 +31,19 @@ class HighlightSessionServiceTest {
 
     @Mock
     private JpaHighlightEventRepository repository;
+
+    @Spy
+    private HighlightProperties properties = new HighlightProperties(
+        Duration.ofSeconds(20), // leadingBuffer
+        Duration.ofSeconds(5),  // trailingBuffer
+        Duration.ofSeconds(90), // cooldown
+        0.7,                    // extensionRatio
+        5,                      // minimum
+        6,                      // realtimeLimit
+        20,                     // historyDisplayLimit
+        10,                     // cleanupRetentionLimit
+        24
+    );
 
     @InjectMocks
     private HighlightSessionService highlightSessionService;
@@ -41,10 +55,6 @@ class HighlightSessionServiceTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(highlightSessionService, "leadingBuffer", leadingBuffer);
-        ReflectionTestUtils.setField(highlightSessionService, "trailingBuffer", trailingBuffer);
-        ReflectionTestUtils.setField(highlightSessionService, "cooldown", cooldown);
-        ReflectionTestUtils.setField(highlightSessionService, "extensionRatio", 0.7);
         highlightSessionService.init();
     }
 
@@ -68,8 +78,8 @@ class HighlightSessionServiceTest {
         HighlightEventEntity saved = captor.getValue();
         assertThat(saved.getPeakFirepower()).isEqualTo(100L);
 
-        // VOD 시작 오프셋 계산: 1시간(3,600,000ms) - 10초(10,000ms) = 3,590,000ms
-        assertThat(saved.getStartTimeOffset()).isEqualTo(3590000L);
+        // VOD 시작 오프셋 계산: 1시간(3,600,000ms) - 20초(20,000ms) = 3,580,000ms
+        assertThat(saved.getStartTimeOffset()).isEqualTo(3580000L);
     }
 
     @Test
@@ -144,7 +154,7 @@ class HighlightSessionServiceTest {
 
         // then
         assertThat(zombieSession.getStatus()).isEqualTo("FINISHED");
-        long expectedEndTimeOffset = lastPeakOffset + trailingBuffer.toMillis();
+        long expectedEndTimeOffset = lastPeakOffset + properties.trailingBuffer().toMillis();
         assertThat(zombieSession.getEndTimeOffset()).isEqualTo(expectedEndTimeOffset);
     }
 }
