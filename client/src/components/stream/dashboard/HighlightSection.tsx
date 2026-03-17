@@ -50,15 +50,8 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({ highlights, 
     let list = [...highlights];
 
     if (isRealtime) {
-      // 1. 실시간: 최고 화력순으로 정렬하여 상위 6개만 노출
-      return list
-      .sort((a, b) => (b.peakFirepower || 0) - (a.peakFirepower || 0))
-      .slice(0, 6);
+      return list;
     } else {
-      // 2. 과거 세션: VOD 인덱스 역할을 위해 시간순(오래된 순) 정렬
-      list.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-
-      // "더보기" 상태가 아니면 6개만 노출
       return showAll ? list : list.slice(0, 6);
     }
   }, [highlights, isRealtime, showAll]);
