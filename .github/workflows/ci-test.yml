@@ -7,8 +7,6 @@ concurrency:
 
 # main 브랜치에 코드가 푸시되거나, PR이 열렸을 때 작동
 on:
-  push:
-    branches: [ "main" , "develop" ]
   pull_request:
     branches: [ "main" , "develop"]
 
