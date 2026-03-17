@@ -238,7 +238,10 @@ export const StreamAnalysisDashboard: React.FC = () => {
             rebangIndexes={rebangIndexes}
         />
 
-        <HighlightSection highlights={highlights}/>
+        <HighlightSection
+            highlights={highlights}
+            selectedTab={selectedTab}
+        />
 
         <footer className="mt-24 pt-12 border-t border-gray-800/60 text-center">
           <div className="mb-6">
