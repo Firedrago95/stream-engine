@@ -5,7 +5,6 @@ import { AnalysisChart } from './dashboard/AnalysisChart';
 import { HighlightSection } from './dashboard/HighlightSection';
 import { DashboardHeader } from './dashboard/DashboardHeader';
 import { StreamProfileHeader } from './dashboard/StreamProfileHeader';
-
 import { useStreamAnalysis } from '../../hooks/useStreamAnalysis';
 import { useHighlights } from '../../hooks/useHighlights';
 
@@ -28,22 +27,17 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   const stableData = useMemo(() => {
     if (!analysisData) return [];
-
     let points = [];
     if (Array.isArray(analysisData)) {
-      points = [...analysisData]; // 원본 훼손을 막기 위해 얕은 복사본 생성
+      points = [...analysisData];
     } else if (analysisData.dataPoints) {
-      points = [...analysisData.dataPoints]; // JSON에 dataPoints가 배열로 올 경우 복사
+      points = [...analysisData.dataPoints];
     } else {
       points = Object.keys(analysisData)
       .filter(k => !isNaN(Number(k)))
       .map(k => analysisData[k]);
     }
-
-    // 백엔드가 내림차순으로 주는 데이터를 오름차순으로 재정렬
     points.sort((a: any, b: any) => a.timestamp - b.timestamp);
-
-    // 올바르게 정렬된 상태에서 화면에 보여줄 개수(60개)만큼 맨 뒤에서부터 잘라냄
     return points.slice(-CONFIG.DISPLAY_POINTS);
   }, [analysisData]);
 
@@ -58,7 +52,6 @@ export const StreamAnalysisDashboard: React.FC = () => {
     value: null, time: null,
   });
 
-  // 1. 스트리머 정보 및 라이브 상태 로드
   useEffect(() => {
     if (!streamId) return;
     fetch(`${API_BASE_URL}/api/v1/streams/${streamId}`)
@@ -72,7 +65,6 @@ export const StreamAnalysisDashboard: React.FC = () => {
     .catch(err => console.error("스트리머 정보를 불러오는데 실패했습니다.", err));
   }, [streamId]);
 
-  // 2. 가용 날짜 목록 로드
   useEffect(() => {
     if (!streamId) return;
     fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/available-dates?limit=10`)
@@ -83,7 +75,6 @@ export const StreamAnalysisDashboard: React.FC = () => {
     .catch(err => console.error("날짜 목록을 불러오지 못했습니다.", err));
   }, [streamId]);
 
-  // 3. 과거 탭 선택 시 데이터 로드
   useEffect(() => {
     if (selectedTab === "realtime" || !streamId) {
       setHistoricalData([]);
@@ -102,14 +93,50 @@ export const StreamAnalysisDashboard: React.FC = () => {
     });
   }, [selectedTab, streamId]);
 
-  // 4. 차트 Y축 최대값 동적 계산
+  // 🚨 [핵심 추가] 프론트엔드 동적 압축(Dynamic Aggregation) 로직
+  const compressedHistory = useMemo(() => {
+    if (historicalData.length === 0) return [];
+    const totalMinutes = historicalData.length;
+
+    // 방송 길이에 따라 묶음(Interval) 동적 조절
+    let interval = 1;
+    if (totalMinutes > 360) interval = 5; // 6시간 이상: 5분 압축
+    else if (totalMinutes > 180) interval = 3; // 3시간 이상: 3분 압축
+
+    // 압축이 필요 없으면 원본 리턴
+    if (interval === 1) return historicalData;
+
+    const intervalMs = interval * 60 * 1000;
+    const grouped: Record<number, any> = {};
+
+    historicalData.forEach((p: any) => {
+      // 시간 버킷(구간) 계산
+      const bucket = Math.floor(p.timestamp / intervalMs) * intervalMs;
+      if (!grouped[bucket]) {
+        grouped[bucket] = { ...p, timestamp: bucket };
+      } else {
+        // 해당 구간의 최고 화력(MAX)만 추출해서 덮어씀
+        grouped[bucket].value = Math.max(grouped[bucket].value || 0, p.value || 0);
+        // 상태값 보존
+        if (p.status === 'PEAK') grouped[bucket].status = 'PEAK';
+        // 오프셋 보존 (구간 중 가장 빠른 시간)
+        if (p.offsetMs !== undefined && (grouped[bucket].offsetMs === undefined || p.offsetMs < grouped[bucket].offsetMs)) {
+          grouped[bucket].offsetMs = p.offsetMs;
+        }
+      }
+    });
+
+    return Object.values(grouped).sort((a: any, b: any) => a.timestamp - b.timestamp);
+  }, [historicalData]);
+
+  // Y축 최대값 계산 (압축된 데이터 기반)
   useEffect(() => {
-    const targetData = selectedTab === "realtime" ? stableData : historicalData;
+    const targetData = selectedTab === "realtime" ? stableData : compressedHistory;
     if (targetData.length > 0) {
       const currentMax = Math.max(...targetData.map((d: any) => d.value || 0));
       if (currentMax > maxY) setMaxY(currentMax + 5);
     }
-  }, [stableData, historicalData, selectedTab, maxY]);
+  }, [stableData, compressedHistory, selectedTab, maxY]);
 
   const formatTime = (ts: any) => {
     if (!ts) return "";
@@ -117,8 +144,9 @@ export const StreamAnalysisDashboard: React.FC = () => {
     return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
   };
 
+  // 차트 표시 데이터 조립 (압축된 데이터 기반)
   const chartDisplayData = useMemo(() => {
-    const currentSource = selectedTab === "realtime" ? stableData : historicalData;
+    const currentSource = selectedTab === "realtime" ? stableData : compressedHistory;
     const totalSlots = selectedTab === "realtime" ? CONFIG.DISPLAY_POINTS : currentSource.length;
     const result = new Array(totalSlots);
 
@@ -130,22 +158,24 @@ export const StreamAnalysisDashboard: React.FC = () => {
       }
     }
     return result;
-  }, [stableData, historicalData, selectedTab]);
+  }, [stableData, compressedHistory, selectedTab]);
 
+  // 리방 인덱스 선 긋기 (압축된 데이터 기반으로 갭 허용치 10분으로 증가)
   const rebangIndexes = useMemo(() => {
-    if (selectedTab === "realtime" || historicalData.length === 0) return [];
+    if (selectedTab === "realtime" || compressedHistory.length === 0) return [];
     const indexes: number[] = [];
-    for (let i = 1; i < historicalData.length; i++) {
-      const prev = historicalData[i - 1];
-      const curr = historicalData[i];
+    for (let i = 1; i < compressedHistory.length; i++) {
+      const prev = compressedHistory[i - 1];
+      const curr = compressedHistory[i];
       const timeDiff = curr.timestamp - prev.timestamp;
 
-      if (timeDiff > 360000 || (curr.offsetMs !== undefined && prev.offsetMs !== undefined && curr.offsetMs < prev.offsetMs)) {
+      // 5분 단위로 압축되었을 수 있으므로 10분(600,000ms) 이상 차이 날 때 리방으로 간주
+      if (timeDiff > 600000 || (curr.offsetMs !== undefined && prev.offsetMs !== undefined && curr.offsetMs < prev.offsetMs)) {
         indexes.push(i);
       }
     }
     return indexes;
-  }, [historicalData, selectedTab]);
+  }, [compressedHistory, selectedTab]);
 
   const handleMouseMove = (state: any) => {
     if (state?.activePayload?.[0]?.payload?.hasData) {
@@ -160,15 +190,14 @@ export const StreamAnalysisDashboard: React.FC = () => {
       const lastValue = stableData.length > 0 ? stableData[stableData.length - 1].value : 0;
       return { label: "현재 실시간 화력", value: lastValue };
     }
-    const maxVal = historicalData.length > 0 ? Math.max(...historicalData.map(d => d.value || 0)) : 0;
+    const maxVal = compressedHistory.length > 0 ? Math.max(...compressedHistory.map((d: any) => d.value || 0)) : 0;
     return { label: `${selectedTab.slice(5)} 최고 화력`, value: maxVal };
-  }, [selectedTab, stableData, historicalData, hoveredData]);
+  }, [selectedTab, stableData, compressedHistory, hoveredData]);
 
   if (!streamId) return <div className="p-10 text-center text-slate-400">잘못된 접근입니다.</div>;
 
   return (
       <div className="w-full pb-20 bg-[#060606] min-h-screen text-white px-4 sm:px-8">
-        {/* ✨ 주석 제거됨: 헤더 섹션 활성화 */}
         <DashboardHeader onBack={() => navigate(-1)} />
         <StreamProfileHeader
             streamId={streamId}
