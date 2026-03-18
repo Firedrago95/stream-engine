@@ -140,7 +140,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
                         <span className="text-white font-mono text-lg font-black shrink-0">
                           <span className="text-gray-500 text-base mr-1">🎬</span>
                           {formatOffset(hl.startTimeOffset)}
-                          <span className="mx-1.5 text-gray-600 font-normal">~</span>
+                          <span className="mx-1.5 text-white font-normal">~</span>
                           {formatOffset(hl.endTimeOffset)}
                         </span>
                           <span
