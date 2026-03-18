@@ -65,6 +65,7 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
     }
 
     private List<StreamTarget> fetchAllLiveDetailsConcurrently(List<ChzzkLive> lives) {
+        log.info("[Chzzk API] {}개의 방송 상세 정보(LiveDetail) 병렬 조회 시작", lives.size());
         List<CompletableFuture<StreamTarget>> futures = lives.stream()
             .map(live -> CompletableFuture.supplyAsync(() -> {
                 rateLimiter.acquire();
@@ -72,10 +73,13 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             }, virtualThreadExecutor)).toList();
 
         try {
-            return futures.stream()
+            List<StreamTarget> results = futures.stream()
                 .map(CompletableFuture::join)
                 .filter(Objects::nonNull)
                 .toList();
+
+            log.info("[Chzzk API] 방송 상세 정보 조회 완료 (성공: {}/건)", results.size());
+            return results;
         } catch (Exception e) {
             log.warn("상세 정보 조회 전체 대기 중 작업이 중단되었습니다.",e);
             return Collections.emptyList();
@@ -113,7 +117,7 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
 
     private ChzzkLiveResponse callTopLivesApi(String url) {
         try {
-            log.info("[Chzzk API] TopLive 요청 URL: {}", url);
+            log.debug("[Chzzk API] TopLive 요청 URL: {}", url);
             return restClient.get()
                 .uri(url)
                 .retrieve()

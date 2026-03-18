@@ -14,6 +14,26 @@ const CONFIG = {
   DISPLAY_POINTS: 60,
 };
 
+const getRelativeLabel = (isoString: string) => {
+  try {
+    const target = new Date(isoString);
+    const now = new Date();
+
+    const targetDate = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+    const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const diffTime = nowDate.getTime() - targetDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return "오늘 방송";
+    if (diffDays === 1) return "어제 방송";
+    if (diffDays === 2) return "이틀 전 방송";
+    return `${diffDays}일 전 방송`;
+  } catch (e) {
+    return "과거 방송";
+  }
+};
+
 export const StreamAnalysisDashboard: React.FC = () => {
   const { streamId } = useParams<{ streamId: string }>();
   const navigate = useNavigate();
@@ -72,11 +92,17 @@ export const StreamAnalysisDashboard: React.FC = () => {
     if (!streamId) return;
     fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/available-sessions?limit=10`)
     .then(res => res.ok ? res.json() : [])
-    .then((sessions: { sessionId: string; label: string }[]) => {
-      // 실시간 탭을 항상 맨 앞에 두고 서버에서 온 세션 목록을 붙임
-      setAvailableSessions([{ sessionId: "realtime", label: "⚡ 실시간 분석" }, ...sessions]);
+    .then((sessions: { sessionId: string; startedAt: string }[]) => { // startedAt으로 반영
+      const formattedSessions = sessions.map(s => ({
+        sessionId: s.sessionId,
+        label: getRelativeLabel(s.startedAt)
+      }));
+      setAvailableSessions([
+        { sessionId: "realtime", label: "⚡ 실시간 분석" },
+        ...formattedSessions
+      ]);
     })
-    .catch(err => console.error("세션 목록을 불러오지 못했습니다.", err));
+    .catch(err => console.error("세션 목록 로드 실패", err));
   }, [streamId]);
 
   useEffect(() => {
@@ -190,13 +216,33 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   const metric = useMemo(() => {
     if (hoveredData.value !== null) return { label: `시점 화력 (${hoveredData.time})`, value: hoveredData.value };
+
+    // 현재 선택된 세션의 정보를 찾음
+    const currentSession = availableSessions.find(s => s.sessionId === selectedTab);
+    const displayLabel = currentSession ? currentSession.label : "분석 데이터";
+
     if (selectedTab === "realtime") {
       const lastValue = stableData.length > 0 ? stableData[stableData.length - 1].value : 0;
       return { label: "현재 실시간 화력", value: lastValue };
     }
+
     const maxVal = compressedHistory.length > 0 ? Math.max(...compressedHistory.map((d: any) => d.value || 0)) : 0;
-    return { label: `${selectedTab.slice(5)} 최고 화력`, value: maxVal };
-  }, [selectedTab, stableData, compressedHistory, hoveredData]);
+
+    return {
+      label: (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Broadcast History</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-[#00FFA3] tracking-tighter">
+            {displayLabel}
+          </span>
+              <span className="text-lg font-bold text-gray-400">최고 화력</span>
+            </div>
+          </div>
+      ),
+      value: maxVal
+    };
+  }, [selectedTab, stableData, compressedHistory, hoveredData, availableSessions]);
 
   if (!streamId) return <div className="p-10 text-center text-slate-400">잘못된 접근입니다.</div>;
 

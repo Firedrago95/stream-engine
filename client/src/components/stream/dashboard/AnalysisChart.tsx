@@ -4,7 +4,7 @@ import React from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 interface Props {
-  chartData: any[]; metric: { label: string; value: string | number }; maxY: number;
+  chartData: any[]; metric: { label: React.ReactNode; value: string | number }; maxY: number;
   isLoading: boolean; isGathering: boolean; error: string | null; selectedTab: string;
   historyEmpty: boolean; onMouseMove: (state: any) => void; onMouseLeave: () => void;
   formatTime: (ts: any) => string; rebangIndexes?: number[];
@@ -91,7 +91,7 @@ export const AnalysisChart: React.FC<Props> = ({
         <div className="flex justify-between items-start mb-10">
           <h3 className="text-lg font-bold text-gray-200 uppercase tracking-widest italic">채팅 화력 추이</h3>
           <div className="text-right">
-            <span className="text-[10px] text-gray-200 font-bold block mb-1 uppercase tracking-tighter">{metric.label}</span>
+            <div className="block mb-1">{metric.label}</div>
             <span className="text-4xl font-black text-[#00FFA3]">
             {metric.value} <span className="text-xs text-gray-300 ml-2 italic">msg/s</span>
           </span>

@@ -9,6 +9,7 @@ import io.slice.stream.apiserver.analysis.application.service.AnalysisQueryServi
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
 import io.slice.stream.apiserver.analysis.presentation.dto.SessionResponse;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,10 +47,12 @@ class AnalysisQueryControllerTest {
         // given
         String streamId = "test-stream";
         int limit = 10;
+        Instant startedAt1 = Instant.parse("2026-03-17T20:30:00Z");
+        Instant startedAt2 = Instant.parse("2026-03-16T20:11:00Z");
 
         List<SessionResponse> mockSessions = List.of(
-            new SessionResponse("session-1", "3월 17일 20:30 방송"),
-            new SessionResponse("session-2", "3월 16일 11:00 방송")
+            new SessionResponse("session-1", startedAt1),
+            new SessionResponse("session-2", startedAt2)
         );
 
         given(analysisQueryService.getAvailableSessions(streamId, limit))
@@ -60,9 +63,9 @@ class AnalysisQueryControllerTest {
                 .param("limit", String.valueOf(limit)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].sessionId").value("session-1"))
-            .andExpect(jsonPath("$[0].label").value("3월 17일 20:30 방송"))
+            .andExpect(jsonPath("$[0].startedAt").value(startedAt1.toString()))
             .andExpect(jsonPath("$[1].sessionId").value("session-2"))
-            .andExpect(jsonPath("$[1].label").value("3월 16일 11:00 방송"));
+            .andExpect(jsonPath("$[1].startedAt").value(startedAt2.toString()));
     }
 
     @Test

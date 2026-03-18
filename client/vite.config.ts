@@ -4,13 +4,14 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: '0.0.0.0', // 도커 컨테이너 외부 접근 허용
+    host: '0.0.0.0',
     port: 5173,
     proxy: {
+      // 로컬 프론트에서 '/api'로 시작하는 요청을 가로챕니다.
       '/api': {
-        target: 'http://api:8080',
+        target: 'https://api.cheesepick.me', // 실제 백엔드 API 서버 주소
         changeOrigin: true,
-        secure: false, // SSL 오류 무시
+        secure: false,
       }
     }
   }

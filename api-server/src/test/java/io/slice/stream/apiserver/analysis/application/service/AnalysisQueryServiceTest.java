@@ -124,7 +124,7 @@ class AnalysisQueryServiceTest {
     }
 
     @Test
-    void 세션_목록_조회_시_포맷팅된_날짜_라벨과_함께_반환한다() {
+    void 세션_목록_조회_시_시작_시간과_함께_반환한다() {
         // given
         String streamId = "test-stream";
         int limit = 10;
@@ -144,7 +144,7 @@ class AnalysisQueryServiceTest {
         assertThat(sessions).hasSize(1);
         assertThat(sessions.get(0).sessionId()).isEqualTo("session-123");
         // 포맷팅 검증 ("M월 d일 HH:mm 방송")
-        assertThat(sessions.get(0).label()).isEqualTo("3월 17일 20:30 방송");
+        assertThat(sessions.get(0).startedAt()).isEqualTo(startedAt);
 
         verify(sessionRepository).findRecentSessionsByStreamId(eq(streamId), any(Pageable.class));
     }
