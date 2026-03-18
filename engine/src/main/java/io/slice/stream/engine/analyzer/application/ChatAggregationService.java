@@ -60,7 +60,7 @@ public class ChatAggregationService {
     private void saveToRepository(String key, ChatRoomAggregation aggregation) {
         try {
             if (log.isDebugEnabled()) {
-                log.info("[Redis-Save] 저장 시도 - Key: {}, 누적카운트: {}, 마지막채팅: {}",
+                log.debug("[Redis-Save] 저장 시도 - Key: {}, 누적카운트: {}, 마지막채팅: {}",
                     key, aggregation.getCount(), aggregation.getLastChatTime());
             }
             chatRoomAggregationRepository.save(aggregation, aggregation.getLastChatTime());

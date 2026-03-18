@@ -124,7 +124,7 @@ class AnalysisQueryServiceTest {
     }
 
     @Test
-    void 세션_목록_조회_시_포맷팅된_날짜_라벨과_함께_반환한다() {
+    void 세션_목록_조회_시_시작_시간과_함께_반환한다() {
         // given
         String streamId = "test-stream";
         int limit = 10;
