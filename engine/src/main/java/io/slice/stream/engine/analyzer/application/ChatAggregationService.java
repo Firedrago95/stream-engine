@@ -3,10 +3,11 @@ package io.slice.stream.engine.analyzer.application;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalCause;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregation;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregationRepository;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
-import java.time.Clock;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +21,7 @@ public class ChatAggregationService {
     private final Cache<String, ChatRoomAggregation> chatRoomAggregations;
     private final ChatRoomAggregationRepository chatRoomAggregationRepository;
 
-    public ChatAggregationService(ChatRoomAggregationRepository chatRoomAggregationRepository, Clock clock) {
+    public ChatAggregationService(ChatRoomAggregationRepository chatRoomAggregationRepository, MeterRegistry registry) {
         this.chatRoomAggregationRepository = chatRoomAggregationRepository;
         this.chatRoomAggregations = Caffeine.newBuilder()
             .expireAfterAccess(10, TimeUnit.MINUTES)
@@ -30,6 +31,10 @@ public class ChatAggregationService {
                 }
             })
             .build();
+
+        Gauge.builder("engine.active.streams", chatRoomAggregations, cache -> cache.asMap().size())
+            .description("현재 엔진에서 분석 중인 활성 스트림 수")
+            .register(registry);
     }
 
     public void aggregate(ChatMessage chatMessage) {
@@ -46,7 +51,9 @@ public class ChatAggregationService {
 
     @Scheduled(fixedRate = 3_000)
     public void saveAggregations() {
-        log.info("[Scheduler] 저장 스케줄러 작동 중... 현재 캐시된 스트림 수: {}", chatRoomAggregations.asMap().size());
+        if (log.isDebugEnabled()) {
+            log.debug("[Scheduler] Redis 저장 작업 수행 중... (대상 스트림: {}개)", chatRoomAggregations.asMap().size());
+        }
         chatRoomAggregations.asMap().forEach(this::saveToRepository);
     }
 

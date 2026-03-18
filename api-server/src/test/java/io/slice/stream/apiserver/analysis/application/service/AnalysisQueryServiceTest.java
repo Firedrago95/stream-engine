@@ -144,7 +144,7 @@ class AnalysisQueryServiceTest {
         assertThat(sessions).hasSize(1);
         assertThat(sessions.get(0).sessionId()).isEqualTo("session-123");
         // 포맷팅 검증 ("M월 d일 HH:mm 방송")
-        assertThat(sessions.get(0).label()).isEqualTo("3월 17일 20:30 방송");
+        assertThat(sessions.get(0).startedAt()).isEqualTo(startedAt);
 
         verify(sessionRepository).findRecentSessionsByStreamId(eq(streamId), any(Pageable.class));
     }

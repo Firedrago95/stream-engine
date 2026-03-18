@@ -44,10 +44,9 @@ public class AnalysisQueryService {
     }
 
     public List<SessionResponse> getAvailableSessions(String streamId, int limit) {
-        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("M월 d일 HH:mm 방송").withZone(KST);
         return sessionRepository.findRecentSessionsByStreamId(streamId, org.springframework.data.domain.PageRequest.of(0, limit))
             .stream()
-            .map(session -> new SessionResponse(session.getSessionId(), formatter.format(session.getStartedAt())))
+            .map(session -> new SessionResponse(session.getSessionId(), session.getStartedAt()))
             .toList();
     }
 

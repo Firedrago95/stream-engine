@@ -7,17 +7,18 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.github.benmanes.caffeine.cache.Cache;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregation;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregationRepository;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
-import java.time.Clock;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -29,11 +30,15 @@ class ChatAggregationServiceTest {
     @Mock
     private ChatRoomAggregationRepository chatRoomAggregationRepository;
 
-    @Mock
-    private Clock clock;
+    private MeterRegistry meterRegistry;
 
-    @InjectMocks
     private ChatAggregationService chatAggregationService;
+
+    @BeforeEach
+    void setUp() {
+        meterRegistry = new SimpleMeterRegistry();
+        chatAggregationService = new ChatAggregationService(chatRoomAggregationRepository, meterRegistry);
+    }
 
     private ChatMessage createChatMessage(String streamId, Instant time) {
         return new ChatMessage(null, null, "message", time, streamId, 0L, null);
@@ -148,5 +153,18 @@ class ChatAggregationServiceTest {
         await().atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
             verify(chatRoomAggregationRepository).save(eq(aggregation), eq(fixedNow));
         });
+    }
+
+    @Test
+    void Gauge_지표가_정상적으로_등록되어_활성_스트림_수를_반환한다() {
+        // given
+        chatAggregationService.aggregate(createChatMessage("stream1", Instant.now()));
+        chatAggregationService.aggregate(createChatMessage("stream2", Instant.now()));
+
+        // when
+        double streamCount = meterRegistry.get("engine.active.streams").gauge().value();
+
+        // then
+        assertThat(streamCount).isEqualTo(2.0);
     }
 }
