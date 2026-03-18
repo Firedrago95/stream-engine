@@ -41,6 +41,9 @@ management:
   metrics:
     tags:
       application: api-server
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
 
 analysis:
   signal:

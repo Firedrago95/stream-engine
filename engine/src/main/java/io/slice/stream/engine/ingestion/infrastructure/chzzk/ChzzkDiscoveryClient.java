@@ -135,7 +135,9 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
 
     private ChzzkLiveDetailResponse callLiveDetailApi(String url) {
         try {
-            log.info("[Chzzk API] LiveDetail 요청 URL: {}", url);
+            if (log.isDebugEnabled()) {
+                log.debug("[Chzzk API] LiveDetail 요청 URL: {}", url);
+            }
             return restClient.get()
                 .uri(url)
                 .retrieve()
