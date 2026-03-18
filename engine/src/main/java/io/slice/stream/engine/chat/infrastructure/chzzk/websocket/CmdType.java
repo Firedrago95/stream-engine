@@ -14,6 +14,7 @@ public enum CmdType {
     RECENT_CHAT(15101),
     CHAT(93101),
     DONATION(93102),
+    BLIND(94008),
     UNKNOWN(-1);
 
     private final int value;
