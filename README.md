@@ -48,9 +48,8 @@ Java 25 가상 스레드(Virtual Threads) 기반의 고성능 실시간 스트�
 ---
 
 ## 🏗️ 아키텍처 및 데이터 플로우
-
+![architecture.png](client/public/architecture.png)
 시스템은 역할에 따라 **Engine**, **API Server**, **Client**로 명확히 분리되어 동작합니다.
-
 ```mermaid
 flowchart TD
     %% Subgraph: Engine Module
