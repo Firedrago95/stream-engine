@@ -97,6 +97,7 @@ public class ChzzkWebSocketListener implements Listener {
             case CONNECT_ACK    -> log.info("[{}] 웹소켓 연결 완료 ack 수신", chatChannelId);
             case PONG           -> log.debug("[{}] 서버로부터 pong 수신", chatChannelId);
             case BLIND          -> {}
+            case PARTICIPATION  -> {}
             default             -> log.warn("[{}] 처리되지 않은 명령어 수신 (cmd: {})", chatChannelId, type);
         }
     }
