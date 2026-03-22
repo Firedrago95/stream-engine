@@ -6,6 +6,7 @@ import Header from './partials/Header.jsx';
 import { StreamCard } from './components/stream/StreamCard';
 import { StreamAnalysisDashboard } from './components/stream/StreamAnalysisDashboard';
 import { useStreams } from './hooks/useStreams';
+import Tooltip from './components/Tooltip.jsx'; // 🔥 툴팁 컴포넌트 추가
 import './css/style.css';
 
 const MainPage = () => {
@@ -48,15 +49,22 @@ const MainPage = () => {
       <div className="w-full">
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 px-1 mt-4">
-          <h2 className="text-2xl font-bold text-gray-100 italic uppercase tracking-tighter whitespace-nowrap mb-2 sm:mb-0">
-            실시간 라이브
-          </h2>
+          <div className="flex items-center gap-2 mb-2 sm:mb-0">
+            <h2 className="text-2xl font-bold text-gray-100 italic uppercase tracking-tighter whitespace-nowrap">
+              실시간 라이브
+            </h2>
+            <Tooltip bg="dark" position="right" size="sm" className="mt-0.5">
+              <div className="text-xs text-gray-200 font-medium whitespace-nowrap">
+                연령 제한 방송은 분석에서 제외됩니다.
+              </div>
+            </Tooltip>
+          </div>
 
           <div className="relative w-full sm:max-w-xs min-w-[140px]">
             <input
                 type="text"
-                placeholder="스트리머 검색..."
-                className="w-full p-2.5 bg-[#1a1a1c] border border-gray-800 rounded-lg text-sm text-gray-100 focus:outline-none focus:border-[#00FFA3] transition-colors"
+                placeholder="스트리머 검색 (오프라인 포함)..."
+                className="w-full p-2.5 bg-[#1a1a1c] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#00FFA3] hover:border-[#00FFA3] hover:ring-1 hover:ring-[#00FFA3] hover:shadow-lg transition-all duration-200"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
             />
