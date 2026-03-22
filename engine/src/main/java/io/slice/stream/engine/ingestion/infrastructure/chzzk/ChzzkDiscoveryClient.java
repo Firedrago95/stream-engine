@@ -8,12 +8,13 @@ import io.slice.stream.engine.ingestion.domain.error.IngestionException;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveDetailResponse;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.ChzzkLive;
+import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.Page;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import lombok.RequiredArgsConstructor;
@@ -56,12 +57,44 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
     }
 
     private List<ChzzkLive> fetchTopLives(int limit) {
-        String topLiveUri = buildTopLiveApiUri(limit);
-        ChzzkLiveResponse topLivesResponse = callTopLivesApi(topLiveUri);
+        List<ChzzkLive> collectedLives = new ArrayList<>();
 
-        return Optional.ofNullable(topLivesResponse)
-            .map(r -> r.content().data())
-            .orElse(Collections.emptyList());
+        Long nextConcurrentUserCount = null;
+        Long nextLiveId = null;
+
+        log.info("[Chzzk API] TopLive 랭킹 조회 시작 (목표 수량: {})", limit);
+
+        while (collectedLives.size() < limit) {
+            String topLiveUri = buildTopLiveApiUri(50, nextConcurrentUserCount, nextLiveId);
+            ChzzkLiveResponse topLiveResponse = callTopLivesApi(topLiveUri);
+
+            if (topLiveResponse == null || topLiveResponse.content() == null ||
+                topLiveResponse.content().data() == null || topLiveResponse.content().data().isEmpty()) {
+                break;
+            }
+
+            // 연령제한 방송 필터링
+            List<ChzzkLive> validLives = topLiveResponse.content().data().stream()
+                .filter(live -> !live.adult())
+                .toList();
+
+            collectedLives.addAll(validLives);
+
+            // 페이지 정보가 있는 경우 갱신 (다음 페이지 조회 필요시 사용)
+            Page page = topLiveResponse.content().page();
+            if (page != null && page.next() != null) {
+                nextConcurrentUserCount = page.next().concurrentUserCount();
+                nextLiveId = page.next().liveId();
+            } else {
+                break;
+            }
+        }
+
+        List<ChzzkLive> result = collectedLives.size() > limit
+            ? collectedLives.subList(0, limit)
+            : collectedLives;
+        log.info("[Chzzk  API] TopLive 랭킹 수집 완료 (수집: {}/건)", result.size());
+        return result;
     }
 
     private List<StreamTarget> fetchAllLiveDetailsConcurrently(List<ChzzkLive> lives) {
@@ -148,11 +181,17 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
         }
     }
 
-    private String buildTopLiveApiUri(int limit) {
-        return UriComponentsBuilder.fromPath(liveFetch)
+    private String buildTopLiveApiUri(int size, Long concurrentUserCount, Long liveId) {
+        UriComponentsBuilder builder = UriComponentsBuilder.fromPath(liveFetch)
             .queryParam("sort", "POPULAR")
-            .queryParam("size", limit)
-            .toUriString();
+            .queryParam("size", size);
+
+        if (concurrentUserCount != null && liveId != null) {
+            builder.queryParam("concurrentUserCount", concurrentUserCount)
+                .queryParam("liveId", liveId);
+        }
+
+        return builder.toUriString();
     }
 
     private String buildLiveDetailApiUri(String channelId) {
