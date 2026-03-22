@@ -37,7 +37,7 @@ const MainPage = () => {
     }
 
     return () => observer.disconnect();
-  }, []);
+  }, [streams.length]);
 
   if (error) return <div className="text-rose-500 p-8 text-center">에러: {error}</div>;
 
