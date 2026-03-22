@@ -63,8 +63,8 @@ const MainPage = () => {
           <div className="relative w-full sm:max-w-xs min-w-[140px]">
             <input
                 type="text"
-                placeholder="스트리머 검색 (오프라인 포함)..."
-                className="w-full p-2.5 bg-[#1a1a1c] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#00FFA3] hover:border-[#00FFA3] hover:ring-1 hover:ring-[#00FFA3] hover:shadow-lg transition-all duration-200"
+                placeholder="스트리머 검색 (오프라인 포함)"
+                className="w-full p-2.5 bg-[#1a1a1c] border border-gray-800 rounded-lg text-sm text-white placeholder-white/70 focus:outline-none focus:border-[#00FFA3] hover:border-[#00FFA3] hover:ring-1 hover:ring-[#00FFA3] hover:shadow-lg transition-all duration-200"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
             />
