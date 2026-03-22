@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Sidebar from './partials/Sidebar.jsx';
 import Header from './partials/Header.jsx';
@@ -12,7 +12,37 @@ const MainPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { streams, isLoading, error } = useStreams(searchTerm, 15000);
 
+  // 100개 대응: 브라우저 부하 방지를 위한 클라이언트 사이드 무한 스크롤
+  const [visibleCount, setVisibleCount] = useState(24);
+  const loadMoreRef = useRef(null);
+
+  // 검색어가 변경되면 보이는 개수 초기화
+  useEffect(() => {
+    setVisibleCount(24);
+  }, [searchTerm]);
+
+  // 스크롤이 하단에 닿으면 24개씩 추가 렌더링
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) {
+            setVisibleCount((prev) => prev + 24);
+          }
+        },
+        { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
   if (error) return <div className="text-rose-500 p-8 text-center">에러: {error}</div>;
+
+  // 화면에 렌더링할 데이터만 잘라냄
+  const displayedStreams = streams.slice(0, visibleCount);
 
   return (
       <div className="w-full">
@@ -22,7 +52,6 @@ const MainPage = () => {
             실시간 라이브
           </h2>
 
-          {/* shrink-0을 빼고 유연하게 줄어들 수 있도록 min-w-[140px] 추가 */}
           <div className="relative w-full sm:max-w-xs min-w-[140px]">
             <input
                 type="text"
@@ -54,12 +83,19 @@ const MainPage = () => {
             </div>
         )}
 
-        {/* 80% 뷰포트에 맞게 카드 그리드 배치 최적화 (가장 넓을 땐 3열) */}
+        {/* 기존 스타일 유지, 렌더링 목록만 displayedStreams로 변경 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-          {streams.map((stream) => (
+          {displayedStreams.map((stream) => (
               <StreamCard key={stream.streamId} stream={stream} />
           ))}
         </div>
+
+        {/* 100개 대응: 무한 스크롤 감지용 투명 요소 */}
+        {visibleCount < streams.length && (
+            <div ref={loadMoreRef} className="w-full h-10 mt-8 flex justify-center items-center">
+              <div className="w-6 h-6 border-2 border-[#00FFA3] border-t-transparent rounded-full animate-spin opacity-30"></div>
+            </div>
+        )}
 
         <footer className="mt-24 pt-12 pb-12 border-t border-gray-800/60 text-center w-full">
           <div className="mb-6">
@@ -95,7 +131,6 @@ export default function App() {
           <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
           <main className="grow">
-            {/* 앞으로 추가될 모든 페이지가 이 80% 중앙 정렬 룰을 따릅니다! */}
             <div className="w-[95%] lg:w-[80%] mx-auto py-8">
               <Routes>
                 <Route path="/" element={<MainPage />} />

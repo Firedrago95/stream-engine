@@ -20,6 +20,8 @@ export const StreamCard: React.FC<{ stream: StreamItem }> = ({ stream }) => {
               src={stream.profileImageUrl ?? undefined}
               alt={stream.streamerName}
               className="w-full h-full object-cover"
+              loading="lazy"
+              decoding="async"
           />
         </div>
 
