@@ -47,53 +47,9 @@ Java 25 가상 스레드(Virtual Threads) 기반의 고성능 실시간 스트�
 
 ---
 
-## 🏗️ 아키텍처 및 데이터 플로우
+## 🏗️ 아키텍처
 ![architecture.png](client/public/architecture.png)
 시스템은 역할에 따라 **Engine**, **API Server**, **Client**로 명확히 분리되어 동작합니다.
-```mermaid
-flowchart TD
-    %% Subgraph: Engine Module
-    subgraph Engine_Scope [1. engine - Data Processing]
-        direction TB
-        Ingestion[IngestionService] -->|Polling| ChzzkAPI[Chzzk API]
-        Ingestion --> RedisDB[(Redis)]
-        RedisDB -->|스트림 감지| ChatListener[ChatEventListener]
-        
-        ChatListener --> WebSocket[Chzzk Chat WebSocket]
-        WebSocket -->|채팅 메시지| KafkaTopic((Kafka))
-        
-        KafkaTopic -->|Consume| AggService[ChatAggregationService]
-        AggService -->|시계열 저장| RedisTS[(RedisTimeSeries)]
-        
-        RedisTS -->|화력 감지| Detector{HighlightDetector}
-        Detector -->|PEAK 신호 발송| SignalClient[HighlightSignalClient]
-    end
-
-    %% Subgraph: API Server Module
-    subgraph API_Scope [2. api-server - API & Real-time Broadcast]
-        direction TB
-        InternalAPI{Webhook 은닉 경로}
-        TokenCheck[EngineTokenFilter]
-        SignalService[AnalysisService]
-        SSE_Endpoint{SSE Endpoint}
-        
-        InternalAPI --> TokenCheck
-        TokenCheck --> SignalService
-        SignalService --> SSE_Endpoint
-    end
-
-    %% Client
-    ReactUI([React Client UI])
-
-    %% Connections
-    SignalClient ===>|HTTP Webhook| InternalAPI
-    SSE_Endpoint ===>|실시간 Push| ReactUI
-
-    %% Styling
-    style Engine_Scope fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style API_Scope fill:#e6f3ff,stroke:#0056b3,stroke-width:2px
-    style ReactUI fill:#fff5f5,stroke:#d63384,stroke-width:2px
-```
 
 ---
 
