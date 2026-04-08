@@ -47,6 +47,7 @@ repomix-output.txt
 repomix-output.json
 repomix.config.json
 repomix.*
+repomix-*
 
 # logs
 logs/
