@@ -13,6 +13,7 @@ import io.slice.stream.engine.core.model.StreamTarget;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,6 +31,9 @@ class ChatManagerTest {
     @Mock
     private ChatCollectorFactory chatCollectorFactory;
 
+    @Mock
+    private ExecutorService virtualThreadExecutor;
+
     @InjectMocks
     private ChatManager chatManager;
 
@@ -36,7 +41,13 @@ class ChatManagerTest {
     private ChatCollector mockCollector;
 
     @BeforeEach
-    void setUp() {}
+    void setUp() {
+        Mockito.lenient().doAnswer(invocation -> {
+            Runnable runnable = invocation.getArgument(0);
+            runnable.run();
+            return null;
+        }).when(virtualThreadExecutor).submit(any(Runnable.class));
+    }
 
     @Test
     void 새로운_스트림에_대해_채팅_수집을_시작해야_한다() {

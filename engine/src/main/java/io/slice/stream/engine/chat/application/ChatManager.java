@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +17,7 @@ public class ChatManager {
 
     private final Map<String, ChatCollector> chatCollectors = new ConcurrentHashMap<>();
     private final ChatCollectorFactory chatCollectorFactory;
+    private final ExecutorService virtualThreadExecutor;
 
     public void manageStreams(Set<StreamTarget> newStreamTargets, Set<String> closedChatChannelIds) {
         if (!newStreamTargets.isEmpty()) {
@@ -25,7 +27,7 @@ public class ChatManager {
                 int index = i;
                 StreamTarget streamTarget = targets.get(i);
 
-                Thread.startVirtualThread(() -> {
+                virtualThreadExecutor.submit(() -> {
                     try {
                         Thread.sleep(index * 600L);
                         chatCollectors.computeIfAbsent(streamTarget.channelId(),

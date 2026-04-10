@@ -5,6 +5,7 @@ import io.slice.stream.engine.chat.domain.ChatCollector;
 import io.slice.stream.engine.chat.domain.ChatMessageListener;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 
@@ -15,16 +16,18 @@ public class ChatConnectionManager implements ChatCollector, ChatMessageListener
     private final ChatMessageListener downstreamListener;
     private final String chatChannelId;
     private final String channelId;
+    private final ExecutorService executorService;
 
     private final AtomicBoolean isReconnecting = new AtomicBoolean(false);
     private volatile boolean isManualDisconnect = false;
     private volatile int retryCount = 0;
 
-    public ChatConnectionManager(ChatClient chatClient, ChatMessageListener downstreamListener, String chatChannelId, String channelId) {
+    public ChatConnectionManager(ChatClient chatClient, ChatMessageListener downstreamListener, String chatChannelId, String channelId, ExecutorService executorService) {
         this.chatClient = chatClient;
         this.downstreamListener = downstreamListener;
         this.chatChannelId = chatChannelId;
         this.channelId = channelId;
+        this.executorService = executorService;
     }
 
     @Override
@@ -56,15 +59,13 @@ public class ChatConnectionManager implements ChatCollector, ChatMessageListener
     }
 
     private void scheduleReconnect() {
-        if (isManualDisconnect) {
-            return;
-        }
+        if (isManualDisconnect) return;
 
         if (isReconnecting.compareAndSet(false, true)) {
             long delayMillis = calculateBackoffDelay();
             retryCount++;
 
-            Thread.ofVirtual().name("reconnect-thread-" + chatChannelId).start(() -> {
+            executorService.submit(() -> {
                 try {
                     log.info("[{}] {}ms 후 재연결을 시도합니다. (시도 횟수: {})", chatChannelId, delayMillis, retryCount);
                     Thread.sleep(delayMillis);

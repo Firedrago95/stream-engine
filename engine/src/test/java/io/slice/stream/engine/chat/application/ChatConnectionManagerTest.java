@@ -14,12 +14,14 @@ import io.slice.stream.engine.chat.domain.ChatMessageListener;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +34,9 @@ class ChatConnectionManagerTest {
     @Mock
     private ChatMessageListener downstreamListener;
 
+    @Mock
+    private ExecutorService executorService;
+
     private ChatConnectionManager chatConnectionManager;
 
     private static final String CHANNEL_ID = "testStream";
@@ -39,7 +44,15 @@ class ChatConnectionManagerTest {
 
     @BeforeEach
     void setUp() {
-        chatConnectionManager = new ChatConnectionManager(chatClient, downstreamListener, CHAT_CHANNEL_ID, CHANNEL_ID);
+        Mockito.lenient().doAnswer(invocation -> {
+            Runnable runnable = invocation.getArgument(0);
+            runnable.run();
+            return null;
+        }).when(executorService).submit(any(Runnable.class));
+
+        chatConnectionManager = new ChatConnectionManager(
+            chatClient, downstreamListener, CHAT_CHANNEL_ID, CHANNEL_ID, executorService
+        );
     }
 
     @Test

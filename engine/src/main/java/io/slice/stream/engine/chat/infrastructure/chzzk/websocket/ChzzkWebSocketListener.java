@@ -8,6 +8,7 @@ import java.net.http.WebSocket;
 import java.net.http.WebSocket.Listener;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutorService;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -22,6 +23,7 @@ public class ChzzkWebSocketListener implements Listener {
     private final JsonMapper jsonMapper;
     private final ChzzkMessageConverter messageConverter;
     private final StringBuilder textBuffer = new StringBuilder();
+    private final ExecutorService executorService;
 
     private WebSocket webSocket;
     private volatile boolean isRunning = true;
@@ -32,7 +34,8 @@ public class ChzzkWebSocketListener implements Listener {
         String chatChannelId,
         String accessToken,
         JsonMapper jsonMapper,
-        ChzzkMessageConverter messageConverter
+        ChzzkMessageConverter messageConverter,
+        ExecutorService executorService
     ) {
         this.messageListener = messageListener;
         this.channelId = channelId;
@@ -40,6 +43,7 @@ public class ChzzkWebSocketListener implements Listener {
         this.accessToken = accessToken;
         this.jsonMapper = jsonMapper;
         this.messageConverter = messageConverter;
+        this.executorService = executorService;
     }
 
     @Override
@@ -51,7 +55,7 @@ public class ChzzkWebSocketListener implements Listener {
         log.info("[{}] Websocket 연결 성공. 서버의 CONNECTED(10100) 신호 대기 중...", chatChannelId);
 
         requestAuthentication();
-        Thread.ofVirtual().name("ping-thread-" + chatChannelId).start(this::runPingLoop);
+        executorService.submit(this::runPingLoop);
     }
 
     @Override
@@ -97,6 +101,7 @@ public class ChzzkWebSocketListener implements Listener {
             case CONNECT_ACK    -> log.info("[{}] 웹소켓 연결 완료 ack 수신", chatChannelId);
             case PONG           -> log.debug("[{}] 서버로부터 pong 수신", chatChannelId);
             case BLIND          -> {}
+            case PARTICIPATION  -> {}
             default             -> log.warn("[{}] 처리되지 않은 명령어 수신 (cmd: {})", chatChannelId, type);
         }
     }

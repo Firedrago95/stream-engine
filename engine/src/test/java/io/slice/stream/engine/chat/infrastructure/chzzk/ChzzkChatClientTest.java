@@ -15,6 +15,7 @@ import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -49,6 +50,9 @@ class ChzzkChatClientTest {
     @Mock
     private WebSocket webSocket;
 
+    @Mock
+    private ExecutorService executorService;
+
     private ChzzkChatClient chzzkChatClient;
 
     private static final String CHANNEL_ID = "testChannel";
@@ -57,7 +61,7 @@ class ChzzkChatClientTest {
 
     @BeforeEach
     void setUp() {
-        chzzkChatClient = new ChzzkChatClient(chzzkApiClient, httpClient, jsonMapper, messageConverter);
+        chzzkChatClient = new ChzzkChatClient(chzzkApiClient, httpClient, jsonMapper, messageConverter, executorService);
         lenient().when(httpClient.newWebSocketBuilder()).thenReturn(webSocketBuilder);
         lenient().when(webSocketBuilder.header(anyString(), anyString())).thenReturn(webSocketBuilder);
     }

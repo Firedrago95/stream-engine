@@ -1,0 +1,26 @@
+
+spring:
+  threads:
+    virtual:
+      enabled: true
+
+  data:
+    redis:
+      host: localhost
+  kafka:
+    bootstrap-servers: localhost:29092 # 로컬 환경 포트에 맞게 수정
+
+app:
+  thread:
+    # virtual / platform 으로 변경
+    mode: virtual
+    pool-size: 200 # 플랫폼 모드일 때 톰캣 기본값 수준인 200으로 설정
+
+chzzk:
+  discovery:
+    # 500개의 실제 방송 채널 ID를 긁어옵니다.
+    limit: 500
+
+  # 우리가 새로 뚫어놓은 로컬 목(Mock) 서버의 웹소켓 주소
+  websocket:
+    url: "ws://localhost:8080/chat"
