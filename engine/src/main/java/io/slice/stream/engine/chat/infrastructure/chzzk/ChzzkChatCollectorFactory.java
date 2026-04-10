@@ -47,18 +47,22 @@ public class ChzzkChatCollectorFactory implements ChatCollectorFactory {
 
     @Override
     public ChatCollector start(StreamTarget streamTarget) {
-        ChatClient chzzkChatClient = new ChzzkChatClient(
-            chzzkApiClient,
-            httpClient,
-            jsonMapper,
-            chzzkMessageConverter,
-            executorService,
-            mockWebSocketUrl
-        );
+        ChatClient chatClient;
+
+        if (mockWebSocketUrl != null && !mockWebSocketUrl.isBlank()) {
+            chatClient = new MockChatClient(
+                httpClient, jsonMapper, chzzkMessageConverter, executorService, mockWebSocketUrl
+            );
+        } else {
+            chatClient = new ChzzkChatClient(
+                chzzkApiClient, httpClient, jsonMapper, chzzkMessageConverter, executorService
+            );
+        }
+
         ChatMessageListener messageListener = new ChzzkChatCollector(streamTarget.channelId(), kafkaTemplate);
 
         ChatCollector connectionManager = new ChatConnectionManager(
-            chzzkChatClient,
+            chatClient,
             messageListener,
             streamTarget.chatChannelId(),
             streamTarget.channelId(),

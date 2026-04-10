@@ -61,7 +61,7 @@ class ChzzkChatClientTest {
 
     @BeforeEach
     void setUp() {
-        chzzkChatClient = new ChzzkChatClient(chzzkApiClient, httpClient, jsonMapper, messageConverter, executorService, "");
+        chzzkChatClient = new ChzzkChatClient(chzzkApiClient, httpClient, jsonMapper, messageConverter, executorService);
         lenient().when(httpClient.newWebSocketBuilder()).thenReturn(webSocketBuilder);
         lenient().when(webSocketBuilder.header(anyString(), anyString())).thenReturn(webSocketBuilder);
     }
