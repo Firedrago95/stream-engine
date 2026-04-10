@@ -10,13 +10,13 @@ import io.slice.stream.engine.chat.infrastructure.chzzk.api.ChzzkApiClient;
 import io.slice.stream.engine.chat.infrastructure.kafka.ChzzkChatCollector;
 import io.slice.stream.engine.core.model.StreamTarget;
 import java.net.http.HttpClient;
-import lombok.RequiredArgsConstructor;
+import java.util.concurrent.ExecutorService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
 @Component
-@RequiredArgsConstructor
 public class ChzzkChatCollectorFactory implements ChatCollectorFactory {
 
     private final ChzzkApiClient chzzkApiClient;
@@ -24,17 +24,45 @@ public class ChzzkChatCollectorFactory implements ChatCollectorFactory {
     private final ChzzkMessageConverter chzzkMessageConverter;
     private final JsonMapper jsonMapper;
     private final KafkaTemplate<String, ChatMessage> kafkaTemplate;
+    private final ExecutorService executorService;
+    private final String mockWebSocketUrl;
+
+    public ChzzkChatCollectorFactory(
+        ChzzkApiClient chzzkApiClient,
+        HttpClient httpClient,
+        ChzzkMessageConverter chzzkMessageConverter,
+        JsonMapper jsonMapper,
+        KafkaTemplate<String, ChatMessage> kafkaTemplate,
+        ExecutorService virtualThreadExecutor,
+        @Value("${chzzk.websocket.url:}") String mockWebSocketUrl
+    ) {
+        this.chzzkApiClient = chzzkApiClient;
+        this.httpClient = httpClient;
+        this.chzzkMessageConverter = chzzkMessageConverter;
+        this.jsonMapper = jsonMapper;
+        this.kafkaTemplate = kafkaTemplate;
+        this.executorService = virtualThreadExecutor;
+        this.mockWebSocketUrl = mockWebSocketUrl;
+    }
 
     @Override
     public ChatCollector start(StreamTarget streamTarget) {
-        ChatClient chzzkChatClient = new ChzzkChatClient(chzzkApiClient, httpClient, jsonMapper, chzzkMessageConverter);
+        ChatClient chzzkChatClient = new ChzzkChatClient(
+            chzzkApiClient,
+            httpClient,
+            jsonMapper,
+            chzzkMessageConverter,
+            executorService,
+            mockWebSocketUrl
+        );
         ChatMessageListener messageListener = new ChzzkChatCollector(streamTarget.channelId(), kafkaTemplate);
 
         ChatCollector connectionManager = new ChatConnectionManager(
             chzzkChatClient,
             messageListener,
             streamTarget.chatChannelId(),
-            streamTarget.channelId()
+            streamTarget.channelId(),
+            executorService
         );
 
         connectionManager.start();

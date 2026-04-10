@@ -3,6 +3,7 @@ package io.slice.stream.engine.ingestion.infrastructure.chzzk;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -20,11 +21,14 @@ import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkL
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.client.UnorderedRequestExpectationManager;
@@ -33,12 +37,15 @@ import org.springframework.web.client.RestClient.Builder;
 import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.ObjectMapper;
 
+@ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class ChzzkDiscoveryClientTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private ChzzkDiscoveryClient chzzkDiscoveryClient;
     private MockRestServiceServer mockServer;
+
+    @Mock
     private ExecutorService virtualExecutorService;
 
     private String baseUrl = "https://api.chzzk.naver.com";
@@ -53,7 +60,12 @@ class ChzzkDiscoveryClientTest {
         Builder builder = RestClient.builder().baseUrl(baseUrl);
         mockServer = MockRestServiceServer.bindTo(builder)
             .build(new UnorderedRequestExpectationManager());
-        virtualExecutorService = Executors.newVirtualThreadPerTaskExecutor();
+        Mockito.lenient().doAnswer(invocation -> {
+            Runnable runnable = invocation.getArgument(0);
+            runnable.run();
+            return null;
+        }).when(virtualExecutorService).execute(any(Runnable.class));
+
         chzzkDiscoveryClient = new ChzzkDiscoveryClient(builder.build(), virtualExecutorService, liveFetchUrl, liveDetailFetchUrl);
     }
 

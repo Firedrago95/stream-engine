@@ -9,7 +9,9 @@ import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
+import org.springframework.beans.factory.annotation.Value;
 import tools.jackson.databind.json.JsonMapper;
 
 public class ChzzkChatClient implements ChatClient {
@@ -21,6 +23,8 @@ public class ChzzkChatClient implements ChatClient {
     private final JsonMapper jsonMapper;
     private final ChzzkMessageConverter messageConverter;
     private final AtomicReference<WebSocket> webSocketRef = new AtomicReference<>();
+    private final ExecutorService executorService;
+    private final String mockWebSocketUrl;
 
     private ChatMessageListener listener;
 
@@ -28,12 +32,16 @@ public class ChzzkChatClient implements ChatClient {
         ChzzkApiClient chzzkApiClient,
         HttpClient httpClient,
         JsonMapper jsonMapper,
-        ChzzkMessageConverter messageConverter
+        ChzzkMessageConverter messageConverter,
+        ExecutorService executorService,
+        @Value("${chzzk.websocket.url:}") String mockWebSocketUrl
     ) {
         this.chzzkApiClient = chzzkApiClient;
         this.httpClient = httpClient;
         this.jsonMapper = jsonMapper;
         this.messageConverter = messageConverter;
+        this.executorService = executorService;
+        this.mockWebSocketUrl = mockWebSocketUrl;
     }
 
     @Override
@@ -42,15 +50,13 @@ public class ChzzkChatClient implements ChatClient {
 
         String accessToken = chzzkApiClient.getAccessToken(chatChannelId);
 
-        URI uri = new URI("wss://kr-ss1.chat.naver.com/chat");
+        String targetUrl = (mockWebSocketUrl != null && !mockWebSocketUrl.isBlank())
+            ? mockWebSocketUrl
+            : "wss://kr-ss1.chat.naver.com/chat";
+        URI uri = new URI(targetUrl);
 
         ChzzkWebSocketListener webSocketListener = new ChzzkWebSocketListener(
-            listener,
-            channelId,
-            chatChannelId,
-            accessToken,
-            jsonMapper,
-            messageConverter
+            listener, channelId, chatChannelId, accessToken, jsonMapper, messageConverter, executorService
         );
 
         httpClient.newWebSocketBuilder()

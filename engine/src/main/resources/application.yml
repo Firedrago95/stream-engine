@@ -100,3 +100,9 @@ highlight:
       group-b:
         window-seconds: 120           # 성장형 과거 윈도우 (2분)
         z-score: 4.5                  # 성장형 허들
+
+# 커스텀 스레드 풀 스위칭 설정
+app:
+  thread:
+    mode: virtual                     # 기본값은 'virtual'로 둔다.
+    pool-size: 100                    # platform 모드일 때 생성할 스레드 개수
