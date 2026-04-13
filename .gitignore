@@ -62,6 +62,7 @@ logs/
 
 # 로컬 테스트용 도커 컴포즈 무시
 **/docker-compose-infra.yml
+**/*.sh
 
 # 로컬 모니터링 설정 폴더 무시
 **/monitoring/
