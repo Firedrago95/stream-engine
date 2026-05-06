@@ -244,6 +244,13 @@ export const StreamAnalysisDashboard: React.FC = () => {
     };
   }, [selectedTab, stableData, compressedHistory, hoveredData, availableSessions]);
 
+  const currentSessionInfo = availableSessions.find(s => s.sessionId === selectedTab);
+
+  const displayTitle = selectedTab === "realtime" ? streamerInfo?.liveTitle : currentSessionInfo?.liveTitle;
+  const displayCategory = selectedTab === "realtime" ? streamerInfo?.categoryName : currentSessionInfo?.categoryName;
+  const displayViewers = selectedTab === "realtime" ? streamerInfo?.concurrentUserCount : currentSessionInfo?.viewers;
+  const displayIsLive = selectedTab === "realtime" ? isLive : false;
+
   if (!streamId) return <div className="p-10 text-center text-slate-400">잘못된 접근입니다.</div>;
 
   return (
@@ -253,11 +260,11 @@ export const StreamAnalysisDashboard: React.FC = () => {
             streamId={streamId}
             streamerName={streamerInfo?.streamerName}
             profileImageUrl={streamerInfo?.profileImageUrl}
-            isLive={isLive}
+            isLive={displayIsLive}             
             status={streamerInfo?.status}
-            viewers={streamerInfo?.concurrentUserCount}
-            liveTitle={streamerInfo?.liveTitle}
-            categoryName={streamerInfo?.categoryName}
+            viewers={displayViewers}           
+            liveTitle={displayTitle}           
+            categoryName={displayCategory}     
         />
 
         <AnalysisTabs
