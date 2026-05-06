@@ -40,7 +40,13 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   const [selectedTab, setSelectedTab] = useState<string>("realtime");
 
-  const [availableSessions, setAvailableSessions] = useState<{ sessionId: string; label: string }[]>([
+  const [availableSessions, setAvailableSessions] = useState<{ 
+    sessionId: string; 
+    label: string;
+    liveTitle?: string;
+    categoryName?: string;
+    viewers?: number;
+  }[]>([
     { sessionId: "realtime", label: "⚡ 실시간 분석" }
   ]);
 
@@ -92,10 +98,13 @@ export const StreamAnalysisDashboard: React.FC = () => {
     if (!streamId) return;
     fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/available-sessions?limit=10`)
     .then(res => res.ok ? res.json() : [])
-    .then((sessions: { sessionId: string; startedAt: string }[]) => { // startedAt으로 반영
+    .then((sessions: any[]) => {
       const formattedSessions = sessions.map(s => ({
         sessionId: s.sessionId,
-        label: getRelativeLabel(s.startedAt)
+        label: getRelativeLabel(s.startedAt),
+        liveTitle: s.liveTitle || "[과거 방송] " + getRelativeLabel(s.startedAt),
+        categoryName: s.categoryName || "종합 게임",
+        viewers: 0
       }));
       setAvailableSessions([
         { sessionId: "realtime", label: "⚡ 실시간 분석" },
