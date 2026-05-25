@@ -9,3 +9,4 @@ SERVER_SECRET: test_secret
 SERVER_HEADER: SECRET_HEADER
 SIGNAL_PATH: /api/v1/internal/signals
 SYNC_PATH: /api/v1/internal/streams/sync
+META_PATH: /api/v1/internal/streams/meta
