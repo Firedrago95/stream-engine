@@ -52,7 +52,10 @@ local changed_stream_jsons = {}
 
 for i = count + 2, #ARGV, 2 do
     local stream_id = ARGV[i]
+
     local new_json_str = ARGV[i + 1]
+    if new_json_str == nil then break end
+
     local old_json_str = redis.call('HGET', info_key, stream_id)
 
     if old_json_str then

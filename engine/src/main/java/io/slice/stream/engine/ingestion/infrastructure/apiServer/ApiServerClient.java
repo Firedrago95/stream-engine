@@ -22,7 +22,7 @@ public class ApiServerClient {
     public ApiServerClient(
         @Qualifier("apiServerRestClient") RestClient restClient,
         @Value("${api-server.sync-path}") String syncPath,
-        @Value("${api-server.meta-path") String metaPath
+        @Value("${api-server.meta-path}") String metaPath
     ) {
         this.restClient = restClient;
         this.syncPath = syncPath;

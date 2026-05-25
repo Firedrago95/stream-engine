@@ -174,4 +174,17 @@ class IngestionServiceTest {
         // then
         verify(apiServerClient).recordNewSegments(anyList());
     }
+
+    @Test
+    void 메타데이터_변경이_없으면_API_서버에_세그먼트_기록을_전송하지_않아야_한다() {
+        StreamTarget dummyTarget = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 100, "url", "cat", Instant.EPOCH);
+        StreamUpdateResults results = new StreamUpdateResults(Set.of(), Set.of(), Set.of()); // changedStreams 비어있음
+
+        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(List.of(dummyTarget));
+        when(streamRepository.update(anyList())).thenReturn(results);
+
+        ingestionService.ingest();
+
+        verify(apiServerClient, never()).recordNewSegments(anyList());
+    }
 }

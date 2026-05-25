@@ -12,6 +12,7 @@ import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -81,6 +82,7 @@ public class RedisStreamRepository implements StreamRepository {
 
             Set<ChangedStream> changedStreams = changedStreamsJson.stream()
                 .map(this::deserializeChanged)
+                .filter(Objects::nonNull)
                 .collect(toSet());
 
             return new StreamUpdateResults(
@@ -106,7 +108,8 @@ public class RedisStreamRepository implements StreamRepository {
         try {
             return jsonMapper.readValue(json, ChangedStream.class);
         } catch (Exception e) {
-            throw new IngestionException(ErrorCode.INTERNAL_SERVER_ERROR, "ChangedStream 역직렬화에 실패했습니다.");
+            log.warn("ChangedStream 역직렬화 실패 - 건너뜀. json={}", json);
+            return null;
         }
     }
 
