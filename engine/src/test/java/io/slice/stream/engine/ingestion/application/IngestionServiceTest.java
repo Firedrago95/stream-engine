@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import io.slice.stream.engine.core.event.StreamChangedEvent;
 import io.slice.stream.engine.core.model.StreamTarget;
 import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
+import io.slice.stream.engine.ingestion.domain.model.ChangedStream;
 import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
 import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient;
@@ -53,7 +54,7 @@ class IngestionServiceTest {
         // given
         StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 123L, "title1", 10, "https://thumb.com/ch1.jpg", "GAME", Instant.EPOCH);
         List<StreamTarget> newStreams = List.of(streamTarget1);
-        StreamUpdateResults results = new StreamUpdateResults(Set.of(streamTarget1), Set.of("ch2"));
+        StreamUpdateResults results = new StreamUpdateResults(Set.of(streamTarget1), Set.of("ch2"), Set.of());
 
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(newStreams);
         when(streamRepository.update(newStreams)).thenReturn(results);
@@ -77,7 +78,7 @@ class IngestionServiceTest {
         // given
         StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 1L, "title1", 10, "https://thumb.com/ch1.jpg", "TALK", Instant.EPOCH);
         List<StreamTarget> liveStreams = List.of(streamTarget1);
-        StreamUpdateResults results = new StreamUpdateResults(Collections.emptySet(), Collections.emptySet());
+        StreamUpdateResults results = new StreamUpdateResults(Collections.emptySet(), Collections.emptySet(), Collections.emptySet());
 
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(liveStreams);
         when(streamRepository.update(liveStreams)).thenReturn(results);
@@ -107,7 +108,7 @@ class IngestionServiceTest {
         List<StreamTarget> liveStreams = List.of(streamTarget1, streamTarget2);
 
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(liveStreams);
-        when(streamRepository.update(liveStreams)).thenReturn(new StreamUpdateResults(Collections.emptySet(), Collections.emptySet()));
+        when(streamRepository.update(liveStreams)).thenReturn(new StreamUpdateResults(Collections.emptySet(), Collections.emptySet(), Collections.emptySet()));
 
         // when
         ingestionService.ingest();
@@ -124,7 +125,7 @@ class IngestionServiceTest {
         List<StreamTarget> targets = List.of(target);
 
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(targets);
-        when(streamRepository.update(targets)).thenReturn(new StreamUpdateResults(Set.of(), Set.of()));
+        when(streamRepository.update(targets)).thenReturn(new StreamUpdateResults(Set.of(), Set.of(), Set.of()));
 
         // when
         ingestionService.ingest();
@@ -141,7 +142,7 @@ class IngestionServiceTest {
         List<StreamTarget> targets = List.of(target);
 
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(targets);
-        when(streamRepository.update(targets)).thenReturn(new StreamUpdateResults(Set.of(target), Set.of()));
+        when(streamRepository.update(targets)).thenReturn(new StreamUpdateResults(Set.of(target), Set.of(), Set.of()));
 
         // when
         ingestionService.ingest();
@@ -149,5 +150,28 @@ class IngestionServiceTest {
         // then
         verify(apiServerClient).syncStreams(anyList());
         verify(eventPublisher).publishEvent(any(StreamChangedEvent.class));
+    }
+
+    @Test
+    void 메타데이터_변경이_감지되면_API_서버에_세그먼트_기록을_전송해야_한다() {
+        // given
+        StreamTarget dummyTarget = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 100, "url", "cat", Instant.EPOCH);
+        ChangedStream changed = new ChangedStream("ch1", "롤", "롤 솔랭", "GAME", "GAME");
+        Set<ChangedStream> changedStreams = Set.of(changed);
+
+        StreamUpdateResults results = new StreamUpdateResults(
+            Set.of(),
+            Set.of(),
+            changedStreams
+        );
+
+        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(List.of(dummyTarget));
+        when(streamRepository.update(anyList())).thenReturn(results);
+
+        // when
+        ingestionService.ingest();
+
+        // then
+        verify(apiServerClient).recordNewSegments(anyList());
     }
 }

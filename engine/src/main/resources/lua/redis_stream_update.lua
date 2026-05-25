@@ -13,7 +13,7 @@ local count = tonumber(ARGV[1])
 -- [방어 로직] 데이터가 없으면 관련 모든 키 정리
 if count == nil or count == 0 then
     redis.call('DEL', actual_key, info_key, analysis_index_key)
-    return { {}, {} }
+    return { {}, {}, {} }
 end
 
 -- 1. 임시 Set 생성 (신규 데이터 기반)
@@ -48,12 +48,35 @@ end
 
 -- 5. 상세 정보(Hash) 업데이트
 local hash_data = {}
-for i = count + 2, #ARGV do
-    table.insert(hash_data, ARGV[i])
+local changed_stream_jsons = {}
+
+for i = count + 2, #ARGV, 2 do
+    local stream_id = ARGV[i]
+    local new_json_str = ARGV[i + 1]
+    local old_json_str = redis.call('HGET', info_key, stream_id)
+
+    if old_json_str then
+        local old_data = cjson.decode(old_json_str)
+        local new_data = cjson.decode(new_json_str)
+
+        if old_data.liveTitle ~= new_data.liveTitle or old_data.categoryName ~= new_data.categoryName then
+            local diff_info = {
+                streamId = stream_id,
+                oldTitle = old_data.liveTitle,
+                newTitle = new_data.liveTitle,
+                oldCategory = old_data.categoryName,
+                newCategory = new_data.categoryName,
+            }
+            table.insert(changed_stream_jsons, cjson.encode(diff_info))
+        end
+    end
+
+    table.insert(hash_data, stream_id)
+    table.insert(hash_data, new_json_str)
 end
 
 if #hash_data > 0 then
-    redis.call('HSET', info_key, unpack(hash_data)) -- [수정됨: upack -> unpack]
+    redis.call('HSET', info_key, unpack(hash_data))
 end
 
 -- 6. 신규 타겟 정보 반환
@@ -62,4 +85,4 @@ if #new_channel_ids > 0 then
     new_stream_targets_json = redis.call('HMGET', info_key, unpack(new_channel_ids))
 end
 
-return { new_stream_targets_json, closed_channel_ids }
+return { new_stream_targets_json, closed_channel_ids, changed_stream_jsons }

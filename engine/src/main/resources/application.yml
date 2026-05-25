@@ -75,6 +75,7 @@ api-server:
   host: ${SERVER_HOST}
   path: ${SIGNAL_PATH}
   sync-path: ${SYNC_PATH}
+  meta-path: ${META_PATH}
   secret: ${SERVER_SECRET}
   header: ${SERVER_HEADER}
 

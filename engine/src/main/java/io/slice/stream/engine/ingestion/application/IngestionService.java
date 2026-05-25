@@ -7,6 +7,7 @@ import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
 import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSyncRequest;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,28 +32,28 @@ public class IngestionService {
     @Scheduled(fixedRate = 30000)
     public void ingest() {
         // 1. 데이터 수집
-        List<StreamTarget> streamTargets = streamDiscoveryClient.fetchTopLiveStreams(discoveryLimit);
-        if (streamTargets.isEmpty()) return;
+        List<StreamTarget> currentTargets = streamDiscoveryClient.fetchTopLiveStreams(discoveryLimit);
+        if (currentTargets.isEmpty()) return;
 
-        // 2. 외부 동기화 (API 서버)
-        syncToApiServer(streamTargets);
+        // 2. 원자적 상태 업데이트
+        StreamUpdateResults results = streamRepository.update(currentTargets);
 
-        // 3. 내부 상태 업데이트 및 이벤트 처리
-        StreamUpdateResults updateResults = streamRepository.update(streamTargets);
-        publishEventIfChanged(updateResults);
+        // 3. 사이드 이펙트 처리 (Orchestration)
+        handleExternalSync(currentTargets, results);
+        handleEvents(results);
     }
 
-    private void syncToApiServer(List<StreamTarget> streamTargets) {
-        List<StreamSyncRequest> syncRequests = streamTargets.stream()
-            .map(StreamSyncRequest::from) // DTO 내부에 static factory 메서드 사용 권장
-            .toList();
+    private void handleExternalSync(List<StreamTarget> targets, StreamUpdateResults results) {
+        apiServerClient.syncStreams(targets.stream().map(StreamSyncRequest::from).toList());
 
-        apiServerClient.syncStreams(syncRequests);
+        if (!results.changedStreams().isEmpty()) {
+            apiServerClient.recordNewSegments(new ArrayList<>(results.changedStreams()));
+        }
     }
 
-    private void publishEventIfChanged(StreamUpdateResults results) {
+    private void handleEvents(StreamUpdateResults results) {
         if (!results.newStreamIds().isEmpty() || !results.closedStreamIds().isEmpty()) {
-            log.info("[Event] 방송 상태 변경 감지 - 신규: {}, 종료: {}",
+            log.info("[Event] 방송 상태 변경 - 신규: {}, 종료: {}",
                 results.newStreamIds().size(), results.closedStreamIds().size());
 
             eventPublisher.publishEvent(new StreamChangedEvent(

@@ -1,9 +1,12 @@
 package io.slice.stream.engine.ingestion.infrastructure.redis;
 
+import static java.util.stream.Collectors.toSet;
+
 import io.slice.stream.engine.core.model.StreamTarget;
 import io.slice.stream.engine.core.redis.Rediskeys;
 import io.slice.stream.engine.global.error.ErrorCode;
 import io.slice.stream.engine.ingestion.domain.error.IngestionException;
+import io.slice.stream.engine.ingestion.domain.model.ChangedStream;
 import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
 import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
 import java.util.ArrayList;
@@ -59,21 +62,31 @@ public class RedisStreamRepository implements StreamRepository {
                 args.toArray(new String[0])
             );
 
-            if (rawResult == null || rawResult.size() < 2 || !(rawResult.get(0) instanceof List) || !(rawResult.get(1) instanceof List)) {
+            if (rawResult == null || rawResult.size() < 3 ||
+                !(rawResult.get(0) instanceof List) ||
+                !(rawResult.get(1) instanceof List) ||
+                !(rawResult.get(2) instanceof List))
+            {
                 log.warn("Redis 스크립트 실행 결과가 비정상적입니다. rawResult: {}", rawResult);
-                return new StreamUpdateResults(new HashSet<>(), new HashSet<>());
+                return new StreamUpdateResults(new HashSet<>(), new HashSet<>(), new HashSet<>());
             }
 
             List<String> newStreamTargetsJson = (List<String>) rawResult.get(0);
             List<String> closedStreamIds = (List<String>) rawResult.get(1);
+            List<String> changedStreamsJson = (List<String>) rawResult.get(2);
 
             Set<StreamTarget> newStreamTargets = newStreamTargetsJson.stream()
                 .map(this::deserialize)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(toSet());
+
+            Set<ChangedStream> changedStreams = changedStreamsJson.stream()
+                .map(this::deserializeChanged)
+                .collect(toSet());
 
             return new StreamUpdateResults(
                 newStreamTargets,
-                new HashSet<>(closedStreamIds)
+                new HashSet<>(closedStreamIds),
+                changedStreams
             );
         } catch (Exception e) {
             log.error("Redis 방송 정보 업데이트 실패 오류", e);
@@ -86,6 +99,14 @@ public class RedisStreamRepository implements StreamRepository {
             return jsonMapper.readValue(json, StreamTarget.class);
         } catch (Exception e) {
             throw new IngestionException(ErrorCode.INTERNAL_SERVER_ERROR, "StreamTarget 역직렬화에 실패했습니다.");
+        }
+    }
+
+    private ChangedStream deserializeChanged(String json) {
+        try {
+            return jsonMapper.readValue(json, ChangedStream.class);
+        } catch (Exception e) {
+            throw new IngestionException(ErrorCode.INTERNAL_SERVER_ERROR, "ChangedStream 역직렬화에 실패했습니다.");
         }
     }
 

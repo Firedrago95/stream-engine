@@ -5,7 +5,8 @@ import java.util.Set;
 
 public record StreamUpdateResults(
     Set<StreamTarget> newStreamIds,
-    Set<String> closedStreamIds
+    Set<String> closedStreamIds,
+    Set<ChangedStream> changedStreams
 ) {
 
 }

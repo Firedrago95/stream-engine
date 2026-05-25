@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 
 import io.slice.stream.engine.core.model.StreamTarget;
 import io.slice.stream.engine.global.config.RedisConfig;
+import io.slice.stream.engine.ingestion.domain.model.ChangedStream;
 import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
 import io.slice.stream.testcontainer.redis.RedisTestSupport;
 import java.time.Instant;
@@ -125,6 +126,33 @@ class RedisStreamRepositoryTest implements RedisTestSupport {
             () -> assertThat(objectMapper.readValue(json1, StreamTarget.class)).isEqualTo(streamTarget1),
             () -> assertThat(objectMapper.readValue(json2, StreamTarget.class)).isEqualTo(streamTarget2),
             () -> assertThat(channel3Data).isNull()
+        );
+    }
+
+    @Test
+    void 방송_제목이나_카테고리가_변경되면_변경된_정보를_반환해야_한다() throws Exception {
+        // given
+        StreamTarget oldTarget = new StreamTarget("channel1", "침착맨", "chat1", 100L, "title1", 1200, "thumb1.jpg", "소통", Instant.EPOCH);
+        String oldJson = objectMapper.writeValueAsString(oldTarget);
+        stringRedisTemplate.opsForSet().add(STREAM_TARGET_KEY, "channel1");
+        stringRedisTemplate.opsForHash().put(STREAM_LIVE_KEY, "channel1", oldJson);
+
+        StreamTarget newTarget = new StreamTarget("channel1", "침착맨", "chat1", 100L, "title2", 1200, "thumb1.jpg", "게임", Instant.EPOCH);
+        List<StreamTarget> currentStreams = List.of(newTarget);
+
+        // when
+        StreamUpdateResults results = redisStreamRepository.update(currentStreams);
+
+        // then
+        assertThat(results.changedStreams()).hasSize(1);
+
+        ChangedStream changed = results.changedStreams().iterator().next();
+        assertAll(
+            () -> assertThat(changed.streamId()).isEqualTo("channel1"),
+            () -> assertThat(changed.oldTitle()).isEqualTo("title1"),
+            () -> assertThat(changed.newTitle()).isEqualTo("title2"),
+            () -> assertThat(changed.oldCategory()).isEqualTo("소통"),
+            () -> assertThat(changed.newCategory()).isEqualTo("게임")
         );
     }
 }
