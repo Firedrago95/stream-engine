@@ -67,7 +67,6 @@ public class RedisStreamRepository implements StreamRepository {
     private List<String> makeArguments(Set<String> closedStreamIds, List<StreamTarget> streamTargets) {
         List<String> args = new ArrayList<>();
         args.add(String.valueOf(closedStreamIds.size()));
-        args.add(String.valueOf(streamTargets.size()));
         args.addAll(closedStreamIds);
 
         for (StreamTarget target : streamTargets) {
