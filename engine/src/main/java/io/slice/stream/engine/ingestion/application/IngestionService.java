@@ -52,12 +52,12 @@ public class IngestionService {
     }
 
     private void handleEvents(StreamUpdateResults results) {
-        if (!results.newStreamIds().isEmpty() || !results.closedStreamIds().isEmpty()) {
+        if (!results.newStreams().isEmpty() || !results.closedStreamIds().isEmpty()) {
             log.info("[Event] 방송 상태 변경 - 신규: {}, 종료: {}",
-                results.newStreamIds().size(), results.closedStreamIds().size());
+                results.newStreams().size(), results.closedStreamIds().size());
 
             eventPublisher.publishEvent(new StreamChangedEvent(
-                results.newStreamIds(),
+                results.newStreams(),
                 results.closedStreamIds()
             ));
         }

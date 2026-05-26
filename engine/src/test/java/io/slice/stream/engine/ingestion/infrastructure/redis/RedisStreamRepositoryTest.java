@@ -69,8 +69,8 @@ class RedisStreamRepositoryTest implements RedisTestSupport {
 
         assertAll(
             // 1. 반환 결과 검증
-            () -> assertThat(results.newStreamIds()).hasSize(1),
-            () -> assertThat(results.newStreamIds().iterator().next().channelId()).isEqualTo("channel2"),
+            () -> assertThat(results.newStreams()).hasSize(1),
+            () -> assertThat(results.newStreams().iterator().next().channelId()).isEqualTo("channel2"),
             () -> assertThat(results.closedStreamIds()).containsExactlyInAnyOrder("channel3"),
 
             // 2. Redis 내부 상태(Targets) 검증

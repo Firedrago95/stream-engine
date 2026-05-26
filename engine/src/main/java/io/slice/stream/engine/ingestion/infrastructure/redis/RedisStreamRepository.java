@@ -12,7 +12,6 @@ import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,19 +30,100 @@ public class RedisStreamRepository implements StreamRepository {
     private final JsonMapper jsonMapper;
 
     @Override
-    public StreamUpdateResults update(List<StreamTarget> streamTargets) {
-        List<String> args = makeArguments(streamTargets);
-        return executeStreamUpdate(args);
-    }
-
-    private List<String> makeArguments(List<StreamTarget> streamTargets) {
-        List<String> args = new ArrayList<>();
-        args.add(String.valueOf(streamTargets.size()));
-
-        for (StreamTarget target : streamTargets) {
-            args.add(target.channelId());
+    public StreamUpdateResults update(List<StreamTarget> newStreamTargets) {
+        if (newStreamTargets.isEmpty()) {
+            return handleAllStreamsClosed();
         }
 
+        Set<String> activeChannelIds = getActiveChannelIds();
+        Set<StreamTarget> newStreams = filterNewStreams(newStreamTargets, activeChannelIds);
+        Set<String> closedStreamIds = filterClosedStreams(newStreamTargets, activeChannelIds);
+        Set<ChangedStream> changedStreams = detectChangedStreams(newStreamTargets);
+        syncToRedis(closedStreamIds, newStreamTargets);
+        return new StreamUpdateResults(newStreams, closedStreamIds, changedStreams);
+    }
+
+    private StreamUpdateResults handleAllStreamsClosed() {
+        Set<String> activeChannelIds = getActiveChannelIds();
+        if (!activeChannelIds.isEmpty()) {
+            redisTemplate.delete(List.of(
+                Rediskeys.STREAM_TARGETS,
+                Rediskeys.STREAM_LIVE_HASH,
+                Rediskeys.ANALYSIS_INDEX
+            ));
+        }
+        return new StreamUpdateResults(Set.of(), activeChannelIds, Set.of());
+    }
+
+    private Set<String> getActiveChannelIds() {
+        Set<String> activeChannelIds = redisTemplate.opsForSet().members(Rediskeys.STREAM_TARGETS);
+        return activeChannelIds != null ? activeChannelIds : Set.of();
+    }
+
+    private Set<StreamTarget> filterNewStreams(List<StreamTarget> newStreamTargets, Set<String> activeChannelIds) {
+        return newStreamTargets.stream()
+            .filter(target -> !activeChannelIds.contains(target.channelId()))
+            .collect(toSet());
+    }
+
+    private Set<String> filterClosedStreams(List<StreamTarget> newStreamTargets, Set<String> activeChannelIds) {
+        Set<String> newStreamTargetChannelIds = newStreamTargets.stream()
+            .map(StreamTarget::channelId)
+            .collect(toSet());
+        return activeChannelIds.stream()
+            .filter(id -> !newStreamTargetChannelIds.contains(id))
+            .collect(toSet());
+    }
+
+    private Set<ChangedStream> detectChangedStreams(List<StreamTarget> newStreamTargets) {
+        List<Object> hashkeys = newStreamTargets.stream()
+            .map(StreamTarget::channelId)
+            .map(id -> (Object) id)
+            .toList();
+        List<Object> values = redisTemplate.opsForHash().multiGet(Rediskeys.STREAM_LIVE_HASH, hashkeys);
+        Set<ChangedStream> changedStreams = new HashSet<>();
+        for (int i = 0; i < newStreamTargets.size(); i++) {
+            StreamTarget newTarget = newStreamTargets.get(i);
+            String oldJson = (String) values.get(i);
+            if (oldJson != null) {
+                StreamTarget oldTarget = deserialize(oldJson);
+                if (isMetadataChanged(oldTarget, newTarget)) {
+                    changedStreams.add(createChangedStream(oldTarget, newTarget));
+                }
+            }
+        }
+        return changedStreams;
+    }
+
+    private boolean isMetadataChanged(StreamTarget oldTarget, StreamTarget newTarget) {
+        return !oldTarget.liveTitle().equals(newTarget.liveTitle()) ||
+            !oldTarget.categoryName().equals(newTarget.categoryName());
+    }
+
+    private ChangedStream createChangedStream(StreamTarget oldTarget, StreamTarget newTarget) {
+        return new ChangedStream(
+            newTarget.channelId(),
+            oldTarget.liveTitle(),
+            newTarget.liveTitle(),
+            oldTarget.categoryName(),
+            newTarget.categoryName()
+        );
+    }
+
+    private void syncToRedis(Set<String> closedStreamIds, List<StreamTarget> newStreamTargets) {
+        List<String> args = makeArguments(closedStreamIds, newStreamTargets);
+        redisTemplate.execute(
+            updateStreamScript,
+            List.of(Rediskeys.STREAM_TARGETS, Rediskeys.STREAM_LIVE_HASH, Rediskeys.ANALYSIS_INDEX),
+            args.toArray(new String[0])
+        );
+    }
+
+    private List<String> makeArguments(Set<String> closedStreamIds, List<StreamTarget> streamTargets) {
+        List<String> args = new ArrayList<>();
+        args.add(String.valueOf(closedStreamIds.size()));
+        args.add(String.valueOf(streamTargets.size()));
+        args.addAll(closedStreamIds);
         for (StreamTarget target : streamTargets) {
             args.add(target.channelId());
             args.add(serialize(target));
@@ -51,65 +131,11 @@ public class RedisStreamRepository implements StreamRepository {
         return args;
     }
 
-    private StreamUpdateResults executeStreamUpdate(List<String> args) {
-        try {
-            List<?> rawResult = redisTemplate.execute(
-                updateStreamScript,
-                List.of(
-                    Rediskeys.STREAM_TARGETS,     // KEYS[1]
-                    Rediskeys.STREAM_LIVE_HASH, // KEYS[2]
-                    Rediskeys.ANALYSIS_INDEX      // KEYS[3]
-                ),
-                args.toArray(new String[0])
-            );
-
-            if (rawResult == null || rawResult.size() < 3 ||
-                !(rawResult.get(0) instanceof List) ||
-                !(rawResult.get(1) instanceof List) ||
-                !(rawResult.get(2) instanceof List))
-            {
-                log.warn("Redis 스크립트 실행 결과가 비정상적입니다. rawResult: {}", rawResult);
-                return new StreamUpdateResults(new HashSet<>(), new HashSet<>(), new HashSet<>());
-            }
-
-            List<String> newStreamTargetsJson = (List<String>) rawResult.get(0);
-            List<String> closedStreamIds = (List<String>) rawResult.get(1);
-            List<String> changedStreamsJson = (List<String>) rawResult.get(2);
-
-            Set<StreamTarget> newStreamTargets = newStreamTargetsJson.stream()
-                .map(this::deserialize)
-                .collect(toSet());
-
-            Set<ChangedStream> changedStreams = changedStreamsJson.stream()
-                .map(this::deserializeChanged)
-                .filter(Objects::nonNull)
-                .collect(toSet());
-
-            return new StreamUpdateResults(
-                newStreamTargets,
-                new HashSet<>(closedStreamIds),
-                changedStreams
-            );
-        } catch (Exception e) {
-            log.error("Redis 방송 정보 업데이트 실패 오류", e);
-            throw new IngestionException(ErrorCode.INTERNAL_SERVER_ERROR, "Redis 스크립트 실행 중 오류가 발생했습니다.");
-        }
-    }
-
     private StreamTarget deserialize(String json) {
         try {
             return jsonMapper.readValue(json, StreamTarget.class);
         } catch (Exception e) {
             throw new IngestionException(ErrorCode.INTERNAL_SERVER_ERROR, "StreamTarget 역직렬화에 실패했습니다.");
-        }
-    }
-
-    private ChangedStream deserializeChanged(String json) {
-        try {
-            return jsonMapper.readValue(json, ChangedStream.class);
-        } catch (Exception e) {
-            log.warn("ChangedStream 역직렬화 실패 - 건너뜀. json={}", json);
-            return null;
         }
     }
 
