@@ -1,10 +1,14 @@
 package io.slice.stream.engine.ingestion.domain.repository;
 
 import io.slice.stream.engine.core.model.StreamTarget;
-import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
 import java.util.List;
+import java.util.Set;
 
 public interface StreamRepository {
 
-    StreamUpdateResults update(List<StreamTarget> streamTargets);
+    Set<String> getActiveChannelIds();
+
+    List<StreamTarget> getStreamTargets(List<String> channelIds);
+
+    void sync(Set<String> closedStreamIds, List<StreamTarget> activeTargets);
 }
