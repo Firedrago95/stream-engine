@@ -84,7 +84,8 @@ public class StreamSessionService {
         StreamSessionEntity session,
         StreamSessionSegmentEntity activeSegment
     ) {
-        if (req.newCategory().equals(session.getCategoryName()) && req.newTitle().equals(session.getTitle())) {
+        if (Objects.equals(req.newCategory(), session.getCategoryName()) &&
+            Objects.equals(req.newTitle(), session.getTitle())) {
             return java.util.Optional.empty();
         }
 
