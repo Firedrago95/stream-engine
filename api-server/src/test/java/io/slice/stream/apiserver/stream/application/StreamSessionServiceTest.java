@@ -7,10 +7,13 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
+import io.slice.stream.apiserver.stream.application.dto.ChangedStreamRequest;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
+import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
+import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
+import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +36,9 @@ class StreamSessionServiceTest {
 
     @Mock
     private JpaStreamRepository streamRepository;
+
+    @Mock
+    private JpaStreamSessionSegmentRepository segmentRepository;
 
     @Mock
     private CacheManager cacheManager;
@@ -102,5 +108,58 @@ class StreamSessionServiceTest {
         // then
         assertThat(zombieSession.getEndedAt()).isNotNull(); // 엔티티에 종료 시간이 잘 찍혔는지 검증
         verify(mockCache, times(1)).evict(streamId); // 💡 핵심: 글로벌 캐시에서 스트림ID가 잘 삭제되었는지 검증
+    }
+
+    @Test
+    void 방제나_카테고리가_변경되면_기존_세그먼트를_종료하고_새로운_세그먼트를_저장한다() {
+        // given
+        String streamId = "stream-1";
+        String sessionId = "session-1";
+        Instant changedAt = Instant.now();
+        Long offsetMs = 1000L;
+
+        StreamSessionEntity activeSession = new StreamSessionEntity(streamId, sessionId, "이전방제", "이전카테고리", Instant.now().minusSeconds(60));
+        StreamSessionSegmentEntity activeSegment = new StreamSessionSegmentEntity(streamId, sessionId, "이전방제", "이전카테고리", Instant.now().minusSeconds(60), 0L);
+        ChangedStreamRequest request = new ChangedStreamRequest(streamId, "이전방제", "새로운방제", "이전카테고리", "새로운카테고리", changedAt, offsetMs);
+
+        when(sessionRepository.findAllActiveSessions(List.of(streamId)))
+            .thenReturn(List.of(activeSession));
+        when(segmentRepository.findAllActiveSegments(List.of(sessionId)))
+            .thenReturn(List.of(activeSegment));
+
+        // when
+        streamSessionService.updateSessionSegment(List.of(request));
+
+        // then
+        assertThat(activeSegment.getEndedAt()).isEqualTo(changedAt);
+        assertThat(activeSegment.getEndOffsetMs()).isEqualTo(offsetMs);
+        assertThat(activeSession.getTitle()).isEqualTo("새로운방제");
+        assertThat(activeSession.getCategoryName()).isEqualTo("새로운카테고리");
+        verify(segmentRepository, times(1)).saveAll(any());
+    }
+    @Test
+    void 변경된_방제나_카테고리가_기존과_완전히_동일하면_세그먼트를_갱신하지_않는다() {
+        // given
+        String streamId = "stream-1";
+        String sessionId = "session-1";
+        Instant changedAt = Instant.now();
+        Long offsetMs = 1000L;
+
+        StreamSessionEntity activeSession = new StreamSessionEntity(streamId, sessionId, "동일방제", "동일카테고리", Instant.now().minusSeconds(60));
+        StreamSessionSegmentEntity activeSegment = new StreamSessionSegmentEntity(streamId, sessionId, "동일방제", "동일카테고리", Instant.now().minusSeconds(60), 0L);
+        ChangedStreamRequest request = new ChangedStreamRequest(streamId, "동일방제", "동일방제", "동일카테고리", "동일카테고리", changedAt, offsetMs);
+
+        when(sessionRepository.findAllActiveSessions(List.of(streamId)))
+            .thenReturn(List.of(activeSession));
+        when(segmentRepository.findAllActiveSegments(List.of(sessionId)))
+            .thenReturn(List.of(activeSegment));
+
+        // when
+        streamSessionService.updateSessionSegment(List.of(request));
+
+        // then
+        assertThat(activeSegment.getEndedAt()).isNull();
+        assertThat(activeSegment.getEndOffsetMs()).isNull();
+        verify(segmentRepository, times(0)).saveAll(any());
     }
 }

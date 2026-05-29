@@ -38,4 +38,12 @@ public interface JpaStreamSessionRepository extends JpaRepository<StreamSessionE
           AND ss.endedAt < :threshold
         """)
     List<StreamSessionEntity> findFinishedSessionsOlderThan(@Param("threshold") Instant threshold);
+
+    @Query("""
+       SELECT ss
+       FROM StreamSessionEntity ss
+       WHERE ss.streamId IN :streamIds
+         AND ss.endedAt IS NULL
+           """)
+    List<StreamSessionEntity> findAllActiveSessions(@Param("streamIds") List<String> streamIds);
 }

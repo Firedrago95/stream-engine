@@ -51,6 +51,11 @@ public class StreamSessionEntity {
         this.peakViewers = 0;
     }
 
+    public void updateMetadata(String title, String categoryName) {
+        this.title = title;
+        this.categoryName = categoryName;
+    }
+
     public void finishSession(Instant endedAt, Integer finalPeakViewers) {
         this.endedAt = endedAt;
         if (finalPeakViewers != null && finalPeakViewers > this.peakViewers) {
