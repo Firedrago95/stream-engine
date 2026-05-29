@@ -57,6 +57,7 @@ class IngestionServiceTest {
 
     @Test
     void 새로운_스트림과_종료된_스트림이_있을때_StreamChangedEvent를_한번만_발행해야_한다() {
+        // given
         StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 123L, "title1", 10, "https://thumb.com/ch1.jpg", "GAME", Instant.EPOCH);
         List<StreamTarget> newStreams = List.of(streamTarget1);
         StreamUpdateResults results = new StreamUpdateResults(Set.of(streamTarget1), Set.of("ch2"), Set.of());
@@ -64,10 +65,12 @@ class IngestionServiceTest {
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(newStreams);
         when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1", "ch2"));
         when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of());
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList())).thenReturn(results);
+        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
 
+        // when
         ingestionService.ingest();
 
+        // then
         ArgumentCaptor<StreamChangedEvent> captor = ArgumentCaptor.forClass(StreamChangedEvent.class);
         verify(eventPublisher).publishEvent(captor.capture());
 
@@ -80,6 +83,7 @@ class IngestionServiceTest {
 
     @Test
     void 변경되지_않은_스트림에_대해서는_이벤트를_발행하지_않아야_한다() {
+        // given
         StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 1L, "title1", 10, "https://thumb.com/ch1.jpg", "TALK", Instant.EPOCH);
         List<StreamTarget> liveStreams = List.of(streamTarget1);
         StreamUpdateResults results = new StreamUpdateResults(Collections.emptySet(), Collections.emptySet(), Collections.emptySet());
@@ -87,10 +91,12 @@ class IngestionServiceTest {
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(liveStreams);
         when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1"));
         when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(streamTarget1));
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList())).thenReturn(results);
+        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
 
+        // when
         ingestionService.ingest();
 
+        // then
         verify(eventPublisher, never()).publishEvent(any());
         verify(apiServerClient).syncStreams(anyList());
         verify(streamRepository).sync(results.closedStreamIds(), liveStreams);
@@ -105,6 +111,7 @@ class IngestionServiceTest {
 
     @Test
     void 저장소의_스트림_상태를_업데이트해야_한다() {
+        // given
         StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 1L, "title1", 10, "https://thumb.com/ch1.jpg", "GAME", Instant.EPOCH);
         StreamTarget streamTarget2 = new StreamTarget("ch2", "chName2", "chatCh2", 2L, "title2", 20, "https://thumb.com/ch2.jpg", "GAME", Instant.EPOCH);
         List<StreamTarget> liveStreams = List.of(streamTarget1, streamTarget2);
@@ -113,16 +120,19 @@ class IngestionServiceTest {
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(liveStreams);
         when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1", "ch2"));
         when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of());
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList())).thenReturn(results);
+        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
 
+        // when
         ingestionService.ingest();
 
+        // then
         verify(streamRepository).sync(results.closedStreamIds(), liveStreams);
         verify(apiServerClient).syncStreams(anyList());
     }
 
     @Test
     void 방송_상태_변화가_없더라도_API_서버_동기화는_항상_호출되어야_한다() {
+        // given
         StreamTarget target = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 100, "url", "cat", Instant.EPOCH);
         List<StreamTarget> targets = List.of(target);
         StreamUpdateResults results = new StreamUpdateResults(Set.of(), Set.of(), Set.of());
@@ -130,10 +140,12 @@ class IngestionServiceTest {
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(targets);
         when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1"));
         when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(target));
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList())).thenReturn(results);
+        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
 
+        // when
         ingestionService.ingest();
 
+        // then
         verify(apiServerClient, times(1)).syncStreams(anyList());
         verify(eventPublisher, never()).publishEvent(any());
         verify(streamRepository).sync(results.closedStreamIds(), targets);
@@ -141,6 +153,7 @@ class IngestionServiceTest {
 
     @Test
     void 방송_상태_변화가_있으면_동기화와_이벤트_발행_둘_다_수행한다() {
+        // given
         StreamTarget target = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 100, "url", "cat", Instant.EPOCH);
         List<StreamTarget> targets = List.of(target);
         StreamUpdateResults results = new StreamUpdateResults(Set.of(target), Set.of(), Set.of());
@@ -148,10 +161,12 @@ class IngestionServiceTest {
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(targets);
         when(streamRepository.getActiveChannelIds()).thenReturn(Set.of());
         when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of());
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList())).thenReturn(results);
+        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
 
+        // when
         ingestionService.ingest();
 
+        // then
         verify(apiServerClient).syncStreams(anyList());
         verify(eventPublisher).publishEvent(any(StreamChangedEvent.class));
         verify(streamRepository).sync(results.closedStreamIds(), targets);
@@ -159,34 +174,40 @@ class IngestionServiceTest {
 
     @Test
     void 메타데이터_변경이_감지되면_API_서버에_세그먼트_기록을_전송해야_한다() {
+        // given
         StreamTarget dummyTarget = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 100, "url", "cat", Instant.EPOCH);
-        ChangedStream changed = new ChangedStream("ch1", "롤", "롤 솔랭", "GAME", "GAME");
+        ChangedStream changed = new ChangedStream("ch1", "롤", "롤 솔랭", "GAME", "GAME", Instant.EPOCH, 0L);
         Set<ChangedStream> changedStreams = Set.of(changed);
         StreamUpdateResults results = new StreamUpdateResults(Set.of(), Set.of(), changedStreams);
 
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(List.of(dummyTarget));
         when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1"));
         when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(dummyTarget));
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList())).thenReturn(results);
+        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
 
+        // when
         ingestionService.ingest();
 
+        // then
         verify(apiServerClient).recordNewSegments(anyList());
         verify(streamRepository).sync(results.closedStreamIds(), List.of(dummyTarget));
     }
 
     @Test
     void 메타데이터_변경이_없으면_API_서버에_세그먼트_기록을_전송하지_않아야_한다() {
+        // given
         StreamTarget dummyTarget = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 100, "url", "cat", Instant.EPOCH);
         StreamUpdateResults results = new StreamUpdateResults(Set.of(), Set.of(), Set.of());
 
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(List.of(dummyTarget));
         when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1"));
         when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(dummyTarget));
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList())).thenReturn(results);
+        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
 
+        // when
         ingestionService.ingest();
 
+        // then
         verify(apiServerClient, never()).recordNewSegments(anyList());
         verify(streamRepository).sync(results.closedStreamIds(), List.of(dummyTarget));
     }

@@ -20,6 +20,7 @@ class StreamUpdateAnalyzerTest {
 
     @Test
     void 신규_방송과_종료된_방송을_판단한다() {
+        // given
         StreamTarget streamTarget1 = new StreamTarget("channel1", "침착맨", "chat1", 100L, "title1", 1200, "thumb1.jpg", "소통", Instant.EPOCH);
         StreamTarget streamTarget2 = new StreamTarget("channel2", "풍월량", "chat2", 200L, "title2", 1000, "thumb2.jpg", "게임", Instant.EPOCH);
 
@@ -27,8 +28,10 @@ class StreamUpdateAnalyzerTest {
         Set<String> activeChannelIds = Set.of("channel1", "channel3");
         List<StreamTarget> oldTargets = List.of(streamTarget1);
 
-        StreamUpdateResults results = analyzer.analyze(currentTargets, activeChannelIds, oldTargets);
+        // when
+        StreamUpdateResults results = analyzer.analyze(currentTargets, activeChannelIds, oldTargets, Instant.now());
 
+        // then
         assertAll(
             () -> assertThat(results.newStreams()).hasSize(1),
             () -> assertThat(results.newStreams().iterator().next().channelId()).isEqualTo("channel2"),
@@ -38,15 +41,20 @@ class StreamUpdateAnalyzerTest {
 
     @Test
     void 제목이나_카테고리가_변경되었을_경우_변경_내역을_추출한다() {
-        StreamTarget oldTarget = new StreamTarget("channel1", "침착맨", "chat1", 100L, "title1", 1200, "thumb1.jpg", "소통", Instant.EPOCH);
-        StreamTarget newTarget = new StreamTarget("channel1", "침착맨", "chat1", 100L, "title2", 1200, "thumb1.jpg", "게임", Instant.EPOCH);
+        // given
+        Instant startTime = Instant.now().minusSeconds(3600);
+        Instant changedAt = Instant.now();
+        StreamTarget oldTarget = new StreamTarget("channel1", "침착맨", "chat1", 100L, "title1", 1200, "thumb1.jpg", "소통", startTime);
+        StreamTarget newTarget = new StreamTarget("channel1", "침착맨", "chat1", 100L, "title2", 1200, "thumb1.jpg", "게임", startTime);
 
         List<StreamTarget> currentTargets = List.of(newTarget);
         Set<String> activeChannelIds = Set.of("channel1");
         List<StreamTarget> oldTargets = List.of(oldTarget);
 
-        StreamUpdateResults results = analyzer.analyze(currentTargets, activeChannelIds, oldTargets);
+        // when
+        StreamUpdateResults results = analyzer.analyze(currentTargets, activeChannelIds, oldTargets, changedAt);
 
+        // then
         assertThat(results.changedStreams()).hasSize(1);
         ChangedStream changed = results.changedStreams().iterator().next();
 
@@ -55,7 +63,9 @@ class StreamUpdateAnalyzerTest {
             () -> assertThat(changed.oldTitle()).isEqualTo("title1"),
             () -> assertThat(changed.newTitle()).isEqualTo("title2"),
             () -> assertThat(changed.oldCategory()).isEqualTo("소통"),
-            () -> assertThat(changed.newCategory()).isEqualTo("게임")
+            () -> assertThat(changed.newCategory()).isEqualTo("게임"),
+            () -> assertThat(changed.changedAt()).isEqualTo(changedAt),
+            () -> assertThat(changed.changedOffsetMs()).isEqualTo(3600000L)
         );
     }
 }

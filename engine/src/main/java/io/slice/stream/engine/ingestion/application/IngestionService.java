@@ -8,6 +8,7 @@ import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
 import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSyncRequest;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -49,7 +50,8 @@ public class IngestionService {
         StreamUpdateResults updateResults = streamUpdateAnalyzer.analyze(
             currentTargets,
             activeChannelIds,
-            activeStreamTargets
+            activeStreamTargets,
+            Instant.now()
         );
 
         streamRepository.sync(updateResults.closedStreamIds(), currentTargets);
