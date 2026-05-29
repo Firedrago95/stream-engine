@@ -1,6 +1,6 @@
 package io.slice.stream.apiserver.stream.infrastructure;
 
-import io.slice.stream.apiserver.analysis.infrastructure.entity.StreamSessionEntity;
+import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;

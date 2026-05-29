@@ -1,4 +1,4 @@
-package io.slice.stream.apiserver.analysis.infrastructure.entity;
+package io.slice.stream.apiserver.stream.infrastructure.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,10 +12,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "stream_sessions")
+@Table(name = "stream_session_segments")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class StreamSessionEntity {
+public class StreamSessionSegmentEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,7 +24,7 @@ public class StreamSessionEntity {
     @Column(name = "stream_id", nullable = false)
     private String streamId;
 
-    @Column(name = "session_id", nullable = false, unique = true)
+    @Column(name = "session_id", nullable = false)
     private String sessionId;
 
     @Column(name = "title")
@@ -39,22 +39,30 @@ public class StreamSessionEntity {
     @Column(name = "ended_at")
     private Instant endedAt;
 
-    @Column(name = "peak_viewers")
-    private Integer peakViewers;
+    @Column(name = "start_offset_ms", nullable = false)
+    private Long startOffsetMs;
 
-    public StreamSessionEntity(String streamId, String sessionId, String title, String categoryName, Instant startedAt) {
+    @Column(name = "end_offset_ms")
+    private Long endOffsetMs;
+
+    public StreamSessionSegmentEntity(
+        String streamId,
+        String sessionId,
+        String title,
+        String categoryName,
+        Instant startedAt,
+        Long startOffsetMs
+    ) {
         this.streamId = streamId;
         this.sessionId = sessionId;
         this.title = title;
         this.categoryName = categoryName;
         this.startedAt = startedAt;
-        this.peakViewers = 0;
+        this.startOffsetMs = startOffsetMs;
     }
 
-    public void finishSession(Instant endedAt, Integer finalPeakViewers) {
+    public void endSegment(Instant endedAt, Long endOffsetMs) {
         this.endedAt = endedAt;
-        if (finalPeakViewers != null && finalPeakViewers > this.peakViewers) {
-            this.peakViewers = finalPeakViewers;
-        }
+        this.endOffsetMs = endOffsetMs;
     }
 }

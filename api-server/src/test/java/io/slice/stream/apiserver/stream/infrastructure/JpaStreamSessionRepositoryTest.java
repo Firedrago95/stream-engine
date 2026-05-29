@@ -2,7 +2,7 @@ package io.slice.stream.apiserver.stream.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.slice.stream.apiserver.analysis.infrastructure.entity.StreamSessionEntity;
+import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.testcontainer.postgres.PostgresTestSupport;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
