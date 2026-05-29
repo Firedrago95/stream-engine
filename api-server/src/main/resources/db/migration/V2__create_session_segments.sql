@@ -4,8 +4,8 @@ CREATE TABLE stream_session_segments (
     session_id            VARCHAR(255) NOT NULL,
     title                 VARCHAR(255),
     category_name         VARCHAR(100),
-    started_at            TIMESTAMPZ NOT NULL,
-    ended_at              TIMESTAMPZ,
+    started_at            TIMESTAMPTZ NOT NULL,
+    ended_at              TIMESTAMPTZ,
     started_offset_ms     BIGINT NOT NULL,
     ended_offset_ms       BIGINT
 );
