@@ -52,6 +52,8 @@ analysis:
     header: ${SERVER_HEADER}
   sync:
     path: ${SYNC_PATH}
+  meta:
+    path: ${META_PATH}
 
 highlight:
   leading-buffer: 20s           # 피크 발생 20초 전부터 영상 시작

@@ -8,3 +8,13 @@ spring:
     clean-on-validation-error: true
     # 2. 스프링 부트 3.x 이상에서는 Clean 기능을 명시적으로 활성화해야 합니다.
     clean-disabled: false
+
+analysis:
+  signal:
+    path: /api/v1/signals
+    secret: test-secret-value
+    header: X-CUSTOM-HEADER-NAME
+  sync:
+    path: /api/v1/streams
+  meta:
+    path: /api/v1/streams/segments
