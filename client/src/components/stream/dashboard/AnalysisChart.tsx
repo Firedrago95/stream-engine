@@ -47,7 +47,7 @@ const CustomTooltip = ({ active, payload, selectedTab, formatTime, segments = []
     const activeSeg = selectedTab === "realtime" ? null : segments.find((seg: any) => {
       const start = new Date(seg.startedAt).getTime();
       const end = seg.endedAt ? new Date(seg.endedAt).getTime() : Infinity;
-      return data.timestamp >= start && data.timestamp <= end;
+      return data.timestamp >= start && data.timestamp < end;
     })
 
     return (
@@ -104,8 +104,8 @@ const getSegmentXRange = (seg: StreamSegment, data: any[]) => {
   let x1 = data.findIndex(d => d.timestamp && d.timestamp >= startTs);
   if (x1 === -1) x1 = 0;
 
-  let x2 = data.findIndex(d => d.timestamp && d.timestamp >= endTs);
-  if (x2 === -1) x2 = data.length - 1;
+  let x2Raw = data.findIndex(d => d.timestamp && d.timestamp >= endTs);
+  let x2 = x2Raw > 0 ? x2Raw - 1 : (x2Raw === -1 ? data.length - 1 : 0);
 
   return { x1, x2 };
 };
