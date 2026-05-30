@@ -39,10 +39,16 @@ const formatShortTime = (ts: any) => {
   return d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
 };
 
-const CustomTooltip = ({ active, payload, selectedTab, formatTime }: any) => {
+const CustomTooltip = ({ active, payload, selectedTab, formatTime, segments = [] }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     if (!data.hasData) return null;
+
+    const activeSeg = selectedTab === "realtime" ? null : segments.find((seg: any) => {
+      const start = new Date(seg.startedAt).getTime();
+      const end = seg.endedAt ? new Date(seg.endedAt).getTime() : Infinity;
+      return data.timestamp >= start && data.timestamp <= end;
+    })
 
     return (
       <div className="bg-[#1a1a1c] border border-gray-700 p-3 rounded-xl shadow-2xl z-50">
@@ -61,6 +67,18 @@ const CustomTooltip = ({ active, payload, selectedTab, formatTime }: any) => {
             <div className="text-[11px] text-gray-200 font-mono tracking-tighter">
               (방송 시각 {formatTime(data.timestamp)})
             </div>
+          </div>
+        )}
+
+        {/* 해당 시간의 방제/카테고리 툴팁에 표시 */}
+        {activeSeg && (
+          <div className="mt-2 pt-2 border-t border-gray-700/60 flex flex-col gap-1">
+            <span className="text-[10px] text-purple-300 font-bold uppercase tracking-wider">
+              🎮 {activeSeg.categoryName}
+            </span>
+            <span className="text-xs text-white font-medium max-w-[200px] truncate block" title={activeSeg.title}>
+              📝 {activeSeg.title}
+            </span>
           </div>
         )}
       </div>
@@ -187,7 +205,7 @@ export const AnalysisChart: React.FC<Props> = ({
             ))}
 
             <Area type="monotone" dataKey="value" stroke="#00FFA3" strokeWidth={3} fill="url(#colorValue)" isAnimationActive={false} connectNulls={false} />
-            <Tooltip content={<CustomTooltip selectedTab={selectedTab} formatTime={formatTime} />} cursor={{ stroke: "#00FFA3", strokeWidth: 1 }} />
+            <Tooltip content={<CustomTooltip selectedTab={selectedTab} formatTime={formatTime} segments={segments} />} cursor={{ stroke: "#00FFA3", strokeWidth: 1 }} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
