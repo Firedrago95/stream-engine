@@ -44,11 +44,12 @@ const CustomTooltip = ({ active, payload, selectedTab, formatTime, segments = []
     const data = payload[0].payload;
     if (!data.hasData) return null;
 
+    const tsMs = data.timestamp < 10000000000 ? data.timestamp * 1000 : data.timestamp;
     const activeSeg = selectedTab === "realtime" ? null : segments.find((seg: any) => {
       const start = new Date(seg.startedAt).getTime();
       const end = seg.endedAt ? new Date(seg.endedAt).getTime() : Infinity;
-      return data.timestamp >= start && data.timestamp < end;
-    })
+      return tsMs >= start && tsMs < end;
+    });
 
     return (
       <div className="bg-[#1a1a1c] border border-gray-700 p-3 rounded-xl shadow-2xl z-50">
@@ -101,13 +102,18 @@ const getSegmentXRange = (seg: StreamSegment, data: any[]) => {
   const startTs = new Date(seg.startedAt).getTime();
   const endTs = seg.endedAt ? new Date(seg.endedAt).getTime() : Infinity;
 
-  let x1 = data.findIndex(d => d.timestamp && d.timestamp >= startTs);
-  if (x1 === -1) x1 = 0;
+  const normalize = (ts: number) => (ts < 10000000000 ? ts * 1000 : ts);
 
-  let x2Raw = data.findIndex(d => d.timestamp && d.timestamp >= endTs);
-  let x2 = x2Raw > 0 ? x2Raw - 1 : (x2Raw === -1 ? data.length - 1 : 0);
+  let i1 = data.findIndex(d => d.timestamp && normalize(d.timestamp) >= startTs);
+  if (i1 === -1) i1 = 0;
 
-  return { x1, x2 };
+  let i2Raw = data.findIndex(d => d.timestamp && normalize(d.timestamp) >= endTs);
+  let i2 = i2Raw > 0 ? i2Raw - 1 : (i2Raw === -1 ? data.length - 1 : 0);
+
+  return {
+    x1: data[i1]?.slotIndex ?? i1,
+    x2: data[i2]?.slotIndex ?? i2,
+  };
 };
 
 export const AnalysisChart: React.FC<Props> = ({
