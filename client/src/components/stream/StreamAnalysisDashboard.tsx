@@ -7,7 +7,8 @@ import { DashboardHeader } from './dashboard/DashboardHeader';
 import { StreamProfileHeader } from './dashboard/StreamProfileHeader';
 import { useStreamAnalysis } from '../../hooks/useStreamAnalysis';
 import { useHighlights } from '../../hooks/useHighlights';
-import { StreamerInfo, StreamSegment } from '../../types/StreamerInfo';
+import type { StreamSegment } from '../../types/StreamSegment';
+import type { StreamerInfo } from '../../types/StreamerInfo';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 const CONFIG = {
@@ -303,6 +304,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
         onMouseLeave={() => setHoveredData({ value: null, time: null })}
         formatTime={formatTime}
         rebangIndexes={rebangIndexes}
+        segments={segments}
       />
 
       <HighlightSection
