@@ -119,6 +119,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
   useEffect(() => {
     if (selectedTab === "realtime" || !streamId) {
       setHistoricalData([]);
+      setSegments([]);
       return;
     }
 
@@ -127,10 +128,12 @@ export const StreamAnalysisDashboard: React.FC = () => {
       .then(data => {
         const sortedHistory = (data.dataPoints || []).sort((a: any, b: any) => a.timestamp - b.timestamp);
         setHistoricalData(sortedHistory);
+        setSegments(data.segments || []);
       })
       .catch(err => {
         console.error("과거 데이터를 불러오지 못했습니다.", err);
         setHistoricalData([]);
+        setSegments([]);
       });
   }, [selectedTab, streamId]);
 
