@@ -7,6 +7,7 @@ import { DashboardHeader } from './dashboard/DashboardHeader';
 import { StreamProfileHeader } from './dashboard/StreamProfileHeader';
 import { useStreamAnalysis } from '../../hooks/useStreamAnalysis';
 import { useHighlights } from '../../hooks/useHighlights';
+import { StreamerInfo, StreamSegment } from '../../types/StreamerInfo';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 const CONFIG = {
@@ -39,9 +40,10 @@ export const StreamAnalysisDashboard: React.FC = () => {
   const navigate = useNavigate();
 
   const [selectedTab, setSelectedTab] = useState<string>("realtime");
+  const [segments, setSegments] = useState<StreamSegment[]>([]);
 
-  const [availableSessions, setAvailableSessions] = useState<{ 
-    sessionId: string; 
+  const [availableSessions, setAvailableSessions] = useState<{
+    sessionId: string;
     label: string;
     liveTitle?: string;
     categoryName?: string;
@@ -51,8 +53,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
   ]);
 
   const { analysisData, isLoading, error, isGathering } = useStreamAnalysis(
-      streamId || '',
-      CONFIG.POLLING_INTERVAL
+    streamId || '',
+    CONFIG.POLLING_INTERVAL
   );
 
   const stableData = useMemo(() => {
@@ -64,8 +66,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
       points = [...analysisData.dataPoints];
     } else {
       points = Object.keys(analysisData)
-      .filter(k => !isNaN(Number(k)))
-      .map(k => analysisData[k]);
+        .filter(k => !isNaN(Number(k)))
+        .map(k => analysisData[k]);
     }
     points.sort((a: any, b: any) => a.timestamp - b.timestamp);
     return points.slice(-CONFIG.DISPLAY_POINTS);
@@ -73,7 +75,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   const { highlights } = useHighlights(streamId || "", selectedTab, CONFIG.POLLING_INTERVAL);
 
-  const [streamerInfo, setStreamerInfo] = useState<any>(null);
+  const [streamerInfo, setStreamerInfo] = useState<StreamerInfo | null>(null);
   const [isLive, setIsLive] = useState(false);
   const [historicalData, setHistoricalData] = useState<any[]>([]);
   const [maxY, setMaxY] = useState(10);
@@ -84,34 +86,34 @@ export const StreamAnalysisDashboard: React.FC = () => {
   useEffect(() => {
     if (!streamId) return;
     fetch(`${API_BASE_URL}/api/v1/streams/${streamId}`)
-    .then(res => res.ok ? res.json() : null)
-    .then(data => {
-      if (data) {
-        setStreamerInfo(data);
-        setIsLive(data.status !== 'OFFLINE');
-      }
-    })
-    .catch(err => console.error("스트리머 정보를 불러오는데 실패했습니다.", err));
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data) {
+          setStreamerInfo(data);
+          setIsLive(data.status !== 'OFFLINE');
+        }
+      })
+      .catch(err => console.error("스트리머 정보를 불러오는데 실패했습니다.", err));
   }, [streamId]);
 
   useEffect(() => {
     if (!streamId) return;
     fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/available-sessions?limit=10`)
-    .then(res => res.ok ? res.json() : [])
-    .then((sessions: any[]) => {
-      const formattedSessions = sessions.map(s => ({
-        sessionId: s.sessionId,
-        label: getRelativeLabel(s.startedAt),
-        liveTitle: s.liveTitle || "[과거 방송] " + getRelativeLabel(s.startedAt),
-        categoryName: s.categoryName || "종합 게임",
-        viewers: 0
-      }));
-      setAvailableSessions([
-        { sessionId: "realtime", label: "⚡ 실시간 분석" },
-        ...formattedSessions
-      ]);
-    })
-    .catch(err => console.error("세션 목록 로드 실패", err));
+      .then(res => res.ok ? res.json() : [])
+      .then((sessions: any[]) => {
+        const formattedSessions = sessions.map(s => ({
+          sessionId: s.sessionId,
+          label: getRelativeLabel(s.startedAt),
+          liveTitle: s.liveTitle || "[과거 방송] " + getRelativeLabel(s.startedAt),
+          categoryName: s.categoryName || "종합 게임",
+          viewers: 0
+        }));
+        setAvailableSessions([
+          { sessionId: "realtime", label: "⚡ 실시간 분석" },
+          ...formattedSessions
+        ]);
+      })
+      .catch(err => console.error("세션 목록 로드 실패", err));
   }, [streamId]);
 
   useEffect(() => {
@@ -121,15 +123,15 @@ export const StreamAnalysisDashboard: React.FC = () => {
     }
 
     fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/history?sessionId=${selectedTab}`)
-    .then(res => res.ok ? res.json() : { dataPoints: [] })
-    .then(data => {
-      const sortedHistory = (data.dataPoints || []).sort((a: any, b: any) => a.timestamp - b.timestamp);
-      setHistoricalData(sortedHistory);
-    })
-    .catch(err => {
-      console.error("과거 데이터를 불러오지 못했습니다.", err);
-      setHistoricalData([]);
-    });
+      .then(res => res.ok ? res.json() : { dataPoints: [] })
+      .then(data => {
+        const sortedHistory = (data.dataPoints || []).sort((a: any, b: any) => a.timestamp - b.timestamp);
+        setHistoricalData(sortedHistory);
+      })
+      .catch(err => {
+        console.error("과거 데이터를 불러오지 못했습니다.", err);
+        setHistoricalData([]);
+      });
   }, [selectedTab, streamId]);
 
   // 프론트엔드 동적 압축(Dynamic Aggregation) 로직
@@ -239,15 +241,15 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
     return {
       label: (
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Broadcast History</span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-black text-[#00FFA3] tracking-tighter">
-            {displayLabel}
-          </span>
-              <span className="text-lg font-bold text-gray-400">최고 화력</span>
-            </div>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Broadcast History</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-black text-[#00FFA3] tracking-tighter">
+              {displayLabel}
+            </span>
+            <span className="text-lg font-bold text-gray-400">최고 화력</span>
           </div>
+        </div>
       ),
       value: maxVal
     };
@@ -263,67 +265,67 @@ export const StreamAnalysisDashboard: React.FC = () => {
   if (!streamId) return <div className="p-10 text-center text-slate-400">잘못된 접근입니다.</div>;
 
   return (
-      <div className="w-full pb-20 bg-[#060606] min-h-screen text-white px-4 sm:px-8">
-        <DashboardHeader onBack={() => navigate(-1)} />
-        <StreamProfileHeader
-            streamId={streamId}
-            streamerName={streamerInfo?.streamerName}
-            profileImageUrl={streamerInfo?.profileImageUrl}
-            isLive={displayIsLive}             
-            status={streamerInfo?.status}
-            viewers={displayViewers}           
-            liveTitle={displayTitle}           
-            categoryName={displayCategory}     
-        />
+    <div className="w-full pb-20 bg-[#060606] min-h-screen text-white px-4 sm:px-8">
+      <DashboardHeader onBack={() => navigate(-1)} />
+      <StreamProfileHeader
+        streamId={streamId}
+        streamerName={streamerInfo?.streamerName}
+        profileImageUrl={streamerInfo?.profileImageUrl}
+        isLive={displayIsLive}
+        status={streamerInfo?.status}
+        viewers={displayViewers}
+        liveTitle={displayTitle}
+        categoryName={displayCategory}
+      />
 
-        <AnalysisTabs
-            availableSessions={availableSessions}
-            selected={selectedTab}
-            onSelect={(tab) => {
-              setSelectedTab(tab);
-              setHoveredData({ value: null, time: null });
-            }}
-        />
+      <AnalysisTabs
+        availableSessions={availableSessions}
+        selected={selectedTab}
+        onSelect={(tab) => {
+          setSelectedTab(tab);
+          setHoveredData({ value: null, time: null });
+        }}
+      />
 
-        <AnalysisChart
-            chartData={chartDisplayData}
-            metric={metric}
-            maxY={maxY}
-            isLoading={isLoading}
-            isGathering={isGathering}
-            error={error}
-            selectedTab={selectedTab}
-            historyEmpty={selectedTab !== "realtime" && historicalData.length === 0}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={() => setHoveredData({value:null, time:null})}
-            formatTime={formatTime}
-            rebangIndexes={rebangIndexes}
-        />
+      <AnalysisChart
+        chartData={chartDisplayData}
+        metric={metric}
+        maxY={maxY}
+        isLoading={isLoading}
+        isGathering={isGathering}
+        error={error}
+        selectedTab={selectedTab}
+        historyEmpty={selectedTab !== "realtime" && historicalData.length === 0}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setHoveredData({ value: null, time: null })}
+        formatTime={formatTime}
+        rebangIndexes={rebangIndexes}
+      />
 
-        <HighlightSection
-            highlights={highlights}
-            selectedTab={selectedTab}
-        />
+      <HighlightSection
+        highlights={highlights}
+        selectedTab={selectedTab}
+      />
 
-        <footer className="mt-24 pt-12 border-t border-gray-800/60 text-center">
-          <div className="mb-6">
-            <span className="text-[#00FFA3] font-black text-xl italic tracking-tighter uppercase">Cheese Pick</span>
-          </div>
-          <a
-              href="https://forms.gle/hUkZBr9KCTDyTXLW9"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-gray-400 hover:text-[#00FFA3] transition-all text-sm font-bold bg-[#1a1a1c] px-8 py-3.5 rounded-full border border-gray-800 hover:border-[#00FFA3]/50 shadow-xl group"
-          >
-            💡 치즈픽 하이라이트 엔진 피드백 보내기
-            <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-            </svg>
-          </a>
-          <p className="mt-8 text-[11px] text-gray-600 font-medium tracking-widest uppercase">
-            © 2026 CheesePick. Advanced Stream Analytics Pipeline.
-          </p>
-        </footer>
-      </div>
+      <footer className="mt-24 pt-12 border-t border-gray-800/60 text-center">
+        <div className="mb-6">
+          <span className="text-[#00FFA3] font-black text-xl italic tracking-tighter uppercase">Cheese Pick</span>
+        </div>
+        <a
+          href="https://forms.gle/hUkZBr9KCTDyTXLW9"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 text-gray-400 hover:text-[#00FFA3] transition-all text-sm font-bold bg-[#1a1a1c] px-8 py-3.5 rounded-full border border-gray-800 hover:border-[#00FFA3]/50 shadow-xl group"
+        >
+          💡 치즈픽 하이라이트 엔진 피드백 보내기
+          <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+          </svg>
+        </a>
+        <p className="mt-8 text-[11px] text-gray-600 font-medium tracking-widest uppercase">
+          © 2026 CheesePick. Advanced Stream Analytics Pipeline.
+        </p>
+      </footer>
+    </div>
   );
 };
