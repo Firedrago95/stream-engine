@@ -73,10 +73,17 @@ class AnalysisQueryControllerTest {
         // given
         String streamId = "test-stream";
         String sessionId = "target-session-id";
+        Instant segmentStart = Instant.parse("2026-03-17T20:30:00Z");
 
-        AnalysisResponse response = new AnalysisResponse(streamId, List.of(
-            new AnalysisDataPoint(System.currentTimeMillis(), 150L, "PEAK", 5000L)
-        ));
+        AnalysisResponse.SegmentResponse segment = new AnalysisResponse.SegmentResponse(
+            1L, "테스트 방제", "테스트 카테고리", segmentStart, null, 0L, null
+        );
+
+        AnalysisResponse response = new AnalysisResponse(
+            streamId, 
+            List.of(new AnalysisDataPoint(System.currentTimeMillis(), 150L, "PEAK", 5000L)),
+            List.of(segment)
+        );
         given(analysisQueryService.getHistoryAnalysis(streamId, sessionId)).willReturn(response);
 
         // when & then
@@ -85,6 +92,8 @@ class AnalysisQueryControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.streamId").value(streamId))
             .andExpect(jsonPath("$.dataPoints[0].status").value("PEAK"))
-            .andExpect(jsonPath("$.dataPoints[0].value").value(150));
+            .andExpect(jsonPath("$.dataPoints[0].value").value(150))
+            .andExpect(jsonPath("$.segments[0].title").value("테스트 방제"))
+            .andExpect(jsonPath("$.segments[0].categoryName").value("테스트 카테고리"));
     }
 }

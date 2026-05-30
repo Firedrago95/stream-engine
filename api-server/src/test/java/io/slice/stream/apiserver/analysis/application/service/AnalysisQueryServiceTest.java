@@ -14,6 +14,8 @@ import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
 import io.slice.stream.apiserver.analysis.presentation.dto.SessionResponse;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
+import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRepository;
+import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -34,6 +36,9 @@ class AnalysisQueryServiceTest {
 
     @Mock
     private JpaStreamSessionRepository sessionRepository; // [추가] 탭 목록 조회용
+
+    @Mock
+    private JpaStreamSessionSegmentRepository segmentRepository;
 
     @InjectMocks
     private AnalysisQueryService analysisQueryService;
@@ -67,6 +72,8 @@ class AnalysisQueryServiceTest {
             new AnalysisDataPoint(1000L, 150L, "NORMAL", 5000L)
         );
 
+        given(segmentRepository.findBySessionIdOrderByStartedAtAsc(sessionId))
+            .willReturn(List.of());
         given(analysisRepository.findSummaryHistory(streamId, sessionId))
             .willReturn(summaryPoints);
 
@@ -76,6 +83,7 @@ class AnalysisQueryServiceTest {
         // then
         assertThat(response.dataPoints()).hasSize(1);
         assertThat(response.dataPoints().get(0).value()).isEqualTo(150L);
+        assertThat(response.segments()).isEmpty();
 
         verify(analysisRepository).findSummaryHistory(streamId, sessionId);
         verify(analysisRepository, never()).findRawHistory(any(), any());
@@ -95,6 +103,8 @@ class AnalysisQueryServiceTest {
             new AnalysisDataPoint(65000L, 50L, "NORMAL", 65000L)
         );
 
+        given(segmentRepository.findBySessionIdOrderByStartedAtAsc(sessionId))
+            .willReturn(List.of());
         given(analysisRepository.findSummaryHistory(streamId, sessionId))
             .willReturn(List.of()); // 요약 데이터 없음
         given(analysisRepository.findRawHistory(streamId, sessionId))
@@ -118,6 +128,7 @@ class AnalysisQueryServiceTest {
         assertThat(points.get(1).timestamp()).isEqualTo(60000L);
         assertThat(points.get(1).value()).isEqualTo(50L);
         assertThat(points.get(1).status()).isEqualTo("NORMAL");
+        assertThat(response.segments()).isEmpty();
 
         verify(analysisRepository).findSummaryHistory(streamId, sessionId);
         verify(analysisRepository).findRawHistory(streamId, sessionId);
@@ -147,5 +158,36 @@ class AnalysisQueryServiceTest {
         assertThat(sessions.get(0).startedAt()).isEqualTo(startedAt);
 
         verify(sessionRepository).findRecentSessionsByStreamId(eq(streamId), any(Pageable.class));
+    }
+
+    @Test
+    void 과거_데이터_조회_시_세그먼트_목록이_존재하면_DTO_형태로_함께_반환한다() {
+        // given
+        String streamId = "test-stream";
+        String sessionId = "target-session";
+        Instant segmentStart = Instant.now();
+        StreamSessionSegmentEntity segmentEntity = new StreamSessionSegmentEntity(
+            streamId, sessionId, "테스트 방제", "테스트 카테고리", segmentStart, 0L
+        );
+        segmentEntity.endSegment(segmentStart.plusSeconds(30), 30000L);
+
+        given(segmentRepository.findBySessionIdOrderByStartedAtAsc(sessionId))
+            .willReturn(List.of(segmentEntity));
+        given(analysisRepository.findSummaryHistory(streamId, sessionId))
+            .willReturn(List.of(new AnalysisDataPoint(1000L, 100L, "NORMAL", 0L)));
+
+        // when
+        AnalysisResponse response = analysisQueryService.getHistoryAnalysis(streamId, sessionId);
+
+        // then
+        assertThat(response.segments()).hasSize(1);
+        assertThat(response.segments().get(0).title()).isEqualTo("테스트 방제");
+        assertThat(response.segments().get(0).categoryName()).isEqualTo("테스트 카테고리");
+        assertThat(response.segments().get(0).startedAt()).isEqualTo(segmentStart);
+        assertThat(response.segments().get(0).endedAt()).isEqualTo(segmentStart.plusSeconds(30));
+        assertThat(response.segments().get(0).startOffsetMs()).isEqualTo(0L);
+        assertThat(response.segments().get(0).endOffsetMs()).isEqualTo(30000L);
+
+        verify(segmentRepository).findBySessionIdOrderByStartedAtAsc(sessionId);
     }
 }

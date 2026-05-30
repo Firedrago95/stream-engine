@@ -24,4 +24,6 @@ public interface JpaStreamSessionSegmentRepository extends JpaRepository<StreamS
           AND s.endedAt IS NULL
         """)
     List<StreamSessionSegmentEntity> findAllActiveSegments(@Param("sessionIds") List<String> sessionIds);
+
+    List<StreamSessionSegmentEntity> findBySessionIdOrderByStartedAtAsc(String sessionId);
 }
