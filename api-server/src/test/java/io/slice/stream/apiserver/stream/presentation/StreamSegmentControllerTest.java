@@ -40,10 +40,10 @@ class StreamSegmentControllerTest {
     @Value("${analysis.meta.path}")
     private String metaPath;
 
-    @Value("${analysis.signal.header}")
+    @Value("${analysis.header}")
     private String headerName;
 
-    @Value("${analysis.signal.secret}")
+    @Value("${analysis.secret}")
     private String secretValue;
 
     @Test
