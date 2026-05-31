@@ -10,11 +10,6 @@ spring:
     clean-disabled: false
 
 analysis:
-  signal:
-    path: /api/v1/signals
-    secret: test-secret-value
-    header: X-CUSTOM-HEADER-NAME
-  sync:
-    path: /api/v1/streams
-  meta:
-    path: /api/v1/streams/segments
+  internal-prefix: /api/v1/test-prefix
+  secret: test-secret-value
+  header: X-CUSTOM-HEADER-NAME
