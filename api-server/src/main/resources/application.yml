@@ -46,14 +46,15 @@ management:
         http.server.requests: true
 
 analysis:
+  internal-prefix: ${INTERNAL_API_PREFIX}
+  secret: ${SERVER_SECRET}
+  header: ${SERVER_HEADER}
   signal:
-    path: ${SIGNAL_PATH}
-    secret: ${SERVER_SECRET}
-    header: ${SERVER_HEADER}
+    path: ${analysis.internal-prefix}/signals
   sync:
-    path: ${SYNC_PATH}
+    path: ${analysis.internal-prefix}/sync
   meta:
-    path: ${META_PATH}
+    path: ${analysis.internal-prefix}/segments
 
 highlight:
   leading-buffer: 20s           # 피크 발생 20초 전부터 영상 시작

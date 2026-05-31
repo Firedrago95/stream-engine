@@ -19,7 +19,7 @@ public class HttpHighlightSignalClient implements HighlightSignalClient {
 
     public HttpHighlightSignalClient(
         @Qualifier("apiServerRestClient") RestClient restClient,
-        @Value("${api-server.path}") String apiPath
+        @Value("${api-server.signal-path}") String apiPath
     ) {
         this.restClient = restClient;
         this.apiPath = apiPath;
