@@ -2,7 +2,7 @@ package io.slice.stream.apiserver.stream.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.slice.stream.apiserver.analysis.infrastructure.entity.StreamSessionEntity;
+import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.testcontainer.postgres.PostgresTestSupport;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
@@ -122,5 +122,30 @@ class JpaStreamSessionRepositoryTest implements PostgresTestSupport {
         assertThat(recentSessions.get(0).getSessionId()).isEqualTo("session-3");
         // 가장 마지막에 나와야 할 데이터는 3일 전인 session-1
         assertThat(recentSessions.get(2).getSessionId()).isEqualTo("session-1");
+    }
+
+    @Test
+    void 여러_스트림_ID에_대해_현재_열려있는_세션만_일괄_조회한다() {
+        // given
+        String streamId1 = "stream-a";
+        String streamId2 = "stream-b";
+        String streamId3 = "stream-c";
+        Instant now = Instant.now();
+
+        StreamSessionEntity session1 = new StreamSessionEntity(streamId1, "session-a", "방제1", "카테고리1", now);
+        sessionRepository.save(session1);
+        StreamSessionEntity session2 = new StreamSessionEntity(streamId2, "session-b", "방제2", "카테고리2", now.minus(2, java.time.temporal.ChronoUnit.HOURS));
+        session2.finishSession(now.minus(1, java.time.temporal.ChronoUnit.HOURS), 100);
+        sessionRepository.save(session2);
+        StreamSessionEntity session3 = new StreamSessionEntity(streamId3, "session-c", "방제3", "카테고리3", now);
+        sessionRepository.save(session3);
+
+        // when
+        List<StreamSessionEntity> activeSessions = sessionRepository.findAllActiveSessions(List.of(streamId1, streamId2, streamId3));
+
+        // then
+        assertThat(activeSessions).hasSize(2);
+        List<String> activeSessionIds = activeSessions.stream().map(StreamSessionEntity::getSessionId).toList();
+        assertThat(activeSessionIds).containsExactlyInAnyOrder("session-a", "session-c");
     }
 }

@@ -1,65 +1,50 @@
 -- KEYS[1]: "stream:targets" (기존 방송 상태 SET)
 -- KEYS[2]: "stream:live:" (방송 상세 정보 HASH)
 -- KEYS[3]: "active:analysis:ids" (분석 엔진용 전용 인덱스 SET)
+-- ARGV[1]: closed_count (종료된 방송의 개수)
+-- ARGV[2] ~ ARGV[1 + closed_count]: closed_ids (종료된 방송 ID 목록)
+-- ARGV[1 + closed_count + 1] ~ : [stream_id, json_str] (활성 방송 ID와 상세 정보 JSON 쌍 목록)
+
+local closed_count = tonumber(ARGV[1])
 
 local unpack = table.unpack or unpack
-local actual_key = KEYS[1]
-local info_key = KEYS[2]
-local analysis_index_key = KEYS[3]
-local temp_key = actual_key .. ":temp"
 
-local count = tonumber(ARGV[1])
+-- 1. 종료된 방송 처리
+if closed_count > 0 then
+  local closed_ids = {}
+  for i = 1, closed_count do
+    table.insert(closed_ids, ARGV[1 + i])
+  end
 
--- [방어 로직] 데이터가 없으면 관련 모든 키 정리
-if count == nil or count == 0 then
-    redis.call('DEL', actual_key, info_key, analysis_index_key)
-    return { {}, {} }
+  redis.call('HDEL', KEYS[2], unpack(closed_ids))
+  redis.call('SREM', KEYS[3], unpack(closed_ids))
 end
 
--- 1. 임시 Set 생성 (신규 데이터 기반)
-redis.call('DEL', temp_key)
-local ids_for_sadd = {}
-for i = 1, count do
-    table.insert(ids_for_sadd, ARGV[i + 1])
-end
-
-if #ids_for_sadd > 0 then
-    redis.call('SADD', temp_key, unpack(ids_for_sadd))
-end
-
--- 2. 신규/종료 방송 비교
-local new_channel_ids = redis.call('SDIFF', temp_key, actual_key)
-local closed_channel_ids = redis.call('SDIFF', actual_key, temp_key)
-
--- 3. 현재 활성 ID 목록 교체 (Atomic Rename)
-redis.call('RENAME', temp_key, actual_key)
-
--- 4. 분석용 인덱스(KEYS[3]) 동기화
-if #closed_channel_ids > 0 then
-    -- 종료된 방송은 상세 정보와 분석 인덱스에서 모두 제거
-    redis.call('HDEL', info_key, unpack(closed_channel_ids))
-    redis.call('SREM', analysis_index_key, unpack(closed_channel_ids)) -- [수정됨: reids -> redis]
-end
-
-if #ids_for_sadd > 0 then
-    -- 현재 활성화된 모든 ID를 분석 인덱스에 등록 (Upsert 효과)
-    redis.call('SADD', analysis_index_key, unpack(ids_for_sadd))
-end
-
--- 5. 상세 정보(Hash) 업데이트
+-- 2. 활성 방송 처리 (ID 및 상세 정보 JSON 추출)
+local active_ids = {}
 local hash_data = {}
-for i = count + 2, #ARGV do
-    table.insert(hash_data, ARGV[i])
+local start_idx = 1 + closed_count + 1
+
+for i = start_idx, #ARGV, 2 do
+    local stream_id = ARGV[i]
+    local json_str = ARGV[i + 1]
+    if stream_id == nil then break end
+
+    table.insert(active_ids, stream_id)
+    table.insert(hash_data, stream_id)
+    table.insert(hash_data, json_str)
+end
+
+-- 3. Redis 상태 덮어쓰기
+redis.call('DEL', KEYS[1])
+
+if #active_ids > 0 then
+    redis.call('SADD', KEYS[1], unpack(active_ids))
+    redis.call('SADD', KEYS[3], unpack(active_ids))
 end
 
 if #hash_data > 0 then
-    redis.call('HSET', info_key, unpack(hash_data)) -- [수정됨: upack -> unpack]
+    redis.call('HSET', KEYS[2], unpack(hash_data))
 end
 
--- 6. 신규 타겟 정보 반환
-local new_stream_targets_json = {}
-if #new_channel_ids > 0 then
-    new_stream_targets_json = redis.call('HMGET', info_key, unpack(new_channel_ids))
-end
-
-return { new_stream_targets_json, closed_channel_ids }
+return {}

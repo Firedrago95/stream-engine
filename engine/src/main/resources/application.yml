@@ -73,10 +73,13 @@ chzzk:
 
 api-server:
   host: ${SERVER_HOST}
-  path: ${SIGNAL_PATH}
-  sync-path: ${SYNC_PATH}
+  internal-prefix: ${INTERNAL_API_PREFIX}
   secret: ${SERVER_SECRET}
   header: ${SERVER_HEADER}
+
+  signal-path: ${api-server.internal-prefix}/signals
+  sync-path: ${api-server.internal-prefix}/sync
+  meta-path: ${api-server.internal-prefix}/segments
 
 highlight:
   engine:

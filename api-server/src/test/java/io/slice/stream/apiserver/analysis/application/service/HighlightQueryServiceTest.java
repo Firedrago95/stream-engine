@@ -9,7 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import io.slice.stream.apiserver.analysis.infrastructure.JpaHighlightEventRepository;
 import io.slice.stream.apiserver.analysis.infrastructure.entity.HighlightEventEntity;
-import io.slice.stream.apiserver.analysis.infrastructure.entity.StreamSessionEntity;
+import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.analysis.presentation.dto.HighlightResponse;
 import io.slice.stream.apiserver.global.config.HighlightProperties;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;

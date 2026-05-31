@@ -6,6 +6,8 @@ import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
 import io.slice.stream.apiserver.analysis.presentation.dto.SessionResponse;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
+import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRepository;
+import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +30,7 @@ public class AnalysisQueryService {
 
     private final AnalysisRepository analysisRepository;
     private final JpaStreamSessionRepository sessionRepository;
+    private final JpaStreamSessionSegmentRepository segmentRepository;
 
     public AnalysisResponse getRecentAnalysis(String streamId) {
         List<AnalysisSignal> signals = analysisRepository.findRecentSignals(streamId, FIND_LIMIT);
@@ -51,11 +54,26 @@ public class AnalysisQueryService {
     }
 
     public AnalysisResponse getHistoryAnalysis(String streamId, String sessionId) {
+        List<StreamSessionSegmentEntity> segments = segmentRepository.findBySessionIdOrderByStartedAtAsc(sessionId);
+        List<AnalysisResponse.SegmentResponse> segmentResponses = segments.stream()
+            .map(seg -> new AnalysisResponse.SegmentResponse(
+                seg.getId(),
+                seg.getTitle(),
+                seg.getCategoryName(),
+                seg.getStartedAt(),
+                seg.getEndedAt(),
+                seg.getStartOffsetMs(),
+                seg.getEndOffsetMs()
+            ))
+            .toList();
+
         List<AnalysisDataPoint> summaryDataPoints = analysisRepository.findSummaryHistory(streamId, sessionId);
-        if(!summaryDataPoints.isEmpty()) return new AnalysisResponse(streamId, summaryDataPoints);
+        if(!summaryDataPoints.isEmpty()) {
+            return new AnalysisResponse(streamId, summaryDataPoints, segmentResponses);
+        }
 
         List<AnalysisDataPoint> rawDataPoints = analysisRepository.findRawHistory(streamId, sessionId);
-        return new AnalysisResponse(streamId, aggregateToOneMinuteIntervals(rawDataPoints));
+        return new AnalysisResponse(streamId, aggregateToOneMinuteIntervals(rawDataPoints), segmentResponses);
     }
 
     private List<AnalysisDataPoint> aggregateToOneMinuteIntervals(List<AnalysisDataPoint> rawDataPoints) {

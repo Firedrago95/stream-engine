@@ -1,6 +1,6 @@
 package io.slice.stream.apiserver.stream.infrastructure;
 
-import io.slice.stream.apiserver.analysis.infrastructure.entity.StreamSessionEntity;
+import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -38,4 +38,12 @@ public interface JpaStreamSessionRepository extends JpaRepository<StreamSessionE
           AND ss.endedAt < :threshold
         """)
     List<StreamSessionEntity> findFinishedSessionsOlderThan(@Param("threshold") Instant threshold);
+
+    @Query("""
+       SELECT ss
+       FROM StreamSessionEntity ss
+       WHERE ss.streamId IN :streamIds
+         AND ss.endedAt IS NULL
+           """)
+    List<StreamSessionEntity> findAllActiveSessions(@Param("streamIds") List<String> streamIds);
 }

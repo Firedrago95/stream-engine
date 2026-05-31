@@ -15,22 +15,19 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Component
 public class EngineTokenFilter extends OncePerRequestFilter {
 
-    private final String signalPath;
-    private final String syncPath;
-    private final String expectedSecret;
-    private final String headerName;
+    private final String internalPrefix;
+    private final String header;
+    private final String secret;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     public EngineTokenFilter(
-        @Value("${analysis.signal.path}") String signalPath,
-        @Value("${analysis.sync.path}") String syncPath,
-        @Value("${analysis.signal.secret}") String expectedSecret,
-        @Value("${analysis.signal.header}") String headerName
+        @Value("${analysis.internal-prefix}") String internalPrefix,
+        @Value("${analysis.header}") String header,
+        @Value("${analysis.secret}") String secret
     ) {
-        this.signalPath = signalPath;
-        this.syncPath = syncPath;
-        this.expectedSecret = expectedSecret;
-        this.headerName = headerName;
+        this.internalPrefix = internalPrefix;
+        this.header = header;
+        this.secret = secret;
     }
 
     @Override
@@ -39,12 +36,11 @@ public class EngineTokenFilter extends OncePerRequestFilter {
 
         String requestPath = request.getRequestURI();
 
-        if (pathMatcher.match(signalPath + "/**", requestPath) ||
-            pathMatcher.match(syncPath + "/**", requestPath)) {
+        if (pathMatcher.match(internalPrefix + "/**", requestPath)) {
 
-            String requestToken = request.getHeader(headerName);
+            String requestToken = request.getHeader(header);
 
-            if (requestToken == null || !requestToken.equals(expectedSecret)) {
+            if (requestToken == null || !requestToken.equals(secret)) {
                 log.warn("유효하지 않은 토큰 접근 차단 : {}", requestPath);
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "권한없는 엔진 접근");
                 return;

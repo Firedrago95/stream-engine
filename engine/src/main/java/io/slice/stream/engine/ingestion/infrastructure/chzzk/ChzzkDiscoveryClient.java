@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 @Slf4j
 @Component
+@Profile("!local")
 @RequiredArgsConstructor
 public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
 

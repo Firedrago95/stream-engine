@@ -18,40 +18,21 @@ import org.springframework.mock.web.MockHttpServletResponse;
 class EngineTokenFilterTest {
 
     private EngineTokenFilter filter;
-    private final String signalPath = "/gate/hidden-room";
-    private final String syncPath = "/gate/hidden-sync";
+    private final String internalPrefix = "123456";
+    private final String header = "MAGIC-KEY";
     private final String secret = "shh-very-secret";
-    private final String headerName = "MAGIC-KEY";
 
     @BeforeEach
     void setUp() {
-        filter = new EngineTokenFilter(signalPath, syncPath, secret, headerName);
+        filter = new EngineTokenFilter(internalPrefix, header, secret);
     }
 
     @Test
-    void 신호_전송_경로와_올바른_토큰이_오면_필터를_통과시킨다() throws Exception {
+    void 경로와_올바른_토큰이_오면_필터를_통과시킨다() throws Exception {
         // given
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setRequestURI(signalPath + "/any-sub-path");
-        request.addHeader(headerName, secret);
-
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        FilterChain filterChain = mock(FilterChain.class);
-
-        // when
-        filter.doFilterInternal(request, response, filterChain);
-
-        // then
-        verify(filterChain).doFilter(request, response);
-        assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_OK);
-    }
-
-    @Test
-    void 동기화_경로와_올바른_토큰이_오면_필터를_통과시킨다() throws Exception {
-        // given
-        MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setRequestURI(syncPath + "/any-sub-path");
-        request.addHeader(headerName, secret);
+        request.setRequestURI(internalPrefix + "/any-sub-path");
+        request.addHeader(header, secret);
 
         MockHttpServletResponse response = new MockHttpServletResponse();
         FilterChain filterChain = mock(FilterChain.class);
@@ -68,8 +49,8 @@ class EngineTokenFilterTest {
     void 보안_경로인데_토큰이_틀리면_401_에러를_반환한다() throws Exception {
         // given
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setRequestURI(syncPath);
-        request.addHeader(headerName, "wrong-token");
+        request.setRequestURI(internalPrefix + "/validUrl");
+        request.addHeader(header, "wrong-token");
 
         MockHttpServletResponse response = new MockHttpServletResponse();
         FilterChain filterChain = mock(FilterChain.class);

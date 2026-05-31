@@ -54,3 +54,19 @@ logs/
 
 # git
 *.diff
+
+### Local Testing & Infrastructure ###
+# 로컬 전용 설정 파일 무시
+**/application-local.yml
+**/application-local.properties
+
+# 로컬 테스트용 도커 컴포즈 무시
+**/docker-compose-infra.yml
+**/*.sh
+
+# 로컬 모니터링 설정 폴더 무시
+**/monitoring/
+
+# Antigravity CLI Config
+.antigravitycli/
+docs
