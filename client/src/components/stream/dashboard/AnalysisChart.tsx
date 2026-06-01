@@ -1,7 +1,7 @@
 // src/components/stream/dashboard/AnalysisChart.tsx
 
 import React from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import type { StreamSegment } from '../../../types/StreamSegment';
 
 interface Props {
@@ -206,7 +206,7 @@ export const AnalysisChart: React.FC<Props> = ({
                 <stop offset="95%" stopColor="#00FFA3" stopOpacity={0} />
               </linearGradient>
               {uniqueColors.map(color => (
-                <linearGradient key={color} id={`grad_${color}`} x1="0" y1="0" x2="0" y2="1">
+                <linearGradient key={color} id={`grad_${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={color} stopOpacity={0.4} />
                   <stop offset="95%" stopColor={color} stopOpacity={0} />
                 </linearGradient>
@@ -276,7 +276,7 @@ export const AnalysisChart: React.FC<Props> = ({
                   dataKey={`val_${color}`} 
                   stroke={color} 
                   strokeWidth={3} 
-                  fill={`url(#grad_${color})`} 
+                  fill={`url(#grad_${color.replace('#', '')})`} 
                   isAnimationActive={false} 
                   connectNulls={false} 
                 />
