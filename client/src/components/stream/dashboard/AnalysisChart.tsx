@@ -122,6 +122,45 @@ export const AnalysisChart: React.FC<Props> = ({
 }) => {
   const isRealtime = selectedTab === "realtime";
 
+  const { processedData, uniqueColors } = React.useMemo(() => {
+    if (isRealtime || !segments.length || !chartData.length) {
+      return { processedData: chartData, uniqueColors: ['#00FFA3'] };
+    }
+
+    const normalize = (ts: number) => (ts < 10000000000 ? ts * 1000 : ts);
+    const newData = chartData.map(d => ({ ...d }));
+    const colors = new Set<string>();
+
+    for (let i = 0; i < newData.length; i++) {
+      const d = newData[i];
+      if (!d.timestamp) continue;
+      
+      const tsMs = normalize(d.timestamp);
+      const activeSeg = segments.find(seg => {
+        const start = new Date(seg.startedAt).getTime();
+        const end = seg.endedAt ? new Date(seg.endedAt).getTime() : Infinity;
+        return tsMs >= start && tsMs < end;
+      });
+      
+      const color = activeSeg ? getCategoryColor(activeSeg.categoryName) : '#00FFA3';
+      colors.add(color);
+      
+      d[`val_${color}`] = d.value;
+      d._color = color;
+    }
+
+    for (let i = 1; i < newData.length; i++) {
+      const prevColor = newData[i - 1]._color;
+      const currColor = newData[i]._color;
+      if (prevColor && currColor && prevColor !== currColor) {
+        newData[i][`val_${prevColor}`] = newData[i].value;
+      }
+    }
+
+    return { processedData: newData, uniqueColors: Array.from(colors) };
+  }, [chartData, isRealtime, segments]);
+
+
   return (
     <div className="p-4 sm:p-8 bg-[#0c0d0f] border border-gray-800 rounded-3xl relative overflow-hidden min-h-[500px]">
 
@@ -160,26 +199,43 @@ export const AnalysisChart: React.FC<Props> = ({
 
       <div className="h-[350px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 10, right: 30, left: -20, bottom: 0 }} onMouseMove={onMouseMove} onMouseLeave={onMouseLeave}>
+          <AreaChart data={processedData} margin={{ top: 10, right: 30, left: -20, bottom: 0 }} onMouseMove={onMouseMove} onMouseLeave={onMouseLeave}>
             <defs>
               <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#00FFA3" stopOpacity={0.3} />
                 <stop offset="95%" stopColor="#00FFA3" stopOpacity={0} />
               </linearGradient>
+              {uniqueColors.map(color => (
+                <linearGradient key={color} id={`grad_${color}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={color} stopOpacity={0.4} />
+                  <stop offset="95%" stopColor={color} stopOpacity={0} />
+                </linearGradient>
+              ))}
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} opacity={0.3} />
-            {!isRealtime && segments.map((seg) => {
-              const { x1, x2 } = getSegmentXRange(seg, chartData);
+            {!isRealtime && segments.map((seg, index) => {
+              const { x1 } = getSegmentXRange(seg, chartData);
+              
+              // 첫 번째 세그먼트이거나, 이전 세그먼트와 카테고리가 다를 때만 선을 긋습니다.
+              const isCategoryChanged = index === 0 || segments[index - 1].categoryName !== seg.categoryName;
+              
+              if (!isCategoryChanged) return null;
+
               return (
-                <ReferenceArea
+                <ReferenceLine
                   key={seg.id}
-                  x1={x1}
-                  x2={x2}
-                  y1={0}
-                  y2={maxY}
-                  fill={getCategoryColor(seg.categoryName)}
-                  fillOpacity={0.08}
-                  stroke="none"
+                  x={x1}
+                  stroke={getCategoryColor(seg.categoryName)}
+                  strokeDasharray="4 4"
+                  strokeOpacity={0.8}
+                  label={{ 
+                    position: 'insideTop', 
+                    value: `▼ ${seg.categoryName} 시작`, 
+                    fill: getCategoryColor(seg.categoryName), 
+                    fontSize: 11, 
+                    fontWeight: 'bold',
+                    offset: 15
+                  }}
                 />
               );
             })}
@@ -210,7 +266,23 @@ export const AnalysisChart: React.FC<Props> = ({
               />
             ))}
 
-            <Area type="monotone" dataKey="value" stroke="#00FFA3" strokeWidth={3} fill="url(#colorValue)" isAnimationActive={false} connectNulls={false} />
+            {isRealtime ? (
+              <Area type="monotone" dataKey="value" stroke="#00FFA3" strokeWidth={3} fill="url(#colorValue)" isAnimationActive={false} connectNulls={false} />
+            ) : (
+              uniqueColors.map(color => (
+                <Area 
+                  key={color} 
+                  type="monotone" 
+                  dataKey={`val_${color}`} 
+                  stroke={color} 
+                  strokeWidth={3} 
+                  fill={`url(#grad_${color})`} 
+                  isAnimationActive={false} 
+                  connectNulls={false} 
+                />
+              ))
+            )}
+            
             <Tooltip content={<CustomTooltip selectedTab={selectedTab} formatTime={formatTime} segments={segments} />} cursor={{ stroke: "#00FFA3", strokeWidth: 1 }} />
           </AreaChart>
         </ResponsiveContainer>
