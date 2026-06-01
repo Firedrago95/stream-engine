@@ -2,16 +2,18 @@ package io.slice.stream.engine.ingestion.application;
 
 import io.slice.stream.engine.core.event.StreamChangedEvent;
 import io.slice.stream.engine.core.model.StreamTarget;
-import io.slice.stream.engine.ingestion.domain.service.StreamUpdateAnalyzer;
 import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
 import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
 import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
+import io.slice.stream.engine.ingestion.domain.service.StreamUpdateAnalyzer;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSyncRequest;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,14 +37,27 @@ public class IngestionService {
 
     @Scheduled(fixedRate = 30000)
     public void ingest() {
-        List<StreamTarget> currentTargets = streamDiscoveryClient.fetchTopLiveStreams(discoveryLimit);
-        if (currentTargets.isEmpty()) {
+        List<StreamTarget> topLiveStreams = streamDiscoveryClient.fetchTopLiveStreams(discoveryLimit);
+        if (topLiveStreams.isEmpty()) {
             Set<String> activeChannelIds = streamRepository.getActiveChannelIds();
-            streamRepository.sync(activeChannelIds, currentTargets);
+            streamRepository.sync(activeChannelIds, topLiveStreams);
             return;
         }
 
         Set<String> activeChannelIds = streamRepository.getActiveChannelIds();
+
+        // 추적중인 방송에서 api 호출 결과 빼기 => 여집합
+        Set<String> topLiveStreamIds = topLiveStreams.stream().map(StreamTarget::channelId).collect(Collectors.toSet());
+        Set<String> dropoutIds = new HashSet<>(activeChannelIds);
+        dropoutIds.removeAll(topLiveStreamIds);
+
+        // 여집합 api 호출 해서 순위밖 구하기 => 순위 밖
+        List<StreamTarget> rankoutStreams = streamDiscoveryClient.fetchLiveStreams(dropoutIds);
+
+        // 순위밖 추적중 방송에 추가
+        List<StreamTarget> currentTargets = new ArrayList<>(topLiveStreams);
+        currentTargets.addAll(rankoutStreams);
+
         List<StreamTarget> activeStreamTargets = streamRepository.getStreamTargets(
             currentTargets.stream().map(StreamTarget::channelId).toList()
         );

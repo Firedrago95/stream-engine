@@ -32,4 +32,23 @@ public class MockStreamDiscoveryClient implements StreamDiscoveryClient {
             ))
             .toList();
     }
+
+    @Override
+    public List<StreamTarget> fetchLiveStreams(java.util.Set<String> channelIds) {
+        log.info("[부하 테스트] 순위 밖 {}개의 더미 방 상태를 유지합니다.", channelIds.size());
+        
+        return channelIds.stream()
+            .map(id -> new StreamTarget(
+                id,
+                "dummy_streamer_rankout",
+                "mock_session_rankout",
+                (long) id.hashCode(),
+                "부하 테스트 순위 밖 방송 " + id,
+                50,
+                "",
+                "test",
+                Instant.now()
+            ))
+            .toList();
+    }
 }

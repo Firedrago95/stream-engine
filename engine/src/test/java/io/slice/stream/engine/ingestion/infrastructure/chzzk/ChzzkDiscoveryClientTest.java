@@ -82,8 +82,8 @@ class ChzzkDiscoveryClientTest {
         mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
             .andRespond(withSuccess(objectMapper.writeValueAsString(topLiveResponse), MediaType.APPLICATION_JSON));
 
-        mockDetailApi("ch1", "chatCh1");
-        mockDetailApi("ch2", "chatCh2");
+        mockDetailApi(live1, "chatCh1");
+        mockDetailApi(live2, "chatCh2");
 
         // When
         List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(limit);
@@ -110,7 +110,7 @@ class ChzzkDiscoveryClientTest {
         mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
             .andRespond(withSuccess(objectMapper.writeValueAsString(topLiveResponse), MediaType.APPLICATION_JSON));
 
-        mockDetailApi("ch1", "chatCh1");
+        mockDetailApi(live1, "chatCh1");
 
         // When
         List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(limit);
@@ -139,8 +139,8 @@ class ChzzkDiscoveryClientTest {
         mockServer.expect(requestTo(buildTopLiveApiUri(50, 3000L, 1002L)))
             .andRespond(withSuccess(objectMapper.writeValueAsString(page2Response), MediaType.APPLICATION_JSON));
 
-        mockDetailApi("ch1", "chatCh1");
-        mockDetailApi("ch2", "chatCh2");
+        mockDetailApi(live1, "chatCh1");
+        mockDetailApi(live2, "chatCh2");
 
         // When
         List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(limit);
@@ -198,11 +198,20 @@ class ChzzkDiscoveryClientTest {
             .isEqualTo(ErrorCode.STREAM_PROVIDER_CLIENT_ERROR);
     }
 
-    private void mockDetailApi(String channelId, String chatChannelId) throws Exception {
+    private void mockDetailApi(ChzzkLive live, String chatChannelId) throws Exception {
         ChzzkLiveDetailResponse detailResponse = new ChzzkLiveDetailResponse(
-            new ChzzkLiveDetailResponse.Content("OPEN", chatChannelId, LocalDateTime.now())
+            new ChzzkLiveDetailResponse.Content(
+                "OPEN", 
+                chatChannelId, 
+                LocalDateTime.now(),
+                live.liveTitle(),
+                live.liveCategoryValue(),
+                live.concurrentUserCount(),
+                live.liveId(),
+                live.channel()
+            )
         );
-        mockServer.expect(requestTo(buildLiveDetailApiUri(channelId)))
+        mockServer.expect(requestTo(buildLiveDetailApiUri(live.channel().channelId())))
             .andRespond(withSuccess(objectMapper.writeValueAsString(detailResponse), MediaType.APPLICATION_JSON));
     }
 

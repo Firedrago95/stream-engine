@@ -211,4 +211,41 @@ class IngestionServiceTest {
         verify(apiServerClient, never()).recordNewSegments(anyList());
         verify(streamRepository).sync(results.closedStreamIds(), List.of(dummyTarget));
     }
+
+    @Test
+    void 탑스트림_목록에_없지만_기존에_추적중인_방송은_순위밖_조회를_수행하여_유지해야_한다() {
+        // given
+        // topLives에는 ch1만 존재
+        StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 1L, "title1", 100, "url", "GAME", Instant.EPOCH);
+        List<StreamTarget> topLiveStreams = List.of(streamTarget1);
+        
+        // activeChannelIds에는 ch1과 ch2(순위 밖으로 밀려남)가 존재
+        Set<String> activeChannelIds = Set.of("ch1", "ch2");
+        
+        // 순위 밖 API 조회를 통해 ch2가 아직 살아있음을 확인했다고 가정
+        StreamTarget rankoutTarget2 = new StreamTarget("ch2", "chName2", "chatCh2", 2L, "title2", 50, "url", "GAME", Instant.EPOCH);
+        List<StreamTarget> rankoutStreams = List.of(rankoutTarget2);
+
+        StreamUpdateResults results = new StreamUpdateResults(Set.of(), Set.of(), Set.of());
+
+        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(topLiveStreams);
+        when(streamRepository.getActiveChannelIds()).thenReturn(activeChannelIds);
+        
+        // 여집합 조회 모킹 (ch2에 대해 순위 밖 조회가 발생해야 함)
+        when(discoveryClient.fetchLiveStreams(Set.of("ch2"))).thenReturn(rankoutStreams);
+        
+        // getStreamTargets는 currentTargets (ch1, ch2) 리스트를 받아 처리함
+        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(streamTarget1, rankoutTarget2));
+        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
+
+        // when
+        ingestionService.ingest();
+
+        // then
+        // 1. fetchLiveStreams가 정확히 ch2(여집합)로 호출되었는지 검증
+        verify(discoveryClient).fetchLiveStreams(Set.of("ch2"));
+        
+        // 2. ch1(topLive) + ch2(rankout) 합쳐져서 저장소 동기화가 수행되었는지 검증
+        verify(streamRepository).sync(results.closedStreamIds(), List.of(streamTarget1, rankoutTarget2));
+    }
 }
