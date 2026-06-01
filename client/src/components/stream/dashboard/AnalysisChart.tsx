@@ -262,7 +262,7 @@ export const AnalysisChart: React.FC<Props> = ({
                 x={idx}
                 stroke="#475569"
                 strokeDasharray="5 5"
-                label={{ position: 'top', value: '⚡ RE-LIVE', fill: '#64748b', fontSize: 10, fontWeight: 'bold' }}
+                label={{ position: 'insideTop', value: '⚡ RE-LIVE', fill: '#64748b', fontSize: 11, fontWeight: 'bold', offset: 15 }}
               />
             ))}
 
