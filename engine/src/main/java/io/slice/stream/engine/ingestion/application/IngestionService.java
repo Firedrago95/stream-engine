@@ -39,8 +39,7 @@ public class IngestionService {
     public void ingest() {
         List<StreamTarget> topLiveStreams = streamDiscoveryClient.fetchTopLiveStreams(discoveryLimit);
         if (topLiveStreams.isEmpty()) {
-            Set<String> activeChannelIds = streamRepository.getActiveChannelIds();
-            streamRepository.sync(activeChannelIds, topLiveStreams);
+            log.warn("[Ingestion] Top 100 API가 빈 목록을 반환했습니다. 일시적 오류로 간주하여 이번 추적 사이클을 건너뜁니다.");
             return;
         }
 

@@ -61,18 +61,13 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
     }
 
     @Override
-    @Retryable(
-        includes = RestClientException.class,
-        maxRetries = 2,
-        delay = 400
-    )
     public List<StreamTarget> fetchLiveStreams(Set<String> channelIds) {
         List<CompletableFuture<StreamTarget>> fetchResults = channelIds.stream()
             .map(channelId -> CompletableFuture.supplyAsync(() -> {
                 try {
                     rateLimiter.acquire();
                     Content content = fetchLiveDetail(channelId);
-                    if (content != null && content.status().equals("OPEN")) {
+                    if (content != null && "OPEN".equals(content.status())) {
                         return convertToStreamTarget(content);
                     }
                     return null;
