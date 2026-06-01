@@ -9,7 +9,7 @@ public record ChangedStream(
     String oldCategory,
     String newCategory,
     Instant changedAt,
-    Long changedOffsetMs
+    Long changeOffsetMs
 ) {
 
 }
