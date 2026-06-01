@@ -65,7 +65,7 @@ class StreamUpdateAnalyzerTest {
             () -> assertThat(changed.oldCategory()).isEqualTo("소통"),
             () -> assertThat(changed.newCategory()).isEqualTo("게임"),
             () -> assertThat(changed.changedAt()).isEqualTo(changedAt),
-            () -> assertThat(changed.changedOffsetMs()).isEqualTo(3600000L)
+            () -> assertThat(changed.changeOffsetMs()).isEqualTo(3600000L)
         );
     }
 }
