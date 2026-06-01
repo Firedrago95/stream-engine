@@ -6,6 +6,7 @@ import io.slice.stream.engine.global.error.ErrorCode;
 import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
 import io.slice.stream.engine.ingestion.domain.error.IngestionException;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveDetailResponse;
+import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveDetailResponse.Content;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.ChzzkLive;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.Page;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +58,45 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             return Collections.emptyList();
         }
         return fetchAllLiveDetailsConcurrently(topLives);
+    }
+
+    @Override
+    public List<StreamTarget> fetchLiveStreams(Set<String> channelIds) {
+        List<CompletableFuture<StreamTarget>> fetchResults = channelIds.stream()
+            .map(channelId -> CompletableFuture.supplyAsync(() -> {
+                try {
+                    rateLimiter.acquire();
+                    Content content = fetchLiveDetail(channelId);
+                    if (content != null && "OPEN".equals(content.status())) {
+                        return convertToStreamTarget(content);
+                    }
+                    return null;
+                } catch (Exception e) {
+                    log.warn("[Chzzk API] 순위 밖 방송 상세 조회 중 에러 발생. channelId: {}", channelId);
+                    return null;
+                }
+            }, virtualThreadExecutor))
+            .toList();
+
+        return fetchResults.stream()
+            .map(CompletableFuture::join)
+            .filter(Objects::nonNull)
+            .toList();
+    }
+
+    private StreamTarget convertToStreamTarget(Content detailContent) {
+        Instant startedAt = detailContent.openDate().toInstant(ZoneOffset.of("+09:00"));
+        return new StreamTarget(
+            detailContent.channel().channelId(),
+            detailContent.channel().channelName(),
+            detailContent.chatChannelId(),
+            detailContent.liveId(),
+            detailContent.liveTitle(),
+            detailContent.concurrentUserCount(),
+            detailContent.channel().channelImageUrl(),
+            detailContent.liveCategoryValue(),
+            startedAt
+        );
     }
 
     private List<ChzzkLive> fetchTopLives(int limit) {
