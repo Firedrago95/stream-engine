@@ -42,6 +42,12 @@ public class StreamSessionEntity {
     @Column(name = "peak_viewers")
     private Integer peakViewers;
 
+    private Integer averageViewerCount;
+
+    private Integer sessionFollowerGrowth;
+
+    private Double subscriberChatRatio;
+
     public StreamSessionEntity(String streamId, String sessionId, String title, String categoryName, Instant startedAt) {
         this.streamId = streamId;
         this.sessionId = sessionId;
@@ -61,5 +67,17 @@ public class StreamSessionEntity {
         if (finalPeakViewers != null && finalPeakViewers > this.peakViewers) {
             this.peakViewers = finalPeakViewers;
         }
+    }
+
+    public void updateAverageViewerCount(Integer averageViewerCount) {
+        this.averageViewerCount = averageViewerCount;
+    }
+
+    public void updateSessionFollowerGrowth(Integer sessionFollowerGrowth) {
+        this.sessionFollowerGrowth = sessionFollowerGrowth;
+    }
+
+    public void updateSubscriberChatRatio(Double subscriberChatRatio) {
+        this.subscriberChatRatio = subscriberChatRatio;
     }
 }

@@ -35,6 +35,12 @@ public class StreamEntity {
     @Column(nullable = false)
     private boolean isLive;
 
+    @Column(name = "follower_count")
+    private Integer followerCount;
+
+    @Column(name = "subscriber_count")
+    private Integer subscriberCount;
+
     @Column(nullable = false)
     private Instant lastUpdateAt;
 
@@ -59,5 +65,10 @@ public class StreamEntity {
     public void markOffline() {
         this.isLive = false;
         this.lastUpdateAt = Instant.now();
+    }
+
+    public void updateChannelMetrics(Integer followerCount, Integer subscriberCount) {
+        this.followerCount = followerCount;
+        this.subscriberCount = subscriberCount;
     }
 }
