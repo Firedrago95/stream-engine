@@ -27,13 +27,14 @@ class ApiServerClientTest {
 
     private final String syncPath = "/api/v1/sync/streams/test-slug";
     private final String metaPath = "/api/v1/sync/streams/meta-test-slug";
+    private final String summaryPath = "/api/v1/streams/{streamId}/summaries";
 
     @BeforeEach
     void setUp() {
         RestClient.Builder builder = RestClient.builder().baseUrl("http://localhost:8080");
         mockServer = MockRestServiceServer.bindTo(builder).build();
 
-        apiServerClient = new ApiServerClient(builder.build(), syncPath, metaPath);
+        apiServerClient = new ApiServerClient(builder.build(), syncPath, metaPath, summaryPath);
     }
 
     @Test

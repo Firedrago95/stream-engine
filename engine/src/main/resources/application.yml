@@ -80,6 +80,7 @@ api-server:
   signal-path: ${api-server.internal-prefix}/signals
   sync-path: ${api-server.internal-prefix}/sync
   meta-path: ${api-server.internal-prefix}/segments
+  summary-path: ${api-server.internal-prefix}/summaries
 
 highlight:
   engine:

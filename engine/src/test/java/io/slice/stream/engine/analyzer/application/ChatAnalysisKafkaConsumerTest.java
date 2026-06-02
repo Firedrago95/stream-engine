@@ -62,7 +62,7 @@ class ChatAnalysisKafkaConsumerTest {
     private ChatMessage createChatMessage(String content) {
         return new ChatMessage(
             MessageType.TEXT,
-            new Author("abcd1", "nickname", null),
+            new Author("abcd1", "nickname", null, false),
             content,
             Instant.now(),
             "abcde1234",

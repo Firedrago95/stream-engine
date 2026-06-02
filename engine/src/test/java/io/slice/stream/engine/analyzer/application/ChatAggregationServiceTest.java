@@ -32,16 +32,23 @@ class ChatAggregationServiceTest {
 
     private MeterRegistry meterRegistry;
 
+    @Mock
+    private io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient apiServerClient;
+
     private ChatAggregationService chatAggregationService;
 
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
-        chatAggregationService = new ChatAggregationService(chatRoomAggregationRepository, meterRegistry);
+        chatAggregationService = new ChatAggregationService(chatRoomAggregationRepository, apiServerClient, meterRegistry);
     }
 
     private ChatMessage createChatMessage(String streamId, Instant time) {
-        return new ChatMessage(null, null, "message", time, streamId, 0L, null);
+        return createChatMessage(streamId, time, false);
+    }
+
+    private ChatMessage createChatMessage(String streamId, Instant time, boolean isSubscriber) {
+        return new ChatMessage(null, new io.slice.stream.engine.chat.domain.model.Author("test", "test", "url", isSubscriber), "message", time, streamId, 0L, null);
     }
 
     @Test
@@ -80,6 +87,25 @@ class ChatAggregationServiceTest {
         assertThat(result.getCount()).isEqualTo(2L);
         assertThat(result.getLastChatTime()).isEqualTo(time2);
     }
+
+    @Test
+    void aggregate_구독자_메시지인_경우_subscriberCount도_증가한다() {
+        // given
+        String streamId = "subStream";
+        ChatMessage normalMessage = createChatMessage(streamId, Instant.now(), false);
+        ChatMessage subMessage1 = createChatMessage(streamId, Instant.now(), true);
+        ChatMessage subMessage2 = createChatMessage(streamId, Instant.now(), true);
+
+        // when
+        chatAggregationService.aggregate(normalMessage);
+        chatAggregationService.aggregate(subMessage1);
+        chatAggregationService.aggregate(subMessage2);
+
+        // then
+        ChatRoomAggregation result = chatAggregationService.getAggregationFor(streamId);
+        assertThat(result.getCount()).isEqualTo(3L);
+        assertThat(result.getSubscriberCount()).isEqualTo(2L);
+    }
     
     @Test
     void aggregate_오래된_메시지는_lastChatTime을_변경하지_않는다() {
@@ -112,10 +138,10 @@ class ChatAggregationServiceTest {
         Instant time2 = Instant.parse("2026-02-12T10:00:10Z");
 
         ChatRoomAggregation aggregation1 = new ChatRoomAggregation("stream1", time1);
-        aggregation1.increaseCount(time1);
+        aggregation1.increaseCount(time1, false);
         ChatRoomAggregation aggregation2 = new ChatRoomAggregation("stream2", time2);
-        aggregation2.increaseCount(time2);
-        aggregation2.increaseCount(time2);
+        aggregation2.increaseCount(time2, false);
+        aggregation2.increaseCount(time2, false);
 
         Cache<String, ChatRoomAggregation> cache = (Cache<String, ChatRoomAggregation>) ReflectionTestUtils.getField(
             chatAggregationService, "chatRoomAggregations");
@@ -137,7 +163,7 @@ class ChatAggregationServiceTest {
 
         String streamId = "expiredStream";
         ChatRoomAggregation aggregation = new ChatRoomAggregation(streamId, fixedNow);
-        aggregation.increaseCount(fixedNow);
+        aggregation.increaseCount(fixedNow, false);
 
         Cache<String, ChatRoomAggregation> cache = (Cache<String, ChatRoomAggregation>)
             ReflectionTestUtils.getField(chatAggregationService, "chatRoomAggregations");
@@ -166,5 +192,30 @@ class ChatAggregationServiceTest {
 
         // then
         assertThat(streamCount).isEqualTo(2.0);
+    }
+
+    @Test
+    void handleStreamChangedEvent_방송_종료_시_구독자_비율을_계산하여_API로_전송하고_캐시를_비운다() {
+        // given
+        String streamId = "closedStream";
+        // 10개 중 3개가 구독자 채팅 (비율 30.0%)
+        for (int i = 0; i < 7; i++) {
+            chatAggregationService.aggregate(createChatMessage(streamId, Instant.now(), false));
+        }
+        for (int i = 0; i < 3; i++) {
+            chatAggregationService.aggregate(createChatMessage(streamId, Instant.now(), true));
+        }
+
+        io.slice.stream.engine.core.event.StreamChangedEvent event = new io.slice.stream.engine.core.event.StreamChangedEvent(
+            java.util.Collections.emptySet(),
+            java.util.Set.of(streamId)
+        );
+
+        // when
+        chatAggregationService.handleStreamChangedEvent(event);
+
+        // then
+        verify(apiServerClient, times(1)).sendSessionSummaryAsync(streamId, 30.0);
+        assertThat(chatAggregationService.getAggregationFor(streamId)).isNull(); // 캐시에서 만료됨
     }
 }

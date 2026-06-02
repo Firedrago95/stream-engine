@@ -52,16 +52,20 @@ public class ChzzkMessageConverter {
 
             JsonNode profileNode = bodyNode.path("profile");
             if (profileNode.isMissingNode() || profileNode.isNull() || profileNode.asText().isBlank() || profileNode.asText().equals("null")) {
-                author = new Author("anonymous", "익명", null);
+                author = new Author("anonymous", "익명", null, false);
             } else {
                 ChzzkResponseMessage.Profile profile = jsonMapper.readValue(
                     profileNode.asText(),
                     ChzzkResponseMessage.Profile.class
                 );
+
+                boolean isSubscriber = profile.streamingProperty() != null && profile.streamingProperty().has("subscription");
+
                 author = new Author(
                     profile.userIdHash(),
                     profile.nickname(),
-                    profile.profileImageUrl()
+                    profile.profileImageUrl(),
+                    isSubscriber
                 );
             }
 
