@@ -1,6 +1,5 @@
 ALTER TABLE streams ADD COLUMN follower_count INT;
 ALTER TABLE streams ADD COLUMN subscriber_count INT;
-ALTER TABLE streams ADD COLUMN last_follower_update_at TIMESTAMPTZ;
 ALTER TABLE stream_sessions ADD COLUMN average_viewer_count INT;
 ALTER TABLE stream_sessions ADD COLUMN session_follower_growth INT;
 ALTER TABLE stream_sessions ADD COLUMN subscriber_chat_ratio DOUBLE PRECISION;

@@ -42,10 +42,13 @@ public class StreamSessionEntity {
     @Column(name = "peak_viewers")
     private Integer peakViewers;
 
+    @Column(name = "average_viewer_count")
     private Integer averageViewerCount;
 
+    @Column(name = "session_follower_growth")
     private Integer sessionFollowerGrowth;
 
+    @Column(name = "subscriber_chat_ratio")
     private Double subscriberChatRatio;
 
     public StreamSessionEntity(String streamId, String sessionId, String title, String categoryName, Instant startedAt) {

@@ -5,9 +5,14 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import java.time.Instant;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
 @Entity
+@Table(name = "view_metric_timelines")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ViewMetricTimelineEntity {
 
     @Id
