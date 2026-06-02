@@ -55,6 +55,8 @@ analysis:
     path: ${analysis.internal-prefix}/sync
   meta:
     path: ${analysis.internal-prefix}/segments
+  summary:
+    path: ${analysis.internal-prefix}/summaries
 
 highlight:
   leading-buffer: 20s           # 피크 발생 20초 전부터 영상 시작

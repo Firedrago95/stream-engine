@@ -162,4 +162,40 @@ class StreamSessionServiceTest {
         assertThat(activeSegment.getEndOffsetMs()).isNull();
         verify(segmentRepository, times(0)).saveAll(any());
     }
+
+    @Test
+    void 방송_세션_요약정보가_수신되면_정상적으로_구독자_비율이_업데이트된다() {
+        // given
+        String streamId = "stream-summary";
+        StreamSessionEntity session = new StreamSessionEntity(streamId, "session-id", "방제", "카테고리", Instant.now());
+        
+        when(sessionRepository.findActiveSession(streamId))
+            .thenReturn(Optional.of(session));
+            
+        io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest request = 
+            new io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest(45.5);
+
+        // when
+        streamSessionService.updateSessionSummary(streamId, request);
+
+        // then
+        assertThat(session.getSubscriberChatRatio()).isEqualTo(45.5);
+    }
+    
+    @Test
+    void 방송_세션_요약정보_수신시_활성세션이_없으면_BusinessException이_발생한다() {
+        // given
+        String streamId = "stream-not-found";
+        when(sessionRepository.findActiveSession(streamId))
+            .thenReturn(Optional.empty());
+            
+        io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest request = 
+            new io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest(45.5);
+
+        // when & then
+        org.junit.jupiter.api.Assertions.assertThrows(
+            io.slice.stream.apiserver.global.error.BusinessException.class, 
+            () -> streamSessionService.updateSessionSummary(streamId, request)
+        );
+    }
 }

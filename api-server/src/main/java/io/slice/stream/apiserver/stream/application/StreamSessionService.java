@@ -1,5 +1,7 @@
 package io.slice.stream.apiserver.stream.application;
 
+import io.slice.stream.apiserver.global.error.BusinessException;
+import io.slice.stream.apiserver.global.error.ErrorCode;
 import io.slice.stream.apiserver.stream.application.dto.ChangedStreamRequest;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
@@ -7,6 +9,7 @@ import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRe
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
+import io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -143,4 +146,11 @@ public class StreamSessionService {
         return newSessionId;
     }
 
+    @Transactional
+    public void updateSessionSummary(String streamId, StreamSessionSummaryRequest summaries) {
+        StreamSessionEntity session = sessionRepository.findActiveSession(streamId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.STREAM_NOT_FOUND, "해당 방송의 세션을 찾을 수 없습니다."));
+
+        session.updateSubscriberChatRatio(summaries.subscriberChatRatio());
+    }
 }
