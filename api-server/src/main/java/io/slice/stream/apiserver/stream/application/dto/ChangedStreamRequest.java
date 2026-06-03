@@ -6,6 +6,7 @@ import java.time.Instant;
 
 public record ChangedStreamRequest(
     @NotBlank String streamId,
+    @NotBlank String liveId,
     String oldTitle,
     @NotBlank String newTitle,
     String oldCategory,
