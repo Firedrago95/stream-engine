@@ -111,7 +111,7 @@ public class StreamSessionService {
         ));
     }
 
-    @Scheduled(fixedRate = 600_000)
+    @Scheduled(fixedRate = 3_600_000)
     @Transactional
     public void closeOfflineSessions() {
         Instant offlineThreshold = Instant.now().minus(Duration.ofMinutes(6));
