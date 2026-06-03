@@ -154,6 +154,6 @@ public class StreamSessionService {
             .orElseThrow(() -> new BusinessException(ErrorCode.STREAM_NOT_FOUND, "해당 방송의 세션을 찾을 수 없습니다."));
 
         session.updateSubscriberChatRatio(summaries.subscriberChatRatio());
-        session.finishSession(summaries.changedAt(), null);
+        session.finishSession(summaries.endedAt(), null);
     }
 }

@@ -7,5 +7,5 @@ import java.time.Instant;
 public record StreamSessionSummaryRequest(
     @NotNull @PositiveOrZero Double subscriberChatRatio,
     @NotNull String liveId,
-    @NotNull Instant changedAt
+    @NotNull Instant endedAt
 ) {}
