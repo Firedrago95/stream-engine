@@ -64,7 +64,11 @@ public class StreamSessionService {
 
         List<StreamSessionSegmentEntity> activeSegments = segmentRepository.findAllActiveSegments(sessionIds);
         Map<String, StreamSessionSegmentEntity> segmentMap = activeSegments.stream()
-            .collect(Collectors.toMap(StreamSessionSegmentEntity::getSessionId, s -> s));
+            .collect(Collectors.toMap(
+                StreamSessionSegmentEntity::getSessionId, 
+                s -> s, 
+                (existing, replacement) -> existing
+            ));
 
         List<StreamSessionSegmentEntity> segmentsToSave = new ArrayList<>();
         for (ChangedStreamRequest req : requests) {
