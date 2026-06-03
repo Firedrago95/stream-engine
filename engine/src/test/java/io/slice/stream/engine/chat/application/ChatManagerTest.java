@@ -55,13 +55,13 @@ class ChatManagerTest {
         StreamTarget streamTarget1 = new StreamTarget("stream1", "스트리머1", "chat1", 1L, "제목1", 100, "https://thumb.com/1.jpg", "음악", Instant.EPOCH);
         StreamTarget streamTarget2 = new StreamTarget("stream2", "스트리머2", "chat2", 2L, "제목2", 200, "https://thumb.com/2.jpg", "게임", Instant.EPOCH);
         Set<StreamTarget> newStreamTargets = Set.of(streamTarget1, streamTarget2);
-        Set<String> closedStreamIds = Collections.emptySet(); // 💡 변수명 변경 (ChatChannelId -> StreamId)
+        Set<StreamTarget> closedStreams = Collections.emptySet();
 
         when(chatCollectorFactory.start(streamTarget1)).thenReturn(mockCollector);
         when(chatCollectorFactory.start(streamTarget2)).thenReturn(mockCollector);
 
         // when
-        chatManager.manageStreams(newStreamTargets, closedStreamIds);
+        chatManager.manageStreams(newStreamTargets, closedStreams);
 
         // then
         verify(chatCollectorFactory, timeout(2000).times(1)).start(streamTarget1);
@@ -81,10 +81,10 @@ class ChatManagerTest {
         verify(chatCollectorFactory, timeout(2000)).start(streamTarget1);
 
         Set<StreamTarget> newStreamTargets = Collections.emptySet();
-        Set<String> closedStreamIds = Set.of(streamTarget1.channelId());
+        Set<StreamTarget> closedStreams = Set.of(streamTarget1);
 
         // when
-        chatManager.manageStreams(newStreamTargets, closedStreamIds);
+        chatManager.manageStreams(newStreamTargets, closedStreams);
 
         // then
         verify(collectorToStop).disconnect();
@@ -103,14 +103,14 @@ class ChatManagerTest {
         StreamTarget streamTargetNew2 = new StreamTarget("streamNew2", "신규2", "chatNew2", 102L, "신규제목2", 222, "https://thumb.com/new2.jpg", "먹방", Instant.EPOCH);
         Set<StreamTarget> newStreamTargets = Set.of(streamTargetNew1, streamTargetNew2);
 
-        Set<String> closedStreamIds = Set.of(streamTargetToClose.channelId());
+        Set<StreamTarget> closedStreams = Set.of(streamTargetToClose);
 
         ChatCollector newCollector = mock(ChatCollector.class);
         when(chatCollectorFactory.start(streamTargetNew1)).thenReturn(newCollector);
         when(chatCollectorFactory.start(streamTargetNew2)).thenReturn(newCollector);
 
         // when
-        chatManager.manageStreams(newStreamTargets, closedStreamIds);
+        chatManager.manageStreams(newStreamTargets, closedStreams);
 
         // then
         verify(chatCollectorFactory, timeout(2000).times(1)).start(streamTargetNew1);
@@ -122,10 +122,10 @@ class ChatManagerTest {
     void 스트림에_변화가_없을_경우_아무_동작도_하지_않아야_한다() {
         // given
         Set<StreamTarget> newStreamTargets = Collections.emptySet();
-        Set<String> closedStreamIds = Collections.emptySet();
+        Set<StreamTarget> closedStreams = Collections.emptySet();
 
         // when
-        chatManager.manageStreams(newStreamTargets, closedStreamIds);
+        chatManager.manageStreams(newStreamTargets, closedStreams);
 
         // then
         verify(chatCollectorFactory, never()).start(any(StreamTarget.class));
@@ -135,10 +135,11 @@ class ChatManagerTest {
     void 관리하지_않는_스트림의_종료_요청은_무시해야_한다() {
         // given
         Set<StreamTarget> newStreamTargets = Collections.emptySet();
-        Set<String> closedStreamIds = Set.of("nonExistentStreamId");
+        StreamTarget nonExistent = new StreamTarget("nonExistentStreamId", "non", "non", 999L, "non", 0, "non", "non", Instant.EPOCH);
+        Set<StreamTarget> closedStreams = Set.of(nonExistent);
 
         // when
-        chatManager.manageStreams(newStreamTargets, closedStreamIds);
+        chatManager.manageStreams(newStreamTargets, closedStreams);
 
         // then
         verify(mockCollector, never()).disconnect();

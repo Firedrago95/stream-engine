@@ -59,8 +59,9 @@ class IngestionServiceTest {
     void 새로운_스트림과_종료된_스트림이_있을때_StreamChangedEvent를_한번만_발행해야_한다() {
         // given
         StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 123L, "title1", 10, "https://thumb.com/ch1.jpg", "GAME", Instant.EPOCH);
+        StreamTarget streamTarget2 = new StreamTarget("ch2", "chName2", "chatCh2", 124L, "title2", 20, "https://thumb.com/ch2.jpg", "GAME", Instant.EPOCH);
         List<StreamTarget> newStreams = List.of(streamTarget1);
-        StreamUpdateResults results = new StreamUpdateResults(Set.of(streamTarget1), Set.of("ch2"), Set.of());
+        StreamUpdateResults results = new StreamUpdateResults(Set.of(streamTarget1), Set.of(streamTarget2), Set.of());
 
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(newStreams);
         when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1", "ch2"));
@@ -75,8 +76,8 @@ class IngestionServiceTest {
         verify(eventPublisher).publishEvent(captor.capture());
 
         StreamChangedEvent event = captor.getValue();
-        assertThat(event.newStreamIds()).containsExactly(streamTarget1);
-        assertThat(event.closedStreamIds()).containsExactly("ch2");
+        assertThat(event.newStreams()).containsExactly(streamTarget1);
+        assertThat(event.closedStreams()).containsExactly(streamTarget2);
         verify(apiServerClient).syncStreams(anyList());
         verify(streamRepository).sync(results.closedStreamIds(), newStreams);
     }

@@ -26,7 +26,8 @@ class StreamUpdateAnalyzerTest {
 
         List<StreamTarget> currentTargets = List.of(streamTarget1, streamTarget2);
         Set<String> activeChannelIds = Set.of("channel1", "channel3");
-        List<StreamTarget> oldTargets = List.of(streamTarget1);
+        StreamTarget streamTarget3 = new StreamTarget("channel3", "채널3", "chat3", 300L, "title3", 500, "thumb3.jpg", "먹방", Instant.EPOCH);
+        List<StreamTarget> oldTargets = List.of(streamTarget1, streamTarget3);
 
         // when
         StreamUpdateResults results = analyzer.analyze(currentTargets, activeChannelIds, oldTargets, Instant.now());
@@ -35,7 +36,7 @@ class StreamUpdateAnalyzerTest {
         assertAll(
             () -> assertThat(results.newStreams()).hasSize(1),
             () -> assertThat(results.newStreams().iterator().next().channelId()).isEqualTo("channel2"),
-            () -> assertThat(results.closedStreamIds()).containsExactly("channel3")
+            () -> assertThat(results.closedStreamIds()).containsExactly(streamTarget3)
         );
     }
 

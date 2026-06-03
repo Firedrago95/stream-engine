@@ -74,11 +74,13 @@ public class ApiServerClient {
     }
 
     @Async
-    public void sendSessionSummaryAsync(String streamId, double subscriberChatRatio) {
+    public void sendSessionSummaryAsync(String streamId, String liveId, double subscriberChatRatio) {
         try {
             restClient.post()
                 .uri(summaryPath, streamId)
-                .body(Map.of("subscriberChatRatio", subscriberChatRatio))
+                .body(Map.of(
+                    "subscriberChatRatio", subscriberChatRatio,
+                    "liveId", liveId))
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, (request, response) -> {
                     log.error("[Summary Error] 서버 응답 오류: {}", response.getStatusCode());

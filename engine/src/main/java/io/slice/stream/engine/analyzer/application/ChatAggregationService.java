@@ -9,6 +9,7 @@ import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregation;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregationRepository;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import io.slice.stream.engine.core.event.StreamChangedEvent;
+import io.slice.stream.engine.core.model.StreamTarget;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
@@ -88,10 +89,12 @@ public class ChatAggregationService {
 
     @EventListener
     public void handleStreamChangedEvent(StreamChangedEvent event) {
-        if (event.closedStreamIds().isEmpty()) return;
+        if (event.closedStreams().isEmpty()) return;
 
-        for (String streamId : event.closedStreamIds()) {
-            ChatRoomAggregation aggregation = chatRoomAggregations.getIfPresent(streamId);
+        for (StreamTarget closedStream : event.closedStreams()) {
+            String closedStreamId = closedStream.channelId();
+            String closedLiveId = String.valueOf(closedStream.liveId());
+            ChatRoomAggregation aggregation = chatRoomAggregations.getIfPresent(closedStreamId);
 
             if (aggregation != null) {
                 Long total = aggregation.getCount();
@@ -99,11 +102,11 @@ public class ChatAggregationService {
 
                 double ratio = (total == 0) ? 0.0 : Math.round(((double) sub / total) * 1000.0) / 10.0;
 
-                log.info("[정산 완료] 스트림 {} 종료. 총 채팅: {}, 구독자 채팅: {}, 비율: {}", streamId, total, sub, ratio);
+                log.info("[정산 완료] 스트림 {} 종료. 총 채팅: {}, 구독자 채팅: {}, 비율: {}", closedStreamId, total, sub, ratio);
 
-                apiServerClient.sendSessionSummaryAsync(streamId, ratio);
+                apiServerClient.sendSessionSummaryAsync(closedStreamId, closedLiveId, ratio);
 
-                chatRoomAggregations.invalidate(streamId);
+                chatRoomAggregations.invalidate(closedStreamId);
             }
         }
     }

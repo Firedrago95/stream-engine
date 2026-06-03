@@ -65,13 +65,14 @@ class ChatEventListenerTest {
         // given
         StreamTarget streamTarget1 = new StreamTarget("stream1", "침착맨", "chat1", 1L, "title1", 100, "https://thumb.com/1.jpg", "소통", Instant.EPOCH);
         Set<StreamTarget> newStreamTargets = Set.of(streamTarget1);
-        Set<String> closedStreamIds = Set.of("stream3");
-        StreamChangedEvent event = new StreamChangedEvent(newStreamTargets, closedStreamIds);
+        StreamTarget closedStream = new StreamTarget("stream3", "c", "c", 3L, "t", 0, "u", "c", Instant.EPOCH);
+        Set<StreamTarget> closedStreams = Set.of(closedStream);
+        StreamChangedEvent event = new StreamChangedEvent(newStreamTargets, closedStreams);
 
         // when
         chatEventListener.handleStreamChangedEvent(event);
 
         // then
-        verify(chatManager).manageStreams(newStreamTargets, closedStreamIds);
+        verify(chatManager).manageStreams(newStreamTargets, closedStreams);
     }
 }

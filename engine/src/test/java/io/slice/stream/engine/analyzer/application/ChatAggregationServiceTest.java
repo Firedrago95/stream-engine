@@ -206,16 +206,17 @@ class ChatAggregationServiceTest {
             chatAggregationService.aggregate(createChatMessage(streamId, Instant.now(), true));
         }
 
+        io.slice.stream.engine.core.model.StreamTarget closedTarget = new io.slice.stream.engine.core.model.StreamTarget(streamId, "이름", "chat1", 999L, "제목", 100, "url", "cat", Instant.EPOCH);
         io.slice.stream.engine.core.event.StreamChangedEvent event = new io.slice.stream.engine.core.event.StreamChangedEvent(
             java.util.Collections.emptySet(),
-            java.util.Set.of(streamId)
+            java.util.Set.of(closedTarget)
         );
 
         // when
         chatAggregationService.handleStreamChangedEvent(event);
 
         // then
-        verify(apiServerClient, times(1)).sendSessionSummaryAsync(streamId, 30.0);
+        verify(apiServerClient, times(1)).sendSessionSummaryAsync(streamId, "999", 30.0);
         assertThat(chatAggregationService.getAggregationFor(streamId)).isNull(); // 캐시에서 만료됨
     }
 }
