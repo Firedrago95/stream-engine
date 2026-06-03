@@ -48,7 +48,7 @@ class StreamSessionSummaryControllerTest {
     void 요약_정보_전송_API_호출시_200_OK를_반환한다() throws Exception {
         // given
         String streamId = "test-stream-id";
-        StreamSessionSummaryRequest request = new StreamSessionSummaryRequest(35.5);
+        StreamSessionSummaryRequest request = new StreamSessionSummaryRequest(35.5, "test-live-id");
         
         doNothing().when(streamSessionService).updateSessionSummary(eq(streamId), any(StreamSessionSummaryRequest.class));
 

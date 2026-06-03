@@ -6,6 +6,9 @@ public record StreamSyncRequest(
     @NotBlank(message = "채널 ID는 필수입니다.")
     String streamId,
 
+    @NotBlank(message = "세션 ID는 필수입니다.")
+    String liveId,
+
     @NotBlank(message = "스트리머 이름은 필수입니다.")
     String streamerName,
 

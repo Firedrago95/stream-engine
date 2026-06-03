@@ -177,7 +177,7 @@ class IngestionServiceTest {
     void 메타데이터_변경이_감지되면_API_서버에_세그먼트_기록을_전송해야_한다() {
         // given
         StreamTarget dummyTarget = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 100, "url", "cat", Instant.EPOCH);
-        ChangedStream changed = new ChangedStream("ch1", "롤", "롤 솔랭", "GAME", "GAME", Instant.EPOCH, 0L);
+        ChangedStream changed = new ChangedStream("ch1", "live1", "롤", "롤 솔랭", "GAME", "GAME", Instant.EPOCH, 0L);
         Set<ChangedStream> changedStreams = Set.of(changed);
         StreamUpdateResults results = new StreamUpdateResults(Set.of(), Set.of(), changedStreams);
 

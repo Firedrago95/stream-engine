@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,10 +38,10 @@ public class StreamSessionService {
 
     @Cacheable(value = "activeSessions", key = "#streamId", sync = true)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public String getOrCreateActiveSession(String streamId, Instant signalTime) {
+    public String getOrCreateActiveSession(String streamId, String sessionId, Instant signalTime) {
         return sessionRepository.findActiveSession(streamId)
             .map(StreamSessionEntity::getSessionId)
-            .orElseGet(() -> createNewSession(streamId, signalTime));
+            .orElseGet(() -> createNewSession(streamId, sessionId, signalTime));
     }
 
     @Transactional
@@ -70,7 +69,7 @@ public class StreamSessionService {
         List<StreamSessionSegmentEntity> segmentsToSave = new ArrayList<>();
         for (ChangedStreamRequest req : requests) {
             StreamSessionEntity session = sessionMap.get(req.streamId());
-            if (session == null) continue;
+            if (session == null || !session.getSessionId().equals(req.liveId())) continue;
 
             StreamSessionSegmentEntity activeSegment = segmentMap.get(session.getSessionId());
             processSegmentUpdate(req, session, activeSegment)
@@ -129,26 +128,25 @@ public class StreamSessionService {
         }
     }
 
-    private String createNewSession(String streamId, Instant startedAt) {
-        String newSessionId = UUID.randomUUID().toString();
+    private String createNewSession(String streamId, String sessionId, Instant startedAt) {
         StreamEntity streamInfo = streamRepository.findByStreamId(streamId).orElse(null);
         String title = (streamInfo != null) ? streamInfo.getLiveTitle() : "제목 없음";
         String category = (streamInfo != null) ? streamInfo.getCategoryName() : "카테고리 없음";
 
-        StreamSessionEntity newSession = new StreamSessionEntity(streamId, newSessionId, title, category, startedAt);
+        StreamSessionEntity newSession = new StreamSessionEntity(streamId, sessionId, title, category, startedAt);
         sessionRepository.save(newSession);
 
         StreamSessionSegmentEntity initialSegment =
-            new StreamSessionSegmentEntity(streamId, newSessionId, title, category, startedAt, 0L);
+            new StreamSessionSegmentEntity(streamId, sessionId, title, category, startedAt, 0L);
         segmentRepository.save(initialSegment);
 
-        log.info("[Session-Manager] 새로운 방송 세션 생성 - Stream: {}, SessionId: {}", streamId, newSessionId);
-        return newSessionId;
+        log.info("[Session-Manager] 새로운 방송 세션 생성 - Stream: {}, SessionId: {}", streamId, sessionId);
+        return sessionId;
     }
 
     @Transactional
     public void updateSessionSummary(String streamId, StreamSessionSummaryRequest summaries) {
-        StreamSessionEntity session = sessionRepository.findActiveSession(streamId)
+        StreamSessionEntity session = sessionRepository.findActiveSession(streamId, summaries.liveId())
             .orElseThrow(() -> new BusinessException(ErrorCode.STREAM_NOT_FOUND, "해당 방송의 세션을 찾을 수 없습니다."));
 
         session.updateSubscriberChatRatio(summaries.subscriberChatRatio());

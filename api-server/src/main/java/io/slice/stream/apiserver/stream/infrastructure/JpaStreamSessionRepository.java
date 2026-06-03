@@ -46,4 +46,16 @@ public interface JpaStreamSessionRepository extends JpaRepository<StreamSessionE
          AND ss.endedAt IS NULL
            """)
     List<StreamSessionEntity> findAllActiveSessions(@Param("streamIds") List<String> streamIds);
+
+    @Query("""
+           SELECT ss
+           FROM StreamSessionEntity ss
+           WHERE ss.streamId = :streamId
+             AND ss.sessionId = :sessionId
+             AND ss.endedAt IS NULL
+           """)
+    Optional<StreamSessionEntity> findActiveSession(
+        @Param("streamId") String streamId,
+        @Param("sessionId") String sessionId
+    );
 }

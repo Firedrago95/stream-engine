@@ -4,7 +4,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
 public record StreamSessionSummaryRequest(
-    @NotNull
-    @PositiveOrZero
-    Double subscriberChatRatio
+    @NotNull @PositiveOrZero Double subscriberChatRatio,
+    @NotNull String liveId
 ) {}

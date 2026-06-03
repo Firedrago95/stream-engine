@@ -50,12 +50,13 @@ class StreamSegmentControllerTest {
     void 변경_이벤트_수신_시_202_ACCEPTED를_반환하고_서비스를_호출한다() throws Exception {
         // given
         ChangedStreamRequest request = new ChangedStreamRequest(
-            "stream-1",
-            "이전방제",
-            "새로운방제",
-            "이전카테고리",
+            "stream1", 
+            "test-live-id", 
+            "이전방제", 
+            "새로운방제", 
+            "이전카테고리", 
             "새로운카테고리",
-            Instant.now(),
+            Instant.now(), 
             1000L
         );
         String requestBody = objectMapper.writeValueAsString(List.of(request));

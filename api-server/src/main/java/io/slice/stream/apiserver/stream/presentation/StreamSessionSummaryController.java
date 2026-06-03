@@ -22,7 +22,8 @@ public class StreamSessionSummaryController {
     @PostMapping("/{streamId}")
     public ResponseEntity<Void> summarize (
         @PathVariable("streamId") String streamId,
-        @RequestBody StreamSessionSummaryRequest summaries) {
+        @RequestBody StreamSessionSummaryRequest summaries
+    ) {
         log.info("[Summary] 방송 요약 정보 수신 streamId={}", streamId);
         streamSessionService.updateSessionSummary(streamId, summaries);
         return ResponseEntity.ok().build();

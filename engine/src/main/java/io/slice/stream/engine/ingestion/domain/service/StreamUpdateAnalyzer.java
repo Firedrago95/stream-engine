@@ -66,6 +66,7 @@ public class StreamUpdateAnalyzer {
         Long changedOffsetMs = Duration.between(newTarget.startedAt(), changedAt).toMillis();
         return new ChangedStream(
             newTarget.channelId(),
+            String.valueOf(newTarget.liveId()),
             oldTarget.liveTitle(),
             newTarget.liveTitle(),
             oldTarget.categoryName(),

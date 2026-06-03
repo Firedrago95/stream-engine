@@ -41,7 +41,7 @@ class ApiServerClientTest {
     void 방송_동기화_요청시_정확한_경로와_헤더로_데이터를_전송해야_한다() throws Exception {
         // given
         List<StreamSyncRequest> requests = List.of(
-            new StreamSyncRequest("ch1", "침착맨", "제목1", "thumb1.jpg", 1000,"소통")
+            new StreamSyncRequest("ch1", "live1", "침착맨", "제목1", "thumb1.jpg", 1000,"소통")
         );
 
         mockServer.expect(requestTo("http://localhost:8080" + syncPath))

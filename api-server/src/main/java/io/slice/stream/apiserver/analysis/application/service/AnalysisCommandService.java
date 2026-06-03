@@ -22,7 +22,7 @@ public class AnalysisCommandService {
         signals.forEach(rawSignal -> {
             // 캐시/DB를 통해 현재 세션 ID 획득
             String currentSessionId = streamSessionService.getOrCreateActiveSession(
-                rawSignal.streamId(), rawSignal.timestamp()
+                rawSignal.streamId(), rawSignal.sessionId(), rawSignal.timestamp()
             );
             // 세션 ID가 주입된 객체로 재생성
             AnalysisSignal signalWithSession = AnalysisSignal.of(
