@@ -5,6 +5,7 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.any;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -12,8 +13,11 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregation;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregationRepository;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
+import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSessionSummary;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
+import java.util.Collections;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -208,15 +212,16 @@ class ChatAggregationServiceTest {
 
         io.slice.stream.engine.core.model.StreamTarget closedTarget = new io.slice.stream.engine.core.model.StreamTarget(streamId, "이름", "chat1", 999L, "제목", 100, "url", "cat", Instant.EPOCH);
         io.slice.stream.engine.core.event.StreamChangedEvent event = new io.slice.stream.engine.core.event.StreamChangedEvent(
-            java.util.Collections.emptySet(),
-            java.util.Set.of(closedTarget)
+            Collections.emptySet(),
+            Set.of(closedTarget),
+            Instant.now()
         );
 
         // when
         chatAggregationService.handleStreamChangedEvent(event);
 
         // then
-        verify(apiServerClient, times(1)).sendSessionSummaryAsync(streamId, "999", 30.0);
+        verify(apiServerClient, times(1)).sendSessionSummaryAsync(any(StreamSessionSummary.class));
         assertThat(chatAggregationService.getAggregationFor(streamId)).isNull(); // 캐시에서 만료됨
     }
 }

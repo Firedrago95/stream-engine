@@ -111,7 +111,7 @@ public class StreamSessionService {
         ));
     }
 
-    @Scheduled(fixedRate = 60_000)
+    @Scheduled(fixedRate = 600_000)
     @Transactional
     public void closeOfflineSessions() {
         Instant offlineThreshold = Instant.now().minus(Duration.ofMinutes(6));
@@ -154,5 +154,6 @@ public class StreamSessionService {
             .orElseThrow(() -> new BusinessException(ErrorCode.STREAM_NOT_FOUND, "해당 방송의 세션을 찾을 수 없습니다."));
 
         session.updateSubscriberChatRatio(summaries.subscriberChatRatio());
+        session.finishSession(summaries.changedAt(), null);
     }
 }

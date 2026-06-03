@@ -67,7 +67,7 @@ class ChatEventListenerTest {
         Set<StreamTarget> newStreamTargets = Set.of(streamTarget1);
         StreamTarget closedStream = new StreamTarget("stream3", "c", "c", 3L, "t", 0, "u", "c", Instant.EPOCH);
         Set<StreamTarget> closedStreams = Set.of(closedStream);
-        StreamChangedEvent event = new StreamChangedEvent(newStreamTargets, closedStreams);
+        StreamChangedEvent event = new StreamChangedEvent(newStreamTargets, closedStreams, Instant.now());
 
         // when
         chatEventListener.handleStreamChangedEvent(event);

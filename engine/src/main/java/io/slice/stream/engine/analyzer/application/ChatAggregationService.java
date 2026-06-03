@@ -11,6 +11,7 @@ import io.slice.stream.engine.chat.domain.model.ChatMessage;
 import io.slice.stream.engine.core.event.StreamChangedEvent;
 import io.slice.stream.engine.core.model.StreamTarget;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient;
+import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSessionSummary;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -91,6 +92,7 @@ public class ChatAggregationService {
     public void handleStreamChangedEvent(StreamChangedEvent event) {
         if (event.closedStreams().isEmpty()) return;
 
+        Instant changedAt = event.changedAt();
         for (StreamTarget closedStream : event.closedStreams()) {
             String closedStreamId = closedStream.channelId();
             String closedLiveId = String.valueOf(closedStream.liveId());
@@ -104,7 +106,7 @@ public class ChatAggregationService {
 
                 log.info("[정산 완료] 스트림 {} 종료. 총 채팅: {}, 구독자 채팅: {}, 비율: {}", closedStreamId, total, sub, ratio);
 
-                apiServerClient.sendSessionSummaryAsync(closedStreamId, closedLiveId, ratio);
+                apiServerClient.sendSessionSummaryAsync(new StreamSessionSummary(closedStreamId, closedLiveId, ratio, changedAt));
 
                 chatRoomAggregations.invalidate(closedStreamId);
             }

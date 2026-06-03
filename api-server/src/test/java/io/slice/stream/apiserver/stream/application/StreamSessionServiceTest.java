@@ -173,7 +173,7 @@ class StreamSessionServiceTest {
             .thenReturn(Optional.of(session));
             
         io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest request = 
-            new io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest(45.5, "test-live-id");
+            new io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest(45.5, "test-live-id", java.time.Instant.now());
 
         // when
         streamSessionService.updateSessionSummary(streamId, request);
@@ -190,7 +190,7 @@ class StreamSessionServiceTest {
             .thenReturn(Optional.empty());
             
         io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest request = 
-            new io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest(45.5, "test-live-id");
+            new io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest(45.5, "test-live-id", java.time.Instant.now());
 
         // when & then
         org.junit.jupiter.api.Assertions.assertThrows(

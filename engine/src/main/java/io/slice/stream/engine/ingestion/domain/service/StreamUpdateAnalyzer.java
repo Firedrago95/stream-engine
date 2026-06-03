@@ -28,7 +28,7 @@ public class StreamUpdateAnalyzer {
         Set<StreamTarget> closedStreamIds = filterClosedStreams(currentTargets, oldTargets);
         Set<ChangedStream> changedStreams = detectChangedStreams(currentTargets, oldTargets, changedAt);
 
-        return new StreamUpdateResults(newStreams, closedStreamIds, changedStreams);
+        return new StreamUpdateResults(newStreams, closedStreamIds, changedStreams, changedAt);
     }
 
     private Set<StreamTarget> filterNewStreams(List<StreamTarget> currentTargets, Set<String> activeChannelIds) {

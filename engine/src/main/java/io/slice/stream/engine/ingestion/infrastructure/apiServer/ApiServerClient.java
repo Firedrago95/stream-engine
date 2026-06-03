@@ -1,9 +1,9 @@
 package io.slice.stream.engine.ingestion.infrastructure.apiServer;
 
 import io.slice.stream.engine.ingestion.domain.model.ChangedStream;
+import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSessionSummary;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSyncRequest;
 import java.util.List;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -74,20 +74,18 @@ public class ApiServerClient {
     }
 
     @Async
-    public void sendSessionSummaryAsync(String streamId, String liveId, double subscriberChatRatio) {
+    public void sendSessionSummaryAsync(StreamSessionSummary summary) {
         try {
             restClient.post()
-                .uri(summaryPath, streamId)
-                .body(Map.of(
-                    "subscriberChatRatio", subscriberChatRatio,
-                    "liveId", liveId))
+                .uri(summaryPath, summary.streamId())
+                .body(summary)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, (request, response) -> {
                     log.error("[Summary Error] 서버 응답 오류: {}", response.getStatusCode());
                 })
                 .toBodilessEntity();
 
-            log.info("[Summary] 방송 종료 요약 전송 완료 streamId ={}", streamId);
+            log.info("[Summary] 방송 종료 요약 전송 완료 streamId ={}", summary.streamId());
         } catch (Exception e) {
             log.error("[Summary Failed] 방송 종료 요약 정보 전송 API 서버 통신 중 에러: {}", e.getMessage());
         }
