@@ -43,7 +43,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info, metrics, prometheus
+        include: health, info, metrics, prometheus, threaddump
 
   endpoint:
     prometheus:
@@ -69,11 +69,11 @@ chzzk:
 
   # 3. 수집할 방송 갯수
   discovery:
-    limit: 100
+    limit: 200
 
 api-server:
   host: ${SERVER_HOST}
-  internal-prefix: ${INTERNAL_API_PREFIX}
+  internal-prefix: ${INTERNAL_API_PREFIX:/api/v1}
   secret: ${SERVER_SECRET}
   header: ${SERVER_HEADER}
 
@@ -108,5 +108,5 @@ highlight:
 # 커스텀 스레드 풀 스위칭 설정
 app:
   thread:
-    mode: virtual                     # 기본값은 'virtual'로 둔다.
-    pool-size: 100                    # platform 모드일 때 생성할 스레드 개수
+    mode: platform                     # 기본값은 'virtual'로 둔다. 'platform' 플랫폼 스레드
+    pool-size: 200                    # platform 모드일 때 생성할 스레드 개수

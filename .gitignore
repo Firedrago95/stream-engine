@@ -70,3 +70,5 @@ logs/
 # Antigravity CLI Config
 .antigravitycli/
 docs
+
+interview_prep.md

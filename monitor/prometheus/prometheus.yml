@@ -5,7 +5,7 @@ global:
 scrape_configs:
   # 1. 로컬 엔진 모듈 수집 (변경 필요 없음)
   # - 도커 내부망(slice-network)을 통해 engine 컨테이너의 9090 포트로 접근
-  - job_name: 'engine-module'
+  - job_name: 'engine-home'
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['engine:9090']
