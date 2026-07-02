@@ -71,6 +71,7 @@ services:
     ports:
       - "${ENGINE_EXTERNAL_PORT:-8081}:8080"
       - "9091:9090"  # Actuator 포트 노출 추가
+    entrypoint: ["java", "-XX:StartFlightRecording=disk=true,dumponexit=true,filename=/app/logs/engine_flight_record.jfr,maxsize=1GB", "-jar", "app.jar"]
     environment:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
