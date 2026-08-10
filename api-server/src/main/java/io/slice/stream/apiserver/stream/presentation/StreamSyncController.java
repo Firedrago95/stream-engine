@@ -23,7 +23,8 @@ public class StreamSyncController {
 
     @PostMapping
     public ResponseEntity<Void> sync (
-        @RequestBody @NotEmpty @Valid List<StreamSyncRequest> streams) {
+        @RequestBody @NotEmpty @Valid List<StreamSyncRequest> streams
+    ) {
       log.info("[Sync] {}개 방송 수신", streams.size());
       streamService.syncAll(streams);
       return ResponseEntity.ok().build();

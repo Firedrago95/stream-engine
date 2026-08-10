@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -24,10 +25,10 @@ public class StreamUpdateAnalyzer {
         Instant changedAt
     ) {
         Set<StreamTarget> newStreams = filterNewStreams(currentTargets, activeChannelIds);
-        Set<String> closedStreamIds = filterClosedStreams(currentTargets, activeChannelIds);
+        Set<StreamTarget> closedStreamIds = filterClosedStreams(currentTargets, oldTargets);
         Set<ChangedStream> changedStreams = detectChangedStreams(currentTargets, oldTargets, changedAt);
 
-        return new StreamUpdateResults(newStreams, closedStreamIds, changedStreams);
+        return new StreamUpdateResults(newStreams, closedStreamIds, changedStreams, changedAt);
     }
 
     private Set<StreamTarget> filterNewStreams(List<StreamTarget> currentTargets, Set<String> activeChannelIds) {
@@ -36,14 +37,10 @@ public class StreamUpdateAnalyzer {
             .collect(toSet());
     }
 
-    private Set<String> filterClosedStreams(List<StreamTarget> currentTargets, Set<String> activeChannelIds) {
-        Set<String> currentChannelIds = currentTargets.stream()
-            .map(StreamTarget::channelId)
-            .collect(toSet());
-
-        return activeChannelIds.stream()
-            .filter(id -> !currentChannelIds.contains(id))
-            .collect(toSet());
+    private Set<StreamTarget> filterClosedStreams(List<StreamTarget> currentTargets, List<StreamTarget> oldTargets) {
+        return oldTargets.stream()
+            .filter(oldTarget -> !currentTargets.contains(oldTarget))
+            .collect(Collectors.toSet());
     }
 
     private Set<ChangedStream> detectChangedStreams(List<StreamTarget> currentTargets, List<StreamTarget> oldTargets, Instant changedAt) {
@@ -69,6 +66,7 @@ public class StreamUpdateAnalyzer {
         Long changedOffsetMs = Duration.between(newTarget.startedAt(), changedAt).toMillis();
         return new ChangedStream(
             newTarget.channelId(),
+            String.valueOf(newTarget.liveId()),
             oldTarget.liveTitle(),
             newTarget.liveTitle(),
             oldTarget.categoryName(),

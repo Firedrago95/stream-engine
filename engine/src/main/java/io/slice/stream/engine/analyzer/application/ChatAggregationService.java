@@ -8,9 +8,14 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregation;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregationRepository;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
+import io.slice.stream.engine.core.event.StreamChangedEvent;
+import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient;
+import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSessionSummary;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -20,9 +25,15 @@ public class ChatAggregationService {
 
     private final Cache<String, ChatRoomAggregation> chatRoomAggregations;
     private final ChatRoomAggregationRepository chatRoomAggregationRepository;
+    private final ApiServerClient apiServerClient;
 
-    public ChatAggregationService(ChatRoomAggregationRepository chatRoomAggregationRepository, MeterRegistry registry) {
+    public ChatAggregationService(
+        ChatRoomAggregationRepository chatRoomAggregationRepository,
+        ApiServerClient apiServerClient,
+        MeterRegistry registry
+    ) {
         this.chatRoomAggregationRepository = chatRoomAggregationRepository;
+        this.apiServerClient = apiServerClient;
         this.chatRoomAggregations = Caffeine.newBuilder()
             .expireAfterAccess(10, TimeUnit.MINUTES)
             .removalListener((String key, ChatRoomAggregation value, RemovalCause cause) -> {
@@ -46,7 +57,10 @@ public class ChatAggregationService {
             k -> new ChatRoomAggregation(streamId, Instant.EPOCH)
         );
 
-        chatRoomAggregation.increaseCount(chatMessage.time());
+        chatRoomAggregation.increaseCount(
+            chatMessage.time(),
+            chatMessage.author().isSubscriber()
+        );
     }
 
     @Scheduled(fixedRate = 3_000)
@@ -72,5 +86,30 @@ public class ChatAggregationService {
 
     public ChatRoomAggregation getAggregationFor(String streamId) {
         return chatRoomAggregations.getIfPresent(streamId);
+    }
+
+    @EventListener
+    public void handleStreamChangedEvent(StreamChangedEvent event) {
+        if (event.closedStreams().isEmpty()) return;
+
+        Instant changedAt = event.changedAt();
+        for (StreamTarget closedStream : event.closedStreams()) {
+            String closedStreamId = closedStream.channelId();
+            String closedLiveId = String.valueOf(closedStream.liveId());
+            ChatRoomAggregation aggregation = chatRoomAggregations.getIfPresent(closedStreamId);
+
+            if (aggregation != null) {
+                Long total = aggregation.getCount();
+                Long sub = aggregation.getSubscriberCount();
+
+                double ratio = (total == 0) ? 0.0 : Math.round(((double) sub / total) * 1000.0) / 10.0;
+
+                log.info("[정산 완료] 스트림 {} 종료. 총 채팅: {}, 구독자 채팅: {}, 비율: {}", closedStreamId, total, sub, ratio);
+
+                apiServerClient.sendSessionSummaryAsync(new StreamSessionSummary(closedStreamId, closedLiveId, ratio, changedAt));
+
+                chatRoomAggregations.invalidate(closedStreamId);
+            }
+        }
     }
 }

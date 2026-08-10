@@ -44,9 +44,9 @@ public class RedisStreamRepository implements StreamRepository {
     }
 
     @Override
-    public void sync(Set<String> closedStreamIds, List<StreamTarget> activeTargets) {
+    public void sync(Set<StreamTarget> closedStreams, List<StreamTarget> activeTargets) {
         if (activeTargets.isEmpty()) {
-            if (closedStreamIds != null && !closedStreamIds.isEmpty()) {
+            if (closedStreams != null && !closedStreams.isEmpty()) {
                 redisTemplate.delete(List.of(
                     Rediskeys.STREAM_TARGETS,
                     Rediskeys.STREAM_LIVE_HASH,
@@ -56,18 +56,20 @@ public class RedisStreamRepository implements StreamRepository {
             return;
         }
 
-        List<String> args = makeArguments(closedStreamIds, activeTargets);
+        List<String> args = makeArguments(closedStreams, activeTargets);
         redisTemplate.execute(
             updateStreamScript,
             List.of(Rediskeys.STREAM_TARGETS, Rediskeys.STREAM_LIVE_HASH, Rediskeys.ANALYSIS_INDEX),
-            args.toArray(new String[0])
+            (Object[]) args.toArray(new String[0])
         );
     }
 
-    private List<String> makeArguments(Set<String> closedStreamIds, List<StreamTarget> streamTargets) {
+    private List<String> makeArguments(Set<StreamTarget> closedStreams, List<StreamTarget> streamTargets) {
         List<String> args = new ArrayList<>();
-        args.add(String.valueOf(closedStreamIds.size()));
-        args.addAll(closedStreamIds);
+        args.add(String.valueOf(closedStreams.size()));
+        for (StreamTarget target : closedStreams) {
+            args.add(target.channelId());
+        }
 
         for (StreamTarget target : streamTargets) {
             args.add(target.channelId());

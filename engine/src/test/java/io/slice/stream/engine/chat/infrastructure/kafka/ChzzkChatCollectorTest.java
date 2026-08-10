@@ -77,7 +77,7 @@ class ChzzkChatCollectorTest implements KafkaTestSupport {
     void onMessages는_ChatMessage_리스트를_Kafka_토픽으로_전송해야_한다() {
         // given
         String streamId = "channelAId";
-        Author author = new Author("hash123", "testUser", "img_url");
+        Author author = new Author("hash123", "testUser", "img_url", false);
         ChatMessage message = new ChatMessage(MessageType.TEXT, author, "Hello Kafka", Instant.now(), streamId, 0L, Map.of());
         List<ChatMessage> messages = List.of(message);
         
@@ -110,9 +110,9 @@ class ChzzkChatCollectorTest implements KafkaTestSupport {
     void onMessages에_여러_메시지가_전달되면_모든_메시지가_Kafka_토픽으로_전송되어야_한다() {
         // given
         String streamId = "channelAId";
-        Author author1 = new Author("hash1", "user1", "img_url1");
+        Author author1 = new Author("hash1", "user1", "img_url1", false);
         ChatMessage message1 = new ChatMessage(MessageType.TEXT, author1, "First message", Instant.now(), streamId, 0L, Map.of());
-        Author author2 = new Author("hash2", "user2", "img_url2");
+        Author author2 = new Author("hash2", "user2", "img_url2", false);
         ChatMessage message2 = new ChatMessage(MessageType.TEXT, author2, "Second message", Instant.now(), streamId, 0L, Map.of());
         List<ChatMessage> multipleMessages = List.of(message1, message2);
 

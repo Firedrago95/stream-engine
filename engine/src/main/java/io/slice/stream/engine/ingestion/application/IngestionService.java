@@ -42,7 +42,7 @@ public class IngestionService {
             log.warn("[Ingestion] Top 100 API가 빈 목록을 반환했습니다. 일시적 오류로 간주하여 이번 추적 사이클을 건너뜁니다.");
             return;
         }
-
+        Instant now = Instant.now();
         Set<String> activeChannelIds = streamRepository.getActiveChannelIds();
 
         // 추적중인 방송에서 api 호출 결과 빼기 => 여집합
@@ -65,7 +65,7 @@ public class IngestionService {
             currentTargets,
             activeChannelIds,
             activeStreamTargets,
-            Instant.now()
+            now
         );
 
         streamRepository.sync(updateResults.closedStreamIds(), currentTargets);
@@ -89,7 +89,8 @@ public class IngestionService {
 
             eventPublisher.publishEvent(new StreamChangedEvent(
                 results.newStreams(),
-                results.closedStreamIds()
+                results.closedStreamIds(),
+                results.changedAt()
             ));
         }
     }

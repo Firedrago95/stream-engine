@@ -4,6 +4,7 @@ import java.time.Instant;
 
 public record ChangedStream(
     String streamId,
+    String liveId,
     String oldTitle,
     String newTitle,
     String oldCategory,

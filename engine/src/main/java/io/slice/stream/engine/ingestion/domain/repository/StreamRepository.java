@@ -10,5 +10,5 @@ public interface StreamRepository {
 
     List<StreamTarget> getStreamTargets(List<String> channelIds);
 
-    void sync(Set<String> closedStreamIds, List<StreamTarget> activeTargets);
+    void sync(Set<StreamTarget> closedStreams, List<StreamTarget> activeTargets);
 }

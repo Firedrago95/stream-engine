@@ -41,7 +41,14 @@ public class AnalysisSignalEntity {
     @Column(name = "offset_ms", nullable = false)
     private Long offsetMs;
 
-    public AnalysisSignalEntity(String streamId, String sessionId, String status, Instant timestamp, Long firepower, Long offsetMs) {
+    public AnalysisSignalEntity(
+        String streamId,
+        String sessionId,
+        String status,
+        Instant timestamp,
+        Long firepower,
+        Long offsetMs
+    ) {
         this.streamId = streamId;
         this.sessionId = sessionId;
         this.status = status;

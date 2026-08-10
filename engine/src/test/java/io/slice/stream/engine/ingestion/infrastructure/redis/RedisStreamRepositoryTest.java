@@ -80,7 +80,8 @@ class RedisStreamRepositoryTest implements RedisTestSupport {
 
         StreamTarget streamTarget2 = new StreamTarget("channel2", "풍월량", "chat2", 200L, "title2", 1000, "thumb2.jpg", "게임", Instant.EPOCH);
 
-        redisStreamRepository.sync(Set.of("channel3"), List.of(streamTarget1, streamTarget2));
+        StreamTarget streamTarget3 = new StreamTarget("channel3", "c3", "c3", 3L, "t3", 0, "u3", "c3", Instant.EPOCH);
+        redisStreamRepository.sync(Set.of(streamTarget3), List.of(streamTarget1, streamTarget2));
 
         Set<String> actualTargets = stringRedisTemplate.opsForSet().members(STREAM_TARGET_KEY);
         Set<String> actualAnalysisIds = stringRedisTemplate.opsForSet().members(ANALYSIS_INDEX_KEY);
@@ -99,7 +100,8 @@ class RedisStreamRepositoryTest implements RedisTestSupport {
         stringRedisTemplate.opsForSet().add(ANALYSIS_INDEX_KEY, "channel1");
         stringRedisTemplate.opsForHash().put(STREAM_LIVE_KEY, "channel1", "some-json");
 
-        redisStreamRepository.sync(Set.of("channel1"), List.of());
+        StreamTarget streamTarget1 = new StreamTarget("channel1", "c1", "c1", 1L, "t1", 0, "u1", "c1", Instant.EPOCH);
+        redisStreamRepository.sync(Set.of(streamTarget1), List.of());
 
         assertAll(
             () -> assertThat(stringRedisTemplate.hasKey(STREAM_TARGET_KEY)).isFalse(),

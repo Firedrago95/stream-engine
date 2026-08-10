@@ -40,7 +40,7 @@ class AnalysisCommandServiceTest {
             new AnalysisSignal("stream2", "sessionId", "NORMAL", Instant.now(), 5L, 2000L)
         );
 
-        when(streamSessionService.getOrCreateActiveSession(anyString(), any(Instant.class)))
+        when(streamSessionService.getOrCreateActiveSession(anyString(), anyString(), any(Instant.class)))
             .thenReturn("test-session-id");
 
         // when

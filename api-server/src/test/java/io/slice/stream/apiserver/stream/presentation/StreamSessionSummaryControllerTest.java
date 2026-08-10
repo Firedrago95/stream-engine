@@ -1,17 +1,15 @@
 package io.slice.stream.apiserver.stream.presentation;
 
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.slice.stream.apiserver.stream.application.StreamSessionService;
-import io.slice.stream.apiserver.stream.application.dto.ChangedStreamRequest;
-import java.time.Instant;
-import java.util.List;
+import io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
@@ -23,10 +21,10 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(StreamSegmentController.class)
+@WebMvcTest(StreamSessionSummaryController.class)
 @ActiveProfiles("test")
 @DisplayNameGeneration(ReplaceUnderscores.class)
-class StreamSegmentControllerTest {
+class StreamSessionSummaryControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -37,8 +35,8 @@ class StreamSegmentControllerTest {
     @MockitoBean
     private StreamSessionService streamSessionService;
 
-    @Value("${analysis.meta.path}")
-    private String metaPath;
+    @Value("${analysis.summary.path}")
+    private String summaryPath;
 
     @Value("${analysis.header}")
     private String headerName;
@@ -47,27 +45,18 @@ class StreamSegmentControllerTest {
     private String secretValue;
 
     @Test
-    void 변경_이벤트_수신_시_202_ACCEPTED를_반환하고_서비스를_호출한다() throws Exception {
+    void 요약_정보_전송_API_호출시_200_OK를_반환한다() throws Exception {
         // given
-        ChangedStreamRequest request = new ChangedStreamRequest(
-            "stream1", 
-            "test-live-id", 
-            "이전방제", 
-            "새로운방제", 
-            "이전카테고리", 
-            "새로운카테고리",
-            Instant.now(), 
-            1000L
-        );
-        String requestBody = objectMapper.writeValueAsString(List.of(request));
+        String streamId = "test-stream-id";
+        StreamSessionSummaryRequest request = new StreamSessionSummaryRequest(35.5, "test-live-id", java.time.Instant.now());
+        
+        doNothing().when(streamSessionService).updateSessionSummary(eq(streamId), any(StreamSessionSummaryRequest.class));
 
         // when & then
-        mockMvc.perform(post(metaPath)
+        mockMvc.perform(post(summaryPath + "/{streamId}", streamId)
                 .header(headerName, secretValue)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(requestBody))
-            .andExpect(status().isAccepted());
-
-        verify(streamSessionService, times(1)).updateSessionSegment(anyList());
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk());
     }
 }

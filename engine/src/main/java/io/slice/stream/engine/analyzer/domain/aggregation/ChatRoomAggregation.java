@@ -9,11 +9,23 @@ public class ChatRoomAggregation {
     private final String streamId;
     private final AtomicReference<Instant> lastChatTime;
     private final AtomicLong count;
+    private final AtomicLong subscriberCount;
 
     public ChatRoomAggregation(String streamId, Instant lastChatTime) {
         this.streamId = streamId;
         this.lastChatTime = new AtomicReference<>(lastChatTime);
         this.count = new AtomicLong(0);
+        this.subscriberCount = new AtomicLong(0);
+    }
+
+    public void increaseCount(Instant eventTime, boolean isSubscriber) {
+        count.incrementAndGet();
+        if (isSubscriber) {
+            subscriberCount.incrementAndGet();
+        }
+        lastChatTime.updateAndGet(current ->
+            (current == null || eventTime.isAfter(current)) ? eventTime : current
+        );
     }
 
     public String getStreamId() {
@@ -28,10 +40,7 @@ public class ChatRoomAggregation {
         return count.longValue();
     }
 
-    public void increaseCount(Instant eventTime) {
-        count.incrementAndGet();
-        lastChatTime.updateAndGet(current ->
-            (current == null || eventTime.isAfter(current)) ? eventTime : current
-        );
+    public Long getSubscriberCount() {
+        return subscriberCount.longValue();
     }
 }

@@ -42,7 +42,7 @@ class RedisChatRoomAggregationRepositoryTest implements RedisTestSupport {
         Instant now = Instant.now();
         String streamId = "abcd1234";
         ChatRoomAggregation chatRoomAggregation = new ChatRoomAggregation(streamId, now);
-        chatRoomAggregation.increaseCount(now);
+        chatRoomAggregation.increaseCount(now, false);
 
         // when
         repository.save(chatRoomAggregation, now);
@@ -71,14 +71,14 @@ class RedisChatRoomAggregationRepositoryTest implements RedisTestSupport {
         String streamId2 = "efgh5678";
 
         ChatRoomAggregation chatRoomAggregation1 = new ChatRoomAggregation(streamId1, now.minusSeconds(10));
-        chatRoomAggregation1.increaseCount(now.minusSeconds(10));
+        chatRoomAggregation1.increaseCount(now.minusSeconds(10), false);
         repository.save(chatRoomAggregation1, now.minusSeconds(10));
 
-        chatRoomAggregation1.increaseCount(now);
+        chatRoomAggregation1.increaseCount(now, false);
         repository.save(chatRoomAggregation1, now);
 
         ChatRoomAggregation chatRoomAggregation2 = new ChatRoomAggregation(streamId2, now);
-        chatRoomAggregation2.increaseCount(now);
+        chatRoomAggregation2.increaseCount(now, false);
         repository.save(chatRoomAggregation2, now);
 
 
@@ -106,21 +106,21 @@ class RedisChatRoomAggregationRepositoryTest implements RedisTestSupport {
 
         // T=0 (채팅 10개 누적)
         ChatRoomAggregation agg1 = new ChatRoomAggregation(streamId, now);
-        for(int i=0; i<10; i++) agg1.increaseCount(now);
+        for(int i=0; i<10; i++) agg1.increaseCount(now, false);
         repository.save(agg1, now);
 
         // T=3초 (채팅 2개 추가, 누적 12개) -> 정상 델타: 2
         Instant t1 = now.plusSeconds(3);
-        agg1.increaseCount(t1);
-        agg1.increaseCount(t1);
+        agg1.increaseCount(t1, false);
+        agg1.increaseCount(t1, false);
         repository.save(agg1, t1);
 
         // T=12초 (T=6초, T=9초 구간은 채팅이 없어 저장되지 않음 -> 공백 발생)
         // (채팅 3개 추가, 누적 15개) -> 이전 기록과의 시간 차이가 9초이므로 누락 틱은 2개(0, 0), 마지막 델타는 3
         Instant t2 = now.plusSeconds(12);
-        agg1.increaseCount(t2);
-        agg1.increaseCount(t2);
-        agg1.increaseCount(t2);
+        agg1.increaseCount(t2, false);
+        agg1.increaseCount(t2, false);
+        agg1.increaseCount(t2, false);
         repository.save(agg1, t2);
 
         // when

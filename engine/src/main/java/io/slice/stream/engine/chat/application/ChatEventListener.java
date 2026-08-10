@@ -36,8 +36,8 @@ public class ChatEventListener {
     @EventListener
     public void handleStreamChangedEvent(StreamChangedEvent event) {
         chatService.manageStreams(
-            event.newStreamIds(),
-            event.closedStreamIds()
+            event.newStreams(),
+            event.closedStreams()
         );
     }
 }

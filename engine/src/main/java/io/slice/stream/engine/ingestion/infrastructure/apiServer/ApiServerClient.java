@@ -1,6 +1,7 @@
 package io.slice.stream.engine.ingestion.infrastructure.apiServer;
 
 import io.slice.stream.engine.ingestion.domain.model.ChangedStream;
+import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSessionSummary;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSyncRequest;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -18,15 +19,18 @@ public class ApiServerClient {
     private final RestClient restClient;
     private final String syncPath;
     private final String metaPath;
+    private final String summaryPath;
 
     public ApiServerClient(
         @Qualifier("apiServerRestClient") RestClient restClient,
         @Value("${api-server.sync-path}") String syncPath,
-        @Value("${api-server.meta-path}") String metaPath
+        @Value("${api-server.meta-path}") String metaPath,
+        @Value("${api-server.summary-path}") String summaryPath
     ) {
         this.restClient = restClient;
         this.syncPath = syncPath;
         this.metaPath = metaPath;
+        this.summaryPath = summaryPath;
     }
 
     @Async
@@ -66,6 +70,24 @@ public class ApiServerClient {
             log.info("[Segment Sync] {}개의 세그먼트 구간 동기화 완료", requests.size());
         } catch (Exception e) {
             log.error("[Sync Failed] 방송 메타데이터 변경 API 서버 통신 중 에러: {}", e.getMessage());
+        }
+    }
+
+    @Async
+    public void sendSessionSummaryAsync(StreamSessionSummary summary) {
+        try {
+            restClient.post()
+                .uri(summaryPath, summary.streamId())
+                .body(summary)
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, (request, response) -> {
+                    log.error("[Summary Error] 서버 응답 오류: {}", response.getStatusCode());
+                })
+                .toBodilessEntity();
+
+            log.info("[Summary] 방송 종료 요약 전송 완료 streamId ={}", summary.streamId());
+        } catch (Exception e) {
+            log.error("[Summary Failed] 방송 종료 요약 정보 전송 API 서버 통신 중 에러: {}", e.getMessage());
         }
     }
 }

@@ -36,7 +36,7 @@ class StreamServiceTest {
     @Test
     void 방송_목록을_동기화하면_DB에_upsert_되어야_한다() {
         // given
-        StreamSyncRequest request = new StreamSyncRequest("ch1", "침착맨", "제목", "thumb.jpg", 1000,"소통");
+        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 1000,"소통");
 
         // when
         streamService.syncAll(List.of(request));
@@ -52,8 +52,8 @@ class StreamServiceTest {
     @Test
     void 배치_내에_중복된_채널_ID가_있으면_최신_데이터로_한번만_upsert_되어야_한다() {
         // given
-        StreamSyncRequest oldRequest = new StreamSyncRequest("ch1", "침착맨", "옛날 제목", "old.jpg", 1000,"소통");
-        StreamSyncRequest newRequest = new StreamSyncRequest("ch1", "침착맨", "새 제목", "new.jpg", 2000,"게임");
+        StreamSyncRequest oldRequest = new StreamSyncRequest("ch1", "live1", "침착맨", "옛날 제목", "old.jpg", 1000,"소통");
+        StreamSyncRequest newRequest = new StreamSyncRequest("ch1", "live1", "침착맨", "새 제목", "new.jpg", 2000,"게임");
 
         // when
         streamService.syncAll(List.of(oldRequest, newRequest));

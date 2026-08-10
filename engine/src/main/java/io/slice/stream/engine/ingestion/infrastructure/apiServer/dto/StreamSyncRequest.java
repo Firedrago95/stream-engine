@@ -4,6 +4,7 @@ import io.slice.stream.engine.core.model.StreamTarget;
 
 public record StreamSyncRequest(
     String streamId,
+    String liveId,
     String streamerName,
     String liveTitle,
     String profileImageUrl,
@@ -13,6 +14,7 @@ public record StreamSyncRequest(
     public static StreamSyncRequest from(StreamTarget target) {
         return new StreamSyncRequest(
             target.channelId(),
+            String.valueOf(target.liveId()),
             target.channelName(),
             target.liveTitle(),
             target.profileImageUrl(),

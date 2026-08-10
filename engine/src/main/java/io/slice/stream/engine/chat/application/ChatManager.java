@@ -19,7 +19,7 @@ public class ChatManager {
     private final ChatCollectorFactory chatCollectorFactory;
     private final ExecutorService virtualThreadExecutor;
 
-    public void manageStreams(Set<StreamTarget> newStreamTargets, Set<String> closedChatChannelIds) {
+    public void manageStreams(Set<StreamTarget> newStreamTargets, Set<StreamTarget> closedStreams) {
         if (!newStreamTargets.isEmpty()) {
             List<StreamTarget> targets = newStreamTargets.stream().toList();
 
@@ -39,9 +39,9 @@ public class ChatManager {
             }
         }
 
-        if (!closedChatChannelIds.isEmpty()) {
-            closedChatChannelIds.forEach(channelId -> {
-                ChatCollector collector = chatCollectors.remove(channelId);
+        if (!closedStreams.isEmpty()) {
+            closedStreams.forEach(closedStream -> {
+                ChatCollector collector = chatCollectors.remove(closedStream.channelId());
                 if (collector != null) {
                     collector.disconnect();
                 }

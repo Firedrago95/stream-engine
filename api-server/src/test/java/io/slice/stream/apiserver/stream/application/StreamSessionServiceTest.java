@@ -57,7 +57,7 @@ class StreamSessionServiceTest {
             .thenReturn(Optional.of(existingSession));
 
         // when
-        String sessionId = streamSessionService.getOrCreateActiveSession(streamId, now);
+        String sessionId = streamSessionService.getOrCreateActiveSession(streamId, "test-live-id", now);
 
         // then
         assertThat(sessionId).isEqualTo("existing-session-id");
@@ -82,7 +82,7 @@ class StreamSessionServiceTest {
             .thenReturn(Optional.of(mockStreamInfo));
 
         // when
-        String sessionId = streamSessionService.getOrCreateActiveSession(streamId, now);
+        String sessionId = streamSessionService.getOrCreateActiveSession(streamId, "test-live-id", now);
 
         // then
         assertThat(sessionId).isNotNull(); // UUID가 정상 발급되었는지 확인
@@ -120,7 +120,7 @@ class StreamSessionServiceTest {
 
         StreamSessionEntity activeSession = new StreamSessionEntity(streamId, sessionId, "이전방제", "이전카테고리", Instant.now().minusSeconds(60));
         StreamSessionSegmentEntity activeSegment = new StreamSessionSegmentEntity(streamId, sessionId, "이전방제", "이전카테고리", Instant.now().minusSeconds(60), 0L);
-        ChangedStreamRequest request = new ChangedStreamRequest(streamId, "이전방제", "새로운방제", "이전카테고리", "새로운카테고리", changedAt, offsetMs);
+        ChangedStreamRequest request = new ChangedStreamRequest(streamId, sessionId, "이전방제", "새로운방제", "이전카테고리", "새로운카테고리", changedAt, offsetMs);
 
         when(sessionRepository.findAllActiveSessions(List.of(streamId)))
             .thenReturn(List.of(activeSession));
@@ -147,7 +147,7 @@ class StreamSessionServiceTest {
 
         StreamSessionEntity activeSession = new StreamSessionEntity(streamId, sessionId, "동일방제", "동일카테고리", Instant.now().minusSeconds(60));
         StreamSessionSegmentEntity activeSegment = new StreamSessionSegmentEntity(streamId, sessionId, "동일방제", "동일카테고리", Instant.now().minusSeconds(60), 0L);
-        ChangedStreamRequest request = new ChangedStreamRequest(streamId, "동일방제", "동일방제", "동일카테고리", "동일카테고리", changedAt, offsetMs);
+        ChangedStreamRequest request = new ChangedStreamRequest(streamId, sessionId, "동일방제", "동일방제", "동일카테고리", "동일카테고리", changedAt, offsetMs);
 
         when(sessionRepository.findAllActiveSessions(List.of(streamId)))
             .thenReturn(List.of(activeSession));
@@ -161,5 +161,41 @@ class StreamSessionServiceTest {
         assertThat(activeSegment.getEndedAt()).isNull();
         assertThat(activeSegment.getEndOffsetMs()).isNull();
         verify(segmentRepository, times(0)).saveAll(any());
+    }
+
+    @Test
+    void 방송_세션_요약정보가_수신되면_정상적으로_구독자_비율이_업데이트된다() {
+        // given
+        String streamId = "stream-summary";
+        StreamSessionEntity session = new StreamSessionEntity(streamId, "session-id", "방제", "카테고리", Instant.now());
+        
+        when(sessionRepository.findActiveSession(streamId, "test-live-id"))
+            .thenReturn(Optional.of(session));
+            
+        io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest request = 
+            new io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest(45.5, "test-live-id", java.time.Instant.now());
+
+        // when
+        streamSessionService.updateSessionSummary(streamId, request);
+
+        // then
+        assertThat(session.getSubscriberChatRatio()).isEqualTo(45.5);
+    }
+    
+    @Test
+    void 방송_세션_요약정보_수신시_활성세션이_없으면_BusinessException이_발생한다() {
+        // given
+        String streamId = "stream-not-found";
+        when(sessionRepository.findActiveSession(streamId, "test-live-id"))
+            .thenReturn(Optional.empty());
+            
+        io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest request = 
+            new io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest(45.5, "test-live-id", java.time.Instant.now());
+
+        // when & then
+        org.junit.jupiter.api.Assertions.assertThrows(
+            io.slice.stream.apiserver.global.error.BusinessException.class, 
+            () -> streamSessionService.updateSessionSummary(streamId, request)
+        );
     }
 }

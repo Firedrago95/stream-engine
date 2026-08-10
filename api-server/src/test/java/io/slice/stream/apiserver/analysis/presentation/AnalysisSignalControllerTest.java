@@ -47,7 +47,7 @@ class AnalysisSignalControllerTest {
         String secretValue = "test-secret-value";
 
         List<AnalysisSignalRequest> requests = List.of(
-            new AnalysisSignalRequest("stream1", "PEAK", Instant.now(), 10, 36000L)
+            new AnalysisSignalRequest("stream1", "test-live-id", "PEAK", Instant.now(), 10, 36000L)
         );
 
         // when & then
