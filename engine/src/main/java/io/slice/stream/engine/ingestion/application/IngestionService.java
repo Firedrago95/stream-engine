@@ -37,41 +37,42 @@ public class IngestionService {
 
     @Scheduled(fixedRate = 30000)
     public void ingest() {
-        List<StreamTarget> topLiveStreams = streamDiscoveryClient.fetchTopLiveStreams(discoveryLimit);
-        if (topLiveStreams.isEmpty()) {
-            log.warn("[Ingestion] Top 100 API가 빈 목록을 반환했습니다. 일시적 오류로 간주하여 이번 추적 사이클을 건너뜁니다.");
-            return;
+        try {
+            List<StreamTarget> topLiveStreams = streamDiscoveryClient.fetchTopLiveStreams(discoveryLimit);
+            if (topLiveStreams.isEmpty()) {
+                log.warn("[Ingestion] 치지직 상위 방송 API가 빈 목록을 반환했습니다. 이번 수집 사이클을 건너뜁니다.");
+                return;
+            }
+            Instant now = Instant.now();
+            Set<String> activeChannelIds = streamRepository.getActiveChannelIds();
+
+            Set<String> topLiveStreamIds = topLiveStreams.stream().map(StreamTarget::channelId).collect(Collectors.toSet());
+            Set<String> dropoutIds = new HashSet<>(activeChannelIds);
+            dropoutIds.removeAll(topLiveStreamIds);
+
+            List<StreamTarget> rankoutStreams = streamDiscoveryClient.fetchLiveStreams(dropoutIds);
+
+            List<StreamTarget> currentTargets = new ArrayList<>(topLiveStreams);
+            currentTargets.addAll(rankoutStreams);
+
+            List<StreamTarget> activeStreamTargets = streamRepository.getStreamTargets(
+                new ArrayList<>(activeChannelIds)
+            );
+
+            StreamUpdateResults updateResults = streamUpdateAnalyzer.analyze(
+                currentTargets,
+                activeChannelIds,
+                activeStreamTargets,
+                now
+            );
+
+            streamRepository.sync(updateResults.closedStreamIds(), currentTargets);
+
+            handleExternalSync(currentTargets, updateResults);
+            handleEvents(updateResults);
+        } catch (Exception e) {
+            log.error("[Ingestion] 수집 주기 중 오류 발생: {}", e.getMessage(), e);
         }
-        Instant now = Instant.now();
-        Set<String> activeChannelIds = streamRepository.getActiveChannelIds();
-
-        // 추적중인 방송에서 api 호출 결과 빼기 => 여집합
-        Set<String> topLiveStreamIds = topLiveStreams.stream().map(StreamTarget::channelId).collect(Collectors.toSet());
-        Set<String> dropoutIds = new HashSet<>(activeChannelIds);
-        dropoutIds.removeAll(topLiveStreamIds);
-
-        // 여집합 api 호출 해서 순위밖 구하기 => 순위 밖
-        List<StreamTarget> rankoutStreams = streamDiscoveryClient.fetchLiveStreams(dropoutIds);
-
-        // 순위밖 추적중 방송에 추가
-        List<StreamTarget> currentTargets = new ArrayList<>(topLiveStreams);
-        currentTargets.addAll(rankoutStreams);
-
-        List<StreamTarget> activeStreamTargets = streamRepository.getStreamTargets(
-            currentTargets.stream().map(StreamTarget::channelId).toList()
-        );
-
-        StreamUpdateResults updateResults = streamUpdateAnalyzer.analyze(
-            currentTargets,
-            activeChannelIds,
-            activeStreamTargets,
-            now
-        );
-
-        streamRepository.sync(updateResults.closedStreamIds(), currentTargets);
-
-        handleExternalSync(currentTargets, updateResults);
-        handleEvents(updateResults);
     }
 
     private void handleExternalSync(List<StreamTarget> targets, StreamUpdateResults results) {

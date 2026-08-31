@@ -1,6 +1,7 @@
 package io.slice.stream.engine.ingestion.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -107,7 +108,9 @@ class IngestionServiceTest {
     void 스트림_탐색_중_오류를_정상적으로_처리해야_한다() {
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenThrow(new RuntimeException("API Error"));
 
-        assertThrows(RuntimeException.class, () -> ingestionService.ingest());
+        assertDoesNotThrow(() -> ingestionService.ingest());
+        verify(apiServerClient, never()).syncStreams(anyList());
+        verify(streamRepository, never()).sync(any(), any());
     }
 
     @Test
@@ -243,10 +246,25 @@ class IngestionServiceTest {
         ingestionService.ingest();
 
         // then
-        // 1. fetchLiveStreams가 정확히 ch2(여집합)로 호출되었는지 검증
         verify(discoveryClient).fetchLiveStreams(Set.of("ch2"));
-        
-        // 2. ch1(topLive) + ch2(rankout) 합쳐져서 저장소 동기화가 수행되었는지 검증
         verify(streamRepository).sync(results.closedStreamIds(), List.of(streamTarget1, rankoutTarget2));
+    }
+
+    @Test
+    void 과거_활성_채널_목록을_기반으로_이전_스트림_상세_정보를_조회해야_한다() {
+        StreamTarget currentTarget = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 10, "url", "GAME", Instant.EPOCH);
+        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(List.of(currentTarget));
+        when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1", "ch_closed"));
+        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of());
+        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class)))
+            .thenReturn(new StreamUpdateResults(Set.of(), Set.of(), Set.of(), Instant.now()));
+
+        ingestionService.ingest();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
+        verify(streamRepository).getStreamTargets(captor.capture());
+
+        assertThat(captor.getValue()).containsExactlyInAnyOrder("ch1", "ch_closed");
     }
 }
