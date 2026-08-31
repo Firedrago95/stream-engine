@@ -94,9 +94,9 @@ public class HighlightService {
         }
 
         String streamId = target.channelId();
-        // 데이터 부족 상태인 경우 차트 렌더링을 위해 NORMAL 상태로 변환하여 전송
+        String liveId = target.liveId() != null ? String.valueOf(target.liveId()) : "";
         if (result.status() == ChatFirepowerStatus.WAITING) {
-            return Optional.of(new AnalysisSignal(streamId, ChatFirepowerStatus.NORMAL.name(), now,
+            return Optional.of(new AnalysisSignal(streamId, liveId, ChatFirepowerStatus.NORMAL.name(), now,
                 result.firepower() != null ? result.firepower() : 0L, offsetMs));
         }
 
@@ -105,6 +105,6 @@ public class HighlightService {
                 streamId, result.firepower(), tierInfo.tier().name());
         }
 
-        return Optional.of(new AnalysisSignal(streamId, result.status().name(), now, result.firepower(), offsetMs));
+        return Optional.of(new AnalysisSignal(streamId, liveId, result.status().name(), now, result.firepower(), offsetMs));
     }
 }

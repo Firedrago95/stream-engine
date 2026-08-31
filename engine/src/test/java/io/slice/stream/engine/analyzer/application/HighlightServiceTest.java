@@ -93,6 +93,7 @@ class HighlightServiceTest {
         assertThat(capturedSignals).hasSize(1);
         assertThat(capturedSignals.get(0).status()).isEqualTo("PEAK");
         assertThat(capturedSignals.get(0).firepower()).isEqualTo(50L);
+        assertThat(capturedSignals.get(0).liveId()).isEqualTo(String.valueOf(target.liveId()));
     }
 
     @Test
