@@ -94,7 +94,7 @@ public class HighlightService {
         }
 
         String streamId = target.channelId();
-        String liveId = target.liveId() != null ? String.valueOf(target.liveId()) : "";
+        String liveId = String.valueOf(target.liveId());
         if (result.status() == ChatFirepowerStatus.WAITING) {
             return Optional.of(new AnalysisSignal(streamId, liveId, ChatFirepowerStatus.NORMAL.name(), now,
                 result.firepower() != null ? result.firepower() : 0L, offsetMs));
