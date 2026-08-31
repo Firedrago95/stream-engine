@@ -109,4 +109,15 @@ class RedisStreamRepositoryTest implements RedisTestSupport {
             () -> assertThat(stringRedisTemplate.hasKey(STREAM_LIVE_KEY)).isFalse()
         );
     }
+
+    @Test
+    void 종료_방송_목록이_비어있더라도_분석_인덱스는_최신_활성_방송_목록과_일치해야_한다() {
+        stringRedisTemplate.opsForSet().add(ANALYSIS_INDEX_KEY, "channel1", "channel2");
+
+        StreamTarget newTarget = new StreamTarget("channel3", "새방송", "chat3", 3L, "t3", 100, "u3", "GAME", Instant.EPOCH);
+        redisStreamRepository.sync(Set.of(), List.of(newTarget));
+
+        Set<String> actualAnalysisIds = stringRedisTemplate.opsForSet().members(ANALYSIS_INDEX_KEY);
+        assertThat(actualAnalysisIds).containsExactly("channel3");
+    }
 }

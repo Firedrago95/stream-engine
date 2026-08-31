@@ -37,6 +37,7 @@ end
 
 -- 3. Redis 상태 덮어쓰기
 redis.call('DEL', KEYS[1])
+redis.call('DEL', KEYS[3])
 
 if #active_ids > 0 then
     redis.call('SADD', KEYS[1], unpack(active_ids))
