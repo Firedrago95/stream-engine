@@ -34,15 +34,16 @@ class HighlightSessionServiceTest {
 
     @Spy
     private HighlightProperties properties = new HighlightProperties(
-        Duration.ofSeconds(20), // leadingBuffer
-        Duration.ofSeconds(5),  // trailingBuffer
-        Duration.ofSeconds(90), // cooldown
-        0.7,                    // extensionRatio
-        5,                      // minimum
-        6,                      // realtimeLimit
-        20,                     // historyDisplayLimit
-        10,                     // cleanupRetentionLimit
-        24
+        Duration.ofSeconds(20),
+        Duration.ofSeconds(5),
+        Duration.ofSeconds(90),
+        0.7,
+        5,
+        6,
+        20,
+        10,
+        24,
+        30
     );
 
     @InjectMocks

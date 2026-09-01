@@ -2,6 +2,7 @@ package io.slice.stream.apiserver.analysis.application.scheduler;
 
 import io.slice.stream.apiserver.analysis.infrastructure.JpaHighlightEventRepository;
 import io.slice.stream.apiserver.global.config.HighlightProperties;
+import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import java.time.Instant;
