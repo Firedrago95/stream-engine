@@ -26,4 +26,8 @@ public interface JpaStreamSessionSegmentRepository extends JpaRepository<StreamS
     List<StreamSessionSegmentEntity> findAllActiveSegments(@Param("sessionIds") List<String> sessionIds);
 
     List<StreamSessionSegmentEntity> findBySessionIdOrderByStartedAtAsc(String sessionId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("DELETE FROM StreamSessionSegmentEntity s WHERE s.sessionId IN :sessionIds")
+    int deleteAllBySessionIds(@Param("sessionIds") List<String> sessionIds);
 }

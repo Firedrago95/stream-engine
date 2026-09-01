@@ -6,9 +6,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import io.slice.stream.apiserver.analysis.infrastructure.JpaHighlightEventRepository;
-import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.global.config.HighlightProperties;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
+import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRepository;
+import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -29,6 +30,9 @@ class HighlightCleanupSchedulerTest {
     private JpaStreamSessionRepository sessionRepository;
 
     @Mock
+    private JpaStreamSessionSegmentRepository segmentRepository;
+
+    @Mock
     private JpaHighlightEventRepository highlightRepository;
 
     @InjectMocks
@@ -36,36 +40,48 @@ class HighlightCleanupSchedulerTest {
 
     @Spy
     private HighlightProperties properties = new HighlightProperties(
-        Duration.ofSeconds(20), // leadingBuffer
-        Duration.ofSeconds(5),  // trailingBuffer
-        Duration.ofSeconds(90), // cooldown
-        0.7,                    // extensionRatio
-        5,                      // minimum
-        6,                      // realtimeLimit
-        20,                     // historyDisplayLimit
-        10,                     // cleanupRetentionLimit
-        24
+        Duration.ofSeconds(20),
+        Duration.ofSeconds(5),
+        Duration.ofSeconds(90),
+        0.7,
+        5,
+        6,
+        20,
+        10,
+        24,
+        30
     );
 
     @Test
     void 하루가_지난_종료된_세션들에_대해_청소_로직을_실행한다() {
-        // given
         String sessionId = "old-session-id";
         StreamSessionEntity oldSession = mock(StreamSessionEntity.class);
         given(oldSession.getSessionId()).willReturn(sessionId);
 
-        // 24시간 지난 세션 목록으로 반환되도록 설정
         given(sessionRepository.findFinishedSessionsOlderThan(any(Instant.class)))
-            .willReturn(List.of(oldSession));
+            .willReturn(List.of(oldSession))
+            .willReturn(List.of());
 
-        // when
         scheduler.cleanupOldHighlights();
 
-        // then
-        // 1. 세션 조회 시 전달되는 시간이 현재로부터 약 24시간 전인지 확인 (Interaction 위주)
-        verify(sessionRepository).findFinishedSessionsOlderThan(any(Instant.class));
-
-        // 2. 해당 세션 ID로 deleteExceptTop10이 호출되었는지 확인
+        verify(sessionRepository, org.mockito.Mockito.atLeastOnce()).findFinishedSessionsOlderThan(any(Instant.class));
         verify(highlightRepository).deleteExceptTop(sessionId, 10);
+    }
+
+    @Test
+    void 삼십일이_지난_만료된_세션과_연관_데이터를_완전히_삭제한다() {
+        String expiredSessionId = "expired-session-id";
+        StreamSessionEntity expiredSession = mock(StreamSessionEntity.class);
+        given(expiredSession.getSessionId()).willReturn(expiredSessionId);
+
+        given(sessionRepository.findFinishedSessionsOlderThan(any(Instant.class)))
+            .willReturn(List.of())
+            .willReturn(List.of(expiredSession));
+
+        scheduler.cleanupOldHighlights();
+
+        verify(highlightRepository).deleteAllBySessionIds(List.of(expiredSessionId));
+        verify(segmentRepository).deleteAllBySessionIds(List.of(expiredSessionId));
+        verify(sessionRepository).deleteExpiredSessions(any(Instant.class));
     }
 }
