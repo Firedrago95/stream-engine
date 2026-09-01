@@ -58,4 +58,8 @@ public interface JpaStreamSessionRepository extends JpaRepository<StreamSessionE
         @Param("streamId") String streamId,
         @Param("sessionId") String sessionId
     );
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("DELETE FROM StreamSessionEntity ss WHERE ss.endedAt IS NOT NULL AND ss.endedAt < :threshold")
+    int deleteExpiredSessions(@Param("threshold") Instant threshold);
 }

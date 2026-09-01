@@ -18,5 +18,6 @@ public record HighlightProperties (
     int realtimeLimit,           // 실시간 탭 노출 개수
     int historyDisplayLimit,     // 과거 방송 탭(24시간 내) 노출 개수
     int cleanupRetentionLimit,   // 방종 24시간 후 DB 유지 개수 (Top N)
-    int cleanupGraceHours        // 방종 후 하이라이트 삭제 스케줄링 주기
+    int cleanupGraceHours,       // 방종 후 하이라이트 삭제 스케줄링 주기
+    int sessionRetentionDays     // 방종 후 세션 및 하이라이트 영구 보관 기간 (일)
 ) {}

@@ -38,4 +38,8 @@ public interface JpaHighlightEventRepository extends JpaRepository<HighlightEven
       )
     """, nativeQuery = true)
     int deleteExceptTop(@Param("sessionId") String sessionId, @Param("retentionLimit") int retentionLimit);
+
+    @Modifying
+    @Query("DELETE FROM HighlightEventEntity h WHERE h.sessionId IN :sessionIds")
+    int deleteAllBySessionIds(@Param("sessionIds") List<String> sessionIds);
 }
