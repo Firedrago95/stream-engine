@@ -72,6 +72,10 @@ public class StreamSessionEntity {
         }
     }
 
+    public void reopen() {
+        this.endedAt = null;
+    }
+
     public void updateAverageViewerCount(Integer averageViewerCount) {
         this.averageViewerCount = averageViewerCount;
     }

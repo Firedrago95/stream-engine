@@ -66,27 +66,44 @@ class StreamSessionServiceTest {
 
     @Test
     void 진행중인_세션이_없으면_스트리머_정보를_조회하여_새로운_세션을_생성한다() {
-        // given
         String streamId = "stream-2";
         Instant now = Instant.now();
 
-        // DB에 열려있는 세션이 없음
         when(sessionRepository.findActiveSession(streamId))
             .thenReturn(Optional.empty());
+        when(sessionRepository.findBySessionId("test-live-id"))
+            .thenReturn(Optional.empty());
 
-        // 방제와 카테고리를 가져오기 위한 스트림 마스터 정보 Mocking
         StreamEntity mockStreamInfo = mock(StreamEntity.class);
         when(mockStreamInfo.getLiveTitle()).thenReturn("새로운 꿀잼 방송");
         when(mockStreamInfo.getCategoryName()).thenReturn("Just Chatting");
         when(streamRepository.findByStreamId(streamId))
             .thenReturn(Optional.of(mockStreamInfo));
 
-        // when
         String sessionId = streamSessionService.getOrCreateActiveSession(streamId, "test-live-id", now);
 
-        // then
-        assertThat(sessionId).isNotNull(); // UUID가 정상 발급되었는지 확인
-        verify(sessionRepository, times(1)).save(any(StreamSessionEntity.class)); // DB에 저장되었는지 검증
+        assertThat(sessionId).isEqualTo("test-live-id");
+        verify(sessionRepository, times(1)).save(any(StreamSessionEntity.class));
+    }
+
+    @Test
+    void 종료_처리된_세션에_대해_동일한_sessionId로_요청이_오면_세션을_재활성화하고_sessionId를_반환한다() {
+        String streamId = "stream-reopen";
+        String liveId = "20882722";
+        Instant now = Instant.now();
+        StreamSessionEntity closedSession = new StreamSessionEntity(streamId, liveId, "방제", "카테고리", now.minusSeconds(3600));
+        closedSession.finishSession(now.minusSeconds(600), 100);
+
+        when(sessionRepository.findActiveSession(streamId))
+            .thenReturn(Optional.empty());
+        when(sessionRepository.findBySessionId(liveId))
+            .thenReturn(Optional.of(closedSession));
+
+        String sessionId = streamSessionService.getOrCreateActiveSession(streamId, liveId, now);
+
+        assertThat(sessionId).isEqualTo(liveId);
+        assertThat(closedSession.getEndedAt()).isNull();
+        verify(sessionRepository, times(0)).save(any(StreamSessionEntity.class));
     }
 
     @Test
