@@ -20,6 +20,8 @@ public interface JpaStreamSessionRepository extends JpaRepository<StreamSessionE
         """)
     Optional<StreamSessionEntity> findActiveSession(@Param("streamId") String streamId);
 
+    Optional<StreamSessionEntity> findBySessionId(String sessionId);
+
     @Query("""
         SELECT ss FROM StreamSessionEntity ss 
         JOIN StreamEntity s ON ss.streamId = s.streamId 

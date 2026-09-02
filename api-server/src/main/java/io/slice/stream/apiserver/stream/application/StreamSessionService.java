@@ -41,7 +41,19 @@ public class StreamSessionService {
     public String getOrCreateActiveSession(String streamId, String sessionId, Instant signalTime) {
         return sessionRepository.findActiveSession(streamId)
             .map(StreamSessionEntity::getSessionId)
-            .orElseGet(() -> createNewSession(streamId, sessionId, signalTime));
+            .orElseGet(() -> handleExistingOrNewSession(streamId, sessionId, signalTime));
+    }
+
+    private String handleExistingOrNewSession(String streamId, String sessionId, Instant startedAt) {
+        return sessionRepository.findBySessionId(sessionId)
+            .map(session -> {
+                if (session.getEndedAt() != null) {
+                    session.reopen();
+                    log.info("[Session-Manager] 오판 종료된 세션 재활성화 - Stream: {}, SessionId: {}", streamId, sessionId);
+                }
+                return session.getSessionId();
+            })
+            .orElseGet(() -> createNewSession(streamId, sessionId, startedAt));
     }
 
     @Transactional
