@@ -49,6 +49,11 @@ public class ChatConnectionManager implements ChatCollector, ChatMessageListener
             return;
         }
 
+        if (chatChannelId == null || chatChannelId.isBlank()) {
+            log.warn("[{}] 유효하지 않은 chatChannelId 입니다. 연결을 건너뜁니다.", channelId);
+            return;
+        }
+
         try {
             log.info("[{}] 채팅 채널 연결을 시도합니다.", chatChannelId);
             chatClient.connect(channelId, chatChannelId, this);
