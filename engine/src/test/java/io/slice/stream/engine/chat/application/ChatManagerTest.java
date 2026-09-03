@@ -8,6 +8,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.slice.stream.engine.analyzer.domain.stream.ActiveStreamProvider;
 import io.slice.stream.engine.chat.domain.ChatCollector;
 import io.slice.stream.engine.chat.domain.ChatCollectorFactory;
 import io.slice.stream.engine.core.model.StreamTarget;
@@ -37,7 +38,7 @@ class ChatManagerTest {
     private ExecutorService virtualThreadExecutor;
 
     @Mock
-    private io.slice.stream.engine.analyzer.domain.stream.ActiveStreamProvider activeStreamProvider;
+    private ActiveStreamProvider activeStreamProvider;
 
     @InjectMocks
     private ChatManager chatManager;

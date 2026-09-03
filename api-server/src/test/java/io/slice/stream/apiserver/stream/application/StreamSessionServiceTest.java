@@ -1,6 +1,7 @@
 package io.slice.stream.apiserver.stream.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -14,6 +15,7 @@ import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRe
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
+import io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -185,12 +187,12 @@ class StreamSessionServiceTest {
         // given
         String streamId = "stream-summary";
         StreamSessionEntity session = new StreamSessionEntity(streamId, "session-id", "방제", "카테고리", Instant.now());
-        
+
         when(sessionRepository.findActiveSession(streamId, "test-live-id"))
             .thenReturn(Optional.of(session));
-            
-        io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest request = 
-            new io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest(45.5, "test-live-id", java.time.Instant.now());
+
+        StreamSessionSummaryRequest request =
+            new StreamSessionSummaryRequest(45.5, "test-live-id", Instant.now());
 
         // when
         streamSessionService.updateSessionSummary(streamId, request);
@@ -198,17 +200,17 @@ class StreamSessionServiceTest {
         // then
         assertThat(session.getSubscriberChatRatio()).isEqualTo(45.5);
     }
-    
+
     @Test
     void 방송_세션_요약정보_수신시_활성세션이_없어도_예외_없이_정상_종료된다() {
         String streamId = "stream-not-found";
         when(sessionRepository.findActiveSession(streamId, "test-live-id"))
             .thenReturn(Optional.empty());
 
-        io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest request =
-            new io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest(45.5, "test-live-id", java.time.Instant.now());
+        StreamSessionSummaryRequest request =
+            new StreamSessionSummaryRequest(45.5, "test-live-id", Instant.now());
 
-        org.junit.jupiter.api.Assertions.assertDoesNotThrow(
+        assertDoesNotThrow(
             () -> streamSessionService.updateSessionSummary(streamId, request)
         );
     }

@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -162,7 +163,7 @@ public class StreamSessionService {
 
     @Transactional
     public void updateSessionSummary(String streamId, StreamSessionSummaryRequest summaries) {
-        java.util.Optional<StreamSessionEntity> sessionOpt = sessionRepository.findActiveSession(streamId, summaries.liveId());
+        Optional<StreamSessionEntity> sessionOpt = sessionRepository.findActiveSession(streamId, summaries.liveId());
         if (sessionOpt.isEmpty()) {
             log.warn("[Session-Manager] 종료 요약을 처리할 활성 세션을 찾을 수 없습니다. Stream: {}, LiveId: {}", streamId, summaries.liveId());
             return;
