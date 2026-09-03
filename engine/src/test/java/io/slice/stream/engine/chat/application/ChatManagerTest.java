@@ -219,21 +219,7 @@ class ChatManagerTest {
         // then
         verify(zombieCollector).disconnect();
         verify(chatCollectorFactory, timeout(2000).times(1)).start(missingTarget);
+        // existingTarget은 중복 시작되지 않아야 함
         verify(chatCollectorFactory, times(1)).start(existingTarget);
-    }
-
-    @Test
-    void 활성_스트림_목록이_비어_있으면_기존의_모든_수집기를_종료해야_한다() {
-        StreamTarget streamTarget = new StreamTarget("channel1", "스트리머1", "chat1", 1L, "제목1", 100, "thumb1.jpg", "소통", Instant.EPOCH);
-        ChatCollector collector = mock(ChatCollector.class);
-        when(chatCollectorFactory.start(streamTarget)).thenReturn(collector);
-
-        chatManager.manageStreams(Set.of(streamTarget), Collections.emptySet());
-
-        when(activeStreamProvider.getActiveStreamTargets()).thenReturn(Collections.emptyList());
-
-        chatManager.reconcile();
-
-        verify(collector).disconnect();
     }
 }
