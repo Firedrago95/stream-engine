@@ -200,18 +200,15 @@ class StreamSessionServiceTest {
     }
     
     @Test
-    void 방송_세션_요약정보_수신시_활성세션이_없으면_BusinessException이_발생한다() {
-        // given
+    void 방송_세션_요약정보_수신시_활성세션이_없어도_예외_없이_정상_종료된다() {
         String streamId = "stream-not-found";
         when(sessionRepository.findActiveSession(streamId, "test-live-id"))
             .thenReturn(Optional.empty());
-            
-        io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest request = 
+
+        io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest request =
             new io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest(45.5, "test-live-id", java.time.Instant.now());
 
-        // when & then
-        org.junit.jupiter.api.Assertions.assertThrows(
-            io.slice.stream.apiserver.global.error.BusinessException.class, 
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(
             () -> streamSessionService.updateSessionSummary(streamId, request)
         );
     }
