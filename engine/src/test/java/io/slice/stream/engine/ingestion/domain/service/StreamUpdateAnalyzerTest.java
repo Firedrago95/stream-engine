@@ -69,4 +69,24 @@ class StreamUpdateAnalyzerTest {
             () -> assertThat(changed.changeOffsetMs()).isEqualTo(3600000L)
         );
     }
+
+    @Test
+    void 채널_ID가_이미_존재하더라도_liveId가_변경되면_이전_방송은_종료되고_새_방송은_신규로_판단한다() {
+        Instant startTime = Instant.now().minusSeconds(3600);
+        Instant now = Instant.now();
+
+        StreamTarget oldTarget = new StreamTarget("channel1", "침착맨", "chat1", 100L, "어제 방송", 1200, "thumb1.jpg", "소통", startTime);
+        StreamTarget newTarget = new StreamTarget("channel1", "침착맨", "chat2", 200L, "오늘 방송", 1500, "thumb1.jpg", "소통", now);
+
+        List<StreamTarget> currentTargets = List.of(newTarget);
+        Set<String> activeChannelIds = Set.of("channel1");
+        List<StreamTarget> oldTargets = List.of(oldTarget);
+
+        StreamUpdateResults results = analyzer.analyze(currentTargets, activeChannelIds, oldTargets, now);
+
+        assertAll(
+            () -> assertThat(results.closedStreamIds()).containsExactly(oldTarget),
+            () -> assertThat(results.newStreams()).containsExactly(newTarget)
+        );
+    }
 }
