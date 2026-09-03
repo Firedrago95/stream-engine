@@ -4,14 +4,17 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.slice.stream.engine.analyzer.domain.stream.ActiveStreamProvider;
 import io.slice.stream.engine.chat.domain.ChatCollector;
 import io.slice.stream.engine.chat.domain.ChatCollectorFactory;
 import io.slice.stream.engine.core.model.StreamTarget;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,6 +36,9 @@ class ChatManagerTest {
 
     @Mock
     private ExecutorService virtualThreadExecutor;
+
+    @Mock
+    private ActiveStreamProvider activeStreamProvider;
 
     @InjectMocks
     private ChatManager chatManager;
@@ -143,5 +149,77 @@ class ChatManagerTest {
 
         // then
         verify(mockCollector, never()).disconnect();
+    }
+
+    @Test
+    void chatChannelId가_null이거나_공백이면_수집을_시작하지_않는다() {
+        // given
+        StreamTarget nullChat = new StreamTarget("stream1", "과로사1", null, 1L, "제목1", 100, "thumb1.jpg", "게임", Instant.EPOCH);
+        StreamTarget blankChat = new StreamTarget("stream2", "하루야치에", "   ", 2L, "제목2", 200, "thumb2.jpg", "게임", Instant.EPOCH);
+        StreamTarget validChat = new StreamTarget("stream3", "정상스트리머", "chat3", 3L, "제목3", 300, "thumb3.jpg", "게임", Instant.EPOCH);
+
+        when(chatCollectorFactory.start(validChat)).thenReturn(mockCollector);
+
+        // when
+        chatManager.manageStreams(Set.of(nullChat, blankChat, validChat), Collections.emptySet());
+
+        // then
+        verify(chatCollectorFactory, never()).start(nullChat);
+        verify(chatCollectorFactory, never()).start(blankChat);
+        verify(chatCollectorFactory, timeout(2000).times(1)).start(validChat);
+    }
+
+    @Test
+    void 동일_채널이_종료와_신규로_동시_유입될_경우_종료를_먼저_수행하고_새_수집기를_연결해야_한다() {
+        // given
+        String channelId = "channel1";
+        StreamTarget oldTarget = new StreamTarget(channelId, "침착맨", "chatOld", 100L, "어제 방송", 100, "thumb.jpg", "소통", Instant.EPOCH);
+        StreamTarget newTarget = new StreamTarget(channelId, "침착맨", "chatNew", 200L, "오늘 방송", 200, "thumb.jpg", "소통", Instant.EPOCH);
+
+        ChatCollector oldCollector = mock(ChatCollector.class);
+        ChatCollector newCollector = mock(ChatCollector.class);
+
+        when(chatCollectorFactory.start(oldTarget)).thenReturn(oldCollector);
+        when(chatCollectorFactory.start(newTarget)).thenReturn(newCollector);
+
+        chatManager.manageStreams(Set.of(oldTarget), Collections.emptySet());
+
+        // when
+        chatManager.manageStreams(Set.of(newTarget), Set.of(oldTarget));
+
+        // then
+        org.mockito.InOrder inOrder = Mockito.inOrder(oldCollector, chatCollectorFactory);
+        inOrder.verify(oldCollector).disconnect();
+        inOrder.verify(chatCollectorFactory, timeout(2000)).start(newTarget);
+    }
+
+    @Test
+    void reconcile_호출_시_누락된_스트림은_연결하고_종료된_스트림은_해제해야_한다() {
+        // given
+        StreamTarget existingTarget = new StreamTarget("channel1", "스트리머1", "chat1", 1L, "제목1", 100, "thumb1.jpg", "소통", Instant.EPOCH);
+        StreamTarget zombieTarget = new StreamTarget("zombieChannel", "좀비", "chatZombie", 99L, "좀비제목", 50, "thumbZ.jpg", "소통", Instant.EPOCH);
+        StreamTarget missingTarget = new StreamTarget("missingChannel", "누락스트리머", "chatMissing", 2L, "누락제목", 200, "thumbM.jpg", "게임", Instant.EPOCH);
+
+        ChatCollector existingCollector = mock(ChatCollector.class);
+        ChatCollector zombieCollector = mock(ChatCollector.class);
+        ChatCollector missingCollector = mock(ChatCollector.class);
+
+        when(chatCollectorFactory.start(existingTarget)).thenReturn(existingCollector);
+        when(chatCollectorFactory.start(zombieTarget)).thenReturn(zombieCollector);
+        when(chatCollectorFactory.start(missingTarget)).thenReturn(missingCollector);
+
+        chatManager.manageStreams(Set.of(existingTarget, zombieTarget), Collections.emptySet());
+
+        // 현재 활성 목록에는 existingTarget과 missingTarget만 존재 (zombieTarget은 종료됨)
+        when(activeStreamProvider.getActiveStreamTargets()).thenReturn(List.of(existingTarget, missingTarget));
+
+        // when
+        chatManager.reconcile();
+
+        // then
+        verify(zombieCollector).disconnect();
+        verify(chatCollectorFactory, timeout(2000).times(1)).start(missingTarget);
+        // existingTarget은 중복 시작되지 않아야 함
+        verify(chatCollectorFactory, times(1)).start(existingTarget);
     }
 }

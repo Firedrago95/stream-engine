@@ -150,4 +150,22 @@ class ChatConnectionManagerTest {
         // then
         verify(chatClient, timeout(2000).times(3)).connect(eq(CHANNEL_ID), eq(CHAT_CHANNEL_ID), any(ChatMessageListener.class));
     }
+
+    @Test
+    void chatChannelId가_null이거나_공백이면_연결을_시도하지_않아야_한다() throws URISyntaxException {
+        // given
+        ChatConnectionManager nullChannelManager = new ChatConnectionManager(
+            chatClient, downstreamListener, null, CHANNEL_ID, executorService
+        );
+        ChatConnectionManager blankChannelManager = new ChatConnectionManager(
+            chatClient, downstreamListener, "   ", CHANNEL_ID, executorService
+        );
+
+        // when
+        nullChannelManager.start();
+        blankChannelManager.start();
+
+        // then
+        verify(chatClient, never()).connect(any(), any(), any());
+    }
 }

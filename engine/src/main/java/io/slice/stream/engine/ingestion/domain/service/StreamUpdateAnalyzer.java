@@ -24,33 +24,41 @@ public class StreamUpdateAnalyzer {
         List<StreamTarget> oldTargets,
         Instant changedAt
     ) {
-        Set<StreamTarget> newStreams = filterNewStreams(currentTargets, activeChannelIds);
-        Set<StreamTarget> closedStreamIds = filterClosedStreams(currentTargets, oldTargets);
-        Set<ChangedStream> changedStreams = detectChangedStreams(currentTargets, oldTargets, changedAt);
+        Map<String, StreamTarget> oldTargetMap = oldTargets.stream()
+            .collect(toMap(StreamTarget::channelId, target -> target, (existing, replacing) -> existing));
+        Map<String, StreamTarget> currentTargetMap = currentTargets.stream()
+            .collect(toMap(StreamTarget::channelId, target -> target, (existing, replacing) -> existing));
+
+        Set<StreamTarget> newStreams = filterNewStreams(currentTargets, oldTargetMap);
+        Set<StreamTarget> closedStreamIds = filterClosedStreams(oldTargets, currentTargetMap);
+        Set<ChangedStream> changedStreams = detectChangedStreams(currentTargets, oldTargetMap, changedAt);
 
         return new StreamUpdateResults(newStreams, closedStreamIds, changedStreams, changedAt);
     }
 
-    private Set<StreamTarget> filterNewStreams(List<StreamTarget> currentTargets, Set<String> activeChannelIds) {
+    private Set<StreamTarget> filterNewStreams(List<StreamTarget> currentTargets, Map<String, StreamTarget> oldTargetMap) {
         return currentTargets.stream()
-            .filter(target -> !activeChannelIds.contains(target.channelId()))
+            .filter(target -> {
+                StreamTarget oldTarget = oldTargetMap.get(target.channelId());
+                return oldTarget == null || oldTarget.liveId() != target.liveId();
+            })
             .collect(toSet());
     }
 
-    private Set<StreamTarget> filterClosedStreams(List<StreamTarget> currentTargets, List<StreamTarget> oldTargets) {
+    private Set<StreamTarget> filterClosedStreams(List<StreamTarget> oldTargets, Map<String, StreamTarget> currentTargetMap) {
         return oldTargets.stream()
-            .filter(oldTarget -> !currentTargets.contains(oldTarget))
-            .collect(Collectors.toSet());
+            .filter(oldTarget -> {
+                StreamTarget currentTarget = currentTargetMap.get(oldTarget.channelId());
+                return currentTarget == null || currentTarget.liveId() != oldTarget.liveId();
+            })
+            .collect(toSet());
     }
 
-    private Set<ChangedStream> detectChangedStreams(List<StreamTarget> currentTargets, List<StreamTarget> oldTargets, Instant changedAt) {
-        Map<String, StreamTarget> oldTargetMap = oldTargets.stream()
-            .collect(toMap(StreamTarget::channelId, target -> target));
-
+    private Set<ChangedStream> detectChangedStreams(List<StreamTarget> currentTargets, Map<String, StreamTarget> oldTargetMap, Instant changedAt) {
         Set<ChangedStream> changedStreams = new HashSet<>();
         for (StreamTarget newTarget : currentTargets) {
             StreamTarget oldTarget = oldTargetMap.get(newTarget.channelId());
-            if (oldTarget != null && isMetadataChanged(oldTarget, newTarget)) {
+            if (oldTarget != null && oldTarget.liveId() == newTarget.liveId() && isMetadataChanged(oldTarget, newTarget)) {
                 changedStreams.add(createChangedStream(oldTarget, newTarget, changedAt));
             }
         }
