@@ -66,7 +66,7 @@ public class ChatManager {
     @Scheduled(fixedRate = 60000)
     public void reconcile() {
         List<StreamTarget> activeTargets = activeStreamProvider.getActiveStreamTargets();
-        if (activeTargets == null || activeTargets.isEmpty()) {
+        if (activeTargets == null) {
             return;
         }
 
