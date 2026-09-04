@@ -2,6 +2,7 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { diagnosePipelineHealth } from "../src/tools/diagnosePipelineHealth.js";
+import { diagnoseApiServerHealth } from "../src/tools/diagnoseApiServerHealth.js";
 import { checkKafkaBottleneck } from "../src/tools/checkKafkaBottleneck.js";
 import { scanSystemErrors } from "../src/tools/scanSystemErrors.js";
 import { inspectChannelFirepower } from "../src/tools/inspectChannelFirepower.js";
@@ -194,6 +195,81 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
       const result = await inspectChannelFirepower({ channelIdOrName: "텐코 시부키" });
       assert.equal(result.status, "NOT_FOUND");
       assert.ok(executedQuery.includes("텐코 시부키"));
+    });
+  });
+
+  describe("diagnoseApiServerHealth", () => {
+    it("모든 OCI 지표가 정상이면 HEALTHY를 반환한다", async () => {
+      globalThis.fetch = async (url) => {
+        const u = new URL(url);
+        const query = u.searchParams.get("query") || "";
+
+        let val = "0";
+        if (query.includes("disk_free")) val = "107374182400"; // 100GB
+        if (query.includes("disk_total")) val = "161061273600"; // 150GB
+        if (query.includes("hikaricp_connections_pending")) val = "0";
+        if (query.includes("hikaricp_connections_active")) val = "2";
+        if (query.includes("system_cpu_usage")) val = "0.05"; // 5%
+        if (query.includes("jvm_memory_used_bytes")) val = "209715200"; // 200MB
+        if (query.includes("jvm_memory_max_bytes")) val = "1073741824"; // 1GB
+
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            status: "success",
+            data: {
+              resultType: "vector",
+              result: [{ metric: {}, value: [1000, val] }],
+            },
+          }),
+        };
+      };
+
+      const result = await diagnoseApiServerHealth();
+      assert.equal(result.status, "HEALTHY");
+      assert.equal(result.metrics.hikariPending, 0);
+      assert.equal(result.metrics.cpuPercent, "5%");
+      assert.equal(result.failedMetrics.length, 0);
+    });
+
+    it("HikariCP Pending이 1 이상이면 CRITICAL 상태를 반환한다", async () => {
+      globalThis.fetch = async (url) => {
+        const u = new URL(url);
+        const query = u.searchParams.get("query") || "";
+
+        let val = "0";
+        if (query.includes("hikaricp_connections_pending")) val = "3"; // 3건 대기 발생!
+        if (query.includes("system_cpu_usage")) val = "0.1";
+        if (query.includes("jvm_memory_used_bytes")) val = "200000000";
+
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            status: "success",
+            data: {
+              result: [{ metric: {}, value: [1000, val] }],
+            },
+          }),
+        };
+      };
+
+      const result = await diagnoseApiServerHealth();
+      assert.equal(result.status, "CRITICAL");
+      assert.ok(result.criticals.some((c) => c.includes("HikariCP")));
+    });
+
+    it("필수 OCI 지표 조회 실패 시 UNKNOWN을 반환한다", async () => {
+      globalThis.fetch = async () => ({
+        ok: false,
+        status: 500,
+        text: async () => "Datasource Timeout",
+      });
+
+      const result = await diagnoseApiServerHealth();
+      assert.equal(result.status, "UNKNOWN");
+      assert.ok(result.failedMetrics.length > 0);
     });
   });
 });

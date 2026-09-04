@@ -6,6 +6,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import { diagnosePipelineHealth } from "./tools/diagnosePipelineHealth.js";
+import { diagnoseApiServerHealth } from "./tools/diagnoseApiServerHealth.js";
 import { inspectChannelFirepower } from "./tools/inspectChannelFirepower.js";
 import { checkKafkaBottleneck } from "./tools/checkKafkaBottleneck.js";
 import { scanSystemErrors } from "./tools/scanSystemErrors.js";
@@ -28,7 +29,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "diagnose_pipeline_health",
         description:
-          "실시간 채팅 수집/분석 파이프라인 전수 진단. 활성 스트림 수, Kafka Lag, 처리 지연(P95), 인입/소비 매칭을 교차 검증하여 에러 로그가 없는 '사일런트 페일러'를 즉시 탐지합니다.",
+          "실시간 채팅 수집/분석 파이프라인 전수 진단 (홈서버). 활성 스트림 수, Kafka Lag, 처리 지연(P95), 인입/소비 매칭을 교차 검증하여 에러 로그가 없는 '사일런트 페일러'를 즉시 탐지합니다.",
+        inputSchema: {
+          type: "object",
+          properties: {},
+        },
+      },
+      {
+        name: "diagnose_api_server_health",
+        description:
+          "클라우드 API 서버 및 DB 종합 진단 (OCI). 디스크 사용량(85% 임계치), HikariCP DB 커넥션 풀 락(Pending), CPU/힙 자원 포화도, 엔진 화력 신호 인입 및 HTTP 5xx 에러율을 점검합니다.",
         inputSchema: {
           type: "object",
           properties: {},
@@ -88,6 +98,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       case "diagnose_pipeline_health":
         result = await diagnosePipelineHealth();
+        break;
+      case "diagnose_api_server_health":
+        result = await diagnoseApiServerHealth();
         break;
       case "inspect_channel_firepower":
         result = await inspectChannelFirepower(args);
