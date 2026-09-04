@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.slice.stream.engine.analyzer.domain.signal.AnalysisSignal;
 import java.time.Instant;
 import java.util.Collections;
@@ -40,7 +41,7 @@ class HttpHighlightSignalClientTest {
 
     @BeforeEach
     void setUp() {
-        httpHighlightSignalClient = new HttpHighlightSignalClient(restClient, HIGHLIGHT_PATH);
+        httpHighlightSignalClient = new HttpHighlightSignalClient(restClient, HIGHLIGHT_PATH, new SimpleMeterRegistry());
     }
 
     @Test

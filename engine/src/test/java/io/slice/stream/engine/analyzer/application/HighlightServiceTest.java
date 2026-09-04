@@ -25,6 +25,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -33,6 +35,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -50,6 +53,9 @@ class HighlightServiceTest {
     @Mock private ChatRoomAggregationRepository repository;
     @Mock private HighlightDetector detector;
     @Mock private HighlightEngineProperties props;
+
+    @Spy
+    private MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     @InjectMocks
     private HighlightService highlightService;

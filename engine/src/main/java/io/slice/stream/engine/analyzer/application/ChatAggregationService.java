@@ -3,6 +3,7 @@ package io.slice.stream.engine.analyzer.application;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.RemovalCause;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregation;
@@ -26,6 +27,7 @@ public class ChatAggregationService {
     private final Cache<String, ChatRoomAggregation> chatRoomAggregations;
     private final ChatRoomAggregationRepository chatRoomAggregationRepository;
     private final ApiServerClient apiServerClient;
+    private final Counter redisSaveErrorCounter;
 
     public ChatAggregationService(
         ChatRoomAggregationRepository chatRoomAggregationRepository,
@@ -34,6 +36,9 @@ public class ChatAggregationService {
     ) {
         this.chatRoomAggregationRepository = chatRoomAggregationRepository;
         this.apiServerClient = apiServerClient;
+        this.redisSaveErrorCounter = Counter.builder("engine.redis.save.errors")
+            .description("Redis TimeSeries 화력 저장 실패 누적 수")
+            .register(registry);
         this.chatRoomAggregations = Caffeine.newBuilder()
             .expireAfterAccess(10, TimeUnit.MINUTES)
             .removalListener((String key, ChatRoomAggregation value, RemovalCause cause) -> {
@@ -80,6 +85,7 @@ public class ChatAggregationService {
             chatRoomAggregationRepository.save(aggregation, aggregation.getLastChatTime());
 
         } catch (Exception e) {
+            redisSaveErrorCounter.increment();
             log.error("[Redis-Save] 저장 실패 - Key: {}", key, e);
         }
     }

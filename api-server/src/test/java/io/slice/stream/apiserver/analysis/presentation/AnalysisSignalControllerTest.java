@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.slice.stream.apiserver.analysis.application.service.AnalysisCommandService;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisSignalRequest;
 import java.time.Instant;
@@ -15,13 +17,17 @@ import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(AnalysisSignalController.class)
+@Import(AnalysisSignalControllerTest.TestConfig.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
 @TestPropertySource(properties = {
     "analysis.signal.path=/api/v1/signals/test-path",
@@ -29,6 +35,14 @@ import org.springframework.test.web.servlet.MockMvc;
     "analysis.signal.header=X-CUSTOM-HEADER-NAME"
 })
 class AnalysisSignalControllerTest {
+
+    @TestConfiguration
+    static class TestConfig {
+        @Bean
+        public MeterRegistry meterRegistry() {
+            return new SimpleMeterRegistry();
+        }
+    }
 
     @Autowired
     private MockMvc mockMvc;

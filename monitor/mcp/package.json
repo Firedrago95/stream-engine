@@ -1,0 +1,15 @@
+{
+  "name": "slice-observability-mcp",
+  "version": "1.0.0",
+  "description": "Slice Stream Engine Observability MCP Server for Prometheus, Loki, and Grafana Cloud",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test test/*.test.js",
+    "cli": "node test.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.6.1"
+  }
+}

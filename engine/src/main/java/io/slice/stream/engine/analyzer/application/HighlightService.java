@@ -1,5 +1,8 @@
 package io.slice.stream.engine.analyzer.application;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregationRepository;
 import io.slice.stream.engine.analyzer.domain.detection.ChatFirepowerStatus;
@@ -16,14 +19,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class HighlightService {
 
     private final ActiveStreamProvider streamProvider;
@@ -34,24 +35,56 @@ public class HighlightService {
     private final ChatRoomAggregationRepository repository;
     private final HighlightDetector detector;
     private final HighlightEngineProperties props;
+    private final Timer analysisTimer;
+    private final Counter peakDetectedCounter;
+
+    public HighlightService(
+        ActiveStreamProvider streamProvider,
+        ExecutorService virtualThreadExecutor,
+        HighlightSignalClient signalClient,
+        Clock clock,
+        StreamTierManager tierManager,
+        ChatRoomAggregationRepository repository,
+        HighlightDetector detector,
+        HighlightEngineProperties props,
+        MeterRegistry meterRegistry
+    ) {
+        this.streamProvider = streamProvider;
+        this.virtualThreadExecutor = virtualThreadExecutor;
+        this.signalClient = signalClient;
+        this.clock = clock;
+        this.tierManager = tierManager;
+        this.repository = repository;
+        this.detector = detector;
+        this.props = props;
+        this.analysisTimer = Timer.builder("engine.analysis.duration")
+            .description("3초 주기 분석 연산 소요 시간")
+            .publishPercentiles(0.95, 0.99)
+            .register(meterRegistry);
+        this.peakDetectedCounter = Counter.builder("engine.peaks.detected")
+            .description("감지된 하이라이트 PEAK 시그널 수")
+            .register(meterRegistry);
+    }
 
     @Scheduled(fixedRateString = "${highlight.engine.scheduler-interval-ms}")
     public void monitorHighlights() {
-        List<StreamTarget> activeTargets = streamProvider.getActiveStreamTargets();
-        validateTrafficLoad(activeTargets.size());
+        analysisTimer.record(() -> {
+            List<StreamTarget> activeTargets = streamProvider.getActiveStreamTargets();
+            validateTrafficLoad(activeTargets.size());
 
-        List<CompletableFuture<Optional<AnalysisSignal>>> futures = activeTargets.stream()
-            .map(target -> CompletableFuture.supplyAsync(() -> processStream(target), virtualThreadExecutor))
-            .toList();
+            List<CompletableFuture<Optional<AnalysisSignal>>> futures = activeTargets.stream()
+                .map(target -> CompletableFuture.supplyAsync(() -> processStream(target), virtualThreadExecutor))
+                .toList();
 
-        List<AnalysisSignal> signals = futures.stream()
-            .map(CompletableFuture::join)
-            .flatMap(Optional::stream)
-            .toList();
+            List<AnalysisSignal> signals = futures.stream()
+                .map(CompletableFuture::join)
+                .flatMap(Optional::stream)
+                .toList();
 
-        if (!signals.isEmpty()) {
-            signalClient.send(signals);
-        }
+            if (!signals.isEmpty()) {
+                signalClient.send(signals);
+            }
+        });
     }
 
     private void validateTrafficLoad(int targetCount) {
@@ -101,6 +134,7 @@ public class HighlightService {
         }
 
         if (result.status() == ChatFirepowerStatus.PEAK) {
+            peakDetectedCounter.increment();
             log.info("[Analysis] PEAK 시그널 전송 - Stream: {}, 수치: {}, 체급: {}",
                 streamId, result.firepower(), tierInfo.tier().name());
         }

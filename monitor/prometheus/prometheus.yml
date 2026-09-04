@@ -11,7 +11,7 @@ scrape_configs:
       - targets: ['engine:9090']
 
   # 2. 원격 API 서버 모듈 수집
-  - job_name: 'api-server-module'
+  - job_name: 'api-server-oci'
     metrics_path: '/actuator/prometheus'
     static_configs:
       # 현재 상태: 로컬에서 테스트하기 위해 도커 내부 컨테이너 이름(api-server)을 바라본다.
