@@ -8,6 +8,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.slice.stream.apiserver.stream.application.dto.ChangedStreamRequest;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
@@ -25,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -44,6 +47,9 @@ class StreamSessionServiceTest {
 
     @Mock
     private CacheManager cacheManager;
+
+    @Spy
+    private MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     @InjectMocks
     private StreamSessionService streamSessionService;
