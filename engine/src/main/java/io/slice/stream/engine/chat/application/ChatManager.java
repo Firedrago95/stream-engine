@@ -1,5 +1,7 @@
 package io.slice.stream.engine.chat.application;
 
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.slice.stream.engine.analyzer.domain.stream.ActiveStreamProvider;
 import io.slice.stream.engine.chat.domain.ChatCollector;
 import io.slice.stream.engine.chat.domain.ChatCollectorFactory;
@@ -10,18 +12,30 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 public class ChatManager {
 
     private final Map<String, ChatCollector> chatCollectors = new ConcurrentHashMap<>();
     private final ChatCollectorFactory chatCollectorFactory;
     private final ExecutorService virtualThreadExecutor;
     private final ActiveStreamProvider activeStreamProvider;
+
+    public ChatManager(
+        ChatCollectorFactory chatCollectorFactory,
+        ExecutorService virtualThreadExecutor,
+        ActiveStreamProvider activeStreamProvider,
+        MeterRegistry meterRegistry
+    ) {
+        this.chatCollectorFactory = chatCollectorFactory;
+        this.virtualThreadExecutor = virtualThreadExecutor;
+        this.activeStreamProvider = activeStreamProvider;
+        Gauge.builder("engine.websocket.connections.active", chatCollectors, Map::size)
+            .description("현재 활성 상태인 치지직 WebSocket 수집기 수")
+            .register(meterRegistry);
+    }
 
     public void manageStreams(Set<StreamTarget> newStreamTargets, Set<StreamTarget> closedStreams) {
         if (!closedStreams.isEmpty()) {
