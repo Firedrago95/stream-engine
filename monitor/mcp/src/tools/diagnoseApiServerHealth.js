@@ -1,16 +1,17 @@
 import { queryPromql } from "../grafana-client.js";
 
 export async function diagnoseApiServerHealth() {
+  const jobLabel = process.env.API_SERVER_JOB || "api-server-oci";
   const queryDefinitions = [
-    { key: "diskFree", query: 'disk_free_bytes{job="api-server-oci"}', required: false },
-    { key: "diskTotal", query: 'disk_total_bytes{job="api-server-oci"}', required: false },
-    { key: "hikariPending", query: 'hikaricp_connections_pending{job="api-server-oci"}', required: true },
-    { key: "hikariActive", query: 'hikaricp_connections_active{job="api-server-oci"}', required: true },
-    { key: "cpuUsage", query: 'system_cpu_usage{job="api-server-oci"}', required: true },
-    { key: "heapUsedBytes", query: 'sum(jvm_memory_used_bytes{area="heap",job="api-server-oci"})', required: true },
-    { key: "heapMaxBytes", query: 'sum(jvm_memory_max_bytes{area="heap",job="api-server-oci"})', required: false },
-    { key: "signalRps", query: 'sum(rate(http_server_requests_seconds_count{job="api-server-oci",uri=~".*signals.*"}[5m]))', required: false },
-    { key: "http5xxRate", query: 'sum(rate(http_server_requests_seconds_count{job="api-server-oci",status=~"5.."}[5m]))', required: false },
+    { key: "diskFree", query: `disk_free_bytes{job="${jobLabel}"}`, required: false },
+    { key: "diskTotal", query: `disk_total_bytes{job="${jobLabel}"}`, required: false },
+    { key: "hikariPending", query: `hikaricp_connections_pending{job="${jobLabel}"}`, required: true },
+    { key: "hikariActive", query: `hikaricp_connections_active{job="${jobLabel}"}`, required: true },
+    { key: "cpuUsage", query: `system_cpu_usage{job="${jobLabel}"}`, required: true },
+    { key: "heapUsedBytes", query: `sum(jvm_memory_used_bytes{area="heap",job="${jobLabel}"})`, required: true },
+    { key: "heapMaxBytes", query: `sum(jvm_memory_max_bytes{area="heap",job="${jobLabel}"})`, required: false },
+    { key: "signalRps", query: `sum(rate(http_server_requests_seconds_count{job="${jobLabel}",uri=~".*signals.*"}[5m]))`, required: false },
+    { key: "http5xxRate", query: `sum(rate(http_server_requests_seconds_count{job="${jobLabel}",status=~"5.."}[5m]))`, required: false },
   ];
 
   const results = await Promise.allSettled(
@@ -25,7 +26,7 @@ export async function diagnoseApiServerHealth() {
     if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length > 0 && res.value[0]?.value) {
       parsedMetrics[def.key] = Number(res.value[0].value[1]);
     } else if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length === 0) {
-      if (def.key === "hikariPending" || def.key === "http5xxRate" || def.key === "signalRps") {
+      if (def.key === "http5xxRate" || def.key === "signalRps") {
         parsedMetrics[def.key] = 0;
       } else {
         failedMetrics.push({ key: def.key, query: def.query, error: "데이터가 비어있습니다 (0건 반환)", required: def.required });

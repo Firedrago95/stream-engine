@@ -271,5 +271,41 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
       assert.equal(result.status, "UNKNOWN");
       assert.ok(result.failedMetrics.length > 0);
     });
+
+    it("필수 지표인 hikariPending 결과가 비어있으면 0으로 처리하지 않고 UNKNOWN을 반환한다", async () => {
+      globalThis.fetch = async (url) => {
+        const u = new URL(url);
+        const query = u.searchParams.get("query") || "";
+
+        // hikariPending 쿼리에 대해서는 빈 배열 반환
+        if (query.includes("hikaricp_connections_pending")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              status: "success",
+              data: { resultType: "vector", result: [] },
+            }),
+          };
+        }
+
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            status: "success",
+            data: {
+              resultType: "vector",
+              result: [{ metric: {}, value: [1000, "1"] }],
+            },
+          }),
+        };
+      };
+
+      const result = await diagnoseApiServerHealth();
+      assert.equal(result.status, "UNKNOWN");
+      assert.ok(result.failedMetrics.some((f) => f.key === "hikariPending" && f.required));
+      assert.ok(result.summary.includes("hikariPending"));
+    });
   });
 });
