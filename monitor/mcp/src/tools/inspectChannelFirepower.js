@@ -1,14 +1,22 @@
 import { queryLogql } from "../grafana-client.js";
 
 export async function inspectChannelFirepower({ channelIdOrName }) {
-  if (!channelIdOrName || channelIdOrName.trim().length === 0) {
+  if (!channelIdOrName || typeof channelIdOrName !== "string" || channelIdOrName.trim().length === 0) {
     throw new Error("channelIdOrName 파라미터가 필요합니다.");
   }
 
   const keyword = channelIdOrName.trim();
-  const logql = `{filename=~".*engine.*"} |= "${keyword}"`;
+  if (!/^[a-zA-Z0-9가-힣\s\-_]{1,50}$/.test(keyword)) {
+    throw new Error("유효하지 않은 검색어 형식입니다. (영문, 숫자, 한글, 공백, 하이픈, 언더스코어 1~50자만 허용)");
+  }
 
-  const logsResult = await queryLogql(logql, 30);
+  const safeKeyword = keyword.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const logql = `{filename=~".*engine.*"} |= "${safeKeyword}"`;
+
+  const endNs = BigInt(Date.now()) * 1000000n;
+  const startNs = endNs - (30n * 60n * 1000n * 1000000n);
+
+  const logsResult = await queryLogql(logql, 30, startNs.toString(), endNs.toString());
   const logLines = [];
 
   if (Array.isArray(logsResult)) {

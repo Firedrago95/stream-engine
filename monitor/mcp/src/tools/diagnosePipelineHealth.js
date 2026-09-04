@@ -1,32 +1,66 @@
 import { queryPromql } from "../grafana-client.js";
 
 export async function diagnosePipelineHealth() {
-  const [
-    activeStreamsRes,
-    producerTpsRes,
-    consumerTpsRes,
-    kafkaLagRes,
-    p95LatencyRes,
-    liveThreadsRes,
-  ] = await Promise.allSettled([
-    queryPromql("engine_active_streams"),
-    queryPromql("sum(kafka_producer_record_send_rate)"),
-    queryPromql("sum(kafka_consumer_fetch_manager_records_consumed_rate)"),
-    queryPromql("sum(kafka_consumer_fetch_manager_records_lag)"),
-    queryPromql("histogram_quantile(0.95, sum(rate(analysis_processing_time_seconds_bucket[5m])) by (le))"),
-    queryPromql("jvm_threads_live_threads{application=\"engine\"}"),
-  ]);
+  const queryDefinitions = [
+    { key: "activeStreams", query: "engine_active_streams", required: true },
+    { key: "producerTps", query: "sum(kafka_producer_record_send_rate)", required: true },
+    { key: "consumerTps", query: "sum(kafka_consumer_fetch_manager_records_consumed_rate)", required: true },
+    { key: "kafkaLag", query: "sum(kafka_consumer_fetch_manager_records_lag)", required: true },
+    { key: "p95LatencySec", query: "histogram_quantile(0.95, sum(rate(analysis_processing_time_seconds_bucket[5m])) by (le))", required: true },
+    { key: "liveThreads", query: 'jvm_threads_live_threads{application="engine"}', required: false },
+  ];
 
-  const activeStreams = Number(activeStreamsRes.value?.[0]?.value?.[1] ?? 0);
-  const producerTps = Number(producerTpsRes.value?.[0]?.value?.[1] ?? 0);
-  const consumerTps = Number(consumerTpsRes.value?.[0]?.value?.[1] ?? 0);
-  const kafkaLag = Number(kafkaLagRes.value?.[0]?.value?.[1] ?? 0);
-  const p95LatencySec = Number(p95LatencyRes.value?.[0]?.value?.[1] ?? 0);
+  const results = await Promise.allSettled(
+    queryDefinitions.map((def) => queryPromql(def.query))
+  );
+
+  const parsedMetrics = {};
+  const failedMetrics = [];
+
+  queryDefinitions.forEach((def, index) => {
+    const res = results[index];
+    if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length > 0 && res.value[0]?.value) {
+      parsedMetrics[def.key] = Number(res.value[0].value[1]);
+    } else if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length === 0) {
+      if (def.key === "kafkaLag" || def.key === "producerTps" || def.key === "consumerTps") {
+        parsedMetrics[def.key] = 0;
+      } else {
+        failedMetrics.push({ key: def.key, query: def.query, error: "데이터가 비어있습니다 (0건 반환)", required: def.required });
+      }
+    } else {
+      const errorMsg = res.status === "rejected" ? res.reason?.message || "쿼리 거부됨" : "응답 형식 불일치";
+      failedMetrics.push({ key: def.key, query: def.query, error: errorMsg, required: def.required });
+    }
+  });
+
+  const hasRequiredFailure = failedMetrics.some((f) => f.required);
+  if (hasRequiredFailure) {
+    const failedNames = failedMetrics.map((f) => `${f.key}(${f.error})`).join(", ");
+    return {
+      status: "UNKNOWN",
+      timestamp: new Date().toISOString(),
+      metrics: parsedMetrics,
+      failedMetrics,
+      criticals: [],
+      warnings: [],
+      summary: `[측정 불가/UNKNOWN] 필수 모니터링 지표 조회 실패로 시스템 상태를 확정할 수 없습니다. (실패 항목: ${failedNames})`,
+    };
+  }
+
+  const activeStreams = Number(parsedMetrics.activeStreams ?? 0);
+  const producerTps = Number(parsedMetrics.producerTps ?? 0);
+  const consumerTps = Number(parsedMetrics.consumerTps ?? 0);
+  const kafkaLag = Number(parsedMetrics.kafkaLag ?? 0);
+  const p95LatencySec = Number(parsedMetrics.p95LatencySec ?? 0);
   const p95LatencyMs = Number((p95LatencySec * 1000).toFixed(2));
-  const liveThreads = Number(liveThreadsRes.value?.[0]?.value?.[1] ?? 0);
+  const liveThreads = parsedMetrics.liveThreads !== undefined ? Number(parsedMetrics.liveThreads) : null;
 
   const warnings = [];
   const criticals = [];
+
+  if (failedMetrics.length > 0) {
+    warnings.push(`일부 보조 지표 조회 실패: ${failedMetrics.map((f) => f.key).join(", ")}`);
+  }
 
   if (activeStreams === 0) {
     criticals.push("수집 중인 활성 스트림 수가 0개입니다 (수집 엔진 중단 또는 웹소켓 미연결).");
@@ -52,7 +86,7 @@ export async function diagnosePipelineHealth() {
   if (criticals.length > 0) {
     status = "CRITICAL";
   } else if (warnings.length > 0) {
-    status = "WARNING";
+    status = failedMetrics.length > 0 ? "DEGRADED" : "WARNING";
   }
 
   return {
@@ -66,6 +100,7 @@ export async function diagnosePipelineHealth() {
       p95LatencyMs,
       liveThreads,
     },
+    failedMetrics,
     criticals,
     warnings,
     summary:

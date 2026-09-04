@@ -9,7 +9,6 @@ import { diagnosePipelineHealth } from "./tools/diagnosePipelineHealth.js";
 import { inspectChannelFirepower } from "./tools/inspectChannelFirepower.js";
 import { checkKafkaBottleneck } from "./tools/checkKafkaBottleneck.js";
 import { scanSystemErrors } from "./tools/scanSystemErrors.js";
-import { queryPromql, queryPromqlRange, queryLogql } from "./grafana-client.js";
 
 const server = new Server(
   {
@@ -62,77 +61,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "scan_system_errors",
         description:
-          "Loki 연동 스마트 에러 로그 요약. 수천 줄의 로그 대신 웹소켓 끊김, 세션 마감, Redis 쓰기 등 실제 장애 유발 에러만 압축 요약합니다.",
+          "Loki 연동 스마트 에러 로그 요약. 수천 줄의 로그 대신 웹소켓 끊김, 세션 마감, Redis 쓰기, JSON 파싱 오류 등 실제 장애 유발 에러만 압축 요약합니다.",
         inputSchema: {
           type: "object",
           properties: {
             limit: {
               type: "number",
-              description: "조회할 최대 에러 로그 수 (기본값: 50)",
+              description: "조회할 최대 에러 로그 수 (1~100, 기본값: 50)",
+            },
+            lookbackMinutes: {
+              type: "number",
+              description: "과거 몇 분간의 로그를 조회할지 지정 (1~120, 기본값: 15)",
             },
           },
-        },
-      },
-      {
-        name: "query_promql",
-        description: "Grafana Cloud Prometheus(Mimir)에 임의의 PromQL 즉시 쿼리를 실행합니다.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            query: {
-              type: "string",
-              description: "실행할 PromQL 쿼리문",
-            },
-            time: {
-              type: "number",
-              description: "선택적 Unix 타임스탬프 (초 단위)",
-            },
-          },
-          required: ["query"],
-        },
-      },
-      {
-        name: "query_promql_range",
-        description: "Grafana Cloud Prometheus(Mimir)에 범위(Range) PromQL 쿼리를 실행합니다.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            query: {
-              type: "string",
-              description: "실행할 PromQL 쿼리문",
-            },
-            start: {
-              type: "number",
-              description: "시작 Unix 타임스탬프 (초 단위)",
-            },
-            end: {
-              type: "number",
-              description: "종료 Unix 타임스탬프 (초 단위)",
-            },
-            step: {
-              type: "string",
-              description: "쿼리 스텝 (예: '15s', '1m')",
-            },
-          },
-          required: ["query", "start", "end"],
-        },
-      },
-      {
-        name: "query_logql",
-        description: "Grafana Cloud Loki에 임의의 LogQL 쿼리를 실행하여 최근 로그를 검색합니다.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            query: {
-              type: "string",
-              description: "실행할 LogQL 쿼리문 (예: '{filename=~\".*engine.*\"} |= \"PEAK\"')",
-            },
-            limit: {
-              type: "number",
-              description: "가져올 최대 로그 라인 수 (기본값: 30)",
-            },
-          },
-          required: ["query"],
         },
       },
     ],
@@ -157,17 +98,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "scan_system_errors":
         result = await scanSystemErrors(args);
         break;
-      case "query_promql":
-        result = await queryPromql(args.query, args.time);
-        break;
-      case "query_promql_range":
-        result = await queryPromqlRange(args.query, args.start, args.end, args.step);
-        break;
-      case "query_logql":
-        result = await queryLogql(args.query, args.limit);
-        break;
       default:
-        throw new Error(`알 수 없는 도구: ${name}`);
+        throw new Error(`알 수 없는 도구이거나 실행 권한이 없습니다: ${name}`);
     }
 
     return {

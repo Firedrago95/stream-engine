@@ -50,45 +50,18 @@ export async function queryPromql(promql, time = null) {
   return json.data.result;
 }
 
-export async function queryPromqlRange(promql, start, end, step = "15s") {
-  const url = new URL(`${GRAFANA_URL}/api/datasources/proxy/uid/${PROM_UID}/api/v1/query_range`);
-  url.searchParams.set("query", promql);
-  url.searchParams.set("start", start.toString());
-  url.searchParams.set("end", end.toString());
-  url.searchParams.set("step", step);
-
-  const response = await fetch(url.toString(), {
-    method: "GET",
-    headers: {
-      Authorization: getAuthHeader(),
-      Accept: "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Prometheus 범위 쿼리 실패 (${response.status}): ${errorText}`);
-  }
-
-  const json = await response.json();
-  if (json.status !== "success") {
-    throw new Error(`Prometheus 오류: ${json.error || "알 수 없는 오류"}`);
-  }
-
-  return json.data.result;
-}
-
 export async function queryLogql(logql, limit = 50, start = null, end = null, direction = "backward") {
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 50, 100));
   const url = new URL(`${GRAFANA_URL}/api/datasources/proxy/uid/${LOKI_UID}/loki/api/v1/query_range`);
   url.searchParams.set("query", logql);
-  url.searchParams.set("limit", limit.toString());
+  url.searchParams.set("limit", safeLimit.toString());
   url.searchParams.set("direction", direction);
-  if (start) {
-    url.searchParams.set("start", start.toString());
-  }
-  if (end) {
-    url.searchParams.set("end", end.toString());
-  }
+
+  const finalEnd = end || (BigInt(Date.now()) * 1000000n).toString();
+  const finalStart = start || (BigInt(Date.now() - 15 * 60 * 1000) * 1000000n).toString();
+
+  url.searchParams.set("start", finalStart);
+  url.searchParams.set("end", finalEnd);
 
   const response = await fetch(url.toString(), {
     method: "GET",
