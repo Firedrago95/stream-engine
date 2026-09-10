@@ -11,6 +11,7 @@ export async function diagnoseApiServerHealth() {
     { key: "heapUsedBytes", query: `sum(jvm_memory_used_bytes{area="heap",job="${jobLabel}"})`, required: true },
     { key: "heapMaxBytes", query: `sum(jvm_memory_max_bytes{area="heap",job="${jobLabel}"})`, required: false },
     { key: "signalRps", query: `sum(rate(http_server_requests_seconds_count{job="${jobLabel}",uri=~".*signals.*"}[5m]))`, required: false },
+    { key: "syncRps", query: `sum(rate(http_server_requests_seconds_count{job="${jobLabel}",uri=~".*streams/sync.*"}[5m]))`, required: false },
     { key: "http5xxRate", query: `sum(rate(http_server_requests_seconds_count{job="${jobLabel}",status=~"5.."}[5m]))`, required: false },
   ];
 
@@ -26,7 +27,7 @@ export async function diagnoseApiServerHealth() {
     if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length > 0 && res.value[0]?.value) {
       parsedMetrics[def.key] = Number(res.value[0].value[1]);
     } else if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length === 0) {
-      if (def.key === "http5xxRate" || def.key === "signalRps") {
+      if (def.key === "http5xxRate" || def.key === "signalRps" || def.key === "syncRps") {
         parsedMetrics[def.key] = 0;
       } else {
         failedMetrics.push({ key: def.key, query: def.query, error: "데이터가 비어있습니다 (0건 반환)", required: def.required });
@@ -64,6 +65,7 @@ export async function diagnoseApiServerHealth() {
   const heapMaxMb = parsedMetrics.heapMaxBytes ? Number((parsedMetrics.heapMaxBytes / (1024 * 1024)).toFixed(1)) : 0;
   const heapUsagePercent = heapMaxMb > 0 ? Number(((heapUsedMb / heapMaxMb) * 100).toFixed(1)) : 0;
   const signalRps = Number((parsedMetrics.signalRps ?? 0).toFixed(2));
+  const syncRps = Number((parsedMetrics.syncRps ?? 0).toFixed(2));
   const http5xxRate = Number((parsedMetrics.http5xxRate ?? 0).toFixed(2));
 
   const warnings = [];
@@ -116,6 +118,7 @@ export async function diagnoseApiServerHealth() {
       heapUsedMb,
       heapUsagePercent: `${heapUsagePercent}%`,
       signalRps,
+      syncRps,
       http5xxRate,
     },
     failedMetrics,

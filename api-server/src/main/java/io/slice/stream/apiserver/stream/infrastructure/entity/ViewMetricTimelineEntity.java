@@ -8,9 +8,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
+@Getter
 @Table(name = "view_metric_timelines")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ViewMetricTimelineEntity {
@@ -30,6 +32,10 @@ public class ViewMetricTimelineEntity {
 
     @Column(nullable = false)
     private int viewerCount;
+
+    public ViewMetricTimelineEntity(String streamId, String sessionId, Instant timestamp, int viewerCount) {
+        this(null, streamId, sessionId, timestamp, viewerCount);
+    }
 
     public ViewMetricTimelineEntity(Long id, String streamId, String sessionId, Instant timestamp, int viewerCount) {
         this.id = id;
