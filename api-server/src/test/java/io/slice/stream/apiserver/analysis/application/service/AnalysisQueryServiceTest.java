@@ -78,6 +78,25 @@ class AnalysisQueryServiceTest {
     }
 
     @Test
+    void 활성_세션이_없는_경우_최근_분석_데이터_조회시_타임라인과_요약은_비어있는_상태로_반환된다() {
+        String streamId = "test-stream";
+        Instant now = Instant.now();
+        List<AnalysisSignal> signals = List.of(
+            AnalysisSignal.of(streamId, "sessionId", "NORMAL", now, 50L, 500L)
+        );
+
+        given(analysisRepository.findRecentSignals(streamId, 100)).willReturn(signals);
+        given(sessionRepository.findActiveSession(streamId)).willReturn(Optional.empty());
+
+        AnalysisResponse response = analysisQueryService.getRecentAnalysis(streamId);
+
+        assertThat(response.streamId()).isEqualTo(streamId);
+        assertThat(response.dataPoints()).hasSize(1);
+        assertThat(response.timeline()).isEmpty();
+        assertThat(response.summary()).isNull();
+    }
+
+    @Test
     void 과거_데이터_조회_시_요약_데이터가_존재하면_이를_우선적으로_반환한다() {
         // given
         String streamId = "test-stream";

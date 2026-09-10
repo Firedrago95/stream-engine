@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 
 import io.slice.stream.apiserver.stream.domain.StreamRepository;
@@ -92,5 +93,18 @@ class StreamServiceTest {
         assertThat(savedTimeline.get(0).getStreamId()).isEqualTo("ch1");
         assertThat(savedTimeline.get(0).getSessionId()).isEqualTo("live1");
         assertThat(savedTimeline.get(0).getViewerCount()).isEqualTo(3500);
+    }
+
+    @Test
+    void 활성_세션이_없는_경우_타임라인을_적재하지_않고_스트림_정보만_upsert한다() {
+        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통");
+
+        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
+            .willReturn(List.of());
+
+        streamService.syncAll(List.of(request));
+
+        then(streamRepository).should().upsertStream(streamCaptor.capture(), any(Instant.class));
+        then(timelineRepository).should(never()).saveAll(any());
     }
 }

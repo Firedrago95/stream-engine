@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import lombok.AccessLevel;
@@ -13,7 +14,12 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@Table(name = "view_metric_timelines")
+@Table(
+    name = "view_metric_timelines",
+    indexes = {
+        @Index(name = "idx_viewer_metric_session", columnList = "session_id, timestamp DESC")
+    }
+)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ViewMetricTimelineEntity {
 
@@ -21,16 +27,16 @@ public class ViewMetricTimelineEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "stream_id", nullable = false)
     private String streamId;
 
-    @Column(nullable = false)
+    @Column(name = "session_id", nullable = false)
     private String sessionId;
 
-    @Column(nullable = false)
+    @Column(name = "timestamp", nullable = false)
     private Instant timestamp;
 
-    @Column(nullable = false)
+    @Column(name = "viewer_count", nullable = false)
     private int viewerCount;
 
     public ViewMetricTimelineEntity(String streamId, String sessionId, Instant timestamp, int viewerCount) {
