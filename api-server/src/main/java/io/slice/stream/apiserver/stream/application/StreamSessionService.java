@@ -8,6 +8,7 @@ import io.slice.stream.apiserver.stream.application.dto.ChangedStreamRequest;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRepository;
+import io.slice.stream.apiserver.stream.infrastructure.JpaViewMetricTimelineRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
@@ -35,6 +36,7 @@ public class StreamSessionService {
     private final JpaStreamSessionRepository sessionRepository;
     private final JpaStreamRepository streamRepository;
     private final JpaStreamSessionSegmentRepository segmentRepository;
+    private final JpaViewMetricTimelineRepository timelineRepository;
     private final CacheManager cacheManager;
     private final Counter zombieSessionsClosedCounter;
     private final Counter sessionsCreatedCounter;
@@ -43,12 +45,14 @@ public class StreamSessionService {
         JpaStreamSessionRepository sessionRepository,
         JpaStreamRepository streamRepository,
         JpaStreamSessionSegmentRepository segmentRepository,
+        JpaViewMetricTimelineRepository timelineRepository,
         CacheManager cacheManager,
         MeterRegistry meterRegistry
     ) {
         this.sessionRepository = sessionRepository;
         this.streamRepository = streamRepository;
         this.segmentRepository = segmentRepository;
+        this.timelineRepository = timelineRepository;
         this.cacheManager = cacheManager;
         this.zombieSessionsClosedCounter = Counter.builder("apiserver.zombie.sessions.closed")
             .description("마감 처리된 오프라인 세션 누적 수")
@@ -119,14 +123,14 @@ public class StreamSessionService {
         }
     }
 
-    private java.util.Optional<StreamSessionSegmentEntity> processSegmentUpdate(
+    private Optional<StreamSessionSegmentEntity> processSegmentUpdate(
         ChangedStreamRequest req,
         StreamSessionEntity session,
         StreamSessionSegmentEntity activeSegment
     ) {
         if (Objects.equals(req.newCategory(), session.getCategoryName()) &&
             Objects.equals(req.newTitle(), session.getTitle())) {
-            return java.util.Optional.empty();
+            return Optional.empty();
         }
 
         if (activeSegment != null) {
@@ -135,7 +139,7 @@ public class StreamSessionService {
 
         session.updateMetadata(req.newTitle(), req.newCategory());
 
-        return java.util.Optional.of(new StreamSessionSegmentEntity(
+        return Optional.of(new StreamSessionSegmentEntity(
             req.streamId(),
             session.getSessionId(),
             req.newTitle(),
@@ -156,7 +160,11 @@ public class StreamSessionService {
         }
 
         for (StreamSessionEntity session : sessionsToClose) {
-            session.finishSession(Instant.now(), null);
+            Double avgViewers = timelineRepository.findAverageViewerCountBySessionId(session.getSessionId());
+            Integer peakViewers = timelineRepository.findPeakViewerCountBySessionId(session.getSessionId());
+            int finalPeak = peakViewers != null ? Math.max(peakViewers, session.getPeakViewers()) : session.getPeakViewers();
+
+            session.finishSession(Instant.now(), finalPeak, avgViewers);
 
             segmentRepository.findActiveSegment(session.getSessionId())
                     .ifPresent(segment -> {
@@ -197,6 +205,11 @@ public class StreamSessionService {
 
         StreamSessionEntity session = sessionOpt.get();
         session.updateSubscriberChatRatio(summaries.subscriberChatRatio());
-        session.finishSession(summaries.endedAt(), null);
+
+        Double avgViewers = timelineRepository.findAverageViewerCountBySessionId(session.getSessionId());
+        Integer peakViewers = timelineRepository.findPeakViewerCountBySessionId(session.getSessionId());
+        int finalPeak = peakViewers != null ? Math.max(peakViewers, session.getPeakViewers()) : session.getPeakViewers();
+
+        session.finishSession(summaries.endedAt(), finalPeak, avgViewers);
     }
 }

@@ -65,11 +65,28 @@ public class StreamSessionEntity {
         this.categoryName = categoryName;
     }
 
+    public void updatePeakViewers(int viewers) {
+        if (viewers > this.peakViewers) {
+            this.peakViewers = viewers;
+        }
+    }
+
     public void finishSession(Instant endedAt, Integer finalPeakViewers) {
         this.endedAt = endedAt;
         if (finalPeakViewers != null && finalPeakViewers > this.peakViewers) {
             this.peakViewers = finalPeakViewers;
         }
+    }
+
+    public void finishSession(Instant endedAt, Integer finalPeakViewers, Integer averageViewerCount) {
+        finishSession(endedAt, finalPeakViewers);
+        if (averageViewerCount != null) {
+            this.averageViewerCount = averageViewerCount;
+        }
+    }
+
+    public void finishSession(Instant endedAt, Integer finalPeakViewers, Double averageViewerCount) {
+        finishSession(endedAt, finalPeakViewers, averageViewerCount != null ? (int) Math.round(averageViewerCount) : null);
     }
 
     public void reopen() {

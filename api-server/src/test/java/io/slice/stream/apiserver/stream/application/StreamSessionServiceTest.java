@@ -14,6 +14,7 @@ import io.slice.stream.apiserver.stream.application.dto.ChangedStreamRequest;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRepository;
+import io.slice.stream.apiserver.stream.infrastructure.JpaViewMetricTimelineRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
@@ -44,6 +45,9 @@ class StreamSessionServiceTest {
 
     @Mock
     private JpaStreamSessionSegmentRepository segmentRepository;
+
+    @Mock
+    private JpaViewMetricTimelineRepository timelineRepository;
 
     @Mock
     private CacheManager cacheManager;
@@ -116,28 +120,29 @@ class StreamSessionServiceTest {
 
     @Test
     void 오프라인_임계치를_초과한_방종_세션을_찾아_종료하고_캐시를_명시적으로_제거한다() {
-        // given
         String streamId = "stream-3";
         StreamSessionEntity zombieSession = new StreamSessionEntity(streamId, "zombie-session-id", "방제", "카테고리", Instant.now().minusSeconds(3600));
 
         when(sessionRepository.findSessionsToClose(any(Instant.class)))
             .thenReturn(List.of(zombieSession));
+        when(timelineRepository.findAverageViewerCountBySessionId("zombie-session-id"))
+            .thenReturn(150.0);
+        when(timelineRepository.findPeakViewerCountBySessionId("zombie-session-id"))
+            .thenReturn(300);
 
-        // 캐시 Evict 로직을 검증하기 위한 Mocking
         Cache mockCache = mock(Cache.class);
         when(cacheManager.getCache("activeSessions")).thenReturn(mockCache);
 
-        // when
         streamSessionService.closeOfflineSessions();
 
-        // then
-        assertThat(zombieSession.getEndedAt()).isNotNull(); // 엔티티에 종료 시간이 잘 찍혔는지 검증
-        verify(mockCache, times(1)).evict(streamId); // 💡 핵심: 글로벌 캐시에서 스트림ID가 잘 삭제되었는지 검증
+        assertThat(zombieSession.getEndedAt()).isNotNull();
+        assertThat(zombieSession.getPeakViewers()).isEqualTo(300);
+        assertThat(zombieSession.getAverageViewerCount()).isEqualTo(150);
+        verify(mockCache, times(1)).evict(streamId);
     }
 
     @Test
     void 방제나_카테고리가_변경되면_기존_세그먼트를_종료하고_새로운_세그먼트를_저장한다() {
-        // given
         String streamId = "stream-1";
         String sessionId = "session-1";
         Instant changedAt = Instant.now();
@@ -152,19 +157,17 @@ class StreamSessionServiceTest {
         when(segmentRepository.findAllActiveSegments(List.of(sessionId)))
             .thenReturn(List.of(activeSegment));
 
-        // when
         streamSessionService.updateSessionSegment(List.of(request));
 
-        // then
         assertThat(activeSegment.getEndedAt()).isEqualTo(changedAt);
         assertThat(activeSegment.getEndOffsetMs()).isEqualTo(offsetMs);
         assertThat(activeSession.getTitle()).isEqualTo("새로운방제");
         assertThat(activeSession.getCategoryName()).isEqualTo("새로운카테고리");
         verify(segmentRepository, times(1)).saveAll(any());
     }
+
     @Test
     void 변경된_방제나_카테고리가_기존과_완전히_동일하면_세그먼트를_갱신하지_않는다() {
-        // given
         String streamId = "stream-1";
         String sessionId = "session-1";
         Instant changedAt = Instant.now();
@@ -179,32 +182,34 @@ class StreamSessionServiceTest {
         when(segmentRepository.findAllActiveSegments(List.of(sessionId)))
             .thenReturn(List.of(activeSegment));
 
-        // when
         streamSessionService.updateSessionSegment(List.of(request));
 
-        // then
         assertThat(activeSegment.getEndedAt()).isNull();
         assertThat(activeSegment.getEndOffsetMs()).isNull();
         verify(segmentRepository, times(0)).saveAll(any());
     }
 
     @Test
-    void 방송_세션_요약정보가_수신되면_정상적으로_구독자_비율이_업데이트된다() {
-        // given
+    void 방송_세션_요약정보가_수신되면_정상적으로_구독자_비율과_피크_평균시청자가_업데이트된다() {
         String streamId = "stream-summary";
-        StreamSessionEntity session = new StreamSessionEntity(streamId, "session-id", "방제", "카테고리", Instant.now());
+        StreamSessionEntity session = new StreamSessionEntity(streamId, "test-live-id", "방제", "카테고리", Instant.now());
 
         when(sessionRepository.findActiveSession(streamId, "test-live-id"))
             .thenReturn(Optional.of(session));
+        when(timelineRepository.findAverageViewerCountBySessionId("test-live-id"))
+            .thenReturn(520.4);
+        when(timelineRepository.findPeakViewerCountBySessionId("test-live-id"))
+            .thenReturn(850);
 
         StreamSessionSummaryRequest request =
             new StreamSessionSummaryRequest(45.5, "test-live-id", Instant.now());
 
-        // when
         streamSessionService.updateSessionSummary(streamId, request);
 
-        // then
         assertThat(session.getSubscriberChatRatio()).isEqualTo(45.5);
+        assertThat(session.getPeakViewers()).isEqualTo(850);
+        assertThat(session.getAverageViewerCount()).isEqualTo(520);
+        assertThat(session.getEndedAt()).isNotNull();
     }
 
     @Test

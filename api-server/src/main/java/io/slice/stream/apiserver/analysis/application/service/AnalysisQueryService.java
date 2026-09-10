@@ -4,17 +4,25 @@ import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
+import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.SegmentResponse;
+import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.SessionSummaryResponse;
+import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.TimelineDataPoint;
 import io.slice.stream.apiserver.analysis.presentation.dto.SessionResponse;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRepository;
+import io.slice.stream.apiserver.stream.infrastructure.JpaViewMetricTimelineRepository;
+import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
+import io.slice.stream.apiserver.stream.infrastructure.entity.ViewMetricTimelineEntity;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +39,7 @@ public class AnalysisQueryService {
     private final AnalysisRepository analysisRepository;
     private final JpaStreamSessionRepository sessionRepository;
     private final JpaStreamSessionSegmentRepository segmentRepository;
+    private final JpaViewMetricTimelineRepository timelineRepository;
 
     public AnalysisResponse getRecentAnalysis(String streamId) {
         List<AnalysisSignal> signals = analysisRepository.findRecentSignals(streamId, FIND_LIMIT);
@@ -43,20 +52,49 @@ public class AnalysisQueryService {
             ))
             .toList();
 
-        return new AnalysisResponse(streamId, dataPoints);
+        Optional<StreamSessionEntity> activeSession = sessionRepository.findActiveSession(streamId);
+        List<TimelineDataPoint> timeline = activeSession
+            .map(s -> timelineRepository.findBySessionIdOrderByTimestampAsc(s.getSessionId()).stream()
+                .map(t -> new TimelineDataPoint(t.getTimestamp().toEpochMilli(), t.getViewerCount()))
+                .toList())
+            .orElse(List.of());
+
+        SessionSummaryResponse summary = activeSession
+            .map(s -> new SessionSummaryResponse(
+                s.getSessionId(),
+                s.getTitle(),
+                s.getCategoryName(),
+                s.getStartedAt(),
+                s.getEndedAt(),
+                s.getPeakViewers(),
+                s.getAverageViewerCount(),
+                s.getSubscriberChatRatio()
+            ))
+            .orElse(null);
+
+        return new AnalysisResponse(streamId, dataPoints, List.of(), timeline, summary);
     }
 
     public List<SessionResponse> getAvailableSessions(String streamId, int limit) {
-        return sessionRepository.findRecentSessionsByStreamId(streamId, org.springframework.data.domain.PageRequest.of(0, limit))
+        return sessionRepository.findRecentSessionsByStreamId(streamId, PageRequest.of(0, limit))
             .stream()
-            .map(session -> new SessionResponse(session.getSessionId(), session.getStartedAt()))
+            .map(session -> new SessionResponse(
+                session.getSessionId(),
+                session.getTitle(),
+                session.getCategoryName(),
+                session.getStartedAt(),
+                session.getEndedAt(),
+                session.getPeakViewers(),
+                session.getAverageViewerCount(),
+                session.getSubscriberChatRatio()
+            ))
             .toList();
     }
 
     public AnalysisResponse getHistoryAnalysis(String streamId, String sessionId) {
         List<StreamSessionSegmentEntity> segments = segmentRepository.findBySessionIdOrderByStartedAtAsc(sessionId);
-        List<AnalysisResponse.SegmentResponse> segmentResponses = segments.stream()
-            .map(seg -> new AnalysisResponse.SegmentResponse(
+        List<SegmentResponse> segmentResponses = segments.stream()
+            .map(seg -> new SegmentResponse(
                 seg.getId(),
                 seg.getTitle(),
                 seg.getCategoryName(),
@@ -67,13 +105,30 @@ public class AnalysisQueryService {
             ))
             .toList();
 
-        List<AnalysisDataPoint> summaryDataPoints = analysisRepository.findSummaryHistory(streamId, sessionId);
-        if(!summaryDataPoints.isEmpty()) {
-            return new AnalysisResponse(streamId, summaryDataPoints, segmentResponses);
-        }
+        List<ViewMetricTimelineEntity> timelines = timelineRepository.findBySessionIdOrderByTimestampAsc(sessionId);
+        List<TimelineDataPoint> timelineResponses = timelines.stream()
+            .map(t -> new TimelineDataPoint(t.getTimestamp().toEpochMilli(), t.getViewerCount()))
+            .toList();
 
-        List<AnalysisDataPoint> rawDataPoints = analysisRepository.findRawHistory(streamId, sessionId);
-        return new AnalysisResponse(streamId, aggregateToOneMinuteIntervals(rawDataPoints), segmentResponses);
+        SessionSummaryResponse summaryResponse = sessionRepository.findBySessionId(sessionId)
+            .map(session -> new SessionSummaryResponse(
+                session.getSessionId(),
+                session.getTitle(),
+                session.getCategoryName(),
+                session.getStartedAt(),
+                session.getEndedAt(),
+                session.getPeakViewers(),
+                session.getAverageViewerCount(),
+                session.getSubscriberChatRatio()
+            ))
+            .orElse(null);
+
+        List<AnalysisDataPoint> summaryDataPoints = analysisRepository.findSummaryHistory(streamId, sessionId);
+        List<AnalysisDataPoint> points = !summaryDataPoints.isEmpty()
+            ? summaryDataPoints
+            : aggregateToOneMinuteIntervals(analysisRepository.findRawHistory(streamId, sessionId));
+
+        return new AnalysisResponse(streamId, points, segmentResponses, timelineResponses, summaryResponse);
     }
 
     private List<AnalysisDataPoint> aggregateToOneMinuteIntervals(List<AnalysisDataPoint> rawDataPoints) {
