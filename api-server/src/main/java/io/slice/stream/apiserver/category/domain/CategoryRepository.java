@@ -8,7 +8,7 @@ import java.util.Optional;
 
 public interface CategoryRepository {
 
-    List<CategoryViewMetric> findWeeklyCategoryRankings(Instant since, int limit);
+    List<CategoryViewMetric> findWeeklyCategoryRankings(Instant since, double samplesPerHour, int limit);
 
     void saveAllWeeklyRankings(LocalDate weekStartDate, List<WeeklyCategoryResponse> rankings);
 

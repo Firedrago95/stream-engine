@@ -17,7 +17,7 @@ public interface JpaCategoryRankingRepository extends JpaRepository<StreamSessio
     @Query(value = """
         SELECT 
             s.category_name AS categoryName,
-            CAST(ROUND(SUM(v.viewer_count) / 240.0) AS BIGINT) AS exactHours
+            CAST(ROUND(SUM(v.viewer_count) / :samplesPerHour) AS BIGINT) AS exactHours
         FROM view_metric_timelines v
         JOIN stream_session_segments s 
             ON v.session_id = s.session_id
@@ -33,6 +33,7 @@ public interface JpaCategoryRankingRepository extends JpaRepository<StreamSessio
         """, nativeQuery = true)
     List<CategoryRankingProjection> findWeeklyCategoryRankings(
         @Param("since") Instant since,
+        @Param("samplesPerHour") double samplesPerHour,
         @Param("limit") int limit
     );
 }

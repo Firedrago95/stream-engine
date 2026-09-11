@@ -15,15 +15,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class CategoryRankingBatchService {
 
     public static final String REDIS_WEEKLY_KEY = "category:ranking:weekly";
@@ -47,14 +45,27 @@ public class CategoryRankingBatchService {
     private final CategoryRepository categoryRepository;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final int timelineIntervalSeconds;
 
-    @Transactional
+    public CategoryRankingBatchService(
+        CategoryRepository categoryRepository,
+        StringRedisTemplate redisTemplate,
+        ObjectMapper objectMapper,
+        @Value("${category.ranking.timeline-interval-seconds:30}") int timelineIntervalSeconds
+    ) {
+        this.categoryRepository = categoryRepository;
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+        this.timelineIntervalSeconds = timelineIntervalSeconds;
+    }
+
     public List<WeeklyCategoryResponse> refreshWeeklyRanking() {
         log.info("[Batch] 주간 인기 카테고리 랭킹 집계 시작");
         LocalDate currentMonday = LocalDate.now(KST_ZONE).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         Instant since = Instant.now().minus(7, ChronoUnit.DAYS);
+        double samplesPerHour = 3600.0 / Math.max(1, timelineIntervalSeconds);
 
-        List<CategoryViewMetric> currentMetrics = categoryRepository.findWeeklyCategoryRankings(since, DEFAULT_TOP_LIMIT);
+        List<CategoryViewMetric> currentMetrics = categoryRepository.findWeeklyCategoryRankings(since, samplesPerHour, DEFAULT_TOP_LIMIT);
         Map<String, Integer> previousRanks = loadPreviousRanks(currentMonday);
         boolean isInitialSnapshot = previousRanks.isEmpty();
 

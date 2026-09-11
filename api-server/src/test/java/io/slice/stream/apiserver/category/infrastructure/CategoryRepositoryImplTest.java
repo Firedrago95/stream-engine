@@ -54,10 +54,10 @@ class CategoryRepositoryImplTest {
             }
         };
 
-        given(jpaCategoryRankingRepository.findWeeklyCategoryRankings(any(Instant.class), eq(6)))
+        given(jpaCategoryRankingRepository.findWeeklyCategoryRankings(any(Instant.class), eq(120.0), eq(6)))
             .willReturn(List.of(mockProjection));
 
-        List<CategoryViewMetric> results = categoryRepository.findWeeklyCategoryRankings(Instant.now(), 6);
+        List<CategoryViewMetric> results = categoryRepository.findWeeklyCategoryRankings(Instant.now(), 120.0, 6);
 
         assertThat(results).hasSize(1);
         assertThat(results.get(0).categoryName()).isEqualTo("메이플스토리");

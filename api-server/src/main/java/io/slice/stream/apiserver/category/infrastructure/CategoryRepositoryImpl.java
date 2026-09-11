@@ -21,8 +21,8 @@ public class CategoryRepositoryImpl implements CategoryRepository {
     private final JpaWeeklyCategoryRankingRepository jpaWeeklyCategoryRankingRepository;
 
     @Override
-    public List<CategoryViewMetric> findWeeklyCategoryRankings(Instant since, int limit) {
-        return jpaCategoryRankingRepository.findWeeklyCategoryRankings(since, limit)
+    public List<CategoryViewMetric> findWeeklyCategoryRankings(Instant since, double samplesPerHour, int limit) {
+        return jpaCategoryRankingRepository.findWeeklyCategoryRankings(since, samplesPerHour, limit)
             .stream()
             .map(p -> new CategoryViewMetric(p.getCategoryName(), p.getExactHours()))
             .toList();

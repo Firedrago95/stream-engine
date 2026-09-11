@@ -46,7 +46,7 @@ class CategoryRankingBatchServiceTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        batchService = new CategoryRankingBatchService(categoryRepository, redisTemplate, objectMapper);
+        batchService = new CategoryRankingBatchService(categoryRepository, redisTemplate, objectMapper, 30);
     }
 
     @Test
@@ -72,7 +72,7 @@ class CategoryRankingBatchServiceTest {
             new CategoryViewMetric("리그 오브 레전드", 42171L),
             new CategoryViewMetric("마인크래프트", 25000L)
         );
-        given(categoryRepository.findWeeklyCategoryRankings(any(Instant.class), eq(6)))
+        given(categoryRepository.findWeeklyCategoryRankings(any(Instant.class), eq(120.0), eq(6)))
             .willReturn(currentMetrics);
 
         List<WeeklyCategoryResponse> results = batchService.refreshWeeklyRanking();
@@ -116,7 +116,7 @@ class CategoryRankingBatchServiceTest {
         List<CategoryViewMetric> currentMetrics = List.of(
             new CategoryViewMetric("메이플스토리", 65838L)
         );
-        given(categoryRepository.findWeeklyCategoryRankings(any(Instant.class), eq(6)))
+        given(categoryRepository.findWeeklyCategoryRankings(any(Instant.class), eq(120.0), eq(6)))
             .willReturn(currentMetrics);
 
         List<WeeklyCategoryResponse> results = batchService.refreshWeeklyRanking();
