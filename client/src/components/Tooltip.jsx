@@ -63,7 +63,7 @@ function Tooltip({
 
   return (
     <div
-      className={`relative ${className}`}
+      className={`relative inline-block ${className || ''}`}
       onMouseEnter={() => setTooltipOpen(true)}
       onMouseLeave={() => setTooltipOpen(false)}
       onFocus={() => setTooltipOpen(true)}
