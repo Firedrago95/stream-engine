@@ -20,8 +20,12 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
         SELECT DISTINCT a.streamId
         FROM AnalysisSignalEntity a
         WHERE a.streamId IN :streamIds
+          AND a.timestamp > :threshold
         """)
-    Set<String> findDistinctStreamIdByStreamIdIn(@Param("streamIds") Collection<String> streamIds);
+    Set<String> findDistinctStreamIdByStreamIdInAndTimestampAfter(
+        @Param("streamIds") Collection<String> streamIds,
+        @Param("threshold") Instant threshold
+    );
 
     @Modifying
     @Query(value = """

@@ -9,6 +9,11 @@ spring:
     virtual:
       enabled: true
 
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/slicedb}
     username: ${DB_USERNAME}
@@ -69,3 +74,8 @@ highlight:
   cleanup-retention-limit: 10   # 방종후 24시간 이후 하이라이트는 10개만 남기고 삭제
   cleanup-grace-hours: 24       # 방종후 하이라이트 삭제 기간
   session-retention-days: 30    # 방종후 30일 지난 세션 및 하이라이트 완전 삭제
+
+category:
+  ranking:
+    timeline-interval-seconds: ${TIMELINE_INTERVAL_SECONDS:30}
+

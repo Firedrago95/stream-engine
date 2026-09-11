@@ -51,7 +51,7 @@ class StreamQueryServiceTest {
 
         given(streamRepository.findActiveStreams(any(Instant.class)))
             .willReturn(List.of(entity));
-        given(analysisRepository.findChannelsWithRecentSignals(anyCollection()))
+        given(analysisRepository.findChannelsWithRecentSignals(anyCollection(), any(Instant.class)))
             .willReturn(Set.of());
 
         // when
@@ -63,7 +63,6 @@ class StreamQueryServiceTest {
         assertThat(result.get(0).status()).isEqualTo(StreamStatus.LIVE);
         then(streamRepository).should().findActiveStreams(any(Instant.class));
 
-        // 💡 String, Instant 파라미터 2개 모두 any() 처리
         then(streamRepository).should(never()).searchByStreamerName(anyString(), any(Instant.class));
     }
 
@@ -75,7 +74,7 @@ class StreamQueryServiceTest {
 
         given(streamRepository.searchByStreamerName(eq("침착맨"), any(Instant.class)))
             .willReturn(List.of(entity));
-        given(analysisRepository.findChannelsWithRecentSignals(anyCollection()))
+        given(analysisRepository.findChannelsWithRecentSignals(anyCollection(), any(Instant.class)))
             .willReturn(Set.of());
 
         // when
@@ -87,7 +86,6 @@ class StreamQueryServiceTest {
         assertThat(result.get(0).concurrentUserCount()).isEqualTo(1000);
         assertThat(result.get(0).status()).isEqualTo(StreamStatus.LIVE);
 
-        // 💡 검증(then) 시에도 eq(), any() 매처 적용
         then(streamRepository).should().searchByStreamerName(eq("침착맨"), any(Instant.class));
         then(streamRepository).should(never()).findActiveStreams(any(Instant.class));
     }
@@ -100,7 +98,7 @@ class StreamQueryServiceTest {
 
         given(streamRepository.searchByStreamerName(eq("침착맨"), any(Instant.class)))
             .willReturn(List.of(entity));
-        given(analysisRepository.findChannelsWithRecentSignals(anyCollection()))
+        given(analysisRepository.findChannelsWithRecentSignals(anyCollection(), any(Instant.class)))
             .willReturn(Set.of("ch1"));
 
         // when
@@ -115,11 +113,11 @@ class StreamQueryServiceTest {
         // given
         StreamEntity entity = new StreamEntity("ch1", "침착맨");
         entity.heartbeat("침착맨", "제목", "url", "게임", 1000);
-        entity.markOffline(); // 방송 종료 처리
+        entity.markOffline();
 
         given(streamRepository.searchByStreamerName(eq("침착맨"), any(Instant.class)))
             .willReturn(List.of(entity));
-        given(analysisRepository.findChannelsWithRecentSignals(anyCollection()))
+        given(analysisRepository.findChannelsWithRecentSignals(anyCollection(), any(Instant.class)))
             .willReturn(Set.of());
 
         // when
@@ -138,8 +136,8 @@ class StreamQueryServiceTest {
 
         given(streamRepository.findById(streamId))
             .willReturn(Optional.of(entity));
-        given(analysisRepository.findChannelsWithRecentSignals(Set.of(streamId)))
-            .willReturn(Set.of(streamId)); // 분석 중인 상태로 설정
+        given(analysisRepository.findChannelsWithRecentSignals(eq(Set.of(streamId)), any(Instant.class)))
+            .willReturn(Set.of(streamId));
 
         // when
         StreamResponse result = streamQueryService.getStreamInfo(streamId);
@@ -157,12 +155,12 @@ class StreamQueryServiceTest {
         // given
         String streamId = "ch1";
         StreamEntity entity = new StreamEntity(streamId, "스트리머");
-        entity.heartbeat("스트리머", "라이브 제목", "url", "게임", 1000); // 💡 명시적 초기화 추가
+        entity.heartbeat("스트리머", "라이브 제목", "url", "게임", 1000);
 
         given(streamRepository.findById(streamId))
             .willReturn(Optional.of(entity));
-        given(analysisRepository.findChannelsWithRecentSignals(Set.of(streamId)))
-            .willReturn(Set.of()); // 분석 신호 없음
+        given(analysisRepository.findChannelsWithRecentSignals(eq(Set.of(streamId)), any(Instant.class)))
+            .willReturn(Set.of());
 
         // when
         StreamResponse result = streamQueryService.getStreamInfo(streamId);
@@ -177,11 +175,11 @@ class StreamQueryServiceTest {
         String streamId = "ch1";
         StreamEntity entity = new StreamEntity(streamId, "스트리머");
         entity.heartbeat("스트리머", "라이브 제목", "url", "게임", 1000);
-        entity.markOffline(); // 방송 종료 처리
+        entity.markOffline();
 
         given(streamRepository.findById(streamId))
             .willReturn(Optional.of(entity));
-        given(analysisRepository.findChannelsWithRecentSignals(Set.of(streamId)))
+        given(analysisRepository.findChannelsWithRecentSignals(eq(Set.of(streamId)), any(Instant.class)))
             .willReturn(Set.of());
 
         // when
@@ -213,7 +211,7 @@ class StreamQueryServiceTest {
 
         given(streamRepository.searchByStreamerName(eq("좀비"), any(Instant.class)))
             .willReturn(List.of(entity));
-        given(analysisRepository.findChannelsWithRecentSignals(anyCollection()))
+        given(analysisRepository.findChannelsWithRecentSignals(anyCollection(), any(Instant.class)))
             .willReturn(Set.of());
 
         // when
@@ -232,7 +230,7 @@ class StreamQueryServiceTest {
 
         given(entity.getLastUpdateAt()).willReturn(Instant.now().minus(10, ChronoUnit.MINUTES));
         given(streamRepository.findById(streamId)).willReturn(Optional.of(entity));
-        given(analysisRepository.findChannelsWithRecentSignals(Set.of(streamId))).willReturn(Set.of());
+        given(analysisRepository.findChannelsWithRecentSignals(eq(Set.of(streamId)), any(Instant.class))).willReturn(Set.of());
 
         // when
         StreamResponse result = streamQueryService.getStreamInfo(streamId);

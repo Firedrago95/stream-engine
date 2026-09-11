@@ -8,6 +8,7 @@ import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
@@ -120,6 +121,19 @@ class JpaAnalysisSignalRepositoryTest implements PostgresTestSupport {
         assertThat(rawHistory).extracting("sessionId").containsOnly(targetSession);
 
         assertThat(summaryHistory).isNotEmpty();
-        assertThat(summaryHistory.get(0).getOffsetMs()).isNotNull(); // Projection 매핑이 잘 되었는지 확인
+        assertThat(summaryHistory.get(0).getOffsetMs()).isNotNull();
+    }
+
+    @Test
+    void 여러_스트림_ID_중_기준_시간_이후의_신호가_존재하는_스트림만_조회한다() {
+        Instant now = Instant.now();
+        Instant threshold = now.minus(5, ChronoUnit.MINUTES);
+
+        jpaRepository.save(new AnalysisSignalEntity("ch1", "s1", "NORMAL", now, 100L, 0L));
+        jpaRepository.save(new AnalysisSignalEntity("ch2", "s2", "NORMAL", now.minus(10, ChronoUnit.MINUTES), 100L, 0L));
+
+        Set<String> result = jpaRepository.findDistinctStreamIdByStreamIdInAndTimestampAfter(List.of("ch1", "ch2", "ch3"), threshold);
+
+        assertThat(result).containsExactly("ch1");
     }
 }
