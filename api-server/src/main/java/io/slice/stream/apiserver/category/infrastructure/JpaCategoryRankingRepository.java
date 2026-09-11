@@ -26,6 +26,7 @@ public interface JpaCategoryRankingRepository extends JpaRepository<StreamSessio
         WHERE v.timestamp >= :since
           AND s.category_name IS NOT NULL
           AND s.category_name != ''
+          AND LOWER(s.category_name) != 'talk'
         GROUP BY s.category_name
         HAVING SUM(v.viewer_count) > 0
         ORDER BY exactHours DESC
