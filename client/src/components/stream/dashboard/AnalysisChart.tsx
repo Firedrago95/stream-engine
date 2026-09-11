@@ -1,7 +1,7 @@
 // src/components/stream/dashboard/AnalysisChart.tsx
 
 import React from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import type { StreamSegment } from '../../../types/StreamSegment';
 
 interface Props {
@@ -11,6 +11,7 @@ interface Props {
     value: string | number
   };
   maxY: number;
+  maxViewerY?: number;
   isLoading: boolean;
   isGathering: boolean;
   error: string | null;
@@ -52,9 +53,16 @@ const CustomTooltip = ({ active, payload, selectedTab, formatTime, segments = []
     });
 
     return (
-      <div className="bg-[#1a1a1c] border border-gray-700 p-3 rounded-xl shadow-2xl z-50">
-        <div className="text-[#00FFA3] font-black text-lg mb-1">
-          🔥 {data.value} <span className="text-xs font-normal text-gray-200">건/초</span>
+      <div className="bg-[#1a1a1c] border border-gray-700 p-3 rounded-xl shadow-2xl z-50 min-w-[200px]">
+        <div className="flex items-center justify-between gap-4 mb-1.5">
+          <div className="text-[#00FFA3] font-black text-lg">
+            🔥 {data.value ?? 0} <span className="text-xs font-normal text-gray-200">건/초</span>
+          </div>
+          {data.viewerCount !== undefined && data.viewerCount !== null && (
+            <div className="text-[#67BFFF] font-bold text-sm font-mono">
+              👥 {Number(data.viewerCount).toLocaleString()} <span className="text-xs font-normal text-gray-300">명</span>
+            </div>
+          )}
         </div>
         {selectedTab === "realtime" ? (
           <div className="text-[11px] text-gray-200 font-mono tracking-tighter">
@@ -117,7 +125,7 @@ const getSegmentXRange = (seg: StreamSegment, data: any[]) => {
 };
 
 export const AnalysisChart: React.FC<Props> = ({
-  chartData, metric, maxY, isLoading, isGathering, error, selectedTab,
+  chartData, metric, maxY, maxViewerY = 100, isLoading, isGathering, error, selectedTab,
   historyEmpty, onMouseMove, onMouseLeave, formatTime, rebangIndexes = [], segments = []
 }) => {
   const isRealtime = selectedTab === "realtime";
@@ -188,7 +196,19 @@ export const AnalysisChart: React.FC<Props> = ({
       )}
 
       <div className="flex justify-between items-start mb-10">
-        <h3 className="text-lg font-bold text-gray-200 uppercase tracking-widest italic">채팅 화력 추이</h3>
+        <div>
+          <h3 className="text-lg font-bold text-gray-200 uppercase tracking-widest italic">채팅 화력 및 시청자 추이</h3>
+          <div className="flex items-center gap-4 mt-2 text-xs font-semibold">
+            <span className="flex items-center gap-1.5 text-[#00FFA3]">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#00FFA3]/80 inline-block" />
+              채팅 화력 (건/초)
+            </span>
+            <span className="flex items-center gap-1.5 text-[#67BFFF]">
+              <span className="w-3 h-0.5 bg-[#67BFFF] inline-block" />
+              동시 시청자 (명)
+            </span>
+          </div>
+        </div>
         <div className="text-right">
           <div className="block mb-1">{metric.label}</div>
           <span className="text-4xl font-black text-[#00FFA3]">
@@ -216,7 +236,6 @@ export const AnalysisChart: React.FC<Props> = ({
             {!isRealtime && segments.map((seg, index) => {
               const { x1 } = getSegmentXRange(seg, chartData);
               
-              // 첫 번째 세그먼트이거나, 이전 세그먼트와 카테고리가 다를 때만 선을 긋습니다.
               const isCategoryChanged = index === 0 || segments[index - 1].categoryName !== seg.categoryName;
               
               if (!isCategoryChanged) return null;
@@ -254,7 +273,17 @@ export const AnalysisChart: React.FC<Props> = ({
               axisLine={false}
               tickLine={false}
             />
-            <YAxis stroke="#475569" fontSize={11} domain={[0, maxY]} axisLine={false} tickLine={false} />
+            <YAxis yAxisId="firepower" stroke="#475569" fontSize={11} domain={[0, maxY]} axisLine={false} tickLine={false} />
+            <YAxis
+              yAxisId="viewers"
+              orientation="right"
+              stroke="#475569"
+              fontSize={11}
+              domain={[0, maxViewerY]}
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={(v) => (v >= 10000 ? `${(v / 10000).toFixed(1)}만` : v >= 1000 ? `${(v / 1000).toFixed(1)}천` : `${v}`)}
+            />
 
             {!isRealtime && rebangIndexes.map((idx: number) => (
               <ReferenceLine
@@ -267,11 +296,12 @@ export const AnalysisChart: React.FC<Props> = ({
             ))}
 
             {isRealtime ? (
-              <Area type="monotone" dataKey="value" stroke="#00FFA3" strokeWidth={3} fill="url(#colorValue)" isAnimationActive={false} connectNulls={false} />
+              <Area yAxisId="firepower" type="monotone" dataKey="value" stroke="#00FFA3" strokeWidth={3} fill="url(#colorValue)" isAnimationActive={false} connectNulls={false} />
             ) : (
               uniqueColors.map(color => (
                 <Area 
                   key={color} 
+                  yAxisId="firepower"
                   type="monotone" 
                   dataKey={`val_${color}`} 
                   stroke={color} 
@@ -283,6 +313,17 @@ export const AnalysisChart: React.FC<Props> = ({
               ))
             )}
             
+            <Line
+              yAxisId="viewers"
+              type="monotone"
+              dataKey="viewerCount"
+              stroke="#67BFFF"
+              strokeWidth={2}
+              dot={false}
+              isAnimationActive={false}
+              connectNulls={true}
+            />
+
             <Tooltip content={<CustomTooltip selectedTab={selectedTab} formatTime={formatTime} segments={segments} />} cursor={{ stroke: "#00FFA3", strokeWidth: 1 }} />
           </AreaChart>
         </ResponsiveContainer>

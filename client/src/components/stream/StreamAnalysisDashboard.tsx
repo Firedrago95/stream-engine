@@ -61,6 +61,40 @@ export const StreamAnalysisDashboard: React.FC = () => {
     { enabled: selectedTab === 'realtime' }
   );
 
+  const [streamerInfo, setStreamerInfo] = useState<StreamerInfo | null>(null);
+  const [isLive, setIsLive] = useState(false);
+  const [historicalData, setHistoricalData] = useState<any[]>([]);
+  const [historicalTimeline, setHistoricalTimeline] = useState<any[]>([]);
+  const [maxY, setMaxY] = useState(10);
+  const [maxViewerY, setMaxViewerY] = useState(100);
+  const [hoveredData, setHoveredData] = useState<{ value: number | null; time: string | null }>({
+    value: null, time: null,
+  });
+
+  const matchViewerCount = (
+    targetTs: number,
+    timeline: Array<{ timestamp: number; viewerCount: number }> = [],
+    fallbackViewer: number = 0
+  ) => {
+    if (!timeline || timeline.length === 0) return fallbackViewer;
+    const normalize = (ts: number) => (ts < 10000000000 ? ts * 1000 : ts);
+    const targetMs = normalize(targetTs);
+
+    let matched = fallbackViewer;
+    for (let i = 0; i < timeline.length; i++) {
+      const itemMs = normalize(timeline[i].timestamp);
+      if (itemMs <= targetMs) {
+        matched = timeline[i].viewerCount;
+      } else {
+        break;
+      }
+    }
+    if (matched === fallbackViewer && timeline.length > 0 && targetMs < normalize(timeline[0].timestamp)) {
+      matched = timeline[0].viewerCount;
+    }
+    return matched;
+  };
+
   const stableData = useMemo(() => {
     if (!analysisData) return [];
     let points = [];
@@ -74,18 +108,17 @@ export const StreamAnalysisDashboard: React.FC = () => {
         .map(k => analysisData[k]);
     }
     points.sort((a: any, b: any) => a.timestamp - b.timestamp);
-    return points.slice(-CONFIG.DISPLAY_POINTS);
-  }, [analysisData]);
+
+    const timeline = analysisData.timeline || [];
+    const fallbackViewers = streamerInfo?.concurrentUserCount || 0;
+
+    return points.slice(-CONFIG.DISPLAY_POINTS).map((p: any) => ({
+      ...p,
+      viewerCount: matchViewerCount(p.timestamp, timeline, fallbackViewers)
+    }));
+  }, [analysisData, streamerInfo?.concurrentUserCount]);
 
   const { highlights } = useHighlights(streamId || "", selectedTab, CONFIG.HIGHLIGHT_POLLING_INTERVAL);
-
-  const [streamerInfo, setStreamerInfo] = useState<StreamerInfo | null>(null);
-  const [isLive, setIsLive] = useState(false);
-  const [historicalData, setHistoricalData] = useState<any[]>([]);
-  const [maxY, setMaxY] = useState(10);
-  const [hoveredData, setHoveredData] = useState<{ value: number | null; time: string | null }>({
-    value: null, time: null,
-  });
 
   useEffect(() => {
     if (!streamId) return;
@@ -123,6 +156,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
   useEffect(() => {
     if (selectedTab === "realtime" || !streamId) {
       setHistoricalData([]);
+      setHistoricalTimeline([]);
       setSegments([]);
       return;
     }
@@ -132,11 +166,13 @@ export const StreamAnalysisDashboard: React.FC = () => {
       .then(data => {
         const sortedHistory = (data.dataPoints || []).sort((a: any, b: any) => a.timestamp - b.timestamp);
         setHistoricalData(sortedHistory);
+        setHistoricalTimeline(data.timeline || []);
         setSegments(data.segments || []);
       })
       .catch(err => {
         console.error("과거 데이터를 불러오지 못했습니다.", err);
         setHistoricalData([]);
+        setHistoricalTimeline([]);
         setSegments([]);
       });
   }, [selectedTab, streamId]);
@@ -152,7 +188,12 @@ export const StreamAnalysisDashboard: React.FC = () => {
     else if (totalMinutes > 180) interval = 3; // 3시간 이상: 3분 압축
 
     // 압축이 필요 없으면 원본 리턴
-    if (interval === 1) return historicalData;
+    if (interval === 1) {
+      return historicalData.map((p: any) => ({
+        ...p,
+        viewerCount: matchViewerCount(p.timestamp, historicalTimeline, p.viewerCount || 0)
+      }));
+    }
 
     const intervalMs = interval * 60 * 1000;
     const grouped: Record<number, any> = {};
@@ -161,7 +202,11 @@ export const StreamAnalysisDashboard: React.FC = () => {
       // 시간 버킷(구간) 계산
       const bucket = Math.floor(p.timestamp / intervalMs) * intervalMs;
       if (!grouped[bucket]) {
-        grouped[bucket] = { ...p, timestamp: bucket };
+        grouped[bucket] = {
+          ...p,
+          timestamp: bucket,
+          viewerCount: matchViewerCount(bucket, historicalTimeline, p.viewerCount || 0)
+        };
       } else {
         // 해당 구간의 최고 화력(MAX)만 추출해서 덮어씀
         grouped[bucket].value = Math.max(grouped[bucket].value || 0, p.value || 0);
@@ -171,11 +216,13 @@ export const StreamAnalysisDashboard: React.FC = () => {
         if (p.offsetMs !== undefined && (grouped[bucket].offsetMs === undefined || p.offsetMs < grouped[bucket].offsetMs)) {
           grouped[bucket].offsetMs = p.offsetMs;
         }
+        const matched = matchViewerCount(bucket, historicalTimeline, grouped[bucket].viewerCount || 0);
+        if (matched > 0) grouped[bucket].viewerCount = matched;
       }
     });
 
     return Object.values(grouped).sort((a: any, b: any) => a.timestamp - b.timestamp);
-  }, [historicalData]);
+  }, [historicalData, historicalTimeline]);
 
   // Y축 최대값 계산 (압축된 데이터 기반)
   useEffect(() => {
@@ -183,6 +230,11 @@ export const StreamAnalysisDashboard: React.FC = () => {
     if (targetData.length > 0) {
       const currentMax = Math.max(...targetData.map((d: any) => d.value || 0));
       if (currentMax > maxY) setMaxY(currentMax + 5);
+
+      const currentMaxViewer = Math.max(...targetData.map((d: any) => d.viewerCount || 0));
+      if (currentMaxViewer > 0) {
+        setMaxViewerY(Math.ceil(currentMaxViewer * 1.15));
+      }
     }
   }, [stableData, compressedHistory, selectedTab, maxY]);
 
@@ -298,6 +350,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
         chartData={chartDisplayData}
         metric={metric}
         maxY={maxY}
+        maxViewerY={maxViewerY}
         isLoading={isLoading}
         isGathering={isGathering}
         error={error}
