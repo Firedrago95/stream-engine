@@ -190,12 +190,48 @@ class ChzzkDiscoveryClientTest {
         mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
             .andRespond(withServerError());
 
-        // When & Then
         assertThatThrownBy(() -> chzzkDiscoveryClient.fetchTopLiveStreams(5))
             .isInstanceOf(IngestionException.class)
             .hasMessageContaining("API 호출 실패")
             .extracting("errorCode")
             .isEqualTo(ErrorCode.STREAM_PROVIDER_CLIENT_ERROR);
+    }
+
+    @Test
+    void 상위_라이브_스트림_매핑_시_목록_API_캐시_대신_상세_API의_최신_정보를_반영한다() throws Exception {
+        int limit = 1;
+        ChzzkLive live = new ChzzkLive(1001L, "과거 방제", "https://thumb.com/1_{type}.jpg", "과거 카테고리", "chatCh1", 9000, false, new Channel("ch1", "남봉", "imageUrl"));
+
+        ChzzkLiveResponse topLiveResponse = createMockResponse(List.of(live), null, null);
+        mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(topLiveResponse), MediaType.APPLICATION_JSON));
+
+        int latestViewers = 7000;
+        String latestTitle = "최신 방제: 리그오브레전드";
+        String latestCategory = "리그 오브 레전드";
+        ChzzkLiveDetailResponse detailResponse = new ChzzkLiveDetailResponse(
+            new ChzzkLiveDetailResponse.Content(
+                "OPEN",
+                "chatCh1",
+                LocalDateTime.now(),
+                latestTitle,
+                latestCategory,
+                latestViewers,
+                live.liveId(),
+                live.channel()
+            )
+        );
+        mockServer.expect(requestTo(buildLiveDetailApiUri(live.channel().channelId())))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(detailResponse), MediaType.APPLICATION_JSON));
+
+        List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(limit);
+
+        mockServer.verify();
+        assertThat(result).hasSize(1);
+        StreamTarget target = result.get(0);
+        assertThat(target.concurrentUserCount()).isEqualTo(latestViewers);
+        assertThat(target.liveTitle()).isEqualTo(latestTitle);
+        assertThat(target.categoryName()).isEqualTo(latestCategory);
     }
 
     private void mockDetailApi(ChzzkLive live, String chatChannelId) throws Exception {

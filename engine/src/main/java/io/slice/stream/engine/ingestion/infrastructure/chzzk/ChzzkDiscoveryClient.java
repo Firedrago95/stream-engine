@@ -166,19 +166,11 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
         String channelId = topLive.channel().channelId();
         try {
             log.debug("채널 id로 상세 조회 시작: {}", channelId);
-            ChzzkLiveDetailResponse.Content detailContent = fetchLiveDetail(channelId);
-            Instant startedAt = detailContent.openDate().toInstant(ZoneOffset.of("+09:00"));
-            return new StreamTarget(
-                channelId,
-                topLive.channel().channelName(),
-                detailContent.chatChannelId(),
-                topLive.liveId(),
-                topLive.liveTitle(),
-                topLive.concurrentUserCount(),
-                topLive.channel().channelImageUrl(),
-                topLive.liveCategoryValue(),
-                startedAt
-            );
+            Content detailContent = fetchLiveDetail(channelId);
+            if (detailContent == null || !"OPEN".equals(detailContent.status())) {
+                return null;
+            }
+            return convertToStreamTarget(detailContent);
         } catch (Exception e) {
             log.warn("방송 상세 정보 조회 중 에러 발생. channelName: {}", topLive.channel().channelName());
             return null;
