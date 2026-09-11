@@ -10,6 +10,10 @@ interface Props {
     label: React.ReactNode;
     value: string | number
   };
+  viewerMetric?: {
+    label: React.ReactNode;
+    value: string | number
+  };
   maxY: number;
   maxViewerY?: number;
   isLoading: boolean;
@@ -125,7 +129,7 @@ const getSegmentXRange = (seg: StreamSegment, data: any[]) => {
 };
 
 export const AnalysisChart: React.FC<Props> = ({
-  chartData, metric, maxY, maxViewerY = 100, isLoading, isGathering, error, selectedTab,
+  chartData, metric, viewerMetric, maxY, maxViewerY = 100, isLoading, isGathering, error, selectedTab,
   historyEmpty, onMouseMove, onMouseLeave, formatTime, rebangIndexes = [], segments = []
 }) => {
   const isRealtime = selectedTab === "realtime";
@@ -209,11 +213,22 @@ export const AnalysisChart: React.FC<Props> = ({
             </span>
           </div>
         </div>
-        <div className="text-right">
-          <div className="block mb-1">{metric.label}</div>
-          <span className="text-4xl font-black text-[#00FFA3]">
-            {metric.value} <span className="text-xs text-gray-300 ml-2 italic">msg/s</span>
-          </span>
+        <div className="flex items-center gap-6 text-right">
+          {viewerMetric && (
+            <div className="text-right">
+              <div className="block mb-1 text-xs text-gray-400 font-medium">{viewerMetric.label}</div>
+              <span className="text-3xl sm:text-4xl font-black text-[#67BFFF] font-mono">
+                {typeof viewerMetric.value === 'number' ? viewerMetric.value.toLocaleString() : viewerMetric.value}
+                <span className="text-xs text-gray-300 ml-1.5 font-sans font-normal">명</span>
+              </span>
+            </div>
+          )}
+          <div className="text-right">
+            <div className="block mb-1 text-xs text-gray-400 font-medium">{metric.label}</div>
+            <span className="text-3xl sm:text-4xl font-black text-[#00FFA3]">
+              {metric.value} <span className="text-xs text-gray-300 ml-1 italic font-sans font-normal">msg/s</span>
+            </span>
+          </div>
         </div>
       </div>
 

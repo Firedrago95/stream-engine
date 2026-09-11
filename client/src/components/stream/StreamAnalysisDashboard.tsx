@@ -67,8 +67,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
   const [historicalTimeline, setHistoricalTimeline] = useState<any[]>([]);
   const [maxY, setMaxY] = useState(10);
   const [maxViewerY, setMaxViewerY] = useState(100);
-  const [hoveredData, setHoveredData] = useState<{ value: number | null; time: string | null }>({
-    value: null, time: null,
+  const [hoveredData, setHoveredData] = useState<{ value: number | null; viewers: number | null; time: string | null }>({
+    value: null, viewers: null, time: null,
   });
 
   const matchViewerCount = (
@@ -280,9 +280,33 @@ export const StreamAnalysisDashboard: React.FC = () => {
   const handleMouseMove = (state: any) => {
     if (state?.activePayload?.[0]?.payload?.hasData) {
       const p = state.activePayload[0].payload;
-      setHoveredData({ value: p.value, time: formatTime(p.timestamp) });
+      setHoveredData({
+        value: p.value,
+        viewers: p.viewerCount !== undefined ? p.viewerCount : null,
+        time: formatTime(p.timestamp)
+      });
     }
   };
+
+  const viewerMetric = useMemo(() => {
+    if (hoveredData.viewers !== null && hoveredData.viewers !== undefined) {
+      return { label: "해당 시점 시청자", value: hoveredData.viewers };
+    }
+
+    if (selectedTab === "realtime") {
+      const lastViewer = stableData.length > 0 && stableData[stableData.length - 1].viewerCount !== undefined
+        ? stableData[stableData.length - 1].viewerCount
+        : (streamerInfo?.concurrentUserCount || 0);
+      return { label: "현재 실시간 시청자", value: lastViewer };
+    }
+
+    const currentSession = availableSessions.find(s => s.sessionId === selectedTab);
+    const maxViewer = compressedHistory.length > 0
+      ? Math.max(...compressedHistory.map((d: any) => d.viewerCount || 0))
+      : (currentSession?.viewers || 0);
+
+    return { label: "세션 최고 시청자", value: maxViewer };
+  }, [selectedTab, stableData, compressedHistory, hoveredData, streamerInfo?.concurrentUserCount, availableSessions]);
 
   const metric = useMemo(() => {
     if (hoveredData.value !== null) return { label: `시점 화력 (${hoveredData.time})`, value: hoveredData.value };
@@ -342,13 +366,14 @@ export const StreamAnalysisDashboard: React.FC = () => {
         selected={selectedTab}
         onSelect={(tab) => {
           setSelectedTab(tab);
-          setHoveredData({ value: null, time: null });
+          setHoveredData({ value: null, viewers: null, time: null });
         }}
       />
 
       <AnalysisChart
         chartData={chartDisplayData}
         metric={metric}
+        viewerMetric={viewerMetric}
         maxY={maxY}
         maxViewerY={maxViewerY}
         isLoading={isLoading}
@@ -357,7 +382,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
         selectedTab={selectedTab}
         historyEmpty={selectedTab !== "realtime" && historicalData.length === 0}
         onMouseMove={handleMouseMove}
-        onMouseLeave={() => setHoveredData({ value: null, time: null })}
+        onMouseLeave={() => setHoveredData({ value: null, viewers: null, time: null })}
         formatTime={formatTime}
         rebangIndexes={rebangIndexes}
         segments={segments}
