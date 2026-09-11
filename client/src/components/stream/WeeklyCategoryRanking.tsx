@@ -1,25 +1,19 @@
 import React from 'react';
 import Tooltip from '../Tooltip.jsx';
+import { useWeeklyCategories } from '../../hooks/useWeeklyCategories';
 
 export interface WeeklyCategory {
   rank: number;
   categoryName: string;
   accumulatedViewHours: string;
+  exactHours?: number;
   change: 'up' | 'down' | 'same' | 'new';
   changeValue?: number;
   icon?: string;
 }
 
-const DEFAULT_CATEGORIES: WeeklyCategory[] = [
-  { rank: 1, categoryName: '메이플스토리', accumulatedViewHours: '약 6.6만 시간', change: 'up', changeValue: 2, icon: '🍁' },
-  { rank: 2, categoryName: '마인크래프트', accumulatedViewHours: '약 5.8만 시간', change: 'up', changeValue: 3, icon: '⛏️' },
-  { rank: 3, categoryName: '종합 게임', accumulatedViewHours: '약 4.2만 시간', change: 'same', icon: '🎮' },
-  { rank: 4, categoryName: '리그 오브 레전드', accumulatedViewHours: '약 4.2만 시간', change: 'down', changeValue: 3, icon: '⚔️' },
-  { rank: 5, categoryName: '오버워치', accumulatedViewHours: '약 3.0만 시간', change: 'new', icon: '🎯' },
-  { rank: 6, categoryName: '이터널 리턴', accumulatedViewHours: '약 2.5만 시간', change: 'down', changeValue: 1, icon: '🧪' },
-];
-
 export const WeeklyCategoryRanking: React.FC = () => {
+  const { categories } = useWeeklyCategories();
   const getChangeBadge = (item: WeeklyCategory) => {
     switch (item.change) {
       case 'up':
@@ -77,7 +71,7 @@ export const WeeklyCategoryRanking: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {DEFAULT_CATEGORIES.map((item) => {
+        {categories.map((item) => {
           const isFirst = item.rank === 1;
 
           return (
@@ -107,7 +101,10 @@ export const WeeklyCategoryRanking: React.FC = () => {
                 </div>
               </div>
 
-              <div className="mt-2 pt-2 border-t border-gray-800/80 flex items-center justify-between text-[11px]">
+              <div
+                className="mt-2 pt-2 border-t border-gray-800/80 flex items-center justify-between text-[11px]"
+                title={item.exactHours ? `정밀 집계: 총 ${item.exactHours.toLocaleString()}시간` : undefined}
+              >
                 <span className="text-gray-400">누적</span>
                 <span className="font-mono text-gray-200 font-semibold">{item.accumulatedViewHours}</span>
               </div>
