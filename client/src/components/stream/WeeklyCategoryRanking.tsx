@@ -5,18 +5,19 @@ export interface WeeklyCategory {
   rank: number;
   categoryName: string;
   accumulatedViewHours: string;
+  exactHours: number;
   change: 'up' | 'down' | 'same' | 'new';
   changeValue?: number;
   icon?: string;
 }
 
 const DEFAULT_CATEGORIES: WeeklyCategory[] = [
-  { rank: 1, categoryName: 'League of Legends', accumulatedViewHours: '128.4만 시간', change: 'same', icon: '⚔️' },
-  { rank: 2, categoryName: '로스트아크', accumulatedViewHours: '89.2만 시간', change: 'up', changeValue: 1, icon: '🛡️' },
-  { rank: 3, categoryName: '발로란트', accumulatedViewHours: '74.6만 시간', change: 'down', changeValue: 1, icon: '🎯' },
-  { rank: 4, categoryName: '소통/토크', accumulatedViewHours: '65.1만 시간', change: 'same', icon: '💬' },
-  { rank: 5, categoryName: '메이플스토리', accumulatedViewHours: '42.8만 시간', change: 'up', changeValue: 2, icon: '🍁' },
-  { rank: 6, categoryName: '치지직 종합게임', accumulatedViewHours: '38.5만 시간', change: 'new', icon: '🎮' },
+  { rank: 1, categoryName: '메이플스토리', accumulatedViewHours: '약 6.6만 시간', exactHours: 65838, change: 'up', changeValue: 2, icon: '🍁' },
+  { rank: 2, categoryName: '마인크래프트', accumulatedViewHours: '약 5.8만 시간', exactHours: 57543, change: 'up', changeValue: 3, icon: '⛏️' },
+  { rank: 3, categoryName: '종합 게임', accumulatedViewHours: '약 4.2만 시간', exactHours: 42421, change: 'same', icon: '🎮' },
+  { rank: 4, categoryName: '리그 오브 레전드', accumulatedViewHours: '약 4.2만 시간', exactHours: 42171, change: 'down', changeValue: 3, icon: '⚔️' },
+  { rank: 5, categoryName: '오버워치', accumulatedViewHours: '약 3.0만 시간', exactHours: 30402, change: 'new', icon: '🎯' },
+  { rank: 6, categoryName: '이터널 리턴', accumulatedViewHours: '약 2.5만 시간', exactHours: 25044, change: 'down', changeValue: 1, icon: '🧪' },
 ];
 
 export const WeeklyCategoryRanking: React.FC = () => {
@@ -61,8 +62,10 @@ export const WeeklyCategoryRanking: React.FC = () => {
             주간 인기 카테고리
           </h3>
           <Tooltip bg="dark" position="right" size="md" className="mt-0.5">
-            <div className="text-xs text-gray-200 font-medium leading-relaxed p-1">
-              치지직 상위 인기 방송을 기준으로 지난주(월~일) 누적 시청 시간을 집계한 순위입니다.
+            <div className="text-xs text-gray-200 font-medium leading-relaxed p-1.5 space-y-1">
+              <div className="font-bold text-[#00FFA3] mb-1">📊 집계 방식 안내</div>
+              <div>• 치즈픽에 수집된 상위 라이브 방송을 대상</div>
+              <div>• 최근 7일간 15초 단위 <span className="text-white font-semibold">동시 시청자 수 타임라인</span>을 기반으로 누적 시청 시간을 계산한 순위</div>
             </div>
           </Tooltip>
         </div>
@@ -105,7 +108,10 @@ export const WeeklyCategoryRanking: React.FC = () => {
                 </div>
               </div>
 
-              <div className="mt-2 pt-2 border-t border-gray-800/80 flex items-center justify-between text-[11px]">
+              <div
+                className="mt-2 pt-2 border-t border-gray-800/80 flex items-center justify-between text-[11px] cursor-help"
+                title={`정밀 집계: 총 ${item.exactHours.toLocaleString()}시간`}
+              >
                 <span className="text-gray-400">누적</span>
                 <span className="font-mono text-gray-200 font-semibold">{item.accumulatedViewHours}</span>
               </div>
