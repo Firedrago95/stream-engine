@@ -8,7 +8,6 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.slice.stream.apiserver.category.domain.CategoryRepository;
 import io.slice.stream.apiserver.category.presentation.dto.WeeklyCategoryResponse;
 import java.util.Collections;
@@ -22,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import tools.jackson.databind.json.JsonMapper;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
@@ -36,13 +36,13 @@ class CategoryQueryServiceTest {
     @Mock
     private CategoryRankingBatchService batchService;
 
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
     private CategoryQueryService categoryQueryService;
 
     @BeforeEach
     void setUp() {
-        objectMapper = new ObjectMapper();
-        categoryQueryService = new CategoryQueryService(redisTemplate, objectMapper, categoryRepository, batchService);
+        jsonMapper = new JsonMapper();
+        categoryQueryService = new CategoryQueryService(redisTemplate, jsonMapper, categoryRepository, batchService);
     }
 
     @Test
@@ -54,7 +54,7 @@ class CategoryQueryServiceTest {
             new WeeklyCategoryResponse(1, "메이플스토리", "약 6.6만 시간", 65838L, "up", 2, "🍁"),
             new WeeklyCategoryResponse(2, "마인크래프트", "약 5.8만 시간", 57543L, "same", null, "⛏️")
         );
-        String cachedJson = objectMapper.writeValueAsString(cachedResponses);
+        String cachedJson = jsonMapper.writeValueAsString(cachedResponses);
         given(valueOps.get(CategoryRankingBatchService.REDIS_WEEKLY_KEY)).willReturn(cachedJson);
 
         List<WeeklyCategoryResponse> results = categoryQueryService.getWeeklyCategoryRanking();

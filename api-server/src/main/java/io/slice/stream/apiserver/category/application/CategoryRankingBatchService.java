@@ -1,6 +1,5 @@
 package io.slice.stream.apiserver.category.application;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.slice.stream.apiserver.category.domain.CategoryRepository;
 import io.slice.stream.apiserver.category.domain.CategoryViewMetric;
 import io.slice.stream.apiserver.category.presentation.dto.WeeklyCategoryResponse;
@@ -19,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.json.JsonMapper;
 
 @Slf4j
 @Service
@@ -44,18 +44,18 @@ public class CategoryRankingBatchService {
 
     private final CategoryRepository categoryRepository;
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
     private final int timelineIntervalSeconds;
 
     public CategoryRankingBatchService(
         CategoryRepository categoryRepository,
         StringRedisTemplate redisTemplate,
-        ObjectMapper objectMapper,
+        JsonMapper jsonMapper,
         @Value("${category.ranking.timeline-interval-seconds:30}") int timelineIntervalSeconds
     ) {
         this.categoryRepository = categoryRepository;
         this.redisTemplate = redisTemplate;
-        this.objectMapper = objectMapper;
+        this.jsonMapper = jsonMapper;
         this.timelineIntervalSeconds = timelineIntervalSeconds;
     }
 
@@ -142,7 +142,7 @@ public class CategoryRankingBatchService {
 
     private void saveToRedis(List<WeeklyCategoryResponse> responses) {
         try {
-            String weeklyJson = objectMapper.writeValueAsString(responses);
+            String weeklyJson = jsonMapper.writeValueAsString(responses);
             redisTemplate.opsForValue().set(REDIS_WEEKLY_KEY, weeklyJson);
         } catch (Exception e) {
             log.error("[Batch] Redis 카테고리 랭킹 캐시 저장 실패", e);
