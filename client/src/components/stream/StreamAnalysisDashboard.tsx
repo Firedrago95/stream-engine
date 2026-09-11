@@ -353,7 +353,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
         maxViewerY={maxViewerY}
         isLoading={isLoading}
         isGathering={isGathering}
-        error={error}
+        error={selectedTab === "realtime" ? error : null}
         selectedTab={selectedTab}
         historyEmpty={selectedTab !== "realtime" && historicalData.length === 0}
         onMouseMove={handleMouseMove}
