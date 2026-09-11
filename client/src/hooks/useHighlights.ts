@@ -38,19 +38,51 @@ export const useHighlights = (streamId: string, sessionId?: string, interval = 5
     }
   }, [streamId, sessionId]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchData(controller.signal);
+  const isRealtime = !sessionId || sessionId === 'realtime';
 
-    const timer = setInterval(() => {
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const controller = new AbortController();
+
+    if (!isRealtime) {
       fetchData(controller.signal);
-    }, interval);
+      return () => {
+        controller.abort();
+      };
+    }
+
+    const startPolling = () => {
+      if (timer) clearInterval(timer);
+      timer = setInterval(() => {
+        fetchData(controller.signal);
+      }, interval);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (timer) {
+          clearInterval(timer);
+          timer = null;
+        }
+      } else {
+        fetchData(controller.signal);
+        startPolling();
+      }
+    };
+
+    fetchData(controller.signal);
+    if (!document.hidden) {
+      startPolling();
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      clearInterval(timer);
+      if (timer) clearInterval(timer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       controller.abort();
     };
-  }, [fetchData, interval]);
+  }, [fetchData, interval, isRealtime]);
 
   return { highlights, isLoading };
 };

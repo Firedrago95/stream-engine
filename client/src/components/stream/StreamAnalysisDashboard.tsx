@@ -13,6 +13,8 @@ import type { StreamerInfo } from '../../types/StreamerInfo';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 const CONFIG = {
   POLLING_INTERVAL: 3000,
+  FIREPOWER_POLLING_INTERVAL: 3000,
+  HIGHLIGHT_POLLING_INTERVAL: 10000,
   DISPLAY_POINTS: 60,
 };
 
@@ -55,7 +57,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   const { analysisData, isLoading, error, isGathering } = useStreamAnalysis(
     streamId || '',
-    CONFIG.POLLING_INTERVAL
+    CONFIG.FIREPOWER_POLLING_INTERVAL,
+    { enabled: selectedTab === 'realtime' }
   );
 
   const stableData = useMemo(() => {
@@ -74,7 +77,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
     return points.slice(-CONFIG.DISPLAY_POINTS);
   }, [analysisData]);
 
-  const { highlights } = useHighlights(streamId || "", selectedTab, CONFIG.POLLING_INTERVAL);
+  const { highlights } = useHighlights(streamId || "", selectedTab, CONFIG.HIGHLIGHT_POLLING_INTERVAL);
 
   const [streamerInfo, setStreamerInfo] = useState<StreamerInfo | null>(null);
   const [isLive, setIsLive] = useState(false);
