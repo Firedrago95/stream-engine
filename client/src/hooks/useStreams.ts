@@ -31,15 +31,38 @@ export const useStreams = (keyword = '', interval = 15000) => {
   }, [keyword]); // 💡 keyword가 바뀔 때마다 fetchData가 갱신됩니다.
 
   useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | null = null;
     const controller = new AbortController();
-    fetchData(controller.signal);
 
-    const timer = setInterval(() => {
-      fetchData(controller.signal);
-    }, interval);
+    const startPolling = () => {
+      if (timer) clearInterval(timer);
+      timer = setInterval(() => {
+        fetchData(controller.signal);
+      }, interval);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (timer) {
+          clearInterval(timer);
+          timer = null;
+        }
+      } else {
+        fetchData(controller.signal);
+        startPolling();
+      }
+    };
+
+    fetchData(controller.signal);
+    if (!document.hidden) {
+      startPolling();
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      clearInterval(timer);
+      if (timer) clearInterval(timer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       controller.abort();
     };
   }, [fetchData, interval]);

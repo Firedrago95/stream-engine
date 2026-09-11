@@ -1,13 +1,17 @@
 // @ts-nocheck
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Sidebar from './partials/Sidebar.jsx';
 import Header from './partials/Header.jsx';
 import { StreamCard } from './components/stream/StreamCard';
-import { StreamAnalysisDashboard } from './components/stream/StreamAnalysisDashboard';
 import { useStreams } from './hooks/useStreams';
 import Tooltip from './components/Tooltip.jsx'; // 🔥 툴팁 컴포넌트 추가
+import { WeeklyCategoryRanking } from './components/stream/WeeklyCategoryRanking';
 import './css/style.css';
+
+const StreamAnalysisDashboard = lazy(() =>
+  import('./components/stream/StreamAnalysisDashboard').then(m => ({ default: m.StreamAnalysisDashboard }))
+);
 
 const MainPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -47,6 +51,7 @@ const MainPage = () => {
 
   return (
       <div className="w-full">
+        <WeeklyCategoryRanking />
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 px-1 mt-4">
           <div className="flex items-center gap-2 mb-2 sm:mb-0">
@@ -140,10 +145,19 @@ export default function App() {
 
           <main className="grow">
             <div className="w-[95%] lg:w-[80%] mx-auto py-8">
-              <Routes>
-                <Route path="/" element={<MainPage />} />
-                <Route path="/streams/:streamId" element={<StreamAnalysisDashboard />} />
-              </Routes>
+              <Suspense
+                fallback={
+                  <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
+                    <div className="w-10 h-10 border-3 border-[#00FFA3] border-t-transparent rounded-full animate-spin"></div>
+                    <div className="text-gray-400 text-sm font-medium tracking-wide">대시보드를 불러오는 중...</div>
+                  </div>
+                }
+              >
+                <Routes>
+                  <Route path="/" element={<MainPage />} />
+                  <Route path="/streams/:streamId" element={<StreamAnalysisDashboard />} />
+                </Routes>
+              </Suspense>
             </div>
           </main>
         </div>
