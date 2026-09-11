@@ -73,20 +73,22 @@ class AnalysisRepositoryImplTest implements PostgresTestSupport {
     }
 
     @Test
-    void 여러_스트림_ID_중_실제_데이터가_있는_ID만_추출한다() {
+    void 여러_스트림_ID_중_기준_시간_이후의_데이터가_있는_ID만_추출한다() {
         // given
-        analysisRepository.save(AnalysisSignal.of("ch1", "sessionId", "NORMAL", Instant.now(), 10L, 0L));
-        analysisRepository.save(AnalysisSignal.of("ch2", "sessionId", "NORMAL", Instant.now(), 20L, 0L));
+        Instant now = Instant.now();
+        Instant threshold = now.minus(5, ChronoUnit.MINUTES);
+        analysisRepository.save(AnalysisSignal.of("ch1", "sessionId", "NORMAL", now, 10L, 0L));
+        analysisRepository.save(AnalysisSignal.of("ch2", "sessionId", "NORMAL", now.minus(10, ChronoUnit.MINUTES), 20L, 0L));
 
         List<String> requestIds = List.of("ch1", "ch2", "ch3");
 
         // when
-        Set<String> activeChannels = analysisRepository.findChannelsWithRecentSignals(requestIds);
+        Set<String> activeChannels = analysisRepository.findChannelsWithRecentSignals(requestIds, threshold);
 
         // then
-        assertThat(activeChannels).hasSize(2)
-            .containsExactlyInAnyOrder("ch1", "ch2")
-            .doesNotContain("ch3");
+        assertThat(activeChannels).hasSize(1)
+            .containsExactly("ch1")
+            .doesNotContain("ch2", "ch3");
     }
 
     @Test

@@ -38,7 +38,8 @@ public class StreamQueryService {
             .map(StreamEntity::getStreamId)
             .collect(Collectors.toSet());
 
-        Set<String> analyzingIds = analysisRepository.findChannelsWithRecentSignals(streamIds);
+        Instant signalThreshold = Instant.now().minus(5, ChronoUnit.MINUTES);
+        Set<String> analyzingIds = analysisRepository.findChannelsWithRecentSignals(streamIds, signalThreshold);
 
         return activeStreams.stream()
             .map(s -> new StreamResponse(
@@ -59,9 +60,9 @@ public class StreamQueryService {
         StreamEntity s = streamRepository.findById(streamId)
             .orElseThrow(() -> new BusinessException(ErrorCode.STREAM_NOT_FOUND, "존재하지 않는 방송입니다."));
         Instant threshold = Instant.now().minus(3, ChronoUnit.MINUTES);
+        Instant signalThreshold = Instant.now().minus(5, ChronoUnit.MINUTES);
 
-        // 현재 분석 중인지 체크
-        Set<String> analyzingIds = analysisRepository.findChannelsWithRecentSignals(Set.of(streamId));
+        Set<String> analyzingIds = analysisRepository.findChannelsWithRecentSignals(Set.of(streamId), signalThreshold);
 
         return new StreamResponse(
             s.getStreamId(),
@@ -71,7 +72,7 @@ public class StreamQueryService {
             s.getCategoryName(),
             s.getConcurrentUserCount(),
             StreamStatus.determine(
-                s.isLive() & s.getLastUpdateAt().isAfter(threshold),
+                s.isLive() && s.getLastUpdateAt().isAfter(threshold),
                 analyzingIds.contains(streamId))
         );
     }

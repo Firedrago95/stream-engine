@@ -1,6 +1,7 @@
 package io.slice.stream.apiserver.analysis.domain;
 
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -11,7 +12,7 @@ public interface AnalysisRepository {
 
     List<AnalysisSignal> findRecentSignals(String streamId, int limit);
 
-    Set<String> findChannelsWithRecentSignals(Collection<String> streamIds);
+    Set<String> findChannelsWithRecentSignals(Collection<String> streamIds, Instant threshold);
 
     List<AnalysisDataPoint> findRawHistory(String streamId, String sessionId);
 

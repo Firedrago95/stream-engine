@@ -4,6 +4,7 @@ import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import io.slice.stream.apiserver.analysis.infrastructure.entity.AnalysisSignalEntity;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -61,11 +62,11 @@ public class AnalysisRepositoryImpl implements AnalysisRepository {
     }
 
     @Override
-    public Set<String> findChannelsWithRecentSignals(Collection<String> streamIds) {
+    public Set<String> findChannelsWithRecentSignals(Collection<String> streamIds, Instant threshold) {
         if (streamIds == null || streamIds.isEmpty()) {
             return Set.of();
         }
-        return jpaRepository.findDistinctStreamIdByStreamIdIn(streamIds);
+        return jpaRepository.findDistinctStreamIdByStreamIdInAndTimestampAfter(streamIds, threshold);
     }
 
     @Override
