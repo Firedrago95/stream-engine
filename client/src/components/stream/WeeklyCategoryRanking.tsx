@@ -10,11 +10,6 @@ export interface WeeklyCategory {
   icon?: string;
 }
 
-interface Props {
-  onSelectCategory?: (categoryName: string) => void;
-  selectedCategory?: string;
-}
-
 const DEFAULT_CATEGORIES: WeeklyCategory[] = [
   { rank: 1, categoryName: 'League of Legends', accumulatedViewHours: '128.4만 시간', change: 'same', icon: '⚔️' },
   { rank: 2, categoryName: '로스트아크', accumulatedViewHours: '89.2만 시간', change: 'up', changeValue: 1, icon: '🛡️' },
@@ -24,7 +19,7 @@ const DEFAULT_CATEGORIES: WeeklyCategory[] = [
   { rank: 6, categoryName: '치지직 종합게임', accumulatedViewHours: '38.5만 시간', change: 'new', icon: '🎮' },
 ];
 
-export const WeeklyCategoryRanking: React.FC<Props> = ({ onSelectCategory, selectedCategory }) => {
+export const WeeklyCategoryRanking: React.FC = () => {
   const getChangeBadge = (item: WeeklyCategory) => {
     switch (item.change) {
       case 'up':
@@ -76,32 +71,20 @@ export const WeeklyCategoryRanking: React.FC<Props> = ({ onSelectCategory, selec
           <span className="px-2.5 py-1 bg-[#1c1b1d] border border-[#26262b] text-[11px] font-medium text-[#00FFA3] rounded-full">
             매주 월요일 갱신
           </span>
-          {selectedCategory && (
-            <button
-              onClick={() => onSelectCategory?.('')}
-              className="text-xs text-gray-400 hover:text-white underline ml-1"
-            >
-              필터 해제
-            </button>
-          )}
         </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {DEFAULT_CATEGORIES.map((item) => {
-          const isSelected = selectedCategory === item.categoryName;
           const isFirst = item.rank === 1;
 
           return (
             <div
               key={item.categoryName}
-              onClick={() => onSelectCategory?.(item.categoryName)}
-              className={`p-3 rounded-xl cursor-pointer transition-all duration-200 flex flex-col justify-between border ${
-                isSelected
-                  ? 'bg-[#1c1b1d] border-[#00FFA3] ring-1 ring-[#00FFA3]'
-                  : isFirst
-                  ? 'bg-[#18181a] border-[#00FFA3]/50 hover:border-[#00FFA3] hover:shadow-[0_0_15px_-3px_rgba(0,255,163,0.3)]'
-                  : 'bg-[#1a1a1c] border-gray-800 hover:border-gray-600 hover:bg-[#202023]'
+              className={`p-3 rounded-xl transition-all duration-200 flex flex-col justify-between border ${
+                isFirst
+                  ? 'bg-[#18181a] border-[#00FFA3]/50 shadow-[0_0_15px_-3px_rgba(0,255,163,0.15)]'
+                  : 'bg-[#1a1a1c] border-gray-800'
               }`}
             >
               <div className="flex items-center justify-between mb-2">

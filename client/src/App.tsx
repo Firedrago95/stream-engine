@@ -12,7 +12,6 @@ import './css/style.css';
 
 const MainPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
   const { streams, isLoading, error } = useStreams(searchTerm, 15000);
 
   // 100개 대응: 브라우저 부하 방지를 위한 클라이언트 사이드 무한 스크롤
@@ -45,24 +44,11 @@ const MainPage = () => {
   if (error) return <div className="text-rose-500 p-8 text-center">에러: {error}</div>;
 
   // 화면에 렌더링할 데이터만 잘라냄
-  const handleCategorySelect = (catName: string) => {
-    if (selectedCategory === catName) {
-      setSelectedCategory("");
-      setSearchTerm("");
-    } else {
-      setSelectedCategory(catName);
-      setSearchTerm(catName);
-    }
-  };
-
   const displayedStreams = streams.slice(0, visibleCount);
 
   return (
       <div className="w-full">
-        <WeeklyCategoryRanking
-          selectedCategory={selectedCategory}
-          onSelectCategory={handleCategorySelect}
-        />
+        <WeeklyCategoryRanking />
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 px-1 mt-4">
           <div className="flex items-center gap-2 mb-2 sm:mb-0">
