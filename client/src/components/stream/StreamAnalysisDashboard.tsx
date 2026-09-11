@@ -301,11 +301,12 @@ export const StreamAnalysisDashboard: React.FC = () => {
     }
 
     const currentSession = availableSessions.find(s => s.sessionId === selectedTab);
+    const displayLabel = currentSession ? currentSession.label : "과거 방송";
     const maxViewer = compressedHistory.length > 0
       ? Math.max(...compressedHistory.map((d: any) => d.viewerCount || 0))
       : (currentSession?.viewers || 0);
 
-    return { label: "세션 최고 시청자", value: maxViewer };
+    return { label: `${displayLabel} 최고 시청자`, value: maxViewer };
   }, [selectedTab, stableData, compressedHistory, hoveredData, streamerInfo?.concurrentUserCount, availableSessions]);
 
   const metric = useMemo(() => {
@@ -323,17 +324,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
     const maxVal = compressedHistory.length > 0 ? Math.max(...compressedHistory.map((d: any) => d.value || 0)) : 0;
 
     return {
-      label: (
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Broadcast History</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-[#00FFA3] tracking-tighter">
-              {displayLabel}
-            </span>
-            <span className="text-lg font-bold text-gray-400">최고 화력</span>
-          </div>
-        </div>
-      ),
+      label: `${displayLabel} 최고 화력`,
       value: maxVal
     };
   }, [selectedTab, stableData, compressedHistory, hoveredData, availableSessions]);
