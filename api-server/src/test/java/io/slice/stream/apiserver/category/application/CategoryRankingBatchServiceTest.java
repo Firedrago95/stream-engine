@@ -8,7 +8,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.slice.stream.apiserver.category.domain.CategoryRepository;
 import io.slice.stream.apiserver.category.domain.CategoryViewMetric;
 import io.slice.stream.apiserver.category.presentation.dto.WeeklyCategoryResponse;
@@ -29,6 +28,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import tools.jackson.databind.json.JsonMapper;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
@@ -40,13 +40,13 @@ class CategoryRankingBatchServiceTest {
     @Mock
     private StringRedisTemplate redisTemplate;
 
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
     private CategoryRankingBatchService batchService;
 
     @BeforeEach
     void setUp() {
-        objectMapper = new ObjectMapper();
-        batchService = new CategoryRankingBatchService(categoryRepository, redisTemplate, objectMapper, 30);
+        jsonMapper = new JsonMapper();
+        batchService = new CategoryRankingBatchService(categoryRepository, redisTemplate, jsonMapper, 30);
     }
 
     @Test
