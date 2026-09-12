@@ -80,7 +80,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
   const { analysisData, isLoading, error, isGathering } = useStreamAnalysis(
     streamId || '',
     CONFIG.FIREPOWER_POLLING_INTERVAL,
-    { enabled: isLiveTabSelected && liveTimeframe === 'realtime' }
+    { enabled: isLiveTabSelected }
   );
 
   const matchViewerCount = (
