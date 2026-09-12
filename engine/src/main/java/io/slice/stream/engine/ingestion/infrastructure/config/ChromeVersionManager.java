@@ -1,12 +1,15 @@
 package io.slice.stream.engine.ingestion.infrastructure.config;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -24,7 +27,7 @@ public class ChromeVersionManager {
         @Value("${chzzk.api.version-api-url:https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions.json}") String versionApiUrl,
         @Value("${chzzk.api.default-chrome-version:152.0.0.0}") String defaultChromeVersion
     ) {
-        this(RestClient.builder(), versionApiUrl, defaultChromeVersion);
+        this(createDefaultRestClient(), versionApiUrl, defaultChromeVersion);
     }
 
     public ChromeVersionManager(
@@ -43,6 +46,19 @@ public class ChromeVersionManager {
         this.restClient = restClient;
         this.versionApiUrl = versionApiUrl;
         this.currentVersion = new AtomicReference<>(defaultChromeVersion);
+    }
+
+    private static RestClient createDefaultRestClient() {
+        HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(3))
+            .build();
+
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(Duration.ofSeconds(5));
+
+        return RestClient.builder()
+            .requestFactory(requestFactory)
+            .build();
     }
 
     @EventListener(ApplicationReadyEvent.class)

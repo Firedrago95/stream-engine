@@ -67,4 +67,10 @@ class ChromeVersionManagerTest {
         assertThat(chromeVersionManager.getMajorVersion()).isEqualTo("152");
         assertThat(chromeVersionManager.getUserAgent()).contains("Chrome/152.0.0.0");
     }
+
+    @Test
+    void 기본_생성자_사용_시_정상적으로_초기화된다() {
+        ChromeVersionManager manager = new ChromeVersionManager(versionApiUrl, defaultVersion);
+        assertThat(manager.getCurrentVersion()).isEqualTo(defaultVersion);
+    }
 }
