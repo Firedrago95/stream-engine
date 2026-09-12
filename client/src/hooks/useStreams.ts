@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { type StreamItem, StreamItemSchema } from '../types/stream';
 import { z } from 'zod';
 
-export const useStreams = (keyword = '', interval = 15000) => {
+export const useStreams = (keyword = '', interval = 30000) => {
   const [streams, setStreams] = useState<StreamItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

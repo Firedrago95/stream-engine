@@ -7,28 +7,49 @@ import io.slice.stream.apiserver.stream.domain.StreamRepository;
 import io.slice.stream.apiserver.stream.domain.StreamStatus;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamResponse;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class StreamQueryService {
 
+    public static final String REDIS_STREAM_LIST_KEY = "stream:browser:list";
+    private static final Duration CACHE_TTL = Duration.ofSeconds(20);
+
     private final StreamRepository streamRepository;
     private final AnalysisRepository analysisRepository;
+    private final StringRedisTemplate redisTemplate;
+    private final JsonMapper jsonMapper;
 
     public List<StreamResponse> getBrowserList(String keyword) {
+        boolean isAllSearch = (keyword == null || keyword.isBlank());
+
+        if (isAllSearch) {
+            List<StreamResponse> cached = readFromRedis();
+            if (!cached.isEmpty()) {
+                return cached;
+            }
+        }
+
         Instant threshold = Instant.now().minus(3, ChronoUnit.MINUTES);
         List<StreamEntity> activeStreams;
 
-        if (keyword != null && !keyword.isBlank()) {
+        if (!isAllSearch) {
             activeStreams = streamRepository.searchByStreamerName(keyword, threshold);
         } else {
             activeStreams = streamRepository.findActiveStreams(threshold);
@@ -41,7 +62,7 @@ public class StreamQueryService {
         Instant signalThreshold = Instant.now().minus(5, ChronoUnit.MINUTES);
         Set<String> analyzingIds = analysisRepository.findChannelsWithRecentSignals(streamIds, signalThreshold);
 
-        return activeStreams.stream()
+        List<StreamResponse> responses = activeStreams.stream()
             .map(s -> new StreamResponse(
                 s.getStreamId(),
                 s.getStreamerName(),
@@ -54,6 +75,12 @@ public class StreamQueryService {
                     analyzingIds.contains(s.getStreamId()))
             ))
             .toList();
+
+        if (isAllSearch && !responses.isEmpty()) {
+            writeToRedis(responses);
+        }
+
+        return responses;
     }
 
     public StreamResponse getStreamInfo(String streamId) {
@@ -75,5 +102,27 @@ public class StreamQueryService {
                 s.isLive() && s.getLastUpdateAt().isAfter(threshold),
                 analyzingIds.contains(streamId))
         );
+    }
+
+    private List<StreamResponse> readFromRedis() {
+        try {
+            String json = redisTemplate.opsForValue().get(REDIS_STREAM_LIST_KEY);
+            if (json == null || json.isBlank()) {
+                return Collections.emptyList();
+            }
+            return jsonMapper.readValue(json, new TypeReference<List<StreamResponse>>() {});
+        } catch (Exception e) {
+            log.error("[Cache] Redis 메인 방송 목록 조회 실패", e);
+            return Collections.emptyList();
+        }
+    }
+
+    private void writeToRedis(List<StreamResponse> responses) {
+        try {
+            String json = jsonMapper.writeValueAsString(responses);
+            redisTemplate.opsForValue().set(REDIS_STREAM_LIST_KEY, json, CACHE_TTL);
+        } catch (Exception e) {
+            log.error("[Cache] Redis 메인 방송 목록 갱신 실패", e);
+        }
     }
 }

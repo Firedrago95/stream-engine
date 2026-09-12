@@ -4,6 +4,7 @@ import { Routes, Route } from 'react-router-dom';
 import Sidebar from './partials/Sidebar.jsx';
 import Header from './partials/Header.jsx';
 import { StreamCard } from './components/stream/StreamCard';
+import { StreamCardSkeleton } from './components/stream/StreamCardSkeleton';
 import { useStreams } from './hooks/useStreams';
 import Tooltip from './components/Tooltip.jsx'; // 🔥 툴팁 컴포넌트 추가
 import { WeeklyCategoryRanking } from './components/stream/WeeklyCategoryRanking';
@@ -15,7 +16,7 @@ const StreamAnalysisDashboard = lazy(() =>
 
 const MainPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const { streams, isLoading, error } = useStreams(searchTerm, 15000);
+  const { streams, isLoading, error } = useStreams(searchTerm, 30000);
 
   // 100개 대응: 브라우저 부하 방지를 위한 클라이언트 사이드 무한 스크롤
   const [visibleCount, setVisibleCount] = useState(24);
@@ -84,9 +85,13 @@ const MainPage = () => {
           </div>
         </div>
 
-        {/* 로딩 상태 표시 */}
+        {/* 로딩 상태 표시 (24개 스켈레톤 그리드 렌더링으로 CLS 방지) */}
         {isLoading && streams.length === 0 && (
-            <div className="text-[#a1a1aa] p-20 text-center animate-pulse">방송 목록을 불러오는 중...</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+            {Array.from({ length: 24 }).map((_, index) => (
+              <StreamCardSkeleton key={index} />
+            ))}
+          </div>
         )}
 
         {/* 결과 없음 처리 */}

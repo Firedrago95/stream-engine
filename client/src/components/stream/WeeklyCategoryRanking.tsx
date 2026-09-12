@@ -57,8 +57,7 @@ export const WeeklyCategoryRanking: React.FC = () => {
           <Tooltip bg="dark" position="right" size="md" className="mt-0.5">
             <div className="text-xs text-gray-200 font-medium leading-relaxed p-1.5 space-y-1">
               <div className="font-bold text-[#00FFA3] mb-1">📊 집계 방식 안내</div>
-              <div>• 치즈픽에 수집된 상위 라이브 방송 대상</div>
-              <div>• 최근 7일간 15초 단위 <span className="text-white font-semibold">동시 시청자 수 타임라인</span>을 기반으로 누적 시청 시간을 계산한 순위</div>
+              <div>최근 7일간 실시간 동시 시청자 수 추이를 바탕으로 집계된 총 누적 시청 시간 순위입니다.</div>
             </div>
           </Tooltip>
         </div>

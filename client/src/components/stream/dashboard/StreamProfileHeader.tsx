@@ -9,12 +9,20 @@ interface Props {
   viewers?: number;
   liveTitle?: string | null;
   categoryName?: string | null;
+  isLiveTab?: boolean;
 }
 
-export const StreamProfileHeader: React.FC<Props> = ({ streamId, streamerName, profileImageUrl, isLive, status, viewers, liveTitle, categoryName }) => (
+export const StreamProfileHeader: React.FC<Props> = ({
+  streamId,
+  streamerName,
+  profileImageUrl,
+  isLive,
+  viewers,
+  liveTitle,
+  categoryName,
+  isLiveTab
+}) => (
   <div className="mb-8 p-6 bg-[#1a1a1c] border border-gray-800 rounded-2xl flex items-center gap-6">
-
-    {/* 1. shrink-0 추가: 방제가 아무리 길어도 프로필 사진이 찌그러지지 않게 방어 */}
     <div className={`shrink-0 w-20 h-20 rounded-full border-2 ${isLive ? 'border-[#00FFA3]/20' : 'border-gray-600 grayscale'} overflow-hidden bg-gray-900 shadow-xl`}>
       <img
         src={profileImageUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${streamId}`}
@@ -24,16 +32,21 @@ export const StreamProfileHeader: React.FC<Props> = ({ streamId, streamerName, p
     </div>
 
     <div className="flex-1 min-w-0 w-full overflow-hidden">
-
-      {/* 3. flex-wrap 추가: 화면이 좁을 때 뱃지들이 방제 위에서 예쁘게 줄바꿈되도록 처리 */}
       <div className="flex flex-wrap items-center gap-2 mb-1">
         <span className="text-white font-bold text-lg">{streamerName || '정보 로딩 중...'}</span>
 
-        <span className={`px-2 py-0.5 text-[10px] ${isLive ? 'bg-red-600 animate-pulse' : 'bg-gray-600'} text-white rounded-sm font-black`}>
-          {status === 'ANALYZING' ? '분석 중' : isLive ? 'LIVE' : 'OFFLINE'}
-        </span>
+        {isLiveTab ? (
+          <span className="px-2.5 py-0.5 text-xs font-black bg-red-600 text-white rounded-md flex items-center gap-1.5 shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+            LIVE 실시간 관제 중
+          </span>
+        ) : (
+          <span className="px-2.5 py-0.5 text-xs font-semibold bg-[#26262b] text-gray-300 border border-gray-700/60 rounded-md flex items-center gap-1.5">
+            📁 방송 아카이브
+          </span>
+        )}
 
-        {isLive && viewers !== undefined && (
+        {isLiveTab && viewers !== undefined && (
           <span className="text-[#00FFA3] text-sm font-bold ml-2">
             👤 {viewers.toLocaleString()}명 시청 중
           </span>
@@ -50,6 +63,5 @@ export const StreamProfileHeader: React.FC<Props> = ({ streamId, streamerName, p
         {liveTitle || '방송 제목 정보 없음'}
       </h1>
     </div>
-
   </div>
 );

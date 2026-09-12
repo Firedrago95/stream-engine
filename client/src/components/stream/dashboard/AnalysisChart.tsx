@@ -26,6 +26,9 @@ interface Props {
   formatTime: (ts: any) => string;
   rebangIndexes?: number[];
   segments: StreamSegment[];
+  showTimeframeToggle?: boolean;
+  timeframe?: 'realtime' | 'cumulative';
+  onTimeframeChange?: (tf: 'realtime' | 'cumulative') => void;
 }
 
 const formatOffset = (ms: number | undefined | null) => {
@@ -130,7 +133,8 @@ const getSegmentXRange = (seg: StreamSegment, data: any[]) => {
 
 export const AnalysisChart: React.FC<Props> = ({
   chartData, metric, viewerMetric, maxY, maxViewerY = 100, isLoading, isGathering, error, selectedTab,
-  historyEmpty, onMouseMove, onMouseLeave, formatTime, rebangIndexes = [], segments = []
+  historyEmpty, onMouseMove, onMouseLeave, formatTime, rebangIndexes = [], segments = [],
+  showTimeframeToggle = false, timeframe = 'realtime', onTimeframeChange
 }) => {
   const isRealtime = selectedTab === "realtime";
 
@@ -199,21 +203,53 @@ export const AnalysisChart: React.FC<Props> = ({
         </div>
       )}
 
-      <div className="flex justify-between items-start mb-10">
-        <div>
-          <h3 className="text-lg font-bold text-gray-200 uppercase tracking-widest italic">채팅 화력 및 시청자 추이</h3>
-          <div className="flex items-center gap-4 mt-2 text-xs font-semibold">
-            <span className="flex items-center gap-1.5 text-[#00FFA3]">
-              <span className="w-2.5 h-2.5 rounded-sm bg-[#00FFA3]/80 inline-block" />
-              채팅 화력 (건/초)
-            </span>
-            <span className="flex items-center gap-1.5 text-[#67BFFF]">
-              <span className="w-3 h-0.5 bg-[#67BFFF] inline-block" />
-              동시 시청자 (명)
-            </span>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div>
+            <h3 className="text-lg font-bold text-gray-200 uppercase tracking-widest italic">채팅 화력 및 시청자 추이</h3>
+            <div className="flex items-center gap-4 mt-1.5 text-xs font-semibold">
+              <span className="flex items-center gap-1.5 text-[#00FFA3]">
+                <span className="w-2.5 h-2.5 rounded-sm bg-[#00FFA3]/80 inline-block" />
+                채팅 화력 (건/초)
+              </span>
+              <span className="flex items-center gap-1.5 text-[#67BFFF]">
+                <span className="w-3 h-0.5 bg-[#67BFFF] inline-block" />
+                동시 시청자 (명)
+              </span>
+            </div>
           </div>
+
+          {showTimeframeToggle && (
+            <div className="inline-flex bg-[#16171a] p-1 rounded-xl border border-gray-800 text-xs font-semibold self-start sm:self-auto sm:ml-2">
+              <button
+                type="button"
+                onClick={() => onTimeframeChange?.('realtime')}
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                  timeframe === 'realtime'
+                    ? 'bg-[#24262b] text-[#00FFA3] font-bold border border-[#00FFA3]/30 shadow-sm'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <span>⏱️</span>
+                <span>실시간 화력 (최근 5분)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onTimeframeChange?.('cumulative')}
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                  timeframe === 'cumulative'
+                    ? 'bg-[#24262b] text-[#00FFA3] font-bold border border-[#00FFA3]/30 shadow-sm'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <span>📈</span>
+                <span>전체 누적 (시작~현재)</span>
+              </button>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-6 text-right">
+
+        <div className="flex items-center gap-6 justify-end">
           {viewerMetric && (
             <div className="text-right">
               <div className="block mb-1 text-xs text-gray-400 font-medium">{viewerMetric.label}</div>
