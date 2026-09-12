@@ -3,6 +3,7 @@ package io.slice.stream.engine.ingestion.infrastructure.config;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -18,12 +19,28 @@ public class ChromeVersionManager {
     private final String versionApiUrl;
     private final AtomicReference<String> currentVersion;
 
+    @Autowired
     public ChromeVersionManager(
-        RestClient.Builder restClientBuilder,
         @Value("${chzzk.api.version-api-url:https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions.json}") String versionApiUrl,
         @Value("${chzzk.api.default-chrome-version:152.0.0.0}") String defaultChromeVersion
     ) {
-        this.restClient = restClientBuilder.build();
+        this(RestClient.builder(), versionApiUrl, defaultChromeVersion);
+    }
+
+    public ChromeVersionManager(
+        RestClient.Builder restClientBuilder,
+        String versionApiUrl,
+        String defaultChromeVersion
+    ) {
+        this(restClientBuilder.build(), versionApiUrl, defaultChromeVersion);
+    }
+
+    public ChromeVersionManager(
+        RestClient restClient,
+        String versionApiUrl,
+        String defaultChromeVersion
+    ) {
+        this.restClient = restClient;
         this.versionApiUrl = versionApiUrl;
         this.currentVersion = new AtomicReference<>(defaultChromeVersion);
     }
