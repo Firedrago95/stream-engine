@@ -8,6 +8,10 @@ export interface DashboardSessionTab {
   categoryName?: string;
   viewers?: number;
   startedAt?: string;
+  endedAt?: string | null;
+  averageViewerCount?: number | null;
+  peakViewers?: number | null;
+  subscriberChatRatio?: number | null;
 }
 
 interface AnalysisTabsProps {

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { AnalysisTabs, type DashboardSessionTab } from './dashboard/AnalysisTabs';
 import { AnalysisChart } from './dashboard/AnalysisChart';
 import { HighlightSection } from './dashboard/HighlightSection';
+import { SessionSummaryGrid } from './dashboard/SessionSummaryGrid';
 import { DashboardHeader } from './dashboard/DashboardHeader';
 import { StreamProfileHeader } from './dashboard/StreamProfileHeader';
 import { useStreamAnalysis } from '../../hooks/useStreamAnalysis';
@@ -208,7 +209,11 @@ export const StreamAnalysisDashboard: React.FC = () => {
             liveTitle: streamerInfo?.liveTitle ?? sessions[0].liveTitle ?? undefined,
             categoryName: streamerInfo?.categoryName ?? sessions[0].categoryName ?? undefined,
             viewers: streamerInfo?.concurrentUserCount,
-            startedAt: sessions[0].startedAt
+            startedAt: sessions[0].startedAt,
+            endedAt: sessions[0].endedAt,
+            averageViewerCount: sessions[0].averageViewerCount,
+            peakViewers: sessions[0].peakViewers,
+            subscriberChatRatio: sessions[0].subscriberChatRatio
           };
 
           const pastSessions: DashboardSessionTab[] = sessions.slice(1).map(s => ({
@@ -218,7 +223,11 @@ export const StreamAnalysisDashboard: React.FC = () => {
             liveTitle: s.liveTitle,
             categoryName: s.categoryName || "종합 게임",
             viewers: 0,
-            startedAt: s.startedAt
+            startedAt: s.startedAt,
+            endedAt: s.endedAt,
+            averageViewerCount: s.averageViewerCount,
+            peakViewers: s.peakViewers,
+            subscriberChatRatio: s.subscriberChatRatio
           }));
 
           setAvailableSessions([liveSession, ...pastSessions]);
@@ -230,7 +239,11 @@ export const StreamAnalysisDashboard: React.FC = () => {
             liveTitle: s.liveTitle,
             categoryName: s.categoryName || "종합 게임",
             viewers: 0,
-            startedAt: s.startedAt
+            startedAt: s.startedAt,
+            endedAt: s.endedAt,
+            averageViewerCount: s.averageViewerCount,
+            peakViewers: s.peakViewers,
+            subscriberChatRatio: s.subscriberChatRatio
           }));
           setAvailableSessions(pastSessions);
         } else if (isCurrentlyLive && sessions.length === 0) {
@@ -499,6 +512,18 @@ export const StreamAnalysisDashboard: React.FC = () => {
         showTimeframeToggle={isLiveTabSelected}
         timeframe={liveTimeframe}
         onTimeframeChange={setLiveTimeframe}
+      />
+
+      <SessionSummaryGrid
+        isLive={isLiveTabSelected}
+        startedAt={isLiveTabSelected ? availableSessions[0]?.startedAt : currentSessionInfo?.startedAt}
+        endedAt={isLiveTabSelected ? null : currentSessionInfo?.endedAt}
+        currentViewers={isLiveTabSelected ? (streamerInfo?.concurrentUserCount || 0) : 0}
+        timeline={isLiveTabSelected ? (liveCumulativeTimeline.length > 0 ? liveCumulativeTimeline : (analysisData?.timeline || [])) : historicalTimeline}
+        dataPoints={isLiveTabSelected ? (liveCumulativeData.length > 0 ? liveCumulativeData : stableData) : historicalData}
+        summaryAvg={currentSessionInfo?.averageViewerCount}
+        summaryPeak={currentSessionInfo?.peakViewers}
+        subscriberChatRate={currentSessionInfo?.subscriberChatRatio ?? null}
       />
 
       <HighlightSection
