@@ -15,7 +15,7 @@ const StreamAnalysisDashboard = lazy(() =>
 
 const MainPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const { streams, isLoading, error } = useStreams(searchTerm, 15000);
+  const { streams, isLoading, error } = useStreams(searchTerm, 30000);
 
   // 100개 대응: 브라우저 부하 방지를 위한 클라이언트 사이드 무한 스크롤
   const [visibleCount, setVisibleCount] = useState(24);
