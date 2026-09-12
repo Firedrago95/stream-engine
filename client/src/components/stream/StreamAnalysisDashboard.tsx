@@ -68,13 +68,19 @@ export const StreamAnalysisDashboard: React.FC = () => {
     value: null, viewers: null, time: null,
   });
 
+  const [liveTimeframe, setLiveTimeframe] = useState<'realtime' | 'cumulative'>('realtime');
+  const [liveCumulativeData, setLiveCumulativeData] = useState<any[]>([]);
+  const [liveCumulativeTimeline, setLiveCumulativeTimeline] = useState<any[]>([]);
+  const [liveCumulativeSegments, setLiveCumulativeSegments] = useState<StreamSegment[]>([]);
+  const [isLiveCumulativeLoading, setIsLiveCumulativeLoading] = useState(false);
+
   const currentSessionInfo = availableSessions.find(s => s.sessionId === selectedTab);
   const isLiveTabSelected = currentSessionInfo?.isLive === true;
 
   const { analysisData, isLoading, error, isGathering } = useStreamAnalysis(
     streamId || '',
     CONFIG.FIREPOWER_POLLING_INTERVAL,
-    { enabled: isLiveTabSelected }
+    { enabled: isLiveTabSelected && liveTimeframe === 'realtime' }
   );
 
   const matchViewerCount = (
@@ -99,6 +105,50 @@ export const StreamAnalysisDashboard: React.FC = () => {
       matched = timeline[0].viewerCount;
     }
     return matched;
+  };
+
+  const compressHistoryData = (
+    data: any[],
+    timeline: any[],
+    matchViewer: (targetTs: number, timeline: any[], fallbackViewer?: number) => number
+  ) => {
+    if (!data || data.length === 0) return [];
+    const totalMinutes = data.length;
+
+    let interval = 1;
+    if (totalMinutes > 360) interval = 5;
+    else if (totalMinutes > 180) interval = 3;
+
+    if (interval === 1) {
+      return data.map((p: any) => ({
+        ...p,
+        viewerCount: matchViewer(p.timestamp, timeline, p.viewerCount || 0)
+      }));
+    }
+
+    const intervalMs = interval * 60 * 1000;
+    const grouped: Record<number, any> = {};
+
+    data.forEach((p: any) => {
+      const bucket = Math.floor(p.timestamp / intervalMs) * intervalMs;
+      if (!grouped[bucket]) {
+        grouped[bucket] = {
+          ...p,
+          timestamp: bucket,
+          viewerCount: matchViewer(bucket, timeline, p.viewerCount || 0)
+        };
+      } else {
+        grouped[bucket].value = Math.max(grouped[bucket].value || 0, p.value || 0);
+        if (p.status === 'PEAK') grouped[bucket].status = 'PEAK';
+        if (p.offsetMs !== undefined && (grouped[bucket].offsetMs === undefined || p.offsetMs < grouped[bucket].offsetMs)) {
+          grouped[bucket].offsetMs = p.offsetMs;
+        }
+        const matched = matchViewer(bucket, timeline, grouped[bucket].viewerCount || 0);
+        if (matched > 0) grouped[bucket].viewerCount = matched;
+      }
+    });
+
+    return Object.values(grouped).sort((a: any, b: any) => a.timestamp - b.timestamp);
   };
 
   const stableData = useMemo(() => {
@@ -232,58 +282,64 @@ export const StreamAnalysisDashboard: React.FC = () => {
       });
   }, [selectedTab, streamId, isLiveTabSelected]);
 
+  // 실시간 탭에서 '전체 누적' 선택 시 단 1회만 fetch하여 프론트엔드 캐싱
+  useEffect(() => {
+    if (!isLiveTabSelected || liveTimeframe !== 'cumulative' || !streamId) return;
+    if (liveCumulativeData.length > 0) return;
+
+    const liveSessionId = currentSessionInfo?.sessionId;
+    if (!liveSessionId || liveSessionId === 'realtime') return;
+
+    setIsLiveCumulativeLoading(true);
+    fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/history?sessionId=${liveSessionId}`)
+      .then(res => res.ok ? res.json() : { dataPoints: [] })
+      .then(data => {
+        const sortedHistory = (data.dataPoints || []).sort((a: any, b: any) => a.timestamp - b.timestamp);
+        setLiveCumulativeData(sortedHistory);
+        setLiveCumulativeTimeline(data.timeline || []);
+        setLiveCumulativeSegments(data.segments || []);
+      })
+      .catch(err => {
+        console.error("실시간 방송의 전체 누적 데이터를 불러오지 못했습니다.", err);
+      })
+      .finally(() => {
+        setIsLiveCumulativeLoading(false);
+      });
+  }, [isLiveTabSelected, liveTimeframe, streamId, currentSessionInfo?.sessionId, liveCumulativeData.length]);
+
   const compressedHistory = useMemo(() => {
-    if (historicalData.length === 0) return [];
-    const totalMinutes = historicalData.length;
-
-    let interval = 1;
-    if (totalMinutes > 360) interval = 5;
-    else if (totalMinutes > 180) interval = 3;
-
-    if (interval === 1) {
-      return historicalData.map((p: any) => ({
-        ...p,
-        viewerCount: matchViewerCount(p.timestamp, historicalTimeline, p.viewerCount || 0)
-      }));
-    }
-
-    const intervalMs = interval * 60 * 1000;
-    const grouped: Record<number, any> = {};
-
-    historicalData.forEach((p: any) => {
-      const bucket = Math.floor(p.timestamp / intervalMs) * intervalMs;
-      if (!grouped[bucket]) {
-        grouped[bucket] = {
-          ...p,
-          timestamp: bucket,
-          viewerCount: matchViewerCount(bucket, historicalTimeline, p.viewerCount || 0)
-        };
-      } else {
-        grouped[bucket].value = Math.max(grouped[bucket].value || 0, p.value || 0);
-        if (p.status === 'PEAK') grouped[bucket].status = 'PEAK';
-        if (p.offsetMs !== undefined && (grouped[bucket].offsetMs === undefined || p.offsetMs < grouped[bucket].offsetMs)) {
-          grouped[bucket].offsetMs = p.offsetMs;
-        }
-        const matched = matchViewerCount(bucket, historicalTimeline, grouped[bucket].viewerCount || 0);
-        if (matched > 0) grouped[bucket].viewerCount = matched;
-      }
-    });
-
-    return Object.values(grouped).sort((a: any, b: any) => a.timestamp - b.timestamp);
+    return compressHistoryData(historicalData, historicalTimeline, matchViewerCount);
   }, [historicalData, historicalTimeline]);
 
+  const compressedLiveHistory = useMemo(() => {
+    return compressHistoryData(liveCumulativeData, liveCumulativeTimeline, matchViewerCount);
+  }, [liveCumulativeData, liveCumulativeTimeline]);
+
+  const activeChartSource = useMemo(() => {
+    if (isLiveTabSelected) {
+      return liveTimeframe === 'cumulative' ? compressedLiveHistory : stableData;
+    }
+    return compressedHistory;
+  }, [isLiveTabSelected, liveTimeframe, compressedLiveHistory, stableData, compressedHistory]);
+
+  const activeSegments = useMemo(() => {
+    if (isLiveTabSelected) {
+      return liveTimeframe === 'cumulative' ? liveCumulativeSegments : segments;
+    }
+    return segments;
+  }, [isLiveTabSelected, liveTimeframe, liveCumulativeSegments, segments]);
+
   useEffect(() => {
-    const targetData = isLiveTabSelected ? stableData : compressedHistory;
-    if (targetData.length > 0) {
-      const currentMax = Math.max(...targetData.map((d: any) => d.value || 0));
+    if (activeChartSource.length > 0) {
+      const currentMax = Math.max(...activeChartSource.map((d: any) => d.value || 0));
       if (currentMax > maxY) setMaxY(currentMax + 5);
 
-      const currentMaxViewer = Math.max(...targetData.map((d: any) => d.viewerCount || 0));
+      const currentMaxViewer = Math.max(...activeChartSource.map((d: any) => d.viewerCount || 0));
       if (currentMaxViewer > 0) {
         setMaxViewerY(Math.ceil(currentMaxViewer * 1.15));
       }
     }
-  }, [stableData, compressedHistory, isLiveTabSelected, maxY]);
+  }, [activeChartSource, maxY]);
 
   const formatTime = (ts: any) => {
     if (!ts) return "";
@@ -292,26 +348,29 @@ export const StreamAnalysisDashboard: React.FC = () => {
   };
 
   const chartDisplayData = useMemo(() => {
-    const currentSource = isLiveTabSelected ? stableData : compressedHistory;
-    const totalSlots = isLiveTabSelected ? CONFIG.DISPLAY_POINTS : currentSource.length;
+    const isFixedSlots = isLiveTabSelected && liveTimeframe === 'realtime';
+    const totalSlots = isFixedSlots ? CONFIG.DISPLAY_POINTS : activeChartSource.length;
     const result = new Array(totalSlots);
 
     for (let i = 0; i < totalSlots; i++) {
-      if (i < currentSource.length) {
-        result[i] = { ...currentSource[i], slotIndex: i, hasData: true };
+      if (i < activeChartSource.length) {
+        result[i] = { ...activeChartSource[i], slotIndex: i, hasData: true };
       } else {
         result[i] = { timestamp: null, value: null, slotIndex: i, hasData: false };
       }
     }
     return result;
-  }, [stableData, compressedHistory, isLiveTabSelected]);
+  }, [activeChartSource, isLiveTabSelected, liveTimeframe]);
 
   const rebangIndexes = useMemo(() => {
-    if (isLiveTabSelected || compressedHistory.length === 0) return [];
+    const historyList = isLiveTabSelected
+      ? (liveTimeframe === 'cumulative' ? compressedLiveHistory : [])
+      : compressedHistory;
+    if (historyList.length === 0) return [];
     const indexes: number[] = [];
-    for (let i = 1; i < compressedHistory.length; i++) {
-      const prev = compressedHistory[i - 1];
-      const curr = compressedHistory[i];
+    for (let i = 1; i < historyList.length; i++) {
+      const prev = historyList[i - 1];
+      const curr = historyList[i];
       const timeDiff = curr.timestamp - prev.timestamp;
 
       if (timeDiff > 600000 || (curr.offsetMs !== undefined && prev.offsetMs !== undefined && curr.offsetMs < prev.offsetMs)) {
@@ -319,7 +378,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
       }
     }
     return indexes;
-  }, [compressedHistory, isLiveTabSelected]);
+  }, [compressedHistory, compressedLiveHistory, isLiveTabSelected, liveTimeframe]);
 
   const handleMouseMove = (state: any) => {
     if (state?.activePayload?.[0]?.payload?.hasData) {
@@ -338,6 +397,13 @@ export const StreamAnalysisDashboard: React.FC = () => {
     }
 
     if (isLiveTabSelected) {
+      if (liveTimeframe === 'cumulative') {
+        const maxViewer = compressedLiveHistory.length > 0
+          ? Math.max(...compressedLiveHistory.map((d: any) => d.viewerCount || 0))
+          : (streamerInfo?.concurrentUserCount || 0);
+        return { label: "현재 방송 최고 시청자", value: maxViewer };
+      }
+
       const lastViewer = stableData.length > 0 && stableData[stableData.length - 1].viewerCount !== undefined
         ? stableData[stableData.length - 1].viewerCount
         : (streamerInfo?.concurrentUserCount || 0);
@@ -350,7 +416,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
       : (currentSessionInfo?.viewers || 0);
 
     return { label: `${displayLabel} 최고 시청자`, value: maxViewer };
-  }, [isLiveTabSelected, stableData, compressedHistory, hoveredData, streamerInfo?.concurrentUserCount, currentSessionInfo]);
+  }, [isLiveTabSelected, liveTimeframe, stableData, compressedHistory, compressedLiveHistory, hoveredData, streamerInfo?.concurrentUserCount, currentSessionInfo]);
 
   const metric = useMemo(() => {
     if (hoveredData.value !== null) return { label: `시점 화력 (${hoveredData.time})`, value: hoveredData.value };
@@ -358,6 +424,13 @@ export const StreamAnalysisDashboard: React.FC = () => {
     const displayLabel = currentSessionInfo ? currentSessionInfo.label : "분석 데이터";
 
     if (isLiveTabSelected) {
+      if (liveTimeframe === 'cumulative') {
+        const maxVal = compressedLiveHistory.length > 0
+          ? Math.max(...compressedLiveHistory.map((d: any) => d.value || 0))
+          : 0;
+        return { label: "현재 방송 최고 화력", value: maxVal };
+      }
+
       const lastValue = stableData.length > 0 ? stableData[stableData.length - 1].value : 0;
       return { label: "현재 실시간 화력", value: lastValue };
     }
@@ -368,13 +441,20 @@ export const StreamAnalysisDashboard: React.FC = () => {
       label: `${displayLabel} 최고 화력`,
       value: maxVal
     };
-  }, [isLiveTabSelected, stableData, compressedHistory, hoveredData, currentSessionInfo]);
+  }, [isLiveTabSelected, liveTimeframe, stableData, compressedHistory, compressedLiveHistory, hoveredData, currentSessionInfo]);
 
   const displayTitle = isLiveTabSelected ? streamerInfo?.liveTitle : currentSessionInfo?.liveTitle;
   const displayCategory = isLiveTabSelected ? streamerInfo?.categoryName : currentSessionInfo?.categoryName;
   const displayViewers = isLiveTabSelected ? streamerInfo?.concurrentUserCount : currentSessionInfo?.viewers;
 
   if (!streamId) return <div className="p-10 text-center text-slate-400">잘못된 접근입니다.</div>;
+
+  const isChartLoading = isLiveTabSelected
+    ? (liveTimeframe === 'realtime' ? isLoading : isLiveCumulativeLoading)
+    : false;
+  const isHistoryEmpty = isLiveTabSelected
+    ? (liveTimeframe === 'cumulative' && !isLiveCumulativeLoading && compressedLiveHistory.length === 0)
+    : historicalData.length === 0;
 
   return (
     <div className="w-full pb-20 bg-[#060606] min-h-screen text-white px-4 sm:px-8">
@@ -406,16 +486,19 @@ export const StreamAnalysisDashboard: React.FC = () => {
         viewerMetric={viewerMetric}
         maxY={maxY}
         maxViewerY={maxViewerY}
-        isLoading={isLoading}
+        isLoading={isChartLoading}
         isGathering={isGathering}
         error={isLiveTabSelected ? error : null}
         selectedTab={isLiveTabSelected ? "realtime" : selectedTab}
-        historyEmpty={!isLiveTabSelected && historicalData.length === 0}
+        historyEmpty={isHistoryEmpty}
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHoveredData({ value: null, viewers: null, time: null })}
         formatTime={formatTime}
         rebangIndexes={rebangIndexes}
-        segments={segments}
+        segments={activeSegments}
+        showTimeframeToggle={isLiveTabSelected}
+        timeframe={liveTimeframe}
+        onTimeframeChange={setLiveTimeframe}
       />
 
       <HighlightSection
