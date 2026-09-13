@@ -25,13 +25,13 @@ export const StreamCard: React.FC<{ stream: StreamItem }> = ({ stream }) => {
           />
         </div>
 
-        <div className="ml-4 flex flex-col flex-1 min-w-0">
+        <div className="ml-3 sm:ml-4 flex flex-col flex-1 min-w-0">
           <h3 className="text-gray-800 dark:text-gray-100 font-semibold text-sm sm:text-base truncate mb-0.5 group-hover:text-[#00FFA3] transition-colors">
             {stream.liveTitle}
           </h3>
 
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-gray-500 dark:text-gray-200 text-xs sm:text-sm truncate">
+            <span className="text-gray-500 dark:text-gray-200 text-xs sm:text-sm truncate max-w-[90px] sm:max-w-none">
               {stream.streamerName}
             </span>
 

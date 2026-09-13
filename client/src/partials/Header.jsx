@@ -8,14 +8,15 @@ export default function Header({ sidebarOpen, setSidebarOpen, variant = 'default
         <div className="px-4 sm:px-6 lg:px-8">
           <div className={`flex items-center justify-between h-16 ${variant === 'v2' || variant === 'v3' ? '' : 'lg:border-b border-gray-200 dark:border-gray-700/60'}`}>
             <div className="flex">
-              {/* Hamburger button */}
+              {/* Hamburger button (모바일 및 태블릿에서 사이드바 토글) */}
               <button
-                  className="text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 lg:hidden"
+                  className="text-gray-400 hover:text-white lg:hidden p-2 -ml-2 rounded-xl hover:bg-gray-800 active:bg-gray-700 transition-colors"
                   onClick={(e) => { e.stopPropagation(); setSidebarOpen(!sidebarOpen); }}
+                  aria-label="사이드바 메뉴 열기"
               >
                 <span className="sr-only">Open sidebar</span>
                 <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="4" y="5" width="16" height="2" /><rect x="4" y="11" width="16" height="2" /><rect x="4" y="17" width="16" height="2" />
+                  <rect x="4" y="5" width="16" height="2" rx="1" /><rect x="4" y="11" width="16" height="2" rx="1" /><rect x="4" y="17" width="16" height="2" rx="1" />
                 </svg>
               </button>
             </div>

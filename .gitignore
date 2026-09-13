@@ -73,5 +73,14 @@ docs
 
 interview_prep.md
 
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
 # Node.js
 **/node_modules/

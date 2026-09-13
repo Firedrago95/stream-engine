@@ -178,7 +178,7 @@ export const AnalysisChart: React.FC<Props> = ({
 
 
   return (
-    <div className="p-4 sm:p-8 bg-[#0c0d0f] border border-gray-800 rounded-3xl relative overflow-hidden min-h-[500px]">
+    <div className="p-3.5 sm:p-8 bg-[#0c0d0f] border border-gray-800 rounded-2xl sm:rounded-3xl relative overflow-hidden min-h-[440px] sm:min-h-[500px]">
 
       {error && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80 backdrop-blur-sm">
@@ -203,10 +203,10 @@ export const AnalysisChart: React.FC<Props> = ({
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <div>
-            <h3 className="text-lg font-bold text-gray-200 uppercase tracking-widest italic">채팅 화력 및 시청자 추이</h3>
+            <h3 className="text-base sm:text-lg font-bold text-gray-200 uppercase tracking-widest italic">채팅 화력 및 시청자 추이</h3>
             <div className="flex items-center gap-4 mt-1.5 text-xs font-semibold">
               <span className="flex items-center gap-1.5 text-[#00FFA3]">
                 <span className="w-2.5 h-2.5 rounded-sm bg-[#00FFA3]/80 inline-block" />
@@ -220,55 +220,55 @@ export const AnalysisChart: React.FC<Props> = ({
           </div>
 
           {showTimeframeToggle && (
-            <div className="inline-flex bg-[#16171a] p-1 rounded-xl border border-gray-800 text-xs font-semibold self-start sm:self-auto sm:ml-2">
+            <div className="inline-flex bg-[#16171a] p-1 rounded-xl border border-gray-800 text-[11px] sm:text-xs font-semibold self-start sm:self-auto sm:ml-2">
               <button
                 type="button"
                 onClick={() => onTimeframeChange?.('realtime')}
-                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
                   timeframe === 'realtime'
                     ? 'bg-[#24262b] text-[#00FFA3] font-bold border border-[#00FFA3]/30 shadow-sm'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
                 <span>⏱️</span>
-                <span>실시간 화력 (최근 5분)</span>
+                <span>실시간 (5분)</span>
               </button>
               <button
                 type="button"
                 onClick={() => onTimeframeChange?.('cumulative')}
-                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
                   timeframe === 'cumulative'
                     ? 'bg-[#24262b] text-[#00FFA3] font-bold border border-[#00FFA3]/30 shadow-sm'
                     : 'text-gray-400 hover:text-white'
                 }`}
               >
                 <span>📈</span>
-                <span>전체 누적 (시작~현재)</span>
+                <span>전체 누적</span>
               </button>
             </div>
           )}
         </div>
 
-        <div className="flex items-center gap-6 justify-end">
+        <div className="flex items-center gap-4 sm:gap-6 justify-between sm:justify-end w-full sm:w-auto border-t sm:border-t-0 border-gray-800/60 pt-3 sm:pt-0">
           {viewerMetric && (
-            <div className="text-right">
-              <div className="block mb-1 text-xs text-gray-400 font-medium">{viewerMetric.label}</div>
-              <span className="text-3xl sm:text-4xl font-black text-[#67BFFF] font-mono">
+            <div className="text-left sm:text-right">
+              <div className="block mb-1 text-[11px] sm:text-xs text-gray-400 font-medium">{viewerMetric.label}</div>
+              <span className="text-2xl sm:text-4xl font-black text-[#67BFFF] font-mono">
                 {typeof viewerMetric.value === 'number' ? viewerMetric.value.toLocaleString() : viewerMetric.value}
                 <span className="text-xs text-gray-300 ml-1.5 font-sans font-normal">명</span>
               </span>
             </div>
           )}
           <div className="text-right">
-            <div className="block mb-1 text-xs text-gray-400 font-medium">{metric.label}</div>
-            <span className="text-3xl sm:text-4xl font-black text-[#00FFA3]">
+            <div className="block mb-1 text-[11px] sm:text-xs text-gray-400 font-medium">{metric.label}</div>
+            <span className="text-2xl sm:text-4xl font-black text-[#00FFA3]">
               {metric.value} <span className="text-xs text-gray-300 ml-1 italic font-sans font-normal">msg/s</span>
             </span>
           </div>
         </div>
       </div>
 
-      <div className="h-[350px] w-full">
+      <div className="h-[280px] sm:h-[350px] lg:h-[400px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={processedData} margin={{ top: 10, right: 30, left: -20, bottom: 0 }} onMouseMove={onMouseMove} onMouseLeave={onMouseLeave}>
             <defs>

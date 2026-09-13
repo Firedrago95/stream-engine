@@ -126,34 +126,34 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
                 return (
                     <div
                         key={hl.id}
-                        className={`flex items-center p-5 border rounded-2xl transition-all shadow-sm ${style.card}`}
+                        className={`flex items-center p-3.5 sm:p-5 border rounded-2xl transition-all shadow-sm ${style.card}`}
                     >
                       <div
-                          className={`mr-4 flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full border-2 font-black text-xs italic ${style.badge}`}>
+                          className={`mr-3 sm:mr-4 flex-shrink-0 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 font-black text-xs italic ${style.badge}`}>
                         {index + 1}
                       </div>
 
-                      <div className="flex-1">
-                      <span
-                          className={`text-[9px] font-black mb-1 block tracking-widest uppercase ${style.label}`}>발생 시점</span>
-                        <div className="flex items-center gap-2 h-7">
-                        <span className="text-white font-mono text-lg font-black shrink-0">
-                          <span className="text-gray-500 text-base mr-1">🎬</span>
-                          {formatOffset(hl.startTimeOffset)}
-                          <span className="mx-1.5 text-white font-normal">~</span>
-                          {formatOffset(hl.endTimeOffset)}
-                        </span>
+                      <div className="flex-1 min-w-0">
+                        <span
+                            className={`text-[9px] font-black mb-0.5 sm:mb-1 block tracking-widest uppercase ${style.label}`}>발생 시점</span>
+                        <div className="flex flex-wrap sm:flex-nowrap items-center gap-1 sm:gap-2">
+                          <span className="text-white font-mono text-sm sm:text-base lg:text-lg font-black shrink-0">
+                            <span className="text-gray-500 text-xs sm:text-base mr-1">🎬</span>
+                            {formatOffset(hl.startTimeOffset)}
+                            <span className="mx-1 text-white font-normal">~</span>
+                            {formatOffset(hl.endTimeOffset)}
+                          </span>
                           <span
                               className="text-gray-400 text-[10px] font-bold">({formatAbsoluteTime(hl.startTime)})</span>
                         </div>
                       </div>
 
-                      <div className="text-right border-l border-gray-800/50 pl-4 ml-2">
-                      <span className="text-[9px] text-gray-400 font-black mb-1 block tracking-widest uppercase">최고 화력</span>
-                        <span className={`font-black text-xl leading-none ${style.peak}`}>
-                        {hl.peakFirepower}
+                      <div className="text-right border-l border-gray-800/50 pl-3 sm:pl-4 ml-2 shrink-0">
+                        <span className="text-[9px] text-gray-400 font-black mb-0.5 sm:mb-1 block tracking-widest uppercase">최고 화력</span>
+                        <span className={`font-black text-lg sm:text-xl leading-none ${style.peak}`}>
+                          {hl.peakFirepower}
                           <span className="text-[10px] text-gray-500 ml-1 font-bold">msg/s</span>
-                      </span>
+                        </span>
                       </div>
                     </div>
                 );
