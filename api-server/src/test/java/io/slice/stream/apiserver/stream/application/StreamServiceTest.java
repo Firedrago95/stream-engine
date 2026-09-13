@@ -50,7 +50,8 @@ class StreamServiceTest {
 
     @Test
     void 방송_목록을_동기화하면_DB에_upsert_되어야_한다() {
-        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 1000,"소통");
+        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
+        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 1000, "소통", startedAt);
 
         streamService.syncAll(List.of(request));
 
@@ -63,8 +64,9 @@ class StreamServiceTest {
 
     @Test
     void 배치_내에_중복된_채널_ID가_있으면_최신_데이터로_한번만_upsert_되어야_한다() {
-        StreamSyncRequest oldRequest = new StreamSyncRequest("ch1", "live1", "침착맨", "옛날 제목", "old.jpg", 1000,"소통");
-        StreamSyncRequest newRequest = new StreamSyncRequest("ch1", "live1", "침착맨", "새 제목", "new.jpg", 2000,"게임");
+        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
+        StreamSyncRequest oldRequest = new StreamSyncRequest("ch1", "live1", "침착맨", "옛날 제목", "old.jpg", 1000, "소통", startedAt);
+        StreamSyncRequest newRequest = new StreamSyncRequest("ch1", "live1", "침착맨", "새 제목", "new.jpg", 2000, "게임", startedAt);
 
         streamService.syncAll(List.of(oldRequest, newRequest));
 
@@ -77,7 +79,8 @@ class StreamServiceTest {
 
     @Test
     void 활성_세션이_있는_경우_시청자수_타임라인을_적재하고_세션의_피크_시청자수를_갱신한다() {
-        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통");
+        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
+        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", startedAt);
         StreamSessionEntity session = new StreamSessionEntity("ch1", "live1", "제목", "소통", Instant.now().minusSeconds(120));
 
         given(sessionRepository.findAllActiveSessions(List.of("ch1")))
@@ -97,7 +100,8 @@ class StreamServiceTest {
 
     @Test
     void 활성_세션이_없는_경우_타임라인을_적재하지_않고_스트림_정보만_upsert한다() {
-        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통");
+        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
+        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", startedAt);
 
         given(sessionRepository.findAllActiveSessions(List.of("ch1")))
             .willReturn(List.of());

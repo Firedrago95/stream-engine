@@ -61,26 +61,45 @@ class HighlightSessionServiceTest {
 
     @Test
     void 첫_PEAK_신호가_오면_새로운_세션을_생성하고_캐시에_등록한다() {
-        // given
         Instant now = Instant.now();
-        long offsetMs = 3600000L; // 방송 시작 1시간 지점
+        long offsetMs = 3600000L;
         AnalysisSignal signal = AnalysisSignal.of(STREAM_ID, "sessionId", "PEAK", now, 100L, offsetMs);
 
         when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING"))
             .thenReturn(Optional.empty());
 
-        // when
         highlightSessionService.handleSignal(signal);
 
-        // then
         ArgumentCaptor<HighlightEventEntity> captor = ArgumentCaptor.forClass(HighlightEventEntity.class);
         verify(repository, times(1)).save(captor.capture());
 
         HighlightEventEntity saved = captor.getValue();
         assertThat(saved.getPeakFirepower()).isEqualTo(100L);
-
-        // VOD 시작 오프셋 계산: 1시간(3,600,000ms) - 20초(20,000ms) = 3,580,000ms
         assertThat(saved.getStartTimeOffset()).isEqualTo(3580000L);
+
+        Instant streamStartedAt = now.minusMillis(offsetMs);
+        assertThat(saved.getStartTime()).isEqualTo(streamStartedAt.plusMillis(3580000L));
+    }
+
+    @Test
+    void 방송_초반에_피크_발생시_오프셋이_음수가_되지_않고_방송_시작시각으로_정렬된다() {
+        Instant now = Instant.now();
+        long offsetMs = 5000L;
+        AnalysisSignal signal = AnalysisSignal.of(STREAM_ID, "sessionId", "PEAK", now, 100L, offsetMs);
+
+        when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING"))
+            .thenReturn(Optional.empty());
+
+        highlightSessionService.handleSignal(signal);
+
+        ArgumentCaptor<HighlightEventEntity> captor = ArgumentCaptor.forClass(HighlightEventEntity.class);
+        verify(repository, times(1)).save(captor.capture());
+
+        HighlightEventEntity saved = captor.getValue();
+        assertThat(saved.getStartTimeOffset()).isEqualTo(0L);
+
+        Instant streamStartedAt = now.minusMillis(offsetMs);
+        assertThat(saved.getStartTime()).isEqualTo(streamStartedAt);
     }
 
     @Test

@@ -149,7 +149,7 @@ public class StreamSessionService {
         ));
     }
 
-    @Scheduled(fixedRate = 3_600_000)
+    @Scheduled(fixedRate = 120_000)
     @Transactional
     public void closeOfflineSessions() {
         Instant offlineThreshold = Instant.now().minus(Duration.ofMinutes(6));
@@ -159,19 +159,28 @@ public class StreamSessionService {
             zombieSessionsClosedCounter.increment(sessionsToClose.size());
         }
 
+        List<String> streamIds = sessionsToClose.stream()
+            .map(StreamSessionEntity::getStreamId)
+            .distinct()
+            .toList();
+
+        Map<String, Instant> streamLastUpdateMap = streamRepository.findAllByStreamIdIn(streamIds).stream()
+            .collect(Collectors.toMap(StreamEntity::getStreamId, StreamEntity::getLastUpdateAt, (existing, replacement) -> existing));
+
         for (StreamSessionEntity session : sessionsToClose) {
             Double avgViewers = timelineRepository.findAverageViewerCountBySessionId(session.getSessionId());
             Integer peakViewers = timelineRepository.findPeakViewerCountBySessionId(session.getSessionId());
             int finalPeak = peakViewers != null ? Math.max(peakViewers, session.getPeakViewers()) : session.getPeakViewers();
 
-            session.finishSession(Instant.now(), finalPeak, avgViewers);
+            Instant endedAt = streamLastUpdateMap.getOrDefault(session.getStreamId(), session.getStartedAt());
+
+            session.finishSession(endedAt, finalPeak, avgViewers);
 
             segmentRepository.findActiveSegment(session.getSessionId())
-                    .ifPresent(segment -> {
-                        Instant endedAt = Instant.now();
-                        long endOffset = Duration.between(session.getStartedAt() , endedAt).toMillis();
-                        segment.endSegment(endedAt, endOffset);
-                    });
+                .ifPresent(segment -> {
+                    long endOffset = Duration.between(session.getStartedAt(), endedAt).toMillis();
+                    segment.endSegment(endedAt, endOffset);
+                });
 
             Objects.requireNonNull(cacheManager.getCache("activeSessions")).evict(session.getStreamId());
             log.info("[Session-Manager] 방송 종료 감지, 세션 마감 - Stream: {}, SessionId: {}", session.getStreamId(), session.getSessionId());

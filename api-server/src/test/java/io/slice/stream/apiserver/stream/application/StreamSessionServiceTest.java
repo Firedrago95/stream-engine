@@ -129,6 +129,8 @@ class StreamSessionServiceTest {
             .thenReturn(150.0);
         when(timelineRepository.findPeakViewerCountBySessionId("zombie-session-id"))
             .thenReturn(300);
+        when(streamRepository.findAllByStreamIdIn(List.of(streamId)))
+            .thenReturn(List.of());
 
         Cache mockCache = mock(Cache.class);
         when(cacheManager.getCache("activeSessions")).thenReturn(mockCache);
@@ -139,6 +141,42 @@ class StreamSessionServiceTest {
         assertThat(zombieSession.getPeakViewers()).isEqualTo(300);
         assertThat(zombieSession.getAverageViewerCount()).isEqualTo(150);
         verify(mockCache, times(1)).evict(streamId);
+    }
+
+    @Test
+    void 오프라인_세션_종료시_스트림의_마지막_갱신시각으로_세션과_세그먼트가_마감된다() {
+        String streamId = "stream-real-close";
+        String sessionId = "session-real-close";
+        Instant streamStartedAt = Instant.parse("2026-02-13T10:00:00Z");
+        Instant streamLastUpdatedAt = Instant.parse("2026-02-13T11:00:00Z");
+
+        StreamSessionEntity zombieSession = new StreamSessionEntity(streamId, sessionId, "방제", "카테고리", streamStartedAt);
+        StreamSessionSegmentEntity activeSegment = new StreamSessionSegmentEntity(streamId, sessionId, "방제", "카테고리", streamStartedAt, 0L);
+
+        when(sessionRepository.findSessionsToClose(any(Instant.class)))
+            .thenReturn(List.of(zombieSession));
+        when(timelineRepository.findAverageViewerCountBySessionId(sessionId))
+            .thenReturn(100.0);
+        when(timelineRepository.findPeakViewerCountBySessionId(sessionId))
+            .thenReturn(200);
+
+        StreamEntity streamEntity = mock(StreamEntity.class);
+        when(streamEntity.getStreamId()).thenReturn(streamId);
+        when(streamEntity.getLastUpdateAt()).thenReturn(streamLastUpdatedAt);
+        when(streamRepository.findAllByStreamIdIn(List.of(streamId)))
+            .thenReturn(List.of(streamEntity));
+
+        when(segmentRepository.findActiveSegment(sessionId))
+            .thenReturn(Optional.of(activeSegment));
+
+        Cache mockCache = mock(Cache.class);
+        when(cacheManager.getCache("activeSessions")).thenReturn(mockCache);
+
+        streamSessionService.closeOfflineSessions();
+
+        assertThat(zombieSession.getEndedAt()).isEqualTo(streamLastUpdatedAt);
+        assertThat(activeSegment.getEndedAt()).isEqualTo(streamLastUpdatedAt);
+        assertThat(activeSegment.getEndOffsetMs()).isEqualTo(3600000L);
     }
 
     @Test

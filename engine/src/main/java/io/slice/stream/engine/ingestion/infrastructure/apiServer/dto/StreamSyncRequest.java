@@ -1,6 +1,7 @@
 package io.slice.stream.engine.ingestion.infrastructure.apiServer.dto;
 
 import io.slice.stream.engine.core.model.StreamTarget;
+import java.time.Instant;
 
 public record StreamSyncRequest(
     String streamId,
@@ -9,7 +10,8 @@ public record StreamSyncRequest(
     String liveTitle,
     String profileImageUrl,
     int concurrentUserCount,
-    String categoryName
+    String categoryName,
+    Instant startedAt
 ) {
     public static StreamSyncRequest from(StreamTarget target) {
         return new StreamSyncRequest(
@@ -19,7 +21,8 @@ public record StreamSyncRequest(
             target.liveTitle(),
             target.profileImageUrl(),
             target.concurrentUserCount(),
-            target.categoryName()
+            target.categoryName(),
+            target.startedAt()
         );
     }
 }
