@@ -19,17 +19,26 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
 
   return (
       <div className="min-w-fit">
-        {/* 모바일 배경 */}
-        <div className={`fixed inset-0 bg-gray-900/30 z-40 md:hidden transition-opacity duration-200 ${sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`} aria-hidden="true"></div>
+        {/* 모바일/태블릿 배경 오버레이 (클릭 시 사이드바 닫기) */}
+        <div
+            className={`fixed inset-0 bg-gray-950/70 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-200 ${sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+            aria-hidden="true"
+            onClick={() => setSidebarOpen(false)}
+        ></div>
 
         <div
             id="sidebar"
             ref={sidebar}
-            className={`flex flex-col absolute z-40 left-0 top-0 md:static md:left-auto md:top-auto md:translate-x-0 h-[100dvh] overflow-y-scroll md:overflow-y-auto no-scrollbar w-64 md:w-20 lg:sidebar-expanded:!w-64 2xl:w-64! shrink-0 bg-[#1a1a1c] border-r border-gray-800 p-4 transition-all duration-200 ease-in-out ${sidebarOpen ? "translate-x-0" : "-translate-x-64"} ${variant === 'v2' ? '' : 'shadow-xl'}`}
+            className={`flex flex-col fixed lg:static z-40 left-0 top-0 lg:left-auto lg:top-auto h-[100dvh] overflow-y-auto no-scrollbar w-64 shrink-0 bg-[#141416] border-r border-gray-800 p-4 transition-transform duration-200 ease-in-out ${sidebarOpen ? "translate-x-0" : "-translate-x-64 lg:translate-x-0"} ${variant === 'v2' ? '' : 'shadow-xl'}`}
         >
           {/* 헤더/로고 영역 */}
-          <div className="flex items-center justify-start mb-8 pl-1.5 pr-2">
-            <NavLink end to="/" className="flex items-center gap-3 overflow-hidden group py-1">
+          <div className="flex items-center justify-between mb-8 pl-1.5 pr-1">
+            <NavLink
+              end
+              to="/"
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center gap-3 overflow-hidden group py-1"
+            >
               {/* 치즈/스파크 네온 그린 & 골드 지오메트릭 심볼 */}
               <div className="relative w-8 h-8 flex-shrink-0 flex items-center justify-center">
                 <svg
@@ -64,17 +73,32 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
                 </span>
               </div>
             </NavLink>
+
+            {/* 모바일 전용 닫기 버튼 */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+              aria-label="사이드바 닫기"
+            >
+              <svg className="w-5 h-5 fill-current" viewBox="0 0 20 20">
+                <path d="M10 8.586L2.929 1.515 1.515 2.929 8.586 10l-7.071 7.071 1.414 1.414L10 11.414l7.071 7.071 1.414-1.414L11.414 10l7.071-7.071-1.414-1.414L10 8.586z" />
+              </svg>
+            </button>
           </div>
 
           <div className="space-y-8">
             <div>
               <h3 className="text-xs uppercase text-[#a1a1aa] font-semibold pl-3">
-                <span className="hidden md:block lg:sidebar-expanded:hidden 2xl:hidden text-center w-6" aria-hidden="true">•••</span>
-                <span className="md:hidden lg:sidebar-expanded:block 2xl:block">메뉴</span>
+                메뉴
               </h3>
               <ul className="mt-3">
                 <li className={`px-3 py-2 rounded-lg mb-0.5 last:mb-0 ${pathname === '/' && 'bg-gray-800'}`}>
-                  <NavLink end to="/" className={`block text-gray-100 truncate transition duration-150 ${pathname === '/' ? '' : 'hover:text-white'}`}>
+                  <NavLink
+                    end
+                    to="/"
+                    onClick={() => setSidebarOpen(false)}
+                    className={`block text-gray-100 truncate transition duration-150 ${pathname === '/' ? '' : 'hover:text-white'}`}
+                  >
                     <div className="flex items-center">
                       <svg className={`shrink-0 h-6 w-6 fill-current ${pathname === '/' ? 'text-[#00FFA3]' : 'text-gray-500'}`} viewBox="0 0 24 24"><path d="M12 0C5.383 0 0 5.383 0 12s5.383 12 12 12 12-5.383 12-12S18.617 0 12 0z" /></svg>
                       <span className="text-sm font-bold ml-3 duration-200 whitespace-nowrap">라이브 대시보드</span>
