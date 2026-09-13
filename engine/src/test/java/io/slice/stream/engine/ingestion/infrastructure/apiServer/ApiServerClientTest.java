@@ -8,7 +8,10 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSyncRequest;
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -23,7 +26,9 @@ class ApiServerClientTest {
 
     private MockRestServiceServer mockServer;
     private ApiServerClient apiServerClient;
-    private ObjectMapper objectMapper = new ObjectMapper();
+    private ObjectMapper objectMapper = new ObjectMapper()
+        .registerModule(new JavaTimeModule())
+        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     private final String syncPath = "/api/v1/sync/streams/test-slug";
     private final String metaPath = "/api/v1/sync/streams/meta-test-slug";
@@ -39,9 +44,9 @@ class ApiServerClientTest {
 
     @Test
     void 방송_동기화_요청시_정확한_경로와_헤더로_데이터를_전송해야_한다() throws Exception {
-        // given
+        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
         List<StreamSyncRequest> requests = List.of(
-            new StreamSyncRequest("ch1", "live1", "침착맨", "제목1", "thumb1.jpg", 1000,"소통")
+            new StreamSyncRequest("ch1", "live1", "침착맨", "제목1", "thumb1.jpg", 1000, "소통", startedAt)
         );
 
         mockServer.expect(requestTo("http://localhost:8080" + syncPath))

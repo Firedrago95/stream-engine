@@ -1,6 +1,7 @@
 package io.slice.stream.apiserver.stream.presentation.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import java.time.Instant;
 
 public record StreamSyncRequest(
     @NotBlank(message = "채널 ID는 필수입니다.")
@@ -16,5 +17,6 @@ public record StreamSyncRequest(
     String liveTitle,
     String profileImageUrl,
     int concurrentUserCount,
-    String categoryName
+    String categoryName,
+    Instant startedAt
 ) {}

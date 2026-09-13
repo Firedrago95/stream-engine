@@ -34,7 +34,6 @@ class AnalysisCommandServiceTest {
 
     @Test
     void 신호_리스트를_받으면_각_신호를_내부_이벤트로_발행한다() {
-        // given
         List<AnalysisSignal> signals = List.of(
             new AnalysisSignal("stream1", "sessionId", "PEAK", Instant.now(), 20L, 1000L),
             new AnalysisSignal("stream2", "sessionId", "NORMAL", Instant.now(), 5L, 2000L)
@@ -43,22 +42,33 @@ class AnalysisCommandServiceTest {
         when(streamSessionService.getOrCreateActiveSession(anyString(), anyString(), any(Instant.class)))
             .thenReturn("test-session-id");
 
-        // when
         analysisCommandService.processSignals(signals);
 
-        // then
         verify(eventPublisher, times(2)).publishEvent(any(AnalysisSignal.class));
     }
 
     @Test
+    void 신호_처리시_치지직_원본_시작시각을_역산하여_세션_서비스에_전달한다() {
+        Instant signalTime = Instant.parse("2026-02-13T10:30:00Z");
+        long offsetMs = 1800000L;
+        Instant expectedStartedAt = Instant.parse("2026-02-13T10:00:00Z");
+
+        AnalysisSignal signal = new AnalysisSignal("stream1", "live1", "PEAK", signalTime, 50L, offsetMs);
+
+        when(streamSessionService.getOrCreateActiveSession("stream1", "live1", expectedStartedAt))
+            .thenReturn("session-1");
+
+        analysisCommandService.processSignals(List.of(signal));
+
+        verify(streamSessionService, times(1)).getOrCreateActiveSession("stream1", "live1", expectedStartedAt);
+    }
+
+    @Test
     void 빈_신호_리스트를_받으면_이벤트를_발행하지_않는다() {
-        // given
         List<AnalysisSignal> signals = List.of();
 
-        // when
         analysisCommandService.processSignals(signals);
 
-        // then
         verify(eventPublisher, times(0)).publishEvent(any());
     }
 }

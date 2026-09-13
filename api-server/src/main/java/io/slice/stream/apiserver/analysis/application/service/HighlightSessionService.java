@@ -111,19 +111,20 @@ public class HighlightSessionService {
     }
 
     private void startNewSession(AnalysisSignal signal) {
-        // 실제 피크가 터진 시간에서 leadingBuffer를 빼서 영상 시작점을 앞으로 당김
-        Instant adjustedStart = signal.timestamp().minus(properties.leadingBuffer());
-
-        long sateOffset = signal.offsetMs() != null ? signal.offsetMs() : 0L;
-        long startTimeOffset = Math.max(0L, sateOffset - properties.leadingBuffer().toMillis());
+        long safeOffset = signal.offsetMs() != null ? signal.offsetMs() : 0L;
+        long startTimeOffset = Math.max(0L, safeOffset - properties.leadingBuffer().toMillis());
+        Instant streamStartedAt = signal.offsetMs() != null
+            ? signal.timestamp().minusMillis(signal.offsetMs())
+            : signal.timestamp();
+        Instant adjustedStart = streamStartedAt.plusMillis(startTimeOffset);
 
         HighlightEventEntity newSession = new HighlightEventEntity(
             signal.streamId(),
             signal.sessionId(),
             adjustedStart,
             startTimeOffset,
-            signal.timestamp(), // 최초 피크 시간
-            sateOffset,
+            signal.timestamp(),
+            safeOffset,
             signal.firepower()
         );
 
