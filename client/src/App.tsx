@@ -54,9 +54,9 @@ const MainPage = () => {
       <div className="w-full">
         <WeeklyCategoryRanking />
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 px-1 mt-4">
-          <div className="flex items-center gap-2 mb-2 sm:mb-0">
-            <h2 className="text-2xl font-bold text-gray-100 italic uppercase tracking-tighter whitespace-nowrap">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8 px-1 mt-2 sm:mt-4">
+          <div className="flex items-center gap-2 mb-1 sm:mb-0">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-100 italic uppercase tracking-tighter whitespace-nowrap">
               실시간 라이브
             </h2>
             <Tooltip bg="dark" position="right" size="sm" className="mt-0.5">
@@ -115,7 +115,7 @@ const MainPage = () => {
             </div>
         )}
 
-        <footer className="mt-24 pt-12 pb-12 border-t border-gray-800/60 text-center w-full">
+        <footer className="mt-16 sm:mt-24 pt-8 sm:pt-12 pb-12 border-t border-gray-800/60 text-center w-full">
           <div className="mb-6">
             <span className="text-[#00FFA3] font-black text-xl italic tracking-tighter uppercase">Cheese Pick</span>
           </div>
@@ -149,7 +149,7 @@ export default function App() {
           <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
           <main className="grow">
-            <div className="w-[95%] lg:w-[80%] mx-auto py-8">
+            <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
               <Suspense
                 fallback={
                   <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">

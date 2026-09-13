@@ -47,11 +47,11 @@ export const WeeklyCategoryRanking: React.FC = () => {
   };
 
   return (
-    <div className="mb-8 p-4 sm:p-5 bg-[#141416] border border-[#26262b] rounded-2xl shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div className="mb-6 sm:mb-8 p-3.5 sm:p-5 bg-[#141416] border border-[#26262b] rounded-2xl shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 mb-3.5 sm:mb-4">
         <div className="flex items-center gap-2">
-          <span className="text-xl">🏆</span>
-          <h3 className="text-lg sm:text-xl font-bold text-gray-100 italic tracking-tight">
+          <span className="text-lg sm:text-xl">🏆</span>
+          <h3 className="text-base sm:text-xl font-bold text-gray-100 italic tracking-tight">
             주간 인기 카테고리
           </h3>
           <Tooltip bg="dark" position="right" size="md" className="mt-0.5">
@@ -63,20 +63,20 @@ export const WeeklyCategoryRanking: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="px-2.5 py-1 bg-[#1c1b1d] border border-[#26262b] text-[11px] font-medium text-[#00FFA3] rounded-full">
+          <span className="px-2.5 py-1 bg-[#1c1b1d] border border-[#26262b] text-[10px] sm:text-[11px] font-medium text-[#00FFA3] rounded-full">
             매주 월요일 갱신
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
         {categories.map((item) => {
           const isFirst = item.rank === 1;
 
           return (
             <div
               key={item.categoryName}
-              className={`p-3 rounded-xl transition-all duration-200 flex flex-col justify-between border ${
+              className={`p-2.5 sm:p-3 rounded-xl transition-all duration-200 flex flex-col justify-between border ${
                 isFirst
                   ? 'bg-[#18181a] border-[#00FFA3]/50 shadow-[0_0_15px_-3px_rgba(0,255,163,0.15)]'
                   : 'bg-[#1a1a1c] border-gray-800'
@@ -94,7 +94,7 @@ export const WeeklyCategoryRanking: React.FC = () => {
               </div>
 
               <div className="my-1">
-                <div className="text-sm font-bold text-white truncate flex items-center gap-1.5" title={item.categoryName}>
+                <div className="text-xs sm:text-sm font-bold text-white truncate flex items-center gap-1.5" title={item.categoryName}>
                   <span>{item.icon}</span>
                   <span className="truncate">{item.categoryName}</span>
                 </div>

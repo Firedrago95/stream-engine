@@ -470,7 +470,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
     : historicalData.length === 0;
 
   return (
-    <div className="w-full pb-20 bg-[#060606] min-h-screen text-white px-4 sm:px-8">
+    <div className="w-full pb-16 sm:pb-20 bg-[#060606] min-h-screen text-white px-2 sm:px-6 lg:px-8">
       <DashboardHeader onBack={() => navigate(-1)} />
       <StreamProfileHeader
         streamId={streamId}
@@ -531,7 +531,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
         selectedTab={isLiveTabSelected ? "realtime" : selectedTab}
       />
 
-      <footer className="mt-24 pt-12 border-t border-gray-800/60 text-center">
+      <footer className="mt-16 sm:mt-24 pt-8 sm:pt-12 border-t border-gray-800/60 text-center">
         <div className="mb-6">
           <span className="text-[#00FFA3] font-black text-xl italic tracking-tighter uppercase">Cheese Pick</span>
         </div>
