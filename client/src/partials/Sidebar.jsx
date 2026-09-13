@@ -1,21 +1,10 @@
 // @ts-nocheck
-import React, { useState, useEffect, useRef } from "react";
+import React from "react";
 import { NavLink, useLocation } from "react-router-dom";
 
 function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
   const location = useLocation();
   const { pathname } = location;
-  const sidebar = useRef(null);
-  const [sidebarExpanded, setSidebarExpanded] = useState(localStorage.getItem("sidebar-expanded") === "true");
-
-  useEffect(() => {
-    localStorage.setItem("sidebar-expanded", sidebarExpanded);
-    if (sidebarExpanded) {
-      document.querySelector("body").classList.add("sidebar-expanded");
-    } else {
-      document.querySelector("body").classList.remove("sidebar-expanded");
-    }
-  }, [sidebarExpanded]);
 
   return (
       <div className="min-w-fit">
@@ -28,7 +17,6 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
 
         <div
             id="sidebar"
-            ref={sidebar}
             className={`flex flex-col fixed lg:static z-40 left-0 top-0 lg:left-auto lg:top-auto h-[100dvh] overflow-y-auto no-scrollbar w-64 shrink-0 bg-[#141416] border-r border-gray-800 p-4 transition-transform duration-200 ease-in-out ${sidebarOpen ? "translate-x-0" : "-translate-x-64 lg:translate-x-0"} ${variant === 'v2' ? '' : 'shadow-xl'}`}
         >
           {/* 헤더/로고 영역: 순수 텍스트 단일 브랜드 마크 */}
