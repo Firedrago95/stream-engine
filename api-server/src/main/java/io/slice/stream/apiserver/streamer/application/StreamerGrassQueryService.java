@@ -1,5 +1,7 @@
 package io.slice.stream.apiserver.streamer.application;
 
+import io.slice.stream.apiserver.global.error.BusinessException;
+import io.slice.stream.apiserver.global.error.ErrorCode;
 import io.slice.stream.apiserver.streamer.domain.model.GrassLevel;
 import io.slice.stream.apiserver.streamer.domain.model.GrassTile;
 import io.slice.stream.apiserver.streamer.domain.model.StreamerDailyStat;
@@ -9,6 +11,7 @@ import io.slice.stream.apiserver.streamer.presentation.dto.StreamerGrassResponse
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,12 +30,22 @@ public class StreamerGrassQueryService {
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final int DEFAULT_DAYS = 90;
+    private static final int MIN_DAYS = 7;
+    private static final int MAX_DAYS = 365;
+    private static final int MAX_STREAK_SCAN_DAYS = 365;
 
     private final StreamerDailyStatRepository dailyStatRepository;
     private final StreakCalculator streakCalculator;
 
     public StreamerGrassResponse getGrassData(String channelId, Integer days) {
-        int targetDays = (days != null && days > 0) ? days : DEFAULT_DAYS;
+        if (days != null && (days < MIN_DAYS || days > MAX_DAYS)) {
+            throw new BusinessException(
+                ErrorCode.INVALID_INPUT_VALUE,
+                "잔디 조회 일수는 " + MIN_DAYS + "일 이상 " + MAX_DAYS + "일 이하이어야 합니다: " + days
+            );
+        }
+
+        int targetDays = (days != null) ? days : DEFAULT_DAYS;
         LocalDate today = LocalDate.now(KST);
         LocalDate startDate = today.minusDays(targetDays - 1L);
 
@@ -65,12 +78,12 @@ public class StreamerGrassQueryService {
             currentDate = currentDate.plusDays(1);
         }
 
-        Set<LocalDate> activeDates = statMap.entrySet().stream()
-            .filter(entry -> entry.getValue().broadcastDurationSeconds() > 0)
-            .map(Map.Entry::getKey)
-            .collect(Collectors.toSet());
+        List<LocalDate> recentActiveDates = dailyStatRepository.findRecentActiveDates(
+            channelId, today, MAX_STREAK_SCAN_DAYS
+        );
+        Set<LocalDate> streakActiveDates = new HashSet<>(recentActiveDates);
 
-        int currentStreak = streakCalculator.calculate(activeDates, today);
+        int currentStreak = streakCalculator.calculate(streakActiveDates, today);
         long totalDurationSeconds = tiles.stream().mapToLong(GrassTile::durationSeconds).sum();
         int totalBroadcastDays = (int) tiles.stream().filter(tile -> tile.durationSeconds() > 0).count();
 

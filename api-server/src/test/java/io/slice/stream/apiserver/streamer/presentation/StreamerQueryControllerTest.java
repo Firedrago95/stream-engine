@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import io.slice.stream.apiserver.global.error.BusinessException;
+import io.slice.stream.apiserver.global.error.ErrorCode;
 import io.slice.stream.apiserver.streamer.application.StreamerGrassQueryService;
 import io.slice.stream.apiserver.streamer.application.StreamerProfileQueryService;
 import io.slice.stream.apiserver.streamer.application.StreamerSessionQueryService;
@@ -75,6 +77,17 @@ class StreamerQueryControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.channelId").value(channelId))
             .andExpect(jsonPath("$.currentStreak").value(5));
+    }
+
+    @Test
+    void 잔디_조회_일수가_범위를_벗어나면_400_Bad_Request를_반환한다() throws Exception {
+        String channelId = "ch_invalid_days";
+        given(grassQueryService.getGrassData(channelId, 5))
+            .willThrow(new BusinessException(ErrorCode.INVALID_INPUT_VALUE, "잔디 조회 일수 오류"));
+
+        mockMvc.perform(get("/api/v1/streamers/{channelId}/grass", channelId)
+                .param("days", "5"))
+            .andExpect(status().isBadRequest());
     }
 
     @Test

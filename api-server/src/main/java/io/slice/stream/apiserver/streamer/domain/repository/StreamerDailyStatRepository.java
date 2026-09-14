@@ -11,6 +11,8 @@ public interface StreamerDailyStatRepository {
 
     Optional<StreamerDailyStat> findByChannelIdAndStatDate(String channelId, LocalDate statDate);
 
+    List<LocalDate> findRecentActiveDates(String channelId, LocalDate today, int limit);
+
     void save(StreamerDailyStat stat);
 
     void saveAll(List<StreamerDailyStat> stats);

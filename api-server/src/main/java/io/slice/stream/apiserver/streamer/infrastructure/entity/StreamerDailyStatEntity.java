@@ -93,7 +93,7 @@ public class StreamerDailyStatEntity {
         this.peakViewers = peakViewers;
         this.hoursWatched = hoursWatched;
         this.followerCount = followerCount;
-        this.followerGrowth = followerGrowth != null ? followerGrowth : 0;
+        this.followerGrowth = followerGrowth;
         this.representativeTitle = representativeTitle;
         this.dominantCategory = dominantCategory;
         this.sessionCount = sessionCount;

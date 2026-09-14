@@ -5,6 +5,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import io.slice.stream.apiserver.global.error.BusinessException;
 import io.slice.stream.apiserver.streamer.domain.model.GrassLevel;
 import io.slice.stream.apiserver.streamer.domain.model.GrassTile;
 import io.slice.stream.apiserver.streamer.domain.model.StreamerDailyStat;
@@ -55,6 +58,8 @@ class StreamerGrassQueryServiceTest {
 
         given(dailyStatRepository.findByChannelIdAndDateRange(eq(channelId), eq(startDate), eq(today)))
             .willReturn(List.of(statToday));
+        given(dailyStatRepository.findRecentActiveDates(eq(channelId), eq(today), any(Integer.class)))
+            .willReturn(List.of(today));
         given(streakCalculator.calculate(any(), eq(today)))
             .willReturn(1);
 
@@ -85,6 +90,8 @@ class StreamerGrassQueryServiceTest {
 
         given(dailyStatRepository.findByChannelIdAndDateRange(eq(channelId), eq(startDate), eq(today)))
             .willReturn(List.of());
+        given(dailyStatRepository.findRecentActiveDates(eq(channelId), eq(today), any(Integer.class)))
+            .willReturn(List.of());
         given(streakCalculator.calculate(any(), eq(today)))
             .willReturn(0);
 
@@ -93,5 +100,36 @@ class StreamerGrassQueryServiceTest {
         assertThat(response.tiles()).hasSize(90);
         assertThat(response.currentStreak()).isZero();
         assertThat(response.totalBroadcastDays()).isZero();
+    }
+
+    @Test
+    void 조회_일수가_7일_미만이거나_365일_초과이면_INVALID_INPUT_VALUE_예외가_발생한다() {
+        String channelId = "ch_test_3";
+
+        assertThatThrownBy(() -> grassQueryService.getGrassData(channelId, 6))
+            .isInstanceOf(BusinessException.class);
+
+        assertThatThrownBy(() -> grassQueryService.getGrassData(channelId, 366))
+            .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void 조회_기간보다_긴_연속_스트릭도_온전한_길이로_반환된다() {
+        String channelId = "ch_test_4";
+        int days = 7;
+        LocalDate today = LocalDate.now(KST);
+        LocalDate startDate = today.minusDays(days - 1L);
+
+        given(dailyStatRepository.findByChannelIdAndDateRange(eq(channelId), eq(startDate), eq(today)))
+            .willReturn(List.of());
+        given(dailyStatRepository.findRecentActiveDates(eq(channelId), eq(today), any(Integer.class)))
+            .willReturn(List.of(today));
+        given(streakCalculator.calculate(any(), eq(today)))
+            .willReturn(120);
+
+        StreamerGrassResponse response = grassQueryService.getGrassData(channelId, days);
+
+        assertThat(response.tiles()).hasSize(7);
+        assertThat(response.currentStreak()).isEqualTo(120);
     }
 }
