@@ -89,8 +89,40 @@ class StreamerLeaderboardQueryServiceTest {
     }
 
     @Test
-    @DisplayName("키워드가 전달되면 최근 30일 평균 시청자 검색 쿼리를 실행한다")
-    void getLeaderboard_withKeyword() {
+    @DisplayName("키워드가 캐시된 Top 100에 포함되어 있으면 DB 조회 없이 캐시에서 필터링하여 반환한다")
+    void getLeaderboard_withKeyword_whenMatchInCache_returnsFromCacheWithoutDb() throws Exception {
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.get(StreamerLeaderboardQueryService.REDIS_LEADERBOARD_KEY)).willReturn("[{\"streamId\":\"ch_wolf\"}]");
+
+        StreamResponse cachedResponse1 = new StreamResponse("ch_wolf", "울프", "이전 방제", "https://img.png", "토크", 0, StreamStatus.OFFLINE, 30074);
+        StreamResponse cachedResponse2 = new StreamResponse("ch_pung", "풍월량", "이전 방제", "https://img.png", "게임", 0, StreamStatus.OFFLINE, 11634);
+        given(jsonMapper.readValue(anyString(), any(TypeReference.class)))
+            .willReturn(List.of(cachedResponse1, cachedResponse2));
+
+        given(streamRepository.findActiveStreamsByStreamIds(any(), any()))
+            .willReturn(Collections.emptyList());
+        given(targetStreamerService.getActiveTargetChannelIds())
+            .willReturn(Collections.emptyList());
+        given(analysisRepository.findChannelsWithRecentSignals(anySet(), any(Instant.class)))
+            .willReturn(Collections.emptySet());
+
+        List<StreamResponse> result = leaderboardQueryService.getLeaderboard("울프");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).streamId()).isEqualTo("ch_wolf");
+        assertThat(result.get(0).streamerName()).isEqualTo("울프");
+        assertThat(result.get(0).averageViewers()).isEqualTo(30074);
+    }
+
+    @Test
+    @DisplayName("키워드가 캐시에 없으면 DB 검색 쿼리를 실행하여 반환한다")
+    void getLeaderboard_withKeyword_whenNotInCache_queriesDatabase() {
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.get(StreamerLeaderboardQueryService.REDIS_LEADERBOARD_KEY)).willReturn(null);
+
+        given(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), eq(100)))
+            .willReturn(Collections.emptyList());
+
         StreamerLeaderboardProjection projection =
             createProjection("ch_search", "침착맨", "토크", 25000, 20000, true, Instant.now());
 

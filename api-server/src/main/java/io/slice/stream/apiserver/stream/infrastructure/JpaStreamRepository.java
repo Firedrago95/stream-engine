@@ -119,16 +119,14 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
             s.is_live AS isLive,
             s.last_update_at AS lastUpdateAt,
             s.concurrent_user_count AS concurrentUserCount,
-            CAST(COALESCE(sub.avg_viewers, s.concurrent_user_count) AS integer) AS averageViewers
+            CAST(COALESCE(ROUND(AVG(ss.average_viewer_count)), s.concurrent_user_count) AS integer) AS averageViewers
         FROM streams s
-        LEFT JOIN (
-            SELECT ss.stream_id, ROUND(AVG(ss.average_viewer_count)) AS avg_viewers
-            FROM stream_sessions ss
-            WHERE ss.started_at >= :since
-              AND ss.average_viewer_count > 0
-            GROUP BY ss.stream_id
-        ) sub ON s.stream_id = sub.stream_id
+        LEFT JOIN stream_sessions ss 
+            ON s.stream_id = ss.stream_id 
+            AND ss.started_at >= :since 
+            AND ss.average_viewer_count > 0
         WHERE LOWER(s.streamer_name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+        GROUP BY s.stream_id, s.streamer_name, s.live_title, s.profile_image_url, s.category_name, s.is_live, s.last_update_at, s.concurrent_user_count, s.id
         ORDER BY averageViewers DESC, s.id DESC
         LIMIT :limit
         """, nativeQuery = true)

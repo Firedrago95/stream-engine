@@ -44,20 +44,30 @@ public class StreamerLeaderboardQueryService {
 
     public List<StreamResponse> getLeaderboard(String keyword) {
         boolean hasKeyword = keyword != null && !keyword.isBlank();
-        Instant since = Instant.now().minus(DAYS_30, ChronoUnit.DAYS);
+        List<StreamResponse> cached = readFromRedis();
+        boolean cacheRefreshed = false;
+        if (cached.isEmpty()) {
+            cached = refreshDailyLeaderboard();
+            cacheRefreshed = true;
+        }
 
         if (hasKeyword) {
+            String trimmed = keyword.trim().toLowerCase();
+            List<StreamResponse> matchedInCache = cached.stream()
+                .filter(item -> item.streamerName() != null && item.streamerName().toLowerCase().contains(trimmed))
+                .toList();
+
+            if (!matchedInCache.isEmpty()) {
+                return cacheRefreshed ? matchedInCache : syncRealtimeStatusForCached(matchedInCache);
+            }
+
+            Instant since = Instant.now().minus(DAYS_30, ChronoUnit.DAYS);
             List<StreamerLeaderboardProjection> searched =
                 streamRepository.searchTopStreamersWith30dAvg(keyword.trim(), since, 50);
             return bindRealtimeLiveStatus(searched);
         }
 
-        List<StreamResponse> cached = readFromRedis();
-        if (cached.isEmpty()) {
-            return refreshDailyLeaderboard();
-        }
-
-        return syncRealtimeStatusForCached(cached);
+        return cacheRefreshed ? cached : syncRealtimeStatusForCached(cached);
     }
 
     @Transactional
