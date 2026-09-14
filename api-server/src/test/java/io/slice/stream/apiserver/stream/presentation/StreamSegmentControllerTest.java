@@ -70,4 +70,27 @@ class StreamSegmentControllerTest {
 
         verify(streamSessionService, times(1)).updateSessionSegment(anyList());
     }
+
+    @Test
+    void 카테고리가_미지정이거나_빈_문자열이어도_정상적으로_202_ACCEPTED를_반환한다() throws Exception {
+        ChangedStreamRequest request = new ChangedStreamRequest(
+            "stream1",
+            "test-live-id",
+            "이전방제",
+            "새로운방제",
+            "",
+            "",
+            Instant.now(),
+            1000L
+        );
+        String requestBody = objectMapper.writeValueAsString(List.of(request));
+
+        mockMvc.perform(post(metaPath)
+                .header(headerName, secretValue)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
+            .andExpect(status().isAccepted());
+
+        verify(streamSessionService, times(1)).updateSessionSegment(anyList());
+    }
 }
