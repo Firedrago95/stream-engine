@@ -83,6 +83,10 @@ api-server:
   sync-path: ${api-server.internal-prefix}/sync
   meta-path: ${api-server.internal-prefix}/segments
   summary-path: ${api-server.internal-prefix}/summaries/{streamId}
+  targets-path: ${api-server.internal-prefix}/targets
+
+targeting:
+  trend-redis-key: "target:streamers:pool"
 
 highlight:
   engine:

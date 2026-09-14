@@ -1,5 +1,6 @@
 package io.slice.stream.engine.ingestion.infrastructure.apiServer;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatNoException;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -18,8 +19,10 @@ import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClient.Builder;
 
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class ApiServerClientTest {
@@ -33,13 +36,14 @@ class ApiServerClientTest {
     private final String syncPath = "/api/v1/sync/streams/test-slug";
     private final String metaPath = "/api/v1/sync/streams/meta-test-slug";
     private final String summaryPath = "/api/v1/streams/{streamId}/summaries";
+    private final String targetsPath = "/api/v1/targets";
 
     @BeforeEach
     void setUp() {
-        RestClient.Builder builder = RestClient.builder().baseUrl("http://localhost:8080");
+        Builder builder = RestClient.builder().baseUrl("http://localhost:8080");
         mockServer = MockRestServiceServer.bindTo(builder).build();
 
-        apiServerClient = new ApiServerClient(builder.build(), syncPath, metaPath, summaryPath);
+        apiServerClient = new ApiServerClient(builder.build(), syncPath, metaPath, summaryPath, targetsPath);
     }
 
     @Test
@@ -54,18 +58,39 @@ class ApiServerClientTest {
             .andExpect(content().json(objectMapper.writeValueAsString(requests)))
             .andRespond(withSuccess());
 
-        // when & then
         assertThatNoException().isThrownBy(() -> apiServerClient.syncStreams(requests));
         mockServer.verify();
     }
 
     @Test
     void 서버가_에러를_응답해도_예외를_밖으로_던지지_않아야_한다() {
-        // given
         mockServer.expect(requestTo("http://localhost:8080" + syncPath))
             .andRespond(withServerError());
 
-        // when & then
         assertThatNoException().isThrownBy(() -> apiServerClient.syncStreams(List.of()));
+    }
+
+    @Test
+    void 타겟_목록_조회_성공_시_채널_목록을_반환해야_한다() throws Exception {
+        List<String> targetChannels = List.of("ch1", "ch2", "ch3");
+
+        mockServer.expect(requestTo("http://localhost:8080" + targetsPath))
+            .andExpect(method(HttpMethod.GET))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(targetChannels), MediaType.APPLICATION_JSON));
+
+        List<String> result = apiServerClient.fetchTargetChannels();
+
+        mockServer.verify();
+        assertThat(result).containsExactly("ch1", "ch2", "ch3");
+    }
+
+    @Test
+    void 타겟_목록_조회_실패_시_예외_대신_빈_목록을_반환해야_한다() {
+        mockServer.expect(requestTo("http://localhost:8080" + targetsPath))
+            .andRespond(withServerError());
+
+        List<String> result = apiServerClient.fetchTargetChannels();
+
+        assertThat(result).isEmpty();
     }
 }

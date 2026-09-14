@@ -3,10 +3,12 @@ package io.slice.stream.engine.ingestion.infrastructure.apiServer;
 import io.slice.stream.engine.ingestion.domain.model.ChangedStream;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSessionSummary;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSyncRequest;
+import java.util.Collections;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -20,17 +22,34 @@ public class ApiServerClient {
     private final String syncPath;
     private final String metaPath;
     private final String summaryPath;
+    private final String targetsPath;
 
     public ApiServerClient(
         @Qualifier("apiServerRestClient") RestClient restClient,
         @Value("${api-server.sync-path}") String syncPath,
         @Value("${api-server.meta-path}") String metaPath,
-        @Value("${api-server.summary-path}") String summaryPath
+        @Value("${api-server.summary-path}") String summaryPath,
+        @Value("${api-server.targets-path}") String targetsPath
     ) {
         this.restClient = restClient;
         this.syncPath = syncPath;
         this.metaPath = metaPath;
         this.summaryPath = summaryPath;
+        this.targetsPath = targetsPath;
+    }
+
+    public List<String> fetchTargetChannels() {
+        try {
+            List<String> channels = restClient.get()
+                .uri(targetsPath)
+                .retrieve()
+                .body(new ParameterizedTypeReference<List<String>>() {});
+
+            return channels != null ? channels : Collections.emptyList();
+        } catch (Exception e) {
+            log.warn("[Targets Pull] API 서버로부터 타겟 명단 조회 실패 (기존 로컬 캐시 유지): {}", e.getMessage());
+            return Collections.emptyList();
+        }
     }
 
     @Async
