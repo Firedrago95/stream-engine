@@ -10,7 +10,7 @@ public record ChangedStreamRequest(
     String oldTitle,
     @NotBlank String newTitle,
     String oldCategory,
-    @NotBlank String newCategory,
+    String newCategory,
     @NotNull Instant changedAt,
     @NotNull Long changeOffsetMs
 ) {
