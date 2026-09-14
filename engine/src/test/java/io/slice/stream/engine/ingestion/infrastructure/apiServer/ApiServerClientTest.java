@@ -14,6 +14,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSyncRequest;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -71,25 +72,39 @@ class ApiServerClientTest {
     }
 
     @Test
-    void 타겟_목록_조회_성공_시_채널_목록을_반환해야_한다() throws Exception {
+    void 타겟_목록_조회_성공_시_채널_목록을_포함한_Optional을_반환해야_한다() throws Exception {
         List<String> targetChannels = List.of("ch1", "ch2", "ch3");
 
         mockServer.expect(requestTo("http://localhost:8080" + targetsPath))
             .andExpect(method(HttpMethod.GET))
             .andRespond(withSuccess(objectMapper.writeValueAsString(targetChannels), MediaType.APPLICATION_JSON));
 
-        List<String> result = apiServerClient.fetchTargetChannels();
+        Optional<List<String>> result = apiServerClient.fetchTargetChannels();
 
         mockServer.verify();
-        assertThat(result).containsExactly("ch1", "ch2", "ch3");
+        assertThat(result).isPresent();
+        assertThat(result.get()).containsExactly("ch1", "ch2", "ch3");
     }
 
     @Test
-    void 타겟_목록_조회_실패_시_예외_대신_빈_목록을_반환해야_한다() {
+    void 타겟_목록이_빈_배열이어도_성공_시_빈_목록의_Optional을_반환해야_한다() throws Exception {
+        mockServer.expect(requestTo("http://localhost:8080" + targetsPath))
+            .andExpect(method(HttpMethod.GET))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(List.of()), MediaType.APPLICATION_JSON));
+
+        Optional<List<String>> result = apiServerClient.fetchTargetChannels();
+
+        mockServer.verify();
+        assertThat(result).isPresent();
+        assertThat(result.get()).isEmpty();
+    }
+
+    @Test
+    void 타겟_목록_조회_실패_시_Optional_empty를_반환해야_한다() {
         mockServer.expect(requestTo("http://localhost:8080" + targetsPath))
             .andRespond(withServerError());
 
-        List<String> result = apiServerClient.fetchTargetChannels();
+        Optional<List<String>> result = apiServerClient.fetchTargetChannels();
 
         assertThat(result).isEmpty();
     }

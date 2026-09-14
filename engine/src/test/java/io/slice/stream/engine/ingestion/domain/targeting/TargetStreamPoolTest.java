@@ -3,9 +3,12 @@ package io.slice.stream.engine.ingestion.domain.targeting;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -16,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
@@ -72,14 +76,27 @@ class TargetStreamPoolTest {
     }
 
     @Test
-    void syncTargets_호출_시_기존_키를_삭제하고_새_타겟들을_Redis에_등록한다() {
+    void syncTargets_호출_시_Lua_스크립트를_통해_원자적으로_타겟들을_갱신한다() {
         Set<String> newTargets = Set.of("ch1", "ch2");
-        when(redisTemplate.opsForSet()).thenReturn(setOperations);
 
         targetStreamPool.syncTargets(newTargets);
 
+        verify(redisTemplate).execute(any(RedisScript.class), eq(List.of(trendRedisKey)), any(Object[].class));
+    }
+
+    @Test
+    void syncTargets에_빈_Set이_전달되면_기존_키를_삭제한다() {
+        targetStreamPool.syncTargets(Collections.emptySet());
+
         verify(redisTemplate).delete(trendRedisKey);
-        verify(setOperations).add(eq(trendRedisKey), any(String[].class));
+    }
+
+    @Test
+    void syncTargets에_null이_전달되면_아무_동작도_수행하지_않는다() {
+        targetStreamPool.syncTargets(null);
+
+        verify(redisTemplate, never()).delete(trendRedisKey);
+        verify(redisTemplate, never()).execute(any(RedisScript.class), any(), any());
     }
 
     @Test

@@ -9,6 +9,7 @@ import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -32,15 +33,16 @@ public class ChatEventListener {
     @EventListener(ApplicationReadyEvent.class)
     public void initActiveStreams() {
         try {
-            List<String> targets = apiServerClient.fetchTargetChannels();
-            if (!targets.isEmpty()) {
-                targetStreamPool.syncTargets(new HashSet<>(targets));
-            }
+            Optional<List<String>> targetsOpt = apiServerClient.fetchTargetChannels();
+            targetsOpt.ifPresent(targets -> targetStreamPool.syncTargets(new HashSet<>(targets)));
         } catch (Exception e) {
             log.warn("[Init] 기동 중 타겟 명단 초기화 실패: {}", e.getMessage());
         }
 
-        List<StreamTarget> activeTargets = activeStreamProvider.getActiveStreamTargets();
+        Set<String> activeTargetChannels = targetStreamPool.getAllActiveTargetChannels();
+        List<StreamTarget> activeTargets = activeStreamProvider.getActiveStreamTargets().stream()
+            .filter(target -> activeTargetChannels.contains(target.channelId()))
+            .toList();
 
         if (!activeTargets.isEmpty()) {
             log.info("[Init] 엔진 시작 감지: 기존 {}개의 스트림 수집을 재개합니다.", activeTargets.size());
@@ -52,10 +54,8 @@ public class ChatEventListener {
 
     @Scheduled(fixedRate = 3600000)
     public void syncTargetsPeriodically() {
-        List<String> targets = apiServerClient.fetchTargetChannels();
-        if (!targets.isEmpty()) {
-            targetStreamPool.syncTargets(new HashSet<>(targets));
-        }
+        Optional<List<String>> targetsOpt = apiServerClient.fetchTargetChannels();
+        targetsOpt.ifPresent(targets -> targetStreamPool.syncTargets(new HashSet<>(targets)));
     }
 
     @EventListener
@@ -65,9 +65,10 @@ public class ChatEventListener {
         }
 
         if (!event.newStreams().isEmpty()) {
+            Set<String> activeTargetChannels = targetStreamPool.getAllActiveTargetChannels();
             Set<StreamTarget> targetStreams = new HashSet<>();
             for (StreamTarget stream : event.newStreams()) {
-                if (targetStreamPool.isTarget(stream.channelId())) {
+                if (activeTargetChannels.contains(stream.channelId())) {
                     targetStreams.add(stream);
                 } else {
                     log.info("[Targeting] 비타겟 방송 감지. 웹소켓 연결을 건너뜁니다. channelId: {}", stream.channelId());

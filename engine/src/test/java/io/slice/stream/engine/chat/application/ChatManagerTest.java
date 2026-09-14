@@ -14,6 +14,7 @@ import io.slice.stream.engine.analyzer.domain.stream.ActiveStreamProvider;
 import io.slice.stream.engine.chat.domain.ChatCollector;
 import io.slice.stream.engine.chat.domain.ChatCollectorFactory;
 import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.engine.ingestion.domain.targeting.TargetStreamPool;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -42,6 +43,9 @@ class ChatManagerTest {
 
     @Mock
     private ActiveStreamProvider activeStreamProvider;
+
+    @Mock
+    private TargetStreamPool targetStreamPool;
 
     @Spy
     private MeterRegistry meterRegistry = new SimpleMeterRegistry();
@@ -216,16 +220,41 @@ class ChatManagerTest {
 
         chatManager.manageStreams(Set.of(existingTarget, zombieTarget), Collections.emptySet());
 
-        // 현재 활성 목록에는 existingTarget과 missingTarget만 존재 (zombieTarget은 종료됨)
         when(activeStreamProvider.getActiveStreamTargets()).thenReturn(List.of(existingTarget, missingTarget));
+        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("channel1", "missingChannel"));
 
-        // when
         chatManager.reconcile();
 
-        // then
         verify(zombieCollector).disconnect();
         verify(chatCollectorFactory, timeout(2000).times(1)).start(missingTarget);
-        // existingTarget은 중복 시작되지 않아야 함
         verify(chatCollectorFactory, times(1)).start(existingTarget);
+    }
+
+    @Test
+    void reconcile_호출_시_비타겟_스트림은_missingTargets에_포함되지_않고_수집을_시작하지_않아야_한다() {
+        StreamTarget nonTarget = new StreamTarget("nonTargetChannel", "일반인", "chatNon", 3L, "일반방송", 10, "thumbN.jpg", "게임", Instant.EPOCH);
+
+        when(activeStreamProvider.getActiveStreamTargets()).thenReturn(List.of(nonTarget));
+        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("otherTarget"));
+
+        chatManager.reconcile();
+
+        verify(chatCollectorFactory, never()).start(nonTarget);
+    }
+
+    @Test
+    void reconcile_호출_시_방송이_계속_진행_중이어도_타겟에서_제외된_스트림은_수집을_중단해야_한다() {
+        StreamTarget droppedTarget = new StreamTarget("droppedChannel", "탈락스트리머", "chatDrop", 4L, "제목", 100, "thumb.jpg", "소통", Instant.EPOCH);
+        ChatCollector droppedCollector = mock(ChatCollector.class);
+        when(chatCollectorFactory.start(droppedTarget)).thenReturn(droppedCollector);
+
+        chatManager.manageStreams(Set.of(droppedTarget), Collections.emptySet());
+
+        when(activeStreamProvider.getActiveStreamTargets()).thenReturn(List.of(droppedTarget));
+        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("differentTarget"));
+
+        chatManager.reconcile();
+
+        verify(droppedCollector).disconnect();
     }
 }

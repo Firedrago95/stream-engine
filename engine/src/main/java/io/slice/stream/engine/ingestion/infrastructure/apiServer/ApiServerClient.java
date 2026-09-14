@@ -5,6 +5,7 @@ import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSessi
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSyncRequest;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,17 +39,17 @@ public class ApiServerClient {
         this.targetsPath = targetsPath;
     }
 
-    public List<String> fetchTargetChannels() {
+    public Optional<List<String>> fetchTargetChannels() {
         try {
             List<String> channels = restClient.get()
                 .uri(targetsPath)
                 .retrieve()
                 .body(new ParameterizedTypeReference<List<String>>() {});
 
-            return channels != null ? channels : Collections.emptyList();
+            return Optional.of(channels != null ? channels : Collections.emptyList());
         } catch (Exception e) {
             log.warn("[Targets Pull] API 서버로부터 타겟 명단 조회 실패 (기존 로컬 캐시 유지): {}", e.getMessage());
-            return Collections.emptyList();
+            return Optional.empty();
         }
     }
 

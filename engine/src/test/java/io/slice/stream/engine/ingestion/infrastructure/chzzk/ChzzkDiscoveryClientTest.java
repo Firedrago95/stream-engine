@@ -160,6 +160,25 @@ class ChzzkDiscoveryClientTest {
     }
 
     @Test
+    void 동일_페이지_커서가_반복되면_무한루프를_방지하기_위해_순회를_중단한다() throws Exception {
+        ChzzkLive live1 = new ChzzkLive(1001L, "방송1", "url", "게임", "chatCh1", 100, false, new Channel("ch1", "스트리머1", "imageUrl"));
+        ChzzkLive live2 = new ChzzkLive(1002L, "방송2", "url", "게임", "chatCh2", 90, false, new Channel("ch2", "스트리머2", "imageUrl"));
+
+        ChzzkLiveResponse page1Response = createMockResponse(List.of(live1), 90L, 1002L);
+        ChzzkLiveResponse page2Response = createMockResponse(List.of(live2), 90L, 1002L);
+
+        mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(page1Response), MediaType.APPLICATION_JSON));
+        mockServer.expect(requestTo(buildTopLiveApiUri(50, 90L, 1002L)))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(page2Response), MediaType.APPLICATION_JSON));
+
+        List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(200);
+
+        mockServer.verify();
+        assertThat(result).hasSize(2);
+    }
+
+    @Test
     void 인기_라이브_조회_시_live_detail_API는_전혀_호출되지_않는다() throws Exception {
         ChzzkLive live1 = new ChzzkLive(1001L, "방송1", "url", "게임", "chatCh1", 500, false, new Channel("ch1", "스트리머1", "imageUrl"));
         ChzzkLive live2 = new ChzzkLive(1002L, "방송2", "url", "게임", "chatCh2", 400, false, new Channel("ch2", "스트리머2", "imageUrl"));

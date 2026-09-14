@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -121,11 +122,11 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
         Long nextConcurrentUserCount = null;
         Long nextLiveId = null;
         int pageCount = 0;
-        int maxPages = 100;
+        Set<String> visitedCursors = new HashSet<>();
 
         log.info("[Chzzk API] TopLive 랭킹 전수 조사 시작");
 
-        while (pageCount < maxPages) {
+        while (true) {
             pageCount++;
             String topLiveUri = buildTopLiveApiUri(50, nextConcurrentUserCount, nextLiveId);
             ChzzkLiveResponse topLiveResponse = callTopLivesApi(topLiveUri);
@@ -155,6 +156,16 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
 
             nextConcurrentUserCount = page.next().concurrentUserCount();
             nextLiveId = page.next().liveId();
+
+            if (nextConcurrentUserCount == null || nextLiveId == null) {
+                break;
+            }
+
+            String cursorKey = nextConcurrentUserCount + ":" + nextLiveId;
+            if (!visitedCursors.add(cursorKey)) {
+                log.warn("[Chzzk API] 동일 커서 반복 감지로 순회를 중단합니다: {}", cursorKey);
+                break;
+            }
 
             try {
                 Thread.sleep(50);
