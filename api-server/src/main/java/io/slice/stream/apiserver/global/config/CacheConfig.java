@@ -13,7 +13,7 @@ public class CacheConfig {
 
     @Bean
     public CaffeineCacheManager cacheManager() {
-        CaffeineCacheManager cacheManager = new CaffeineCacheManager("activeSessions");
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager("activeSessions", "targetChannels");
         cacheManager.setCaffeine(Caffeine.newBuilder()
             .maximumSize(10_000)                              // 최대 1만 명의 스트리머 세션만 캐싱
             .expireAfterAccess(10, TimeUnit.MINUTES));  // 10분간 신호없으면 캐시 삭제
