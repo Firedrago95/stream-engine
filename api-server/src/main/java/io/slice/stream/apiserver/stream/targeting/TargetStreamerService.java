@@ -37,12 +37,12 @@ public class TargetStreamerService {
         Instant fourteenDaysAgo = Instant.now().minus(14, ChronoUnit.DAYS);
         List<String> trendChannels = viewMetricTimelineRepository.findTopStreamIdsByAverageViewerCountSince(
             fourteenDaysAgo,
-            PageRequest.of(0, 100)
+            PageRequest.of(0, 300)
         );
 
         if (trendChannels == null || trendChannels.isEmpty()) {
             log.info("[Targeting] 최근 14일 시청 데이터가 부족하여 실시간 시청자 수 기반으로 대체합니다.");
-            trendChannels = streamRepository.findTopStreamIdsByConcurrentUserCount(PageRequest.of(0, 100));
+            trendChannels = streamRepository.findTopStreamIdsByConcurrentUserCount(PageRequest.of(0, 300));
         }
 
         if (trendChannels != null) {

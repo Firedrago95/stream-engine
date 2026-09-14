@@ -43,7 +43,7 @@ class TargetStreamerServiceTest {
         TargetStreamerEntity custom = new TargetStreamerEntity("ch_custom", "인기 스트리머", TargetType.CUSTOM, true);
 
         when(targetStreamerRepository.findAllByIsActiveTrue()).thenReturn(List.of(official, custom));
-        when(viewMetricTimelineRepository.findTopStreamIdsByAverageViewerCountSince(any(Instant.class), eq(PageRequest.of(0, 100))))
+        when(viewMetricTimelineRepository.findTopStreamIdsByAverageViewerCountSince(any(Instant.class), eq(PageRequest.of(0, 300))))
             .thenReturn(List.of("ch_custom", "ch_trend1", "ch_trend2"));
 
         List<String> results = targetStreamerService.getActiveTargetChannelIds();
@@ -57,14 +57,14 @@ class TargetStreamerServiceTest {
         TargetStreamerEntity official = new TargetStreamerEntity("ch_official", "치지직 공식", TargetType.STATIC, true);
 
         when(targetStreamerRepository.findAllByIsActiveTrue()).thenReturn(List.of(official));
-        when(viewMetricTimelineRepository.findTopStreamIdsByAverageViewerCountSince(any(Instant.class), eq(PageRequest.of(0, 100))))
+        when(viewMetricTimelineRepository.findTopStreamIdsByAverageViewerCountSince(any(Instant.class), eq(PageRequest.of(0, 300))))
             .thenReturn(Collections.emptyList());
-        when(streamRepository.findTopStreamIdsByConcurrentUserCount(PageRequest.of(0, 100)))
+        when(streamRepository.findTopStreamIdsByConcurrentUserCount(PageRequest.of(0, 300)))
             .thenReturn(List.of("ch_fallback1", "ch_fallback2"));
 
         List<String> results = targetStreamerService.getActiveTargetChannelIds();
 
         assertThat(results).containsExactly("ch_official", "ch_fallback1", "ch_fallback2");
-        verify(streamRepository).findTopStreamIdsByConcurrentUserCount(PageRequest.of(0, 100));
+        verify(streamRepository).findTopStreamIdsByConcurrentUserCount(PageRequest.of(0, 300));
     }
 }
