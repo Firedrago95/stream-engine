@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
@@ -66,12 +67,14 @@ public class StreamUpdateAnalyzer {
     }
 
     private boolean isMetadataChanged(StreamTarget oldTarget, StreamTarget newTarget) {
-        return !oldTarget.liveTitle().equals(newTarget.liveTitle()) ||
-            !oldTarget.categoryName().equals(newTarget.categoryName());
+        return !Objects.equals(oldTarget.liveTitle(), newTarget.liveTitle()) ||
+            !Objects.equals(oldTarget.categoryName(), newTarget.categoryName());
     }
 
     private ChangedStream createChangedStream(StreamTarget oldTarget, StreamTarget newTarget, Instant changedAt) {
-        Long changedOffsetMs = Duration.between(newTarget.startedAt(), changedAt).toMillis();
+        Long changedOffsetMs = newTarget.startedAt() != null
+            ? Duration.between(newTarget.startedAt(), changedAt).toMillis()
+            : null;
         return new ChangedStream(
             newTarget.channelId(),
             String.valueOf(newTarget.liveId()),
