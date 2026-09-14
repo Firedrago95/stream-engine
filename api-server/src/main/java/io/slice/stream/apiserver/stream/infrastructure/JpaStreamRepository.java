@@ -55,4 +55,16 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
            ORDER BY s.concurrentUserCount DESC
            """)
     List<String> findTopStreamIdsByConcurrentUserCount(Pageable pageable);
+
+    @Query("""
+           SELECT s FROM StreamEntity s 
+           WHERE s.streamId IN (:streamIds)
+             AND s.isLive = true 
+             AND s.lastUpdateAt > :threshold 
+           ORDER BY s.concurrentUserCount DESC
+           """)
+    List<StreamEntity> findActiveStreamsByStreamIds(
+        @Param("streamIds") List<String> streamIds, 
+        @Param("threshold") Instant threshold
+    );
 }

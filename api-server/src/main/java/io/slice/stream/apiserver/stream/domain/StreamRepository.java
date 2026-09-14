@@ -9,6 +9,8 @@ public interface StreamRepository {
 
     List<StreamEntity> findActiveStreams(Instant threshold);
 
+    List<StreamEntity> findActiveStreamsByStreamIds(List<String> streamIds, Instant threshold);
+
     List<StreamEntity> searchByStreamerName(String keyword, Instant currentTime);
 
     void upsertStream(StreamEntity request, Instant currentTime);

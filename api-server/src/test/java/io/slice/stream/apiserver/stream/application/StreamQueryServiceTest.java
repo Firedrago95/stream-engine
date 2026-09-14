@@ -17,6 +17,7 @@ import io.slice.stream.apiserver.stream.domain.StreamRepository;
 import io.slice.stream.apiserver.stream.domain.StreamStatus;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamResponse;
+import io.slice.stream.apiserver.stream.targeting.TargetStreamerService;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -45,6 +47,9 @@ class StreamQueryServiceTest {
     AnalysisRepository analysisRepository;
 
     @Mock
+    TargetStreamerService targetStreamerService;
+
+    @Mock
     StringRedisTemplate redisTemplate;
 
     @Mock
@@ -55,16 +60,42 @@ class StreamQueryServiceTest {
 
     @BeforeEach
     void setUp() {
-        streamQueryService = new StreamQueryService(streamRepository, analysisRepository, redisTemplate, jsonMapper);
+        Mockito.lenient().when(targetStreamerService.getActiveTargetChannelIds()).thenReturn(List.of());
+        streamQueryService = new StreamQueryService(streamRepository, analysisRepository, targetStreamerService, redisTemplate, jsonMapper);
     }
 
     @Test
-    void 검색어가_없고_Redis_캐시가_비어있으면_DB_조회_후_Redis에_적재한다() {
+    void 검색어가_없고_Redis_캐시가_비어있을_때_타겟_명단이_있으면_타겟_방송만_조회하고_ANALYZING_상태로_반환한다() {
         StreamEntity entity = new StreamEntity("ch1", "침착맨");
         entity.heartbeat("침착맨", "제목", "url", "게임", 1000);
 
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
         given(valueOperations.get(StreamQueryService.REDIS_STREAM_LIST_KEY)).willReturn(null);
+        given(targetStreamerService.getActiveTargetChannelIds()).willReturn(List.of("ch1"));
+        given(streamRepository.findActiveStreamsByStreamIds(eq(List.of("ch1")), any(Instant.class)))
+            .willReturn(List.of(entity));
+        given(analysisRepository.findChannelsWithRecentSignals(anyCollection(), any(Instant.class)))
+            .willReturn(Set.of());
+
+        List<StreamResponse> result = streamQueryService.getBrowserList(null);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).streamId()).isEqualTo("ch1");
+        assertThat(result.get(0).concurrentUserCount()).isEqualTo(1000);
+        assertThat(result.get(0).status()).isEqualTo(StreamStatus.ANALYZING);
+        then(streamRepository).should().findActiveStreamsByStreamIds(eq(List.of("ch1")), any(Instant.class));
+        then(streamRepository).should(never()).findActiveStreams(any(Instant.class));
+        then(valueOperations).should().set(eq(StreamQueryService.REDIS_STREAM_LIST_KEY), anyString(), eq(Duration.ofSeconds(20)));
+    }
+
+    @Test
+    void 검색어가_없고_타겟_명단이_비어있으면_fallback으로_전체_활성_방송을_조회한다() {
+        StreamEntity entity = new StreamEntity("ch1", "침착맨");
+        entity.heartbeat("침착맨", "제목", "url", "게임", 1000);
+
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.get(StreamQueryService.REDIS_STREAM_LIST_KEY)).willReturn(null);
+        given(targetStreamerService.getActiveTargetChannelIds()).willReturn(List.of());
         given(streamRepository.findActiveStreams(any(Instant.class)))
             .willReturn(List.of(entity));
         given(analysisRepository.findChannelsWithRecentSignals(anyCollection(), any(Instant.class)))
@@ -76,7 +107,7 @@ class StreamQueryServiceTest {
         assertThat(result.get(0).concurrentUserCount()).isEqualTo(1000);
         assertThat(result.get(0).status()).isEqualTo(StreamStatus.LIVE);
         then(streamRepository).should().findActiveStreams(any(Instant.class));
-        then(streamRepository).should(never()).searchByStreamerName(anyString(), any(Instant.class));
+        then(streamRepository).should(never()).findActiveStreamsByStreamIds(any(), any());
         then(valueOperations).should().set(eq(StreamQueryService.REDIS_STREAM_LIST_KEY), anyString(), eq(Duration.ofSeconds(20)));
     }
 

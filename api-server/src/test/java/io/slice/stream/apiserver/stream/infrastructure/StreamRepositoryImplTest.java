@@ -59,9 +59,47 @@ class StreamRepositoryImplTest implements PostgresTestSupport {
         assertThat(results.get(0).getStreamerName()).isEqualTo("스트리머B"); // 500명
         assertThat(results.get(1).getStreamerName()).isEqualTo("스트리머A"); // 100명
 
-        // 오프라인 방송은 제외되었는지 검증
         assertThat(results).extracting(StreamEntity::getStreamId)
             .doesNotContain("stream-3");
+    }
+
+    @Test
+    void 지정된_스트림ID_목록에_해당하는_활성_방송만_시청자순으로_조회한다() {
+        Instant now = Instant.now();
+
+        StreamEntity targetLive1 = new StreamEntity("target-1", "스트리머1");
+        targetLive1.heartbeat("스트리머1", "방송1", "url", "게임", 300);
+
+        StreamEntity targetLive2 = new StreamEntity("target-2", "스트리머2");
+        targetLive2.heartbeat("스트리머2", "방송2", "url", "게임", 800);
+
+        StreamEntity nonTargetLive = new StreamEntity("non-target", "스트리머3");
+        nonTargetLive.heartbeat("스트리머3", "방송3", "url", "게임", 1500);
+
+        StreamEntity targetOffline = new StreamEntity("target-offline", "스트리머4");
+        targetOffline.heartbeat("스트리머4", "방송4", "url", "게임", 2000);
+        targetOffline.markOffline();
+
+        jpaStreamRepository.saveAll(List.of(targetLive1, targetLive2, nonTargetLive, targetOffline));
+
+        Instant threshold = now.minus(1, ChronoUnit.HOURS);
+        List<StreamEntity> results = repository.findActiveStreamsByStreamIds(
+            List.of("target-1", "target-2", "target-offline"),
+            threshold
+        );
+
+        assertThat(results).hasSize(2);
+        assertThat(results.get(0).getStreamId()).isEqualTo("target-2");
+        assertThat(results.get(1).getStreamId()).isEqualTo("target-1");
+        assertThat(results).extracting(StreamEntity::getStreamId)
+            .doesNotContain("non-target", "target-offline");
+    }
+
+    @Test
+    void streamIds가_빈_목록이거나_null이면_빈_목록을_반환한다() {
+        Instant threshold = Instant.now().minus(1, ChronoUnit.HOURS);
+        assertThat(repository.findActiveStreamsByStreamIds(List.of(), threshold)).isEmpty();
+        assertThat(repository.findActiveStreamsByStreamIds(null, threshold)).isEmpty();
     }
 
     @Test
