@@ -1,13 +1,24 @@
 package io.slice.stream.apiserver.stream.infrastructure.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
 import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "streams")
+@Table(
+    name = "streams",
+    indexes = {
+        @Index(name = "idx_streams_concurrent_user_count_desc", columnList = "concurrent_user_count DESC")
+    }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class StreamEntity {
