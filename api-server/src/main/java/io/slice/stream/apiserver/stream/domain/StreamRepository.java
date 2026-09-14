@@ -16,4 +16,8 @@ public interface StreamRepository {
     void upsertStream(StreamEntity request, Instant currentTime);
 
     Optional<StreamEntity> findById(String streamId);
+
+    List<StreamEntity> findAllStreamersForLeaderboard();
+
+    List<StreamEntity> searchAllStreamersForLeaderboard(String keyword);
 }

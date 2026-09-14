@@ -42,4 +42,14 @@ public class StreamRepositoryImpl implements StreamRepository {
     public Optional<StreamEntity> findById(String streamId) {
         return jpaStreamRepository.findByStreamId(streamId);
     }
+
+    @Override
+    public List<StreamEntity> findAllStreamersForLeaderboard() {
+        return jpaStreamRepository.findAllStreamersForLeaderboard();
+    }
+
+    @Override
+    public List<StreamEntity> searchAllStreamersForLeaderboard(String keyword) {
+        return jpaStreamRepository.searchAllStreamersForLeaderboard(keyword);
+    }
 }

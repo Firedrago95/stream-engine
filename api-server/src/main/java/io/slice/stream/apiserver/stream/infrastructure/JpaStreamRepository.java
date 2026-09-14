@@ -67,4 +67,17 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
         @Param("streamIds") List<String> streamIds, 
         @Param("threshold") Instant threshold
     );
+
+    @Query("""
+           SELECT s FROM StreamEntity s 
+           ORDER BY s.concurrentUserCount DESC, s.id DESC
+           """)
+    List<StreamEntity> findAllStreamersForLeaderboard();
+
+    @Query("""
+           SELECT s FROM StreamEntity s 
+           WHERE LOWER(s.streamerName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+           ORDER BY s.concurrentUserCount DESC, s.id DESC
+           """)
+    List<StreamEntity> searchAllStreamersForLeaderboard(@Param("keyword") String keyword);
 }
