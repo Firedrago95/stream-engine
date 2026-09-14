@@ -6,21 +6,27 @@
 -- ARGV[1 + closed_count + 1] ~ : [stream_id, json_str] (활성 방송 ID와 상세 정보 JSON 쌍 목록)
 
 local closed_count = tonumber(ARGV[1])
-
 local unpack = table.unpack or unpack
+local BATCH_SIZE = 1000
 
--- 1. 종료된 방송 처리
 if closed_count > 0 then
   local closed_ids = {}
   for i = 1, closed_count do
     table.insert(closed_ids, ARGV[1 + i])
   end
 
-  redis.call('HDEL', KEYS[2], unpack(closed_ids))
-  redis.call('SREM', KEYS[3], unpack(closed_ids))
+  for i = 1, #closed_ids, BATCH_SIZE do
+    local chunk = {}
+    for j = i, math.min(i + BATCH_SIZE - 1, #closed_ids) do
+      table.insert(chunk, closed_ids[j])
+    end
+    if #chunk > 0 then
+      redis.call('HDEL', KEYS[2], unpack(chunk))
+      redis.call('SREM', KEYS[3], unpack(chunk))
+    end
+  end
 end
 
--- 2. 활성 방송 처리 (ID 및 상세 정보 JSON 추출)
 local active_ids = {}
 local hash_data = {}
 local start_idx = 1 + closed_count + 1
@@ -35,18 +41,33 @@ for i = start_idx, #ARGV, 2 do
     table.insert(hash_data, json_str)
 end
 
--- 3. Redis 상태 덮어쓰기
 redis.call('DEL', KEYS[1])
 redis.call('DEL', KEYS[2])
 redis.call('DEL', KEYS[3])
 
 if #active_ids > 0 then
-    redis.call('SADD', KEYS[1], unpack(active_ids))
-    redis.call('SADD', KEYS[3], unpack(active_ids))
+    for i = 1, #active_ids, BATCH_SIZE do
+        local chunk = {}
+        for j = i, math.min(i + BATCH_SIZE - 1, #active_ids) do
+            table.insert(chunk, active_ids[j])
+        end
+        if #chunk > 0 then
+            redis.call('SADD', KEYS[1], unpack(chunk))
+            redis.call('SADD', KEYS[3], unpack(chunk))
+        end
+    end
 end
 
 if #hash_data > 0 then
-    redis.call('HSET', KEYS[2], unpack(hash_data))
+    for i = 1, #hash_data, BATCH_SIZE do
+        local chunk = {}
+        for j = i, math.min(i + BATCH_SIZE - 1, #hash_data) do
+            table.insert(chunk, hash_data[j])
+        end
+        if #chunk > 0 then
+            redis.call('HSET', KEYS[2], unpack(chunk))
+        end
+    end
 end
 
 return {}
