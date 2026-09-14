@@ -54,17 +54,36 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
               <h3 className="text-xs uppercase text-[#a1a1aa] font-semibold pl-3">
                 메뉴
               </h3>
-              <ul className="mt-3">
-                <li className={`px-3 py-2 rounded-lg mb-0.5 last:mb-0 ${pathname === '/' && 'bg-gray-800'}`}>
+              <ul className="mt-3 space-y-1">
+                <li className={`px-3 py-2 rounded-lg transition-colors duration-150 ${pathname.startsWith('/streamers') ? 'bg-gray-800/90 text-white' : 'hover:bg-gray-800/50 text-gray-400 hover:text-gray-200'}`}>
+                  <NavLink
+                    to="/streamers"
+                    onClick={() => setSidebarOpen(false)}
+                    className="block truncate"
+                  >
+                    <div className="flex items-center">
+                      <svg className={`shrink-0 h-5 w-5 ${pathname.startsWith('/streamers') ? 'text-[#00FFA3]' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      <span className="text-sm font-bold ml-3 duration-200 whitespace-nowrap">스트리머 통계</span>
+                      <span className="ml-auto px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded bg-[#00FFA3]/15 text-[#00FFA3] border border-[#00FFA3]/30">
+                        NEW
+                      </span>
+                    </div>
+                  </NavLink>
+                </li>
+                <li className={`px-3 py-2 rounded-lg transition-colors duration-150 ${(pathname === '/' || pathname.startsWith('/streams')) ? 'bg-gray-800/90 text-white' : 'hover:bg-gray-800/50 text-gray-400 hover:text-gray-200'}`}>
                   <NavLink
                     end
                     to="/"
                     onClick={() => setSidebarOpen(false)}
-                    className={`block text-gray-100 truncate transition duration-150 ${pathname === '/' ? '' : 'hover:text-white'}`}
+                    className="block truncate"
                   >
                     <div className="flex items-center">
-                      <svg className={`shrink-0 h-6 w-6 fill-current ${pathname === '/' ? 'text-[#00FFA3]' : 'text-gray-500'}`} viewBox="0 0 24 24"><path d="M12 0C5.383 0 0 5.383 0 12s5.383 12 12 12 12-5.383 12-12S18.617 0 12 0z" /></svg>
-                      <span className="text-sm font-bold ml-3 duration-200 whitespace-nowrap">라이브 대시보드</span>
+                      <svg className={`shrink-0 h-5 w-5 ${pathname === '/' || pathname.startsWith('/streams') ? 'text-[#00FFA3]' : 'text-gray-500'}`} fill="currentColor" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" />
+                      </svg>
+                      <span className="text-sm font-bold ml-3 duration-200 whitespace-nowrap">실시간 라이브</span>
                     </div>
                   </NavLink>
                 </li>

@@ -14,6 +14,14 @@ const StreamAnalysisDashboard = lazy(() =>
   import('./components/stream/StreamAnalysisDashboard').then(m => ({ default: m.StreamAnalysisDashboard }))
 );
 
+const StreamerStatsPage = lazy(() =>
+  import('./components/streamer/StreamerStatsPage').then(m => ({ default: m.StreamerStatsPage }))
+);
+
+const StreamerDetailPage = lazy(() =>
+  import('./components/streamer/StreamerDetailPage').then(m => ({ default: m.StreamerDetailPage }))
+);
+
 const MainPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { streams, isLoading, error } = useStreams(searchTerm, 30000);
@@ -160,6 +168,8 @@ export default function App() {
               >
                 <Routes>
                   <Route path="/" element={<MainPage />} />
+                  <Route path="/streamers" element={<StreamerStatsPage />} />
+                  <Route path="/streamers/:channelId" element={<StreamerDetailPage />} />
                   <Route path="/streams/:streamId" element={<StreamAnalysisDashboard />} />
                 </Routes>
               </Suspense>
