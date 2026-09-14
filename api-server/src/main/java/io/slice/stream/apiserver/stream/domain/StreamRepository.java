@@ -1,6 +1,7 @@
 package io.slice.stream.apiserver.stream.domain;
 
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
+import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardProjection;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -16,4 +17,12 @@ public interface StreamRepository {
     void upsertStream(StreamEntity request, Instant currentTime);
 
     Optional<StreamEntity> findById(String streamId);
+
+    List<StreamEntity> findAllStreamersForLeaderboard();
+
+    List<StreamEntity> searchAllStreamersForLeaderboard(String keyword);
+
+    List<StreamerLeaderboardProjection> findTopStreamersWith30dAvg(Instant since, int limit);
+
+    List<StreamerLeaderboardProjection> searchTopStreamersWith30dAvg(String keyword, Instant since, int limit);
 }

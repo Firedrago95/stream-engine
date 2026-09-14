@@ -1,11 +1,14 @@
 package io.slice.stream.apiserver.streamer.presentation;
 
+import io.slice.stream.apiserver.stream.presentation.dto.StreamResponse;
 import io.slice.stream.apiserver.streamer.application.StreamerGrassQueryService;
+import io.slice.stream.apiserver.streamer.application.StreamerLeaderboardQueryService;
 import io.slice.stream.apiserver.streamer.application.StreamerProfileQueryService;
 import io.slice.stream.apiserver.streamer.application.StreamerSessionQueryService;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerGrassResponse;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerProfileResponse;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerSessionHistoryResponse;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -21,9 +24,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class StreamerQueryController {
 
+    private final StreamerLeaderboardQueryService leaderboardQueryService;
     private final StreamerProfileQueryService profileQueryService;
     private final StreamerGrassQueryService grassQueryService;
     private final StreamerSessionQueryService sessionQueryService;
+
+    @GetMapping
+    public ResponseEntity<List<StreamResponse>> getLeaderboard(
+        @RequestParam(required = false) String keyword
+    ) {
+        return ResponseEntity.ok(leaderboardQueryService.getLeaderboard(keyword));
+    }
 
     @GetMapping("/{channelId}/profile")
     public ResponseEntity<StreamerProfileResponse> getProfile(

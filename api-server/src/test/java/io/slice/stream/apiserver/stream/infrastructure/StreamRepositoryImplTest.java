@@ -3,6 +3,8 @@ package io.slice.stream.apiserver.stream.infrastructure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
+import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
+import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardProjection;
 import io.slice.stream.apiserver.testcontainer.postgres.PostgresTestSupport;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -31,6 +33,9 @@ class StreamRepositoryImplTest implements PostgresTestSupport {
 
     @Autowired
     private JpaStreamRepository jpaStreamRepository;
+
+    @Autowired
+    private JpaStreamSessionRepository jpaStreamSessionRepository;
 
     @Test
     void 임계값_이후에_업데이트된_활성_방송만_시청자순으로_조회한다() {
@@ -219,5 +224,39 @@ class StreamRepositoryImplTest implements PostgresTestSupport {
         assertThat(result).isPresent();
         assertThat(result.get().getStreamId()).isEqualTo(streamId);
         assertThat(result.get().getStreamerName()).isEqualTo("타겟스트리머");
+    }
+
+    @Test
+    void 최근_30일_세션_평균_시청자를_집계하여_스트리머를_키워드로_검색한다() {
+        Instant now = Instant.now();
+        Instant since = now.minus(30, ChronoUnit.DAYS);
+
+        StreamEntity stream1 = new StreamEntity("s-1", "랄로");
+        stream1.heartbeat("랄로", "생방송", "url1", "리그 오브 레전드", 1000);
+
+        StreamEntity stream2 = new StreamEntity("s-2", "랄로팬클럽");
+        stream2.heartbeat("랄로팬클럽", "팬방송", "url2", "소통", 300);
+
+        StreamEntity stream3 = new StreamEntity("s-3", "침착맨");
+        stream3.heartbeat("침착맨", "침착맨방송", "url3", "토크", 15000);
+
+        jpaStreamRepository.saveAll(List.of(stream1, stream2, stream3));
+
+        StreamSessionEntity session1 = new StreamSessionEntity("s-1", "sess-1", "방송1", "게임", now.minus(5, ChronoUnit.DAYS));
+        session1.finishSession(now.minus(4, ChronoUnit.DAYS), 5000, 4000);
+
+        StreamSessionEntity session2 = new StreamSessionEntity("s-1", "sess-2", "방송2", "게임", now.minus(2, ChronoUnit.DAYS));
+        session2.finishSession(now.minus(1, ChronoUnit.DAYS), 7000, 6000);
+
+        jpaStreamSessionRepository.saveAll(List.of(session1, session2));
+
+        List<StreamerLeaderboardProjection> results = repository.searchTopStreamersWith30dAvg("랄로", since, 10);
+
+        assertThat(results).hasSize(2);
+        assertThat(results.get(0).getStreamerName()).isEqualTo("랄로");
+        assertThat(results.get(0).getAverageViewers()).isEqualTo(5000);
+
+        assertThat(results.get(1).getStreamerName()).isEqualTo("랄로팬클럽");
+        assertThat(results.get(1).getAverageViewers()).isEqualTo(300);
     }
 }
