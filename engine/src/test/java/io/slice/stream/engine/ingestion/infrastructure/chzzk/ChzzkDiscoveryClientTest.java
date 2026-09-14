@@ -2,7 +2,6 @@ package io.slice.stream.engine.ingestion.infrastructure.chzzk;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
@@ -20,6 +19,7 @@ import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkL
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.Page;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -70,39 +70,36 @@ class ChzzkDiscoveryClientTest {
     }
 
     @Test
-    void 인기_라이브_스트림_목록을_가져와_도메인_모델로_매핑한다() throws Exception {
-        // Given
-        int limit = 2; // 목표 수량
-        // DTO에 adult 필드(false) 추가
+    void 인기_라이브_스트림_목록을_가져와_경량_도메인_모델로_매핑한다() throws Exception {
         ChzzkLive live1 = new ChzzkLive(1001L, "침착맨의 일상", "https://thumb.com/1_{type}.jpg", "소통", "chatCh1", 5000, false, new Channel("ch1", "침착맨", "imageUrl"));
         ChzzkLive live2 = new ChzzkLive(1002L, "게임 방송", "https://thumb.com/2_{type}.jpg", "게임", "chatCh2", 3000, false, new Channel("ch2", "게이머A", "imageUrl"));
 
-        // 클라이언트는 내부적으로 무조건 size=50으로 요청함
         ChzzkLiveResponse topLiveResponse = createMockResponse(List.of(live1, live2), null, null);
         mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
             .andRespond(withSuccess(objectMapper.writeValueAsString(topLiveResponse), MediaType.APPLICATION_JSON));
 
-        mockDetailApi(live1, "chatCh1");
-        mockDetailApi(live2, "chatCh2");
+        List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(200);
 
-        // When
-        List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(limit);
-
-        // Then
         mockServer.verify();
-        assertThat(result).hasSize(2)
-            .extracting("channelName", "liveTitle", "chatChannelId")
-            .containsExactlyInAnyOrder(
-                tuple("침착맨", "침착맨의 일상", "chatCh1"),
-                tuple("게이머A", "게임 방송", "chatCh2")
-            );
+        assertThat(result).hasSize(2);
+        StreamTarget target1 = result.get(0);
+        assertThat(target1.channelId()).isEqualTo("ch1");
+        assertThat(target1.channelName()).isEqualTo("침착맨");
+        assertThat(target1.liveTitle()).isEqualTo("침착맨의 일상");
+        assertThat(target1.concurrentUserCount()).isEqualTo(5000);
+        assertThat(target1.categoryName()).isEqualTo("소통");
+        assertThat(target1.chatChannelId()).isNull();
+        assertThat(target1.startedAt()).isNull();
+
+        StreamTarget target2 = result.get(1);
+        assertThat(target2.channelId()).isEqualTo("ch2");
+        assertThat(target2.channelName()).isEqualTo("게이머A");
+        assertThat(target2.chatChannelId()).isNull();
+        assertThat(target2.startedAt()).isNull();
     }
 
     @Test
     void 성인방송은_필터링되어_결과에_포함되지_않는다() throws Exception {
-        // Given
-        int limit = 5;
-        // live2를 성인방송(adult = true)으로 설정
         ChzzkLive live1 = new ChzzkLive(1001L, "일반 방송", "url", "게임", "chatCh1", 5000, false, new Channel("ch1", "스트리머A", "imageUrl"));
         ChzzkLive live2 = new ChzzkLive(1002L, "성인 방송", "url", "게임", "chatCh2", 3000, true, new Channel("ch2", "스트리머B", "imageUrl"));
 
@@ -110,83 +107,146 @@ class ChzzkDiscoveryClientTest {
         mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
             .andRespond(withSuccess(objectMapper.writeValueAsString(topLiveResponse), MediaType.APPLICATION_JSON));
 
-        mockDetailApi(live1, "chatCh1");
+        List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(200);
 
-        // When
-        List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(limit);
-
-        // Then
         mockServer.verify();
         assertThat(result).hasSize(1);
         assertThat(result.get(0).channelName()).isEqualTo("스트리머A");
     }
 
     @Test
-    void 목표_수량이_한_페이지를_초과하면_커서를_이용해_다음_페이지를_조회한다() throws Exception {
-        // Given
-        int limit = 2; // 테스트를 위해 limit을 2로 잡고, 페이지당 1개씩 리턴한다고 가정
-
+    void 다음_페이지_커서가_존재하면_연속_페이지를_순회하여_전수_수집한다() throws Exception {
         ChzzkLive live1 = new ChzzkLive(1001L, "방송1", "url", "게임", "chatCh1", 5000, false, new Channel("ch1", "스트리머1", "imageUrl"));
-        ChzzkLive live2 = new ChzzkLive(1002L, "방송2", "url", "게임", "chatCh2", 3000, false, new Channel("ch2", "스트리머2", "imageUrl"));
+        ChzzkLive live2 = new ChzzkLive(1002L, "방송2", "url", "게임", "chatCh2", 4000, false, new Channel("ch2", "스트리머2", "imageUrl"));
+        ChzzkLive live3 = new ChzzkLive(1003L, "방송3", "url", "게임", "chatCh3", 3000, false, new Channel("ch3", "스트리머3", "imageUrl"));
+        ChzzkLive live4 = new ChzzkLive(1004L, "방송4", "url", "게임", "chatCh4", 2000, false, new Channel("ch4", "스트리머4", "imageUrl"));
 
-        // 첫 번째 페이지 응답 (다음 커서 존재)
-        ChzzkLiveResponse page1Response = createMockResponse(List.of(live1), 3000L, 1002L);
+        ChzzkLiveResponse page1Response = createMockResponse(List.of(live1), 4000L, 1002L);
+        ChzzkLiveResponse page2Response = createMockResponse(List.of(live2), 3000L, 1003L);
+        ChzzkLiveResponse page3Response = createMockResponse(List.of(live3), 2000L, 1004L);
+        ChzzkLiveResponse page4Response = createMockResponse(List.of(live4), null, null);
+
         mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
             .andRespond(withSuccess(objectMapper.writeValueAsString(page1Response), MediaType.APPLICATION_JSON));
+        mockServer.expect(requestTo(buildTopLiveApiUri(50, 4000L, 1002L)))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(page2Response), MediaType.APPLICATION_JSON));
+        mockServer.expect(requestTo(buildTopLiveApiUri(50, 3000L, 1003L)))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(page3Response), MediaType.APPLICATION_JSON));
+        mockServer.expect(requestTo(buildTopLiveApiUri(50, 2000L, 1004L)))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(page4Response), MediaType.APPLICATION_JSON));
 
-        // 두 번째 페이지 응답 (커서 없음)
-        ChzzkLiveResponse page2Response = createMockResponse(List.of(live2), null, null);
-        mockServer.expect(requestTo(buildTopLiveApiUri(50, 3000L, 1002L)))
+        List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(200);
+
+        mockServer.verify();
+        assertThat(result).hasSize(4)
+            .extracting(StreamTarget::channelName)
+            .containsExactly("스트리머1", "스트리머2", "스트리머3", "스트리머4");
+    }
+
+    @Test
+    void 마지막_방송의_시청자수가_0명이면_다음_페이지_커서가_있어도_순회를_즉시_종료한다() throws Exception {
+        ChzzkLive live1 = new ChzzkLive(1001L, "방송1", "url", "게임", "chatCh1", 100, false, new Channel("ch1", "스트리머1", "imageUrl"));
+        ChzzkLive live2 = new ChzzkLive(1002L, "방송2", "url", "게임", "chatCh2", 0, false, new Channel("ch2", "스트리머2", "imageUrl"));
+
+        ChzzkLiveResponse pageResponse = createMockResponse(List.of(live1, live2), 0L, 1002L);
+        mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(pageResponse), MediaType.APPLICATION_JSON));
+
+        List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(200);
+
+        mockServer.verify();
+        assertThat(result).hasSize(2);
+        assertThat(result.get(1).concurrentUserCount()).isEqualTo(0);
+    }
+
+    @Test
+    void 동일_페이지_커서가_반복되면_무한루프를_방지하기_위해_순회를_중단한다() throws Exception {
+        ChzzkLive live1 = new ChzzkLive(1001L, "방송1", "url", "게임", "chatCh1", 100, false, new Channel("ch1", "스트리머1", "imageUrl"));
+        ChzzkLive live2 = new ChzzkLive(1002L, "방송2", "url", "게임", "chatCh2", 90, false, new Channel("ch2", "스트리머2", "imageUrl"));
+
+        ChzzkLiveResponse page1Response = createMockResponse(List.of(live1), 90L, 1002L);
+        ChzzkLiveResponse page2Response = createMockResponse(List.of(live2), 90L, 1002L);
+
+        mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(page1Response), MediaType.APPLICATION_JSON));
+        mockServer.expect(requestTo(buildTopLiveApiUri(50, 90L, 1002L)))
             .andRespond(withSuccess(objectMapper.writeValueAsString(page2Response), MediaType.APPLICATION_JSON));
 
-        mockDetailApi(live1, "chatCh1");
-        mockDetailApi(live2, "chatCh2");
+        List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(200);
 
-        // When
-        List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(limit);
+        mockServer.verify();
+        assertThat(result).hasSize(2);
+    }
 
-        // Then
-        mockServer.verify(); // 두 번의 API 호출이 모두 발생했는지 검증
-        assertThat(result).hasSize(2)
-            .extracting("channelName")
-            .containsExactly("스트리머1", "스트리머2");
+    @Test
+    void 인기_라이브_조회_시_live_detail_API는_전혀_호출되지_않는다() throws Exception {
+        ChzzkLive live1 = new ChzzkLive(1001L, "방송1", "url", "게임", "chatCh1", 500, false, new Channel("ch1", "스트리머1", "imageUrl"));
+        ChzzkLive live2 = new ChzzkLive(1002L, "방송2", "url", "게임", "chatCh2", 400, false, new Channel("ch2", "스트리머2", "imageUrl"));
+
+        ChzzkLiveResponse response = createMockResponse(List.of(live1, live2), null, null);
+        mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(response), MediaType.APPLICATION_JSON));
+
+        chzzkDiscoveryClient.fetchTopLiveStreams(200);
+
+        mockServer.verify();
+    }
+
+    @Test
+    void 순위_밖_방송_상세_조회_시에는_live_detail_API를_호출한다() throws Exception {
+        ChzzkLiveDetailResponse detailResponse = new ChzzkLiveDetailResponse(
+            new ChzzkLiveDetailResponse.Content(
+                "OPEN",
+                "chatCh1",
+                LocalDateTime.now(),
+                "순위 밖 방송",
+                "게임",
+                50,
+                1001L,
+                new Channel("ch1", "스트리머1", "imageUrl")
+            )
+        );
+        mockServer.expect(requestTo(buildLiveDetailApiUri("ch1")))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(detailResponse), MediaType.APPLICATION_JSON));
+
+        List<StreamTarget> result = chzzkDiscoveryClient.fetchLiveStreams(Set.of("ch1"));
+
+        mockServer.verify();
+        assertThat(result).hasSize(1);
+        StreamTarget target = result.get(0);
+        assertThat(target.channelName()).isEqualTo("스트리머1");
+        assertThat(target.chatChannelId()).isEqualTo("chatCh1");
+        assertThat(target.startedAt()).isNotNull();
     }
 
     @Test
     void API_응답_데이터가_비어있을_경우_빈_목록을_반환한다() throws Exception {
-        // Given
         ChzzkLiveResponse emptyResponse = createMockResponse(List.of(), null, null);
 
         mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
             .andRespond(withSuccess(objectMapper.writeValueAsString(emptyResponse), MediaType.APPLICATION_JSON));
 
-        // When
         List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(5);
 
-        // Then
         mockServer.verify();
         assertThat(result).isEmpty();
     }
 
     @Test
     void API_응답의_Content_내부_데이터가_null일_경우_빈_목록을_반환한다() throws Exception {
-        // Given
         ChzzkLiveResponse nullDataResponse = new ChzzkLiveResponse(new Content(0, null, null));
 
         mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
             .andRespond(withSuccess(objectMapper.writeValueAsString(nullDataResponse), MediaType.APPLICATION_JSON));
 
-        // When
         List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(5);
 
-        // Then
         mockServer.verify();
         assertThat(result).isEmpty();
     }
 
     @Test
     void API_호출이_실패하면_IngestionException을_던진다() {
-        // Given
         mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
             .andRespond(withServerError());
 
@@ -195,60 +255,6 @@ class ChzzkDiscoveryClientTest {
             .hasMessageContaining("API 호출 실패")
             .extracting("errorCode")
             .isEqualTo(ErrorCode.STREAM_PROVIDER_CLIENT_ERROR);
-    }
-
-    @Test
-    void 상위_라이브_스트림_매핑_시_목록_API_캐시_대신_상세_API의_최신_정보를_반영한다() throws Exception {
-        int limit = 1;
-        ChzzkLive live = new ChzzkLive(1001L, "과거 방제", "https://thumb.com/1_{type}.jpg", "과거 카테고리", "chatCh1", 9000, false, new Channel("ch1", "남봉", "imageUrl"));
-
-        ChzzkLiveResponse topLiveResponse = createMockResponse(List.of(live), null, null);
-        mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
-            .andRespond(withSuccess(objectMapper.writeValueAsString(topLiveResponse), MediaType.APPLICATION_JSON));
-
-        int latestViewers = 7000;
-        String latestTitle = "최신 방제: 리그오브레전드";
-        String latestCategory = "리그 오브 레전드";
-        ChzzkLiveDetailResponse detailResponse = new ChzzkLiveDetailResponse(
-            new ChzzkLiveDetailResponse.Content(
-                "OPEN",
-                "chatCh1",
-                LocalDateTime.now(),
-                latestTitle,
-                latestCategory,
-                latestViewers,
-                live.liveId(),
-                live.channel()
-            )
-        );
-        mockServer.expect(requestTo(buildLiveDetailApiUri(live.channel().channelId())))
-            .andRespond(withSuccess(objectMapper.writeValueAsString(detailResponse), MediaType.APPLICATION_JSON));
-
-        List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(limit);
-
-        mockServer.verify();
-        assertThat(result).hasSize(1);
-        StreamTarget target = result.get(0);
-        assertThat(target.concurrentUserCount()).isEqualTo(latestViewers);
-        assertThat(target.liveTitle()).isEqualTo(latestTitle);
-        assertThat(target.categoryName()).isEqualTo(latestCategory);
-    }
-
-    private void mockDetailApi(ChzzkLive live, String chatChannelId) throws Exception {
-        ChzzkLiveDetailResponse detailResponse = new ChzzkLiveDetailResponse(
-            new ChzzkLiveDetailResponse.Content(
-                "OPEN", 
-                chatChannelId, 
-                LocalDateTime.now(),
-                live.liveTitle(),
-                live.liveCategoryValue(),
-                live.concurrentUserCount(),
-                live.liveId(),
-                live.channel()
-            )
-        );
-        mockServer.expect(requestTo(buildLiveDetailApiUri(live.channel().channelId())))
-            .andRespond(withSuccess(objectMapper.writeValueAsString(detailResponse), MediaType.APPLICATION_JSON));
     }
 
     private ChzzkLiveResponse createMockResponse(List<ChzzkLive> data, Long nextViewers, Long nextLiveId) {

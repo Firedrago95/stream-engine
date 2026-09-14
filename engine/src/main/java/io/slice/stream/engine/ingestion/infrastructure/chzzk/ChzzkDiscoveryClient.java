@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -52,12 +53,14 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
         delay = 400
     )
     public List<StreamTarget> fetchTopLiveStreams(int limit) {
-        List<ChzzkLive> topLives = fetchTopLives(limit);
+        List<ChzzkLive> topLives = fetchTopLives();
 
         if (topLives.isEmpty()) {
             return Collections.emptyList();
         }
-        return fetchAllLiveDetailsConcurrently(topLives);
+        return topLives.stream()
+            .map(this::convertToStreamTarget)
+            .toList();
     }
 
     @Override
@@ -99,15 +102,32 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
         );
     }
 
-    private List<ChzzkLive> fetchTopLives(int limit) {
+    private StreamTarget convertToStreamTarget(ChzzkLive live) {
+        return new StreamTarget(
+            live.channel().channelId(),
+            live.channel().channelName(),
+            null,
+            live.liveId(),
+            live.liveTitle(),
+            live.concurrentUserCount(),
+            live.channel().channelImageUrl(),
+            live.liveCategoryValue(),
+            null
+        );
+    }
+
+    private List<ChzzkLive> fetchTopLives() {
         List<ChzzkLive> collectedLives = new ArrayList<>();
 
         Long nextConcurrentUserCount = null;
         Long nextLiveId = null;
+        int pageCount = 0;
+        Set<String> visitedCursors = new HashSet<>();
 
-        log.info("[Chzzk API] TopLive 랭킹 조회 시작 (목표 수량: {})", limit);
+        log.info("[Chzzk API] TopLive 랭킹 전수 조사 시작");
 
-        while (collectedLives.size() < limit) {
+        while (true) {
+            pageCount++;
             String topLiveUri = buildTopLiveApiUri(50, nextConcurrentUserCount, nextLiveId);
             ChzzkLiveResponse topLiveResponse = callTopLivesApi(topLiveUri);
 
@@ -116,65 +136,47 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
                 break;
             }
 
-            // 연령제한 방송 필터링
-            List<ChzzkLive> validLives = topLiveResponse.content().data().stream()
+            List<ChzzkLive> data = topLiveResponse.content().data();
+
+            List<ChzzkLive> validLives = data.stream()
                 .filter(live -> !live.adult())
                 .toList();
 
             collectedLives.addAll(validLives);
 
-            // 페이지 정보가 있는 경우 갱신 (다음 페이지 조회 필요시 사용)
+            ChzzkLive lastLive = data.get(data.size() - 1);
+            if (lastLive.concurrentUserCount() == 0) {
+                break;
+            }
+
             Page page = topLiveResponse.content().page();
-            if (page != null && page.next() != null) {
-                nextConcurrentUserCount = page.next().concurrentUserCount();
-                nextLiveId = page.next().liveId();
-            } else {
+            if (page == null || page.next() == null) {
+                break;
+            }
+
+            nextConcurrentUserCount = page.next().concurrentUserCount();
+            nextLiveId = page.next().liveId();
+
+            if (nextConcurrentUserCount == null || nextLiveId == null) {
+                break;
+            }
+
+            String cursorKey = nextConcurrentUserCount + ":" + nextLiveId;
+            if (!visitedCursors.add(cursorKey)) {
+                log.warn("[Chzzk API] 동일 커서 반복 감지로 순회를 중단합니다: {}", cursorKey);
+                break;
+            }
+
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 break;
             }
         }
 
-        List<ChzzkLive> result = collectedLives.size() > limit
-            ? collectedLives.subList(0, limit)
-            : collectedLives;
-        log.info("[Chzzk  API] TopLive 랭킹 수집 완료 (수집: {}/건)", result.size());
-        return result;
-    }
-
-    private List<StreamTarget> fetchAllLiveDetailsConcurrently(List<ChzzkLive> lives) {
-        log.info("[Chzzk API] {}개의 방송 상세 정보(LiveDetail) 병렬 조회 시작", lives.size());
-        List<CompletableFuture<StreamTarget>> futures = lives.stream()
-            .map(live -> CompletableFuture.supplyAsync(() -> {
-                rateLimiter.acquire();
-                return convertToStreamTarget(live);
-            }, virtualThreadExecutor)).toList();
-
-        try {
-            List<StreamTarget> results = futures.stream()
-                .map(CompletableFuture::join)
-                .filter(Objects::nonNull)
-                .toList();
-
-            log.info("[Chzzk API] 방송 상세 정보 조회 완료 (성공: {}/건)", results.size());
-            return results;
-        } catch (Exception e) {
-            log.warn("상세 정보 조회 전체 대기 중 작업이 중단되었습니다.",e);
-            return Collections.emptyList();
-        }
-    }
-
-    private StreamTarget convertToStreamTarget(ChzzkLive topLive) {
-        String channelId = topLive.channel().channelId();
-        try {
-            log.debug("채널 id로 상세 조회 시작: {}", channelId);
-            Content detailContent = fetchLiveDetail(channelId);
-            if (detailContent == null || !"OPEN".equals(detailContent.status())) {
-                return null;
-            }
-            return convertToStreamTarget(detailContent);
-        } catch (Exception e) {
-            log.warn("방송 상세 정보 조회 중 에러 발생. channelName: {}", topLive.channel().channelName());
-            return null;
-        }
+        log.info("[Chzzk API] TopLive 랭킹 전수 수집 완료 (수집: {}/건, 순회 페이지: {})", collectedLives.size(), pageCount);
+        return collectedLives;
     }
 
     private ChzzkLiveDetailResponse.Content fetchLiveDetail(String channelId) {

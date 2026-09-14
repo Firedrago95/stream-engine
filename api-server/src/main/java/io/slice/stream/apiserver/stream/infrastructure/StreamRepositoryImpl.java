@@ -3,6 +3,7 @@ package io.slice.stream.apiserver.stream.infrastructure;
 import io.slice.stream.apiserver.stream.domain.StreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,14 @@ public class StreamRepositoryImpl implements StreamRepository {
     @Override
     public List<StreamEntity> findActiveStreams(Instant threshold) {
         return jpaStreamRepository.findActiveStreams(threshold);
+    }
+
+    @Override
+    public List<StreamEntity> findActiveStreamsByStreamIds(List<String> streamIds, Instant threshold) {
+        if (streamIds == null || streamIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return jpaStreamRepository.findActiveStreamsByStreamIds(streamIds, threshold);
     }
 
     @Override

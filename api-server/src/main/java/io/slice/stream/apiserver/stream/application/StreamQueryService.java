@@ -7,10 +7,13 @@ import io.slice.stream.apiserver.stream.domain.StreamRepository;
 import io.slice.stream.apiserver.stream.domain.StreamStatus;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamResponse;
+import io.slice.stream.apiserver.stream.targeting.TargetStreamerService;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -33,6 +36,7 @@ public class StreamQueryService {
 
     private final StreamRepository streamRepository;
     private final AnalysisRepository analysisRepository;
+    private final TargetStreamerService targetStreamerService;
     private final StringRedisTemplate redisTemplate;
     private final JsonMapper jsonMapper;
 
@@ -49,10 +53,17 @@ public class StreamQueryService {
         Instant threshold = Instant.now().minus(3, ChronoUnit.MINUTES);
         List<StreamEntity> activeStreams;
 
+        List<String> targetIds = targetStreamerService.getActiveTargetChannelIds();
+        Set<String> targetIdSet = (targetIds != null) ? new HashSet<>(targetIds) : Collections.emptySet();
+
         if (!isAllSearch) {
             activeStreams = streamRepository.searchByStreamerName(keyword, threshold);
         } else {
-            activeStreams = streamRepository.findActiveStreams(threshold);
+            if (!targetIdSet.isEmpty()) {
+                activeStreams = streamRepository.findActiveStreamsByStreamIds(new ArrayList<>(targetIdSet), threshold);
+            } else {
+                activeStreams = streamRepository.findActiveStreams(threshold);
+            }
         }
 
         Set<String> streamIds = activeStreams.stream()
@@ -72,7 +83,7 @@ public class StreamQueryService {
                 s.getConcurrentUserCount(),
                 StreamStatus.determine(
                     s.isLive() && s.getLastUpdateAt().isAfter(threshold),
-                    analyzingIds.contains(s.getStreamId()))
+                    analyzingIds.contains(s.getStreamId()) || targetIdSet.contains(s.getStreamId()))
             ))
             .toList();
 
@@ -90,6 +101,8 @@ public class StreamQueryService {
         Instant signalThreshold = Instant.now().minus(5, ChronoUnit.MINUTES);
 
         Set<String> analyzingIds = analysisRepository.findChannelsWithRecentSignals(Set.of(streamId), signalThreshold);
+        List<String> targetIds = targetStreamerService.getActiveTargetChannelIds();
+        boolean isTarget = targetIds != null && targetIds.contains(streamId);
 
         return new StreamResponse(
             s.getStreamId(),
@@ -100,7 +113,7 @@ public class StreamQueryService {
             s.getConcurrentUserCount(),
             StreamStatus.determine(
                 s.isLive() && s.getLastUpdateAt().isAfter(threshold),
-                analyzingIds.contains(streamId))
+                analyzingIds.contains(streamId) || isTarget)
         );
     }
 
