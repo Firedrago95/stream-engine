@@ -4,6 +4,8 @@ import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntit
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -30,8 +32,13 @@ public interface JpaStreamSessionRepository extends JpaRepository<StreamSessionE
         """)
     List<StreamSessionEntity> findSessionsToClose(@Param("threshold") Instant threshold);
 
+    Page<StreamSessionEntity> findByStreamIdOrderByStartedAtDesc(String streamId, Pageable pageable);
+
+    @Query("SELECT ss FROM StreamSessionEntity ss WHERE ss.streamId = :streamId AND ss.startedAt >= :since")
+    List<StreamSessionEntity> findSessionsSince(@Param("streamId") String streamId, @Param("since") Instant since);
+
     @Query("SELECT ss FROM StreamSessionEntity ss WHERE ss.streamId = :streamId ORDER BY ss.startedAt DESC")
-    List<StreamSessionEntity> findRecentSessionsByStreamId(@Param("streamId") String streamId, org.springframework.data.domain.Pageable pageable);
+    List<StreamSessionEntity> findRecentSessionsByStreamId(@Param("streamId") String streamId, Pageable pageable);
 
     @Query("""
         SELECT ss
