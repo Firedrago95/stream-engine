@@ -54,7 +54,16 @@ public class TargetStreamPool {
     private static final RedisScript<Long> SYNC_TARGETS_SCRIPT = RedisScript.of(
         "redis.call('DEL', KEYS[1])\n" +
         "if #ARGV > 0 then\n" +
-        "    redis.call('SADD', KEYS[1], unpack(ARGV))\n" +
+        "    local unpack = table.unpack or unpack\n" +
+        "    for i = 1, #ARGV, 1000 do\n" +
+        "        local chunk = {}\n" +
+        "        for j = i, math.min(i + 999, #ARGV) do\n" +
+        "            table.insert(chunk, ARGV[j])\n" +
+        "        end\n" +
+        "        if #chunk > 0 then\n" +
+        "            redis.call('SADD', KEYS[1], unpack(chunk))\n" +
+        "        end\n" +
+        "    end\n" +
         "end\n" +
         "return 1\n",
         Long.class
