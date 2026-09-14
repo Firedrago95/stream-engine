@@ -9,5 +9,18 @@ public record StreamResponse(
     String profileImageUrl,
     String categoryName,
     int concurrentUserCount,
-    StreamStatus status
-) {}
+    StreamStatus status,
+    int averageViewers
+) {
+    public StreamResponse(
+        String streamId,
+        String streamerName,
+        String liveTitle,
+        String profileImageUrl,
+        String categoryName,
+        int concurrentUserCount,
+        StreamStatus status
+    ) {
+        this(streamId, streamerName, liveTitle, profileImageUrl, categoryName, concurrentUserCount, status, 0);
+    }
+}

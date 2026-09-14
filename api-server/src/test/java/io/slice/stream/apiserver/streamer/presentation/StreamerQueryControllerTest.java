@@ -60,7 +60,8 @@ class StreamerQueryControllerTest {
             "https://img.png",
             "토크",
             1200,
-            StreamStatus.LIVE
+            StreamStatus.LIVE,
+            3500
         );
         given(leaderboardQueryService.getLeaderboard(null)).willReturn(List.of(item));
 
@@ -69,7 +70,8 @@ class StreamerQueryControllerTest {
             .andExpect(jsonPath("$[0].streamId").value("ch_test"))
             .andExpect(jsonPath("$[0].streamerName").value("테스트스트리머"))
             .andExpect(jsonPath("$[0].status").value("LIVE"))
-            .andExpect(jsonPath("$[0].concurrentUserCount").value(1200));
+            .andExpect(jsonPath("$[0].concurrentUserCount").value(1200))
+            .andExpect(jsonPath("$[0].averageViewers").value(3500));
     }
 
     @Test

@@ -87,7 +87,7 @@ export const StreamerStatsPage: React.FC = () => {
             <div className="flex items-center gap-4">
               <span className="text-2xl">👑</span>
               <div>
-                <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">현재 시청자 1위</p>
+                <p className="text-xs text-[#00FFA3] font-bold uppercase tracking-wider">30일 체급 1위</p>
                 <h3 className="text-lg font-black text-white group-hover:text-[#00FFA3] transition-colors">
                   {topViewers.streamerName}
                 </h3>
@@ -95,10 +95,10 @@ export const StreamerStatsPage: React.FC = () => {
               </div>
             </div>
             <div className="text-right font-mono">
-              <p className="text-xl font-black text-[#00FFA3]">
-                {(topViewers.concurrentUserCount ?? 0).toLocaleString()}명
+              <p className="text-xl font-black text-white">
+                {(topViewers.averageViewers ?? topViewers.concurrentUserCount ?? 0).toLocaleString()}명
               </p>
-              <span className="text-[11px] text-gray-400">실시간 라이브</span>
+              <span className="text-[11px] text-[#00FFA3] font-semibold">30일 평균 시청자</span>
             </div>
           </div>
         )}
@@ -109,9 +109,9 @@ export const StreamerStatsPage: React.FC = () => {
             <div>
               <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">실시간 방송 현황</p>
               <h3 className="text-lg font-black text-white">
-                {activeLiveCount}개 방송 중 <span className="text-xs text-gray-400 font-normal">/ 총 {streams.length}명 관리</span>
+                {activeLiveCount}개 방송 중 <span className="text-xs text-gray-400 font-normal">/ Top {streams.length}</span>
               </h3>
-              <p className="text-xs text-gray-400">순수 체급 랭킹 자동 집계 진행</p>
+              <p className="text-xs text-gray-400">매일 새벽 04:00 자동 정산</p>
             </div>
           </div>
           <div className="text-right font-mono">
@@ -131,7 +131,7 @@ export const StreamerStatsPage: React.FC = () => {
             </h3>
           </div>
           <span className="text-xs text-gray-400 font-mono">
-            {streams.length}명 등록
+            {streams.length}명 랭크
           </span>
         </div>
 
@@ -148,6 +148,17 @@ export const StreamerStatsPage: React.FC = () => {
                   <th className="py-3 px-3 w-12 text-center">순위</th>
                   <th className="py-3 px-4">스트리머</th>
                   <th className="py-3 px-4">주력 카테고리</th>
+                  <th className="py-3 px-4 text-right">
+                    <div className="inline-flex items-center gap-1 cursor-help group/tip relative">
+                      <span>30일 평균 시청자</span>
+                      <svg className="w-3.5 h-3.5 text-gray-400 group-hover/tip:text-[#00FFA3] transition-colors fill-current" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      <div className="absolute right-0 bottom-full mb-2 hidden group-hover/tip:block w-64 p-3 bg-[#18181c] border border-gray-700 text-[11px] text-gray-200 rounded-xl shadow-2xl z-50 font-normal leading-relaxed text-left backdrop-blur-md">
+                        💡 최근 30일간의 방송 세션 데이터를 바탕으로 산출된 순수 체급 지표입니다. (매일 새벽 04:00 정기 갱신)
+                      </div>
+                    </div>
+                  </th>
                   <th className="py-3 px-4 text-right">실시간 시청자</th>
                   <th className="py-3 px-4 text-center">방송 상태</th>
                   <th className="py-3 px-4 text-center w-24">전적 분석</th>
@@ -205,6 +216,12 @@ export const StreamerStatsPage: React.FC = () => {
                         <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-[#13221a] text-[#00FFA3]/90 border border-[#00FFA3]/30 tracking-wide shadow-xs">
                           {stream.categoryName || '기타'}
                         </span>
+                      </td>
+
+                      <td className="py-3.5 px-4 text-right font-bold text-gray-100">
+                        {(stream.averageViewers ?? 0) > 0
+                          ? `${(stream.averageViewers ?? 0).toLocaleString()}명`
+                          : '-'}
                       </td>
 
                       <td className="py-3.5 px-4 text-right font-bold text-[#00FFA3]">

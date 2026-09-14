@@ -2,6 +2,7 @@ package io.slice.stream.apiserver.stream.infrastructure;
 
 import io.slice.stream.apiserver.stream.domain.StreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
+import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardProjection;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -51,5 +52,15 @@ public class StreamRepositoryImpl implements StreamRepository {
     @Override
     public List<StreamEntity> searchAllStreamersForLeaderboard(String keyword) {
         return jpaStreamRepository.searchAllStreamersForLeaderboard(keyword);
+    }
+
+    @Override
+    public List<StreamerLeaderboardProjection> findTopStreamersWith30dAvg(Instant since, int limit) {
+        return jpaStreamRepository.findTopStreamersWith30dAvg(since, limit);
+    }
+
+    @Override
+    public List<StreamerLeaderboardProjection> searchTopStreamersWith30dAvg(String keyword, Instant since, int limit) {
+        return jpaStreamRepository.searchTopStreamersWith30dAvg(keyword, since, limit);
     }
 }

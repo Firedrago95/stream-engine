@@ -1,6 +1,7 @@
 package io.slice.stream.apiserver.stream.infrastructure;
 
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
+import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardProjection;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -80,4 +81,60 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
            ORDER BY s.concurrentUserCount DESC, s.id DESC
            """)
     List<StreamEntity> searchAllStreamersForLeaderboard(@Param("keyword") String keyword);
+
+    @Query(value = """
+        SELECT 
+            s.stream_id AS streamId,
+            s.streamer_name AS streamerName,
+            s.live_title AS liveTitle,
+            s.profile_image_url AS profileImageUrl,
+            s.category_name AS categoryName,
+            s.is_live AS isLive,
+            s.last_update_at AS lastUpdateAt,
+            s.concurrent_user_count AS concurrentUserCount,
+            CAST(COALESCE(sub.avg_viewers, s.concurrent_user_count) AS integer) AS averageViewers
+        FROM streams s
+        LEFT JOIN (
+            SELECT ss.stream_id, ROUND(AVG(ss.average_viewer_count)) AS avg_viewers
+            FROM stream_sessions ss
+            WHERE ss.started_at >= :since
+              AND ss.average_viewer_count > 0
+            GROUP BY ss.stream_id
+        ) sub ON s.stream_id = sub.stream_id
+        ORDER BY averageViewers DESC, s.id DESC
+        LIMIT :limit
+        """, nativeQuery = true)
+    List<StreamerLeaderboardProjection> findTopStreamersWith30dAvg(
+        @Param("since") Instant since,
+        @Param("limit") int limit
+    );
+
+    @Query(value = """
+        SELECT 
+            s.stream_id AS streamId,
+            s.streamer_name AS streamerName,
+            s.live_title AS liveTitle,
+            s.profile_image_url AS profileImageUrl,
+            s.category_name AS categoryName,
+            s.is_live AS isLive,
+            s.last_update_at AS lastUpdateAt,
+            s.concurrent_user_count AS concurrentUserCount,
+            CAST(COALESCE(sub.avg_viewers, s.concurrent_user_count) AS integer) AS averageViewers
+        FROM streams s
+        LEFT JOIN (
+            SELECT ss.stream_id, ROUND(AVG(ss.average_viewer_count)) AS avg_viewers
+            FROM stream_sessions ss
+            WHERE ss.started_at >= :since
+              AND ss.average_viewer_count > 0
+            GROUP BY ss.stream_id
+        ) sub ON s.stream_id = sub.stream_id
+        WHERE LOWER(s.streamer_name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+        ORDER BY averageViewers DESC, s.id DESC
+        LIMIT :limit
+        """, nativeQuery = true)
+    List<StreamerLeaderboardProjection> searchTopStreamersWith30dAvg(
+        @Param("keyword") String keyword,
+        @Param("since") Instant since,
+        @Param("limit") int limit
+    );
 }
