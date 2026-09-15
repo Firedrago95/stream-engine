@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardProjection;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -36,22 +37,40 @@ class TargetStreamerServiceTest {
     private TargetStreamerService targetStreamerService;
 
     @Test
-    void 활성_수동_공식_채널과_검증된_정규_활동_스트리머_목록이_중복없이_정상_병합된다() {
+    void 활성_수동_공식_채널과_검증된_정규_활동_스트리머로_300명이_채워진_경우_실시간_보충을_호출하지_않는다() {
         TargetStreamerEntity official = new TargetStreamerEntity("ch_official", "공식 채널", TargetType.STATIC, true);
-        TargetStreamerEntity custom = new TargetStreamerEntity("ch_custom", "인기 스트리머", TargetType.CUSTOM, true);
+        List<StreamerLeaderboardProjection> verifiedStreamers = new ArrayList<>();
+        for (int i = 1; i <= 299; i++) {
+            verifiedStreamers.add(createProjection("ch_trend_" + i));
+        }
 
-        StreamerLeaderboardProjection p1 = createProjection("ch_custom");
-        StreamerLeaderboardProjection p2 = createProjection("ch_trend1");
-        StreamerLeaderboardProjection p3 = createProjection("ch_trend2");
-
-        when(targetStreamerRepository.findAllByIsActiveTrue()).thenReturn(List.of(official, custom));
+        when(targetStreamerRepository.findAllByIsActiveTrue()).thenReturn(List.of(official));
         when(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), eq(5), eq(300)))
-            .thenReturn(List.of(p1, p2, p3));
+            .thenReturn(verifiedStreamers);
 
         List<String> results = targetStreamerService.getActiveTargetChannelIds();
 
-        assertThat(results).containsExactly("ch_official", "ch_custom", "ch_trend1", "ch_trend2");
-        verify(streamRepository, never()).findTopStreamIdsByConcurrentUserCount(any());
+        assertThat(results).hasSize(300);
+        assertThat(results).contains("ch_official", "ch_trend_1", "ch_trend_299");
+        verify(streamRepository, never()).findTopStreamIdsByConcurrentUserCount(any(Instant.class), any());
+    }
+
+    @Test
+    void 정규_활동_스트리머가_300명_미만일_경우_300명이_될_때까지_실시간_시청자수_순으로_보충한다() {
+        TargetStreamerEntity official = new TargetStreamerEntity("ch_official", "공식 채널", TargetType.STATIC, true);
+        StreamerLeaderboardProjection p1 = createProjection("ch_trend1");
+        StreamerLeaderboardProjection p2 = createProjection("ch_trend2");
+
+        when(targetStreamerRepository.findAllByIsActiveTrue()).thenReturn(List.of(official));
+        when(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), eq(5), eq(300)))
+            .thenReturn(List.of(p1, p2));
+        when(streamRepository.findTopStreamIdsByConcurrentUserCount(any(Instant.class), eq(PageRequest.of(0, 300))))
+            .thenReturn(List.of("ch_realtime1", "ch_trend1", "ch_realtime2"));
+
+        List<String> results = targetStreamerService.getActiveTargetChannelIds();
+
+        assertThat(results).containsExactly("ch_official", "ch_trend1", "ch_trend2", "ch_realtime1", "ch_realtime2");
+        verify(streamRepository).findTopStreamIdsByConcurrentUserCount(any(Instant.class), eq(PageRequest.of(0, 300)));
     }
 
     @Test
@@ -61,13 +80,13 @@ class TargetStreamerServiceTest {
         when(targetStreamerRepository.findAllByIsActiveTrue()).thenReturn(List.of(official));
         when(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), anyInt(), anyInt()))
             .thenReturn(Collections.emptyList());
-        when(streamRepository.findTopStreamIdsByConcurrentUserCount(PageRequest.of(0, 300)))
+        when(streamRepository.findTopStreamIdsByConcurrentUserCount(any(Instant.class), eq(PageRequest.of(0, 300))))
             .thenReturn(List.of("ch_fallback1", "ch_fallback2"));
 
         List<String> results = targetStreamerService.getActiveTargetChannelIds();
 
         assertThat(results).containsExactly("ch_official", "ch_fallback1", "ch_fallback2");
-        verify(streamRepository).findTopStreamIdsByConcurrentUserCount(PageRequest.of(0, 300));
+        verify(streamRepository).findTopStreamIdsByConcurrentUserCount(any(Instant.class), eq(PageRequest.of(0, 300)));
     }
 
     private StreamerLeaderboardProjection createProjection(String streamId) {

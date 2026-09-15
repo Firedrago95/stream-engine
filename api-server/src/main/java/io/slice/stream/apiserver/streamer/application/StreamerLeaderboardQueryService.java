@@ -19,6 +19,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,7 +78,58 @@ public class StreamerLeaderboardQueryService {
         List<StreamerLeaderboardProjection> topStreamers =
             streamRepository.findTopStreamersWith30dAvg(since, MIN_DAYS, DEFAULT_TOP_LIMIT);
 
-        List<StreamResponse> calculated = bindRealtimeLiveStatus(topStreamers);
+        List<StreamResponse> calculated = new ArrayList<>(bindRealtimeLiveStatus(topStreamers));
+
+        if (calculated.size() < DEFAULT_TOP_LIMIT) {
+            Set<String> existingIds = calculated.stream()
+                .map(StreamResponse::streamId)
+                .collect(Collectors.toSet());
+
+            Instant threshold = Instant.now().minus(3, ChronoUnit.MINUTES);
+            Instant signalThreshold = Instant.now().minus(5, ChronoUnit.MINUTES);
+            List<String> targetIds = targetStreamerService.getActiveTargetChannelIds();
+            Set<String> targetIdSet = targetIds != null ? new HashSet<>(targetIds) : Collections.emptySet();
+
+            List<StreamEntity> allStreamers = streamRepository.findAllStreamersForLeaderboard(since, PageRequest.of(0, DEFAULT_TOP_LIMIT));
+            if (allStreamers != null) {
+                List<StreamEntity> candidates = allStreamers.stream()
+                    .filter(entity -> !existingIds.contains(entity.getStreamId()))
+                    .toList();
+
+                Set<String> candidateIds = candidates.stream()
+                    .map(StreamEntity::getStreamId)
+                    .collect(Collectors.toSet());
+                Set<String> analyzingIds = candidateIds.isEmpty()
+                    ? Collections.emptySet()
+                    : analysisRepository.findChannelsWithRecentSignals(candidateIds, signalThreshold);
+
+                for (StreamEntity entity : candidates) {
+                    if (calculated.size() >= DEFAULT_TOP_LIMIT) {
+                        break;
+                    }
+
+                    boolean isLive = entity.isLive() && entity.getLastUpdateAt() != null && entity.getLastUpdateAt().isAfter(threshold);
+                    StreamStatus status = StreamStatus.determine(
+                        isLive,
+                        analyzingIds.contains(entity.getStreamId()) || targetIdSet.contains(entity.getStreamId())
+                    );
+                    int displayViewers = isLive ? entity.getConcurrentUserCount() : 0;
+                    calculated.add(new StreamResponse(
+                        entity.getStreamId(),
+                        entity.getStreamerName(),
+                        entity.getLiveTitle(),
+                        entity.getProfileImageUrl(),
+                        entity.getCategoryName(),
+                        displayViewers,
+                        status,
+                        entity.getConcurrentUserCount()
+                    ));
+                    existingIds.add(entity.getStreamId());
+                }
+            }
+            log.info("[Leaderboard] 정규 활동 스트리머가 부족하여 실시간 시청자 순으로 보충 정산 완료 (총 {}명)", calculated.size());
+        }
+
         if (!calculated.isEmpty()) {
             writeToRedis(calculated);
         }

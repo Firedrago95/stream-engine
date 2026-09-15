@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
 import io.slice.stream.apiserver.stream.domain.StreamRepository;
@@ -18,12 +19,14 @@ import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardP
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import tools.jackson.core.type.TypeReference;
@@ -171,6 +174,40 @@ class StreamerLeaderboardQueryServiceTest {
         assertThat(item.status()).isEqualTo(StreamStatus.LIVE);
         assertThat(item.concurrentUserCount()).isEqualTo(45000);
         assertThat(item.averageViewers()).isEqualTo(30074);
+    }
+
+    @Test
+    @DisplayName("정규 활동 스트리머가 100명 미만일 때 전체 스트리머 시청자순으로 100명을 보충한다")
+    void refreshDailyLeaderboard_whenVerifiedLessThanLimit_fillsUpFromAllStreamers() {
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+
+        StreamerLeaderboardProjection p1 = createProjection("ch_verified", "검증스트리머", "종합게임", 5000, 3000, true, Instant.now());
+        given(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), eq(5), eq(100)))
+            .willReturn(List.of(p1));
+
+        StreamEntity s1 = new StreamEntity("ch_verified", "검증스트리머");
+        s1.heartbeat("검증스트리머", "방제1", "https://img.png", "종합게임", 3000);
+
+        StreamEntity s2 = new StreamEntity("ch_fillup", "보충스트리머");
+        s2.heartbeat("보충스트리머", "방제2", "https://img.png", "소통", 2000);
+
+        given(streamRepository.findAllStreamersForLeaderboard(any(Instant.class), any(Pageable.class)))
+            .willReturn(List.of(s1, s2));
+        given(targetStreamerService.getActiveTargetChannelIds())
+            .willReturn(Collections.emptyList());
+        given(analysisRepository.findChannelsWithRecentSignals(anySet(), any(Instant.class)))
+            .willReturn(Collections.emptySet());
+
+        List<StreamResponse> result = leaderboardQueryService.refreshDailyLeaderboard();
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).streamId()).isEqualTo("ch_verified");
+        assertThat(result.get(0).averageViewers()).isEqualTo(5000);
+        assertThat(result.get(1).streamId()).isEqualTo("ch_fillup");
+        assertThat(result.get(1).streamerName()).isEqualTo("보충스트리머");
+        assertThat(result.get(1).averageViewers()).isEqualTo(2000);
+        verify(analysisRepository).findChannelsWithRecentSignals(eq(Set.of("ch_verified")), any(Instant.class));
+        verify(analysisRepository).findChannelsWithRecentSignals(eq(Set.of("ch_fillup")), any(Instant.class));
     }
 
     private StreamerLeaderboardProjection createProjection(

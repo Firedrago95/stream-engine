@@ -1,6 +1,8 @@
 package io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -32,8 +34,23 @@ public record ChzzkLiveResponse(
             String chatChannelId,
             int concurrentUserCount,
             boolean adult,
+            @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Seoul")
+            LocalDateTime openDate,
             Channel channel
         ) {
+            public ChzzkLive(
+                long liveId,
+                String liveTitle,
+                String liveImageUrl,
+                String liveCategoryValue,
+                String chatChannelId,
+                int concurrentUserCount,
+                boolean adult,
+                Channel channel
+            ) {
+                this(liveId, liveTitle, liveImageUrl, liveCategoryValue, chatChannelId, concurrentUserCount, adult, null, channel);
+            }
+
             public record Channel(
                 String channelId,
                 String channelName,

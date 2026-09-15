@@ -19,6 +19,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @DataJpaTest
@@ -337,5 +338,34 @@ class StreamRepositoryImplTest implements PostgresTestSupport {
 
         assertThat(results).extracting(StreamerLeaderboardProjection::getStreamId)
             .doesNotContain("multi-one-day");
+    }
+
+    @Test
+    void 최근_30일_이내에_활동한_스트리머만_리더보드_보충용으로_시청자순_조회된다() {
+        Instant now = Instant.now();
+        Instant since = now.minus(30, ChronoUnit.DAYS);
+
+        StreamEntity recentStream1 = new StreamEntity("s-recent-1", "최근스트리머1");
+        recentStream1.heartbeat("최근스트리머1", "방송", "url", "게임", 500);
+
+        StreamEntity recentStream2 = new StreamEntity("s-recent-2", "최근스트리머2");
+        recentStream2.heartbeat("최근스트리머2", "방송", "url", "게임", 1500);
+
+        StreamEntity oldStream = new StreamEntity("s-old", "과거스트리머");
+        oldStream.heartbeat("과거스트리머", "과거방송", "url", "게임", 5000);
+        ReflectionTestUtils.setField(oldStream, "lastUpdateAt", now.minus(40, ChronoUnit.DAYS));
+
+        jpaStreamRepository.saveAll(List.of(recentStream1, recentStream2, oldStream));
+
+        List<StreamEntity> results = repository.findAllStreamersForLeaderboard(since, PageRequest.of(0, 10));
+
+        assertThat(results).hasSize(2);
+        assertThat(results.get(0).getStreamId()).isEqualTo("s-recent-2");
+        assertThat(results.get(1).getStreamId()).isEqualTo("s-recent-1");
+        assertThat(results).extracting(StreamEntity::getStreamId).doesNotContain("s-old");
+
+        List<StreamEntity> pagedResults = repository.findAllStreamersForLeaderboard(since, PageRequest.of(0, 1));
+        assertThat(pagedResults).hasSize(1);
+        assertThat(pagedResults.get(0).getStreamId()).isEqualTo("s-recent-2");
     }
 }

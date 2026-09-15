@@ -5,7 +5,6 @@ import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardP
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -42,17 +41,25 @@ public class TargetStreamerService {
         List<StreamerLeaderboardProjection> verifiedStreamers =
             streamRepository.findTopStreamersWith30dAvg(thirtyDaysAgo, MIN_DAYS, TARGET_STREAMER_LIMIT);
 
-        List<String> trendChannels = (verifiedStreamers != null && !verifiedStreamers.isEmpty())
-            ? verifiedStreamers.stream().map(StreamerLeaderboardProjection::getStreamId).toList()
-            : Collections.emptyList();
-
-        if (trendChannels.isEmpty()) {
-            log.info("[Targeting] 정규 활동 스트리머 데이터가 부족하여 실시간 시청자 수 기반으로 대체합니다.");
-            trendChannels = streamRepository.findTopStreamIdsByConcurrentUserCount(PageRequest.of(0, TARGET_STREAMER_LIMIT));
+        if (verifiedStreamers != null) {
+            for (StreamerLeaderboardProjection streamer : verifiedStreamers) {
+                targetChannelIds.add(streamer.getStreamId());
+            }
         }
 
-        if (trendChannels != null) {
-            targetChannelIds.addAll(trendChannels);
+        if (targetChannelIds.size() < TARGET_STREAMER_LIMIT) {
+            int needed = TARGET_STREAMER_LIMIT - targetChannelIds.size();
+            log.info("[Targeting] 활동 스트리머가 목표치(300명)에 미달하여 실시간 시청자 순으로 보충합니다. (현재: {}명, 필요: {}명)",
+                targetChannelIds.size(), needed);
+            List<String> realtimeTopChannels = streamRepository.findTopStreamIdsByConcurrentUserCount(thirtyDaysAgo, PageRequest.of(0, TARGET_STREAMER_LIMIT));
+            if (realtimeTopChannels != null) {
+                for (String channelId : realtimeTopChannels) {
+                    targetChannelIds.add(channelId);
+                    if (targetChannelIds.size() >= TARGET_STREAMER_LIMIT) {
+                        break;
+                    }
+                }
+            }
         }
 
         log.info("[Targeting] 활성 타겟 채널 목록 조회 완료 (총 {}개)", targetChannelIds.size());

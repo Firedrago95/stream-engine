@@ -21,6 +21,7 @@ import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
 import io.slice.stream.engine.ingestion.domain.service.StreamUpdateAnalyzer;
 import io.slice.stream.engine.ingestion.domain.targeting.TargetStreamPool;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient;
+import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSyncRequest;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -274,5 +275,44 @@ class IngestionServiceTest {
         verify(streamRepository).getStreamTargets(captor.capture());
 
         assertThat(captor.getValue()).containsExactlyInAnyOrder("ch1", "ch_closed");
+    }
+
+    @Test
+    void 타겟_채널에_대해서는_상세_조회된_실시간_시청자수와_메타데이터로_병합하여_API_서버에_동기화한다() {
+        Instant detailedStartedAt = Instant.parse("2026-09-15T10:00:00Z");
+        StreamTarget targetCached = new StreamTarget("ch1", "침착맨", null, 1001L, "침착맨 방송", 1000, "url1", "소통", null);
+        StreamTarget nonTarget = new StreamTarget("ch2", "비타겟", null, 1002L, "일반 방송", 500, "url2", "게임", null);
+        StreamTarget targetDetailed = new StreamTarget("ch1", "침착맨", "chatCh1", 1001L, "침착맨 방송", 3500, "url1", "소통", detailedStartedAt);
+
+        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(List.of(targetCached, nonTarget));
+        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
+        when(discoveryClient.fetchLiveStreams(Set.of("ch1"))).thenReturn(List.of(targetDetailed));
+        when(streamRepository.getActiveChannelIds()).thenReturn(Collections.emptySet());
+        when(streamRepository.getStreamTargets(anyList())).thenReturn(Collections.emptyList());
+        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class)))
+            .thenReturn(new StreamUpdateResults(Set.of(targetDetailed), Collections.emptySet(), Collections.emptySet(), Instant.now()));
+
+        ingestionService.ingest();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<StreamSyncRequest>> captor = ArgumentCaptor.forClass(List.class);
+        verify(apiServerClient).syncStreams(captor.capture());
+
+        List<StreamSyncRequest> syncedRequests = captor.getValue();
+        assertThat(syncedRequests).hasSize(2);
+
+        StreamSyncRequest ch1Request = syncedRequests.stream()
+            .filter(r -> r.streamId().equals("ch1"))
+            .findFirst()
+            .orElseThrow();
+        assertThat(ch1Request.concurrentUserCount()).isEqualTo(3500);
+        assertThat(ch1Request.startedAt()).isEqualTo(detailedStartedAt);
+
+        StreamSyncRequest ch2Request = syncedRequests.stream()
+            .filter(r -> r.streamId().equals("ch2"))
+            .findFirst()
+            .orElseThrow();
+        assertThat(ch2Request.concurrentUserCount()).isEqualTo(500);
+        assertThat(ch2Request.startedAt()).isNull();
     }
 }

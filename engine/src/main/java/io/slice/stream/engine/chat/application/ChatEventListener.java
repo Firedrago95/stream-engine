@@ -52,7 +52,7 @@ public class ChatEventListener {
         }
     }
 
-    @Scheduled(fixedRate = 3600000)
+    @Scheduled(cron = "${targeting.sync.cron:0 30 4 * * *}", zone = "Asia/Seoul")
     public void syncTargetsPeriodically() {
         Optional<List<String>> targetsOpt = apiServerClient.fetchTargetChannels();
         targetsOpt.ifPresent(targets -> targetStreamPool.syncTargets(new HashSet<>(targets)));

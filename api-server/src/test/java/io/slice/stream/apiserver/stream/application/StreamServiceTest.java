@@ -9,9 +9,11 @@ import static org.mockito.Mockito.times;
 
 import io.slice.stream.apiserver.stream.domain.StreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
+import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaViewMetricTimelineRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
+import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.ViewMetricTimelineEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamSyncRequest;
 import java.time.Instant;
@@ -37,6 +39,9 @@ class StreamServiceTest {
     private JpaStreamSessionRepository sessionRepository;
 
     @Mock
+    private JpaStreamSessionSegmentRepository segmentRepository;
+
+    @Mock
     private JpaViewMetricTimelineRepository timelineRepository;
 
     @InjectMocks
@@ -47,6 +52,12 @@ class StreamServiceTest {
 
     @Captor
     private ArgumentCaptor<List<ViewMetricTimelineEntity>> timelineCaptor;
+
+    @Captor
+    private ArgumentCaptor<List<StreamSessionEntity>> sessionListCaptor;
+
+    @Captor
+    private ArgumentCaptor<List<StreamSessionSegmentEntity>> segmentListCaptor;
 
     @Test
     void 방송_목록을_동기화하면_DB에_upsert_되어야_한다() {
@@ -96,10 +107,12 @@ class StreamServiceTest {
         assertThat(savedTimeline.get(0).getStreamId()).isEqualTo("ch1");
         assertThat(savedTimeline.get(0).getSessionId()).isEqualTo("live1");
         assertThat(savedTimeline.get(0).getViewerCount()).isEqualTo(3500);
+        then(sessionRepository).should(never()).saveAll(any());
+        then(segmentRepository).should(never()).saveAll(any());
     }
 
     @Test
-    void 활성_세션이_없는_경우_타임라인을_적재하지_않고_스트림_정보만_upsert한다() {
+    void 활성_세션이_없는_경우_신규_세션과_초기_세그먼트를_벌크_생성하고_타임라인을_적재한다() {
         Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
         StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", startedAt);
 
@@ -109,6 +122,27 @@ class StreamServiceTest {
         streamService.syncAll(List.of(request));
 
         then(streamRepository).should().upsertStream(streamCaptor.capture(), any(Instant.class));
-        then(timelineRepository).should(never()).saveAll(any());
+
+        then(sessionRepository).should().saveAll(sessionListCaptor.capture());
+        List<StreamSessionEntity> savedSessions = sessionListCaptor.getValue();
+        assertThat(savedSessions).hasSize(1);
+        assertThat(savedSessions.get(0).getStreamId()).isEqualTo("ch1");
+        assertThat(savedSessions.get(0).getSessionId()).isEqualTo("live1");
+        assertThat(savedSessions.get(0).getTitle()).isEqualTo("제목");
+        assertThat(savedSessions.get(0).getCategoryName()).isEqualTo("소통");
+        assertThat(savedSessions.get(0).getStartedAt()).isEqualTo(startedAt);
+
+        then(segmentRepository).should().saveAll(segmentListCaptor.capture());
+        List<StreamSessionSegmentEntity> savedSegments = segmentListCaptor.getValue();
+        assertThat(savedSegments).hasSize(1);
+        assertThat(savedSegments.get(0).getStreamId()).isEqualTo("ch1");
+        assertThat(savedSegments.get(0).getSessionId()).isEqualTo("live1");
+
+        then(timelineRepository).should().saveAll(timelineCaptor.capture());
+        List<ViewMetricTimelineEntity> savedTimeline = timelineCaptor.getValue();
+        assertThat(savedTimeline).hasSize(1);
+        assertThat(savedTimeline.get(0).getStreamId()).isEqualTo("ch1");
+        assertThat(savedTimeline.get(0).getSessionId()).isEqualTo("live1");
+        assertThat(savedTimeline.get(0).getViewerCount()).isEqualTo(3500);
     }
 }
