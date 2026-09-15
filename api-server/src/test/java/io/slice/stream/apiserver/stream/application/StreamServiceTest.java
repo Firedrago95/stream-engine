@@ -145,4 +145,26 @@ class StreamServiceTest {
         assertThat(savedTimeline.get(0).getSessionId()).isEqualTo("live1");
         assertThat(savedTimeline.get(0).getViewerCount()).isEqualTo(3500);
     }
+
+    @Test
+    void 종료된_세션이_DB에_존재하는_경우_재활성화하고_신규_세션을_생성하지_않는다() {
+        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
+        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", startedAt);
+        StreamSessionEntity existingSession = new StreamSessionEntity("ch1", "live1", "제목", "소통", startedAt);
+        existingSession.finishSession(Instant.now(), 1000);
+        assertThat(existingSession.getEndedAt()).isNotNull();
+
+        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
+            .willReturn(List.of());
+        given(sessionRepository.findAllBySessionIdIn(List.of("live1")))
+            .willReturn(List.of(existingSession));
+
+        streamService.syncAll(List.of(request));
+
+        assertThat(existingSession.getEndedAt()).isNull();
+        assertThat(existingSession.getPeakViewers()).isEqualTo(3500);
+        then(sessionRepository).should(never()).saveAll(any());
+        then(segmentRepository).should(never()).saveAll(any());
+        then(timelineRepository).should().saveAll(timelineCaptor.capture());
+    }
 }

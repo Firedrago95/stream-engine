@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +42,7 @@ public class StreamService {
             .collect(Collectors.toMap(
                 StreamSyncRequest::streamId,
                 req -> req,
-                (oldReq, newReq) -> newReq
+                (existing, replacement) -> replacement
             ));
 
         for (StreamSyncRequest req : uniqueRequests.values()) {
@@ -61,6 +62,23 @@ public class StreamService {
         List<StreamSessionEntity> activeSessions = sessionRepository.findAllActiveSessions(streamIds);
         Map<String, StreamSessionEntity> sessionMap = activeSessions.stream()
             .collect(Collectors.toMap(StreamSessionEntity::getStreamId, s -> s, (a, b) -> a));
+
+        List<String> liveIds = uniqueRequests.values().stream()
+            .map(StreamSyncRequest::liveId)
+            .filter(Objects::nonNull)
+            .toList();
+
+        if (!liveIds.isEmpty()) {
+            List<StreamSessionEntity> existingSessions = sessionRepository.findAllBySessionIdIn(liveIds);
+            for (StreamSessionEntity session : existingSessions) {
+                if (session.getEndedAt() != null) {
+                    session.reopen();
+                    log.info("[Sync] 오판 종료된 세션 재활성화 - Stream: {}, SessionId: {}",
+                        session.getStreamId(), session.getSessionId());
+                }
+                sessionMap.putIfAbsent(session.getStreamId(), session);
+            }
+        }
 
         List<StreamSessionEntity> newSessions = new ArrayList<>();
         List<StreamSessionSegmentEntity> newSegments = new ArrayList<>();

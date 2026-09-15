@@ -2,11 +2,13 @@ package io.slice.stream.apiserver.stream.infrastructure;
 
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -24,11 +26,13 @@ public interface JpaStreamSessionRepository extends JpaRepository<StreamSessionE
 
     Optional<StreamSessionEntity> findBySessionId(String sessionId);
 
+    List<StreamSessionEntity> findAllBySessionIdIn(Collection<String> sessionIds);
+
     @Query("""
         SELECT ss FROM StreamSessionEntity ss 
         JOIN StreamEntity s ON ss.streamId = s.streamId 
         WHERE ss.endedAt IS NULL 
-          AND s.lastUpdateAt < :threshold
+        AND s.lastUpdateAt < :threshold
         """)
     List<StreamSessionEntity> findSessionsToClose(@Param("threshold") Instant threshold);
 
@@ -68,7 +72,7 @@ public interface JpaStreamSessionRepository extends JpaRepository<StreamSessionE
         @Param("sessionId") String sessionId
     );
 
-    @org.springframework.data.jpa.repository.Modifying
+    @Modifying
     @Query("DELETE FROM StreamSessionEntity ss WHERE ss.endedAt IS NOT NULL AND ss.endedAt < :threshold")
     int deleteExpiredSessions(@Param("threshold") Instant threshold);
 }
