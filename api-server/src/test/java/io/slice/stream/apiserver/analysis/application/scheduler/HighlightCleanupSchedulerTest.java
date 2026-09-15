@@ -49,7 +49,8 @@ class HighlightCleanupSchedulerTest {
         20,
         10,
         24,
-        30
+        30,
+        365
     );
 
     @Test
@@ -69,18 +70,34 @@ class HighlightCleanupSchedulerTest {
     }
 
     @Test
-    void 삼십일이_지난_만료된_세션과_연관_데이터를_완전히_삭제한다() {
+    void 삼십일이_지난_만료된_하이라이트_영상_데이터를_삭제한다() {
         String expiredSessionId = "expired-session-id";
         StreamSessionEntity expiredSession = mock(StreamSessionEntity.class);
         given(expiredSession.getSessionId()).willReturn(expiredSessionId);
 
         given(sessionRepository.findFinishedSessionsOlderThan(any(Instant.class)))
             .willReturn(List.of())
-            .willReturn(List.of(expiredSession));
+            .willReturn(List.of(expiredSession))
+            .willReturn(List.of());
 
         scheduler.cleanupOldHighlights();
 
         verify(highlightRepository).deleteAllBySessionIds(List.of(expiredSessionId));
+    }
+
+    @Test
+    void 일년이_지난_만료된_방송_세션과_카테고리_구간은_영구_삭제한다() {
+        String expiredSessionId = "expired-1y-session-id";
+        StreamSessionEntity expiredSession = mock(StreamSessionEntity.class);
+        given(expiredSession.getSessionId()).willReturn(expiredSessionId);
+
+        given(sessionRepository.findFinishedSessionsOlderThan(any(Instant.class)))
+            .willReturn(List.of())
+            .willReturn(List.of())
+            .willReturn(List.of(expiredSession));
+
+        scheduler.cleanupOldHighlights();
+
         verify(segmentRepository).deleteAllBySessionIds(List.of(expiredSessionId));
         verify(sessionRepository).deleteExpiredSessions(any(Instant.class));
     }

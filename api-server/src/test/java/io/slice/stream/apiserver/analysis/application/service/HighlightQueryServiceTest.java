@@ -47,7 +47,8 @@ class HighlightQueryServiceTest {
         20,
         10,
         24,
-        30
+        30,
+        365
     );
 
     @InjectMocks

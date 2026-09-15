@@ -22,7 +22,7 @@ public interface StreamRepository {
 
     List<StreamEntity> searchAllStreamersForLeaderboard(String keyword);
 
-    List<StreamerLeaderboardProjection> findTopStreamersWith30dAvg(Instant since, int limit);
+    List<StreamerLeaderboardProjection> findTopStreamersWith30dAvg(Instant since, int minDays, int limit);
 
     List<StreamerLeaderboardProjection> searchTopStreamersWith30dAvg(String keyword, Instant since, int limit);
 }

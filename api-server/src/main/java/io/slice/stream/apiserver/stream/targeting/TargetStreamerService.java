@@ -1,10 +1,11 @@
 package io.slice.stream.apiserver.stream.targeting;
 
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
-import io.slice.stream.apiserver.stream.infrastructure.JpaViewMetricTimelineRepository;
+import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardProjection;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -20,8 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class TargetStreamerService {
 
+    private static final int DAYS_30 = 30;
+    private static final int MIN_DAYS = 5;
+    private static final int TARGET_STREAMER_LIMIT = 300;
+
     private final TargetStreamerRepository targetStreamerRepository;
-    private final JpaViewMetricTimelineRepository viewMetricTimelineRepository;
     private final JpaStreamRepository streamRepository;
 
     @Transactional(readOnly = true)
@@ -34,15 +38,17 @@ public class TargetStreamerService {
             targetChannelIds.add(entity.getChannelId());
         }
 
-        Instant fourteenDaysAgo = Instant.now().minus(14, ChronoUnit.DAYS);
-        List<String> trendChannels = viewMetricTimelineRepository.findTopStreamIdsByAverageViewerCountSince(
-            fourteenDaysAgo,
-            PageRequest.of(0, 300)
-        );
+        Instant thirtyDaysAgo = Instant.now().minus(DAYS_30, ChronoUnit.DAYS);
+        List<StreamerLeaderboardProjection> verifiedStreamers =
+            streamRepository.findTopStreamersWith30dAvg(thirtyDaysAgo, MIN_DAYS, TARGET_STREAMER_LIMIT);
 
-        if (trendChannels == null || trendChannels.isEmpty()) {
-            log.info("[Targeting] 최근 14일 시청 데이터가 부족하여 실시간 시청자 수 기반으로 대체합니다.");
-            trendChannels = streamRepository.findTopStreamIdsByConcurrentUserCount(PageRequest.of(0, 300));
+        List<String> trendChannels = (verifiedStreamers != null && !verifiedStreamers.isEmpty())
+            ? verifiedStreamers.stream().map(StreamerLeaderboardProjection::getStreamId).toList()
+            : Collections.emptyList();
+
+        if (trendChannels.isEmpty()) {
+            log.info("[Targeting] 정규 활동 스트리머 데이터가 부족하여 실시간 시청자 수 기반으로 대체합니다.");
+            trendChannels = streamRepository.findTopStreamIdsByConcurrentUserCount(PageRequest.of(0, TARGET_STREAMER_LIMIT));
         }
 
         if (trendChannels != null) {
