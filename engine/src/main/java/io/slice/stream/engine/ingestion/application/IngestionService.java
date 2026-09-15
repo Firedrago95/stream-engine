@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -72,15 +73,22 @@ public class IngestionService {
 
             streamRepository.sync(updateResults.closedStreamIds(), currentTargetStreams);
 
-            handleExternalSync(topLiveStreams, updateResults);
+            handleExternalSync(topLiveStreams, currentTargetStreams, updateResults);
             handleEvents(updateResults);
         } catch (Exception e) {
             log.error("[Ingestion] 수집 주기 중 오류 발생: {}", e.getMessage(), e);
         }
     }
 
-    private void handleExternalSync(List<StreamTarget> allLiveTargets, StreamUpdateResults results) {
-        apiServerClient.syncStreams(allLiveTargets.stream().map(StreamSyncRequest::from).toList());
+    private void handleExternalSync(List<StreamTarget> allLiveTargets, List<StreamTarget> detailedTargets, StreamUpdateResults results) {
+        Map<String, StreamTarget> detailedMap = detailedTargets.stream()
+            .collect(Collectors.toMap(StreamTarget::channelId, t -> t, (a, b) -> a));
+
+        List<StreamTarget> mergedTargets = allLiveTargets.stream()
+            .map(live -> detailedMap.getOrDefault(live.channelId(), live))
+            .toList();
+
+        apiServerClient.syncStreams(mergedTargets.stream().map(StreamSyncRequest::from).toList());
 
         if (!results.changedStreams().isEmpty()) {
             apiServerClient.recordNewSegments(new ArrayList<>(results.changedStreams()));

@@ -103,6 +103,9 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
     }
 
     private StreamTarget convertToStreamTarget(ChzzkLive live) {
+        Instant startedAt = live.openDate() != null
+            ? live.openDate().toInstant(ZoneOffset.of("+09:00"))
+            : null;
         return new StreamTarget(
             live.channel().channelId(),
             live.channel().channelName(),
@@ -112,7 +115,7 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             live.concurrentUserCount(),
             live.channel().channelImageUrl(),
             live.liveCategoryValue(),
-            null
+            startedAt
         );
     }
 

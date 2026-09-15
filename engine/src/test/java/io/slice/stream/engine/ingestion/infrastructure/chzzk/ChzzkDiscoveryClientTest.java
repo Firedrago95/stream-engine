@@ -17,7 +17,9 @@ import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkL
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.ChzzkLive.Channel;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.Next;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.Page;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -96,6 +98,25 @@ class ChzzkDiscoveryClientTest {
         assertThat(target2.channelName()).isEqualTo("게이머A");
         assertThat(target2.chatChannelId()).isNull();
         assertThat(target2.startedAt()).isNull();
+    }
+
+    @Test
+    void 인기_라이브_스트림의_openDate가_있으면_startedAt으로_정상_변환된다() throws Exception {
+        LocalDateTime openDateTime = LocalDateTime.of(2026, 9, 15, 10, 0, 0);
+        Instant expectedInstant = openDateTime.toInstant(ZoneOffset.of("+09:00"));
+        ChzzkLive live = new ChzzkLive(
+            1001L, "침착맨의 일상", "https://thumb.com/1.jpg", "소통", "chatCh1", 5000, false, openDateTime, new Channel("ch1", "침착맨", "imageUrl")
+        );
+
+        ChzzkLiveResponse topLiveResponse = createMockResponse(List.of(live), null, null);
+        mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(topLiveResponse), MediaType.APPLICATION_JSON));
+
+        List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(200);
+
+        mockServer.verify();
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).startedAt()).isEqualTo(expectedInstant);
     }
 
     @Test
