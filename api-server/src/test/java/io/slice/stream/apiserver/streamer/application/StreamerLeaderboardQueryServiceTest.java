@@ -173,6 +173,38 @@ class StreamerLeaderboardQueryServiceTest {
         assertThat(item.averageViewers()).isEqualTo(30074);
     }
 
+    @Test
+    @DisplayName("정규 활동 스트리머가 100명 미만일 때 전체 스트리머 시청자순으로 100명을 보충한다")
+    void refreshDailyLeaderboard_whenVerifiedLessThanLimit_fillsUpFromAllStreamers() {
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+
+        StreamerLeaderboardProjection p1 = createProjection("ch_verified", "검증스트리머", "종합게임", 5000, 3000, true, Instant.now());
+        given(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), eq(5), eq(100)))
+            .willReturn(List.of(p1));
+
+        StreamEntity s1 = new StreamEntity("ch_verified", "검증스트리머");
+        s1.heartbeat("검증스트리머", "방제1", "https://img.png", "종합게임", 3000);
+
+        StreamEntity s2 = new StreamEntity("ch_fillup", "보충스트리머");
+        s2.heartbeat("보충스트리머", "방제2", "https://img.png", "소통", 2000);
+
+        given(streamRepository.findAllStreamersForLeaderboard())
+            .willReturn(List.of(s1, s2));
+        given(targetStreamerService.getActiveTargetChannelIds())
+            .willReturn(Collections.emptyList());
+        given(analysisRepository.findChannelsWithRecentSignals(anySet(), any(Instant.class)))
+            .willReturn(Collections.emptySet());
+
+        List<StreamResponse> result = leaderboardQueryService.refreshDailyLeaderboard();
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).streamId()).isEqualTo("ch_verified");
+        assertThat(result.get(0).averageViewers()).isEqualTo(5000);
+        assertThat(result.get(1).streamId()).isEqualTo("ch_fillup");
+        assertThat(result.get(1).streamerName()).isEqualTo("보충스트리머");
+        assertThat(result.get(1).averageViewers()).isEqualTo(2000);
+    }
+
     private StreamerLeaderboardProjection createProjection(
         String streamId,
         String streamerName,
