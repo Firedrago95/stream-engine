@@ -147,17 +147,21 @@ class StreamServiceTest {
     }
 
     @Test
-    void 종료된_세션이_DB에_존재하는_경우_재활성화하고_신규_세션을_생성하지_않는다() {
+    void 종료된_세션이_DB에_존재하고_활성_세그먼트가_남아있는_경우_재활성화만_수행한다() {
         Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
         StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", startedAt);
         StreamSessionEntity existingSession = new StreamSessionEntity("ch1", "live1", "제목", "소통", startedAt);
         existingSession.finishSession(Instant.now(), 1000);
         assertThat(existingSession.getEndedAt()).isNotNull();
 
+        StreamSessionSegmentEntity existingSegment = new StreamSessionSegmentEntity("ch1", "live1", "제목", "소통", startedAt, 0L);
+
         given(sessionRepository.findAllActiveSessions(List.of("ch1")))
             .willReturn(List.of());
         given(sessionRepository.findAllBySessionIdIn(List.of("live1")))
             .willReturn(List.of(existingSession));
+        given(segmentRepository.findAllActiveSegments(List.of("live1")))
+            .willReturn(List.of(existingSegment));
 
         streamService.syncAll(List.of(request));
 
@@ -166,5 +170,54 @@ class StreamServiceTest {
         then(sessionRepository).should(never()).saveAll(any());
         then(segmentRepository).should(never()).saveAll(any());
         then(timelineRepository).should().saveAll(timelineCaptor.capture());
+    }
+
+    @Test
+    void 활성_세션의_liveId가_요청의_liveId와_다른_경우_이전_세션을_종료하고_신규_세션을_생성한다() {
+        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
+        StreamSyncRequest request = new StreamSyncRequest("ch1", "live2", "침착맨", "새 방송", "thumb.jpg", 4000, "게임", startedAt);
+        StreamSessionEntity oldActiveSession = new StreamSessionEntity("ch1", "live1", "이전 방송", "소통", startedAt.minusSeconds(3600));
+
+        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
+            .willReturn(List.of(oldActiveSession));
+        given(sessionRepository.findAllBySessionIdIn(List.of("live2")))
+            .willReturn(List.of());
+
+        streamService.syncAll(List.of(request));
+
+        assertThat(oldActiveSession.getEndedAt()).isNotNull();
+        then(sessionRepository).should().saveAll(sessionListCaptor.capture());
+        List<StreamSessionEntity> savedSessions = sessionListCaptor.getValue();
+        assertThat(savedSessions).hasSize(1);
+        assertThat(savedSessions.get(0).getSessionId()).isEqualTo("live2");
+
+        then(segmentRepository).should().saveAll(segmentListCaptor.capture());
+        List<StreamSessionSegmentEntity> savedSegments = segmentListCaptor.getValue();
+        assertThat(savedSegments).hasSize(1);
+        assertThat(savedSegments.get(0).getSessionId()).isEqualTo("live2");
+    }
+
+    @Test
+    void 종료된_세션_재활성화_시_활성_세그먼트가_없으면_새_세그먼트를_생성한다() {
+        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
+        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", startedAt);
+        StreamSessionEntity existingSession = new StreamSessionEntity("ch1", "live1", "제목", "소통", startedAt);
+        existingSession.finishSession(Instant.now(), 1000);
+
+        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
+            .willReturn(List.of());
+        given(sessionRepository.findAllBySessionIdIn(List.of("live1")))
+            .willReturn(List.of(existingSession));
+        given(segmentRepository.findAllActiveSegments(List.of("live1")))
+            .willReturn(List.of());
+
+        streamService.syncAll(List.of(request));
+
+        assertThat(existingSession.getEndedAt()).isNull();
+        then(sessionRepository).should(never()).saveAll(any());
+        then(segmentRepository).should().saveAll(segmentListCaptor.capture());
+        List<StreamSessionSegmentEntity> savedSegments = segmentListCaptor.getValue();
+        assertThat(savedSegments).hasSize(1);
+        assertThat(savedSegments.get(0).getSessionId()).isEqualTo("live1");
     }
 }
