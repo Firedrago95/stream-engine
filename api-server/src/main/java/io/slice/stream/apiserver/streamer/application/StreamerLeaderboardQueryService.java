@@ -19,6 +19,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -89,19 +90,22 @@ public class StreamerLeaderboardQueryService {
             List<String> targetIds = targetStreamerService.getActiveTargetChannelIds();
             Set<String> targetIdSet = targetIds != null ? new HashSet<>(targetIds) : Collections.emptySet();
 
-            List<StreamEntity> allStreamers = streamRepository.findAllStreamersForLeaderboard(since);
+            List<StreamEntity> allStreamers = streamRepository.findAllStreamersForLeaderboard(since, PageRequest.of(0, DEFAULT_TOP_LIMIT));
             if (allStreamers != null) {
-                Set<String> candidateIds = allStreamers.stream()
+                List<StreamEntity> candidates = allStreamers.stream()
+                    .filter(entity -> !existingIds.contains(entity.getStreamId()))
+                    .toList();
+
+                Set<String> candidateIds = candidates.stream()
                     .map(StreamEntity::getStreamId)
                     .collect(Collectors.toSet());
-                Set<String> analyzingIds = analysisRepository.findChannelsWithRecentSignals(candidateIds, signalThreshold);
+                Set<String> analyzingIds = candidateIds.isEmpty()
+                    ? Collections.emptySet()
+                    : analysisRepository.findChannelsWithRecentSignals(candidateIds, signalThreshold);
 
-                for (StreamEntity entity : allStreamers) {
+                for (StreamEntity entity : candidates) {
                     if (calculated.size() >= DEFAULT_TOP_LIMIT) {
                         break;
-                    }
-                    if (existingIds.contains(entity.getStreamId())) {
-                        continue;
                     }
 
                     boolean isLive = entity.isLive() && entity.getLastUpdateAt() != null && entity.getLastUpdateAt().isAfter(threshold);

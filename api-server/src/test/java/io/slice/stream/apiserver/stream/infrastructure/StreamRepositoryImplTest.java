@@ -19,6 +19,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @DataJpaTest
@@ -356,11 +357,15 @@ class StreamRepositoryImplTest implements PostgresTestSupport {
 
         jpaStreamRepository.saveAll(List.of(recentStream1, recentStream2, oldStream));
 
-        List<StreamEntity> results = repository.findAllStreamersForLeaderboard(since);
+        List<StreamEntity> results = repository.findAllStreamersForLeaderboard(since, PageRequest.of(0, 10));
 
         assertThat(results).hasSize(2);
         assertThat(results.get(0).getStreamId()).isEqualTo("s-recent-2");
         assertThat(results.get(1).getStreamId()).isEqualTo("s-recent-1");
         assertThat(results).extracting(StreamEntity::getStreamId).doesNotContain("s-old");
+
+        List<StreamEntity> pagedResults = repository.findAllStreamersForLeaderboard(since, PageRequest.of(0, 1));
+        assertThat(pagedResults).hasSize(1);
+        assertThat(pagedResults.get(0).getStreamId()).isEqualTo("s-recent-2");
     }
 }

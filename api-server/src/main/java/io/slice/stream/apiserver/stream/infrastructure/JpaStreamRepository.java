@@ -75,7 +75,7 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
            WHERE s.lastUpdateAt >= :since
            ORDER BY s.concurrentUserCount DESC, s.id DESC
            """)
-    List<StreamEntity> findAllStreamersForLeaderboard(@Param("since") Instant since);
+    List<StreamEntity> findAllStreamersForLeaderboard(@Param("since") Instant since, Pageable pageable);
 
     @Query("""
            SELECT s FROM StreamEntity s 
@@ -85,7 +85,8 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
            """)
     List<StreamEntity> searchAllStreamersForLeaderboard(
         @Param("keyword") String keyword, 
-        @Param("since") Instant since
+        @Param("since") Instant since,
+        Pageable pageable
     );
 
     @Query(value = """

@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -45,13 +46,13 @@ public class StreamRepositoryImpl implements StreamRepository {
     }
 
     @Override
-    public List<StreamEntity> findAllStreamersForLeaderboard(Instant since) {
-        return jpaStreamRepository.findAllStreamersForLeaderboard(since);
+    public List<StreamEntity> findAllStreamersForLeaderboard(Instant since, Pageable pageable) {
+        return jpaStreamRepository.findAllStreamersForLeaderboard(since, pageable);
     }
 
     @Override
-    public List<StreamEntity> searchAllStreamersForLeaderboard(String keyword, Instant since) {
-        return jpaStreamRepository.searchAllStreamersForLeaderboard(keyword, since);
+    public List<StreamEntity> searchAllStreamersForLeaderboard(String keyword, Instant since, Pageable pageable) {
+        return jpaStreamRepository.searchAllStreamersForLeaderboard(keyword, since, pageable);
     }
 
     @Override

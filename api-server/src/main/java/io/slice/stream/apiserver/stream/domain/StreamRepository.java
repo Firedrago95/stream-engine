@@ -5,6 +5,7 @@ import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardP
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
 
 public interface StreamRepository {
 
@@ -18,9 +19,9 @@ public interface StreamRepository {
 
     Optional<StreamEntity> findById(String streamId);
 
-    List<StreamEntity> findAllStreamersForLeaderboard(Instant since);
+    List<StreamEntity> findAllStreamersForLeaderboard(Instant since, Pageable pageable);
 
-    List<StreamEntity> searchAllStreamersForLeaderboard(String keyword, Instant since);
+    List<StreamEntity> searchAllStreamersForLeaderboard(String keyword, Instant since, Pageable pageable);
 
     List<StreamerLeaderboardProjection> findTopStreamersWith30dAvg(Instant since, int minDays, int limit);
 
