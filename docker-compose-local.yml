@@ -71,8 +71,8 @@ services:
     ports:
       - "${ENGINE_EXTERNAL_PORT:-8081}:8080"
       - "9091:9090"  # Actuator 포트 노출 추가
-    entrypoint: ["java", "-XX:StartFlightRecording=disk=true,dumponexit=true,filename=/app/logs/engine_flight_record.jfr,maxsize=1GB", "-jar", "app.jar"]
     environment:
+      JAVA_OPTS: "-Xms2G -Xmx2G -XX:StartFlightRecording=disk=true,dumponexit=true,filename=/app/logs/engine_flight_record.jfr,maxsize=1GB"
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
@@ -98,7 +98,7 @@ services:
       resources:
         limits:
           cpus: '2.0'
-          memory: 2G
+          memory: 3G
 
   api:
     build:

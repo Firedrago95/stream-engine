@@ -6,10 +6,12 @@ import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
 import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
 import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
 import io.slice.stream.engine.ingestion.domain.service.StreamUpdateAnalyzer;
+import io.slice.stream.engine.ingestion.domain.targeting.TargetStreamPool;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSyncRequest;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,6 +33,7 @@ public class IngestionService {
     private final ApplicationEventPublisher eventPublisher;
     private final ApiServerClient apiServerClient;
     private final StreamUpdateAnalyzer streamUpdateAnalyzer;
+    private final TargetStreamPool targetStreamPool;
 
     @Value("${chzzk.discovery.limit}")
     private int discoveryLimit;
@@ -46,37 +49,38 @@ public class IngestionService {
             Instant now = Instant.now();
             Set<String> activeChannelIds = streamRepository.getActiveChannelIds();
 
-            Set<String> topLiveStreamIds = topLiveStreams.stream().map(StreamTarget::channelId).collect(Collectors.toSet());
-            Set<String> dropoutIds = new HashSet<>(activeChannelIds);
-            dropoutIds.removeAll(topLiveStreamIds);
+            Set<String> activeTargetChannels = targetStreamPool.getAllActiveTargetChannels();
+            Set<String> targetLiveIds = topLiveStreams.stream()
+                .map(StreamTarget::channelId)
+                .filter(activeTargetChannels::contains)
+                .collect(Collectors.toSet());
 
-            List<StreamTarget> rankoutStreams = streamDiscoveryClient.fetchLiveStreams(dropoutIds);
-
-            List<StreamTarget> currentTargets = new ArrayList<>(topLiveStreams);
-            currentTargets.addAll(rankoutStreams);
+            List<StreamTarget> currentTargetStreams = targetLiveIds.isEmpty()
+                ? Collections.emptyList()
+                : streamDiscoveryClient.fetchLiveStreams(targetLiveIds);
 
             List<StreamTarget> activeStreamTargets = streamRepository.getStreamTargets(
                 new ArrayList<>(activeChannelIds)
             );
 
             StreamUpdateResults updateResults = streamUpdateAnalyzer.analyze(
-                currentTargets,
+                currentTargetStreams,
                 activeChannelIds,
                 activeStreamTargets,
                 now
             );
 
-            streamRepository.sync(updateResults.closedStreamIds(), currentTargets);
+            streamRepository.sync(updateResults.closedStreamIds(), currentTargetStreams);
 
-            handleExternalSync(currentTargets, updateResults);
+            handleExternalSync(topLiveStreams, updateResults);
             handleEvents(updateResults);
         } catch (Exception e) {
             log.error("[Ingestion] 수집 주기 중 오류 발생: {}", e.getMessage(), e);
         }
     }
 
-    private void handleExternalSync(List<StreamTarget> targets, StreamUpdateResults results) {
-        apiServerClient.syncStreams(targets.stream().map(StreamSyncRequest::from).toList());
+    private void handleExternalSync(List<StreamTarget> allLiveTargets, StreamUpdateResults results) {
+        apiServerClient.syncStreams(allLiveTargets.stream().map(StreamSyncRequest::from).toList());
 
         if (!results.changedStreams().isEmpty()) {
             apiServerClient.recordNewSegments(new ArrayList<>(results.changedStreams()));

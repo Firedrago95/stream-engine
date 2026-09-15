@@ -3,9 +3,11 @@ package io.slice.stream.engine.analyzer.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -104,7 +106,6 @@ class HighlightServiceTest {
 
     @Test
     void WAITING_상태는_NORMAL로_둔갑하여_차트_렌더링용으로_전송된다() {
-        // given
         when(clock.instant()).thenReturn(FIXED_NOW);
         when(props.fetchBufferSeconds()).thenReturn(15);
 
@@ -115,16 +116,32 @@ class HighlightServiceTest {
         when(tierManager.getTierInfo(anyString(), anyInt())).thenReturn(mockTierInfo);
         when(repository.getFirepowerDeltas(anyString(), any(), any())).thenReturn(List.of(1L, 2L));
 
-        // WAITING 판정 주입
         when(detector.detect(anyString(), any(), any())).thenReturn(DetectionResult.waiting());
 
-        // when
         highlightService.monitorHighlights();
 
-        // then
         ArgumentCaptor<List<AnalysisSignal>> captor = ArgumentCaptor.forClass(List.class);
         verify(signalClient, times(1)).send(captor.capture());
 
         assertThat(captor.getValue().get(0).status()).isEqualTo("NORMAL");
     }
+
+    @Test
+    void startedAt이_null인_스트림은_신호를_생성하지_않아야_한다() {
+        when(clock.instant()).thenReturn(FIXED_NOW);
+        when(props.fetchBufferSeconds()).thenReturn(15);
+
+        StreamTarget targetWithoutStartedAt = new StreamTarget("stream-no-start", "방", "chat1", 1L, "title", 10, "url", "소통", null);
+        when(streamProvider.getActiveStreamTargets()).thenReturn(List.of(targetWithoutStartedAt));
+
+        StreamTierInfo mockTierInfo = StreamTierInfo.builder().tier(StreamTier.GROUP_B).windowSeconds(120).build();
+        when(tierManager.getTierInfo(anyString(), anyInt())).thenReturn(mockTierInfo);
+        when(repository.getFirepowerDeltas(anyString(), any(), any())).thenReturn(List.of(1L, 2L));
+        when(detector.detect(anyString(), any(), any())).thenReturn(new DetectionResult(ChatFirepowerStatus.PEAK, 50L));
+
+        highlightService.monitorHighlights();
+
+        verify(signalClient, never()).send(anyList());
+    }
 }
+

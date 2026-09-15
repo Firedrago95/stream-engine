@@ -121,11 +121,12 @@ public class HighlightService {
     }
 
     private Optional<AnalysisSignal> convertToSignal(StreamTarget target, DetectionResult result, Instant now, StreamTierInfo tierInfo) {
-        Long offsetMs = null;
-        if (target.startedAt() != null) {
-            offsetMs = now.toEpochMilli() - target.startedAt().toEpochMilli();
+        if (target.startedAt() == null) {
+            log.warn("[Analysis] 스트림 시작 시각이 누락되어 신호 생성을 건너뜁니다. channelId: {}", target.channelId());
+            return Optional.empty();
         }
 
+        Long offsetMs = now.toEpochMilli() - target.startedAt().toEpochMilli();
         String streamId = target.channelId();
         String liveId = String.valueOf(target.liveId());
         if (result.status() == ChatFirepowerStatus.WAITING) {
