@@ -188,7 +188,7 @@ class StreamerLeaderboardQueryServiceTest {
         StreamEntity s2 = new StreamEntity("ch_fillup", "보충스트리머");
         s2.heartbeat("보충스트리머", "방제2", "https://img.png", "소통", 2000);
 
-        given(streamRepository.findAllStreamersForLeaderboard())
+        given(streamRepository.findAllStreamersForLeaderboard(any(Instant.class)))
             .willReturn(List.of(s1, s2));
         given(targetStreamerService.getActiveTargetChannelIds())
             .willReturn(Collections.emptyList());

@@ -45,13 +45,13 @@ public class StreamRepositoryImpl implements StreamRepository {
     }
 
     @Override
-    public List<StreamEntity> findAllStreamersForLeaderboard() {
-        return jpaStreamRepository.findAllStreamersForLeaderboard();
+    public List<StreamEntity> findAllStreamersForLeaderboard(Instant since) {
+        return jpaStreamRepository.findAllStreamersForLeaderboard(since);
     }
 
     @Override
-    public List<StreamEntity> searchAllStreamersForLeaderboard(String keyword) {
-        return jpaStreamRepository.searchAllStreamersForLeaderboard(keyword);
+    public List<StreamEntity> searchAllStreamersForLeaderboard(String keyword, Instant since) {
+        return jpaStreamRepository.searchAllStreamersForLeaderboard(keyword, since);
     }
 
     @Override

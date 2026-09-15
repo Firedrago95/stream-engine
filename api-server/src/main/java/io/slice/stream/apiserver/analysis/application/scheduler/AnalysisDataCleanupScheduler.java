@@ -19,7 +19,7 @@ public class AnalysisDataCleanupScheduler {
 
     private final AnalysisDataCleanupService cleanupService;
 
-    @Scheduled(cron = "0 0 7 * * *")
+    @Scheduled(cron = "0 0 7 * * *", zone = "Asia/Seoul")
     public void runDataCleanUp() {
         log.info("[Cleanup] 3일 주기 데이터 요약 및 정리 작업을 시작합니다.");
 

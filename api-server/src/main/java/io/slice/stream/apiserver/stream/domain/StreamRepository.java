@@ -18,9 +18,9 @@ public interface StreamRepository {
 
     Optional<StreamEntity> findById(String streamId);
 
-    List<StreamEntity> findAllStreamersForLeaderboard();
+    List<StreamEntity> findAllStreamersForLeaderboard(Instant since);
 
-    List<StreamEntity> searchAllStreamersForLeaderboard(String keyword);
+    List<StreamEntity> searchAllStreamersForLeaderboard(String keyword, Instant since);
 
     List<StreamerLeaderboardProjection> findTopStreamersWith30dAvg(Instant since, int minDays, int limit);
 

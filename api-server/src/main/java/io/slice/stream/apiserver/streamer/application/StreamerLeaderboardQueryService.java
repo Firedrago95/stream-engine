@@ -89,7 +89,7 @@ public class StreamerLeaderboardQueryService {
             List<String> targetIds = targetStreamerService.getActiveTargetChannelIds();
             Set<String> targetIdSet = targetIds != null ? new HashSet<>(targetIds) : Collections.emptySet();
 
-            List<StreamEntity> allStreamers = streamRepository.findAllStreamersForLeaderboard();
+            List<StreamEntity> allStreamers = streamRepository.findAllStreamersForLeaderboard(since);
             if (allStreamers != null) {
                 Set<String> candidateIds = allStreamers.stream()
                     .map(StreamEntity::getStreamId)

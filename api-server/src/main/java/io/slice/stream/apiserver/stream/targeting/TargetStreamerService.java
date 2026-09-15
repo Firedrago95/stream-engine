@@ -51,7 +51,7 @@ public class TargetStreamerService {
             int needed = TARGET_STREAMER_LIMIT - targetChannelIds.size();
             log.info("[Targeting] 활동 스트리머가 목표치(300명)에 미달하여 실시간 시청자 순으로 보충합니다. (현재: {}명, 필요: {}명)",
                 targetChannelIds.size(), needed);
-            List<String> realtimeTopChannels = streamRepository.findTopStreamIdsByConcurrentUserCount(PageRequest.of(0, TARGET_STREAMER_LIMIT));
+            List<String> realtimeTopChannels = streamRepository.findTopStreamIdsByConcurrentUserCount(thirtyDaysAgo, PageRequest.of(0, TARGET_STREAMER_LIMIT));
             if (realtimeTopChannels != null) {
                 for (String channelId : realtimeTopChannels) {
                     targetChannelIds.add(channelId);

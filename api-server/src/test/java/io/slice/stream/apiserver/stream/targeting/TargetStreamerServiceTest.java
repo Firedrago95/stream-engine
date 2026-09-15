@@ -52,7 +52,7 @@ class TargetStreamerServiceTest {
 
         assertThat(results).hasSize(300);
         assertThat(results).contains("ch_official", "ch_trend_1", "ch_trend_299");
-        verify(streamRepository, never()).findTopStreamIdsByConcurrentUserCount(any());
+        verify(streamRepository, never()).findTopStreamIdsByConcurrentUserCount(any(Instant.class), any());
     }
 
     @Test
@@ -64,13 +64,13 @@ class TargetStreamerServiceTest {
         when(targetStreamerRepository.findAllByIsActiveTrue()).thenReturn(List.of(official));
         when(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), eq(5), eq(300)))
             .thenReturn(List.of(p1, p2));
-        when(streamRepository.findTopStreamIdsByConcurrentUserCount(PageRequest.of(0, 300)))
+        when(streamRepository.findTopStreamIdsByConcurrentUserCount(any(Instant.class), eq(PageRequest.of(0, 300))))
             .thenReturn(List.of("ch_realtime1", "ch_trend1", "ch_realtime2"));
 
         List<String> results = targetStreamerService.getActiveTargetChannelIds();
 
         assertThat(results).containsExactly("ch_official", "ch_trend1", "ch_trend2", "ch_realtime1", "ch_realtime2");
-        verify(streamRepository).findTopStreamIdsByConcurrentUserCount(PageRequest.of(0, 300));
+        verify(streamRepository).findTopStreamIdsByConcurrentUserCount(any(Instant.class), eq(PageRequest.of(0, 300)));
     }
 
     @Test
@@ -80,13 +80,13 @@ class TargetStreamerServiceTest {
         when(targetStreamerRepository.findAllByIsActiveTrue()).thenReturn(List.of(official));
         when(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), anyInt(), anyInt()))
             .thenReturn(Collections.emptyList());
-        when(streamRepository.findTopStreamIdsByConcurrentUserCount(PageRequest.of(0, 300)))
+        when(streamRepository.findTopStreamIdsByConcurrentUserCount(any(Instant.class), eq(PageRequest.of(0, 300))))
             .thenReturn(List.of("ch_fallback1", "ch_fallback2"));
 
         List<String> results = targetStreamerService.getActiveTargetChannelIds();
 
         assertThat(results).containsExactly("ch_official", "ch_fallback1", "ch_fallback2");
-        verify(streamRepository).findTopStreamIdsByConcurrentUserCount(PageRequest.of(0, 300));
+        verify(streamRepository).findTopStreamIdsByConcurrentUserCount(any(Instant.class), eq(PageRequest.of(0, 300)));
     }
 
     private StreamerLeaderboardProjection createProjection(String streamId) {

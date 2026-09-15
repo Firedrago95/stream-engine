@@ -53,9 +53,10 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
     @Query("""
            SELECT s.streamId 
            FROM StreamEntity s 
+           WHERE s.lastUpdateAt >= :since
            ORDER BY s.concurrentUserCount DESC
            """)
-    List<String> findTopStreamIdsByConcurrentUserCount(Pageable pageable);
+    List<String> findTopStreamIdsByConcurrentUserCount(@Param("since") Instant since, Pageable pageable);
 
     @Query("""
            SELECT s FROM StreamEntity s 
@@ -71,16 +72,21 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
 
     @Query("""
            SELECT s FROM StreamEntity s 
+           WHERE s.lastUpdateAt >= :since
            ORDER BY s.concurrentUserCount DESC, s.id DESC
            """)
-    List<StreamEntity> findAllStreamersForLeaderboard();
+    List<StreamEntity> findAllStreamersForLeaderboard(@Param("since") Instant since);
 
     @Query("""
            SELECT s FROM StreamEntity s 
-           WHERE LOWER(s.streamerName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+           WHERE s.lastUpdateAt >= :since
+             AND LOWER(s.streamerName) LIKE LOWER(CONCAT('%', :keyword, '%'))
            ORDER BY s.concurrentUserCount DESC, s.id DESC
            """)
-    List<StreamEntity> searchAllStreamersForLeaderboard(@Param("keyword") String keyword);
+    List<StreamEntity> searchAllStreamersForLeaderboard(
+        @Param("keyword") String keyword, 
+        @Param("since") Instant since
+    );
 
     @Query(value = """
         SELECT 
