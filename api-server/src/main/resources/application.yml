@@ -73,7 +73,8 @@ highlight:
   history-display-limit: 20     # 방종후 24시간 동안 하이라이트는 20개만 조회
   cleanup-retention-limit: 10   # 방종후 24시간 이후 하이라이트는 10개만 남기고 삭제
   cleanup-grace-hours: 24       # 방종후 하이라이트 삭제 기간
-  session-retention-days: 30    # 방종후 30일 지난 세션 및 하이라이트 완전 삭제
+  highlight-retention-days: 30  # 방종후 30일 지난 하이라이트 및 세그먼트 완전 삭제
+  session-retention-days: 365   # 방종후 365일(1년) 지난 방송 세션 기록 삭제 (잔디 최대 1년 지원)
 
 category:
   ranking:

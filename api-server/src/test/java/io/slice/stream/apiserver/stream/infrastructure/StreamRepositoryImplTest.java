@@ -257,6 +257,62 @@ class StreamRepositoryImplTest implements PostgresTestSupport {
         assertThat(results.get(0).getAverageViewers()).isEqualTo(5000);
 
         assertThat(results.get(1).getStreamerName()).isEqualTo("랄로팬클럽");
-        assertThat(results.get(1).getAverageViewers()).isEqualTo(300);
+        assertThat(results.get(1).getAverageViewers()).isEqualTo(0);
+    }
+
+    @Test
+    void 최근_30일간_5회_이상_방송한_정규_스트리머만_리더보드에_조회된다() {
+        Instant now = Instant.now();
+        Instant since = now.minus(30, ChronoUnit.DAYS);
+
+        StreamEntity regularA = new StreamEntity("reg-a", "정규스트리머A");
+        regularA.heartbeat("정규스트리머A", "A방송", "urlA", "종합게임", 5000);
+
+        StreamEntity regularB = new StreamEntity("reg-b", "정규스트리머B");
+        regularB.heartbeat("정규스트리머B", "B방송", "urlB", "토크", 8000);
+
+        StreamEntity lowFrequencyC = new StreamEntity("low-c", "활동부족C");
+        lowFrequencyC.heartbeat("활동부족C", "가끔방송", "urlC", "소통", 10000);
+
+        StreamEntity pastOnlyD = new StreamEntity("past-d", "과거단발성D");
+        pastOnlyD.heartbeat("과거단발성D", "월드컵중계", "urlD", "스포츠", 30000);
+
+        jpaStreamRepository.saveAll(List.of(regularA, regularB, lowFrequencyC, pastOnlyD));
+
+        StreamSessionEntity pastSession = new StreamSessionEntity("past-d", "past-sess", "월드컵중계", "스포츠", now.minus(45, ChronoUnit.DAYS));
+        pastSession.finishSession(now.minus(45, ChronoUnit.DAYS).plusSeconds(3600), 35000, 30000);
+        jpaStreamSessionRepository.save(pastSession);
+
+        for (int i = 1; i <= 5; i++) {
+            StreamSessionEntity s = new StreamSessionEntity("reg-a", "sess-a-" + i, "최근방송A" + i, "게임", now.minus(i * 4, ChronoUnit.DAYS));
+            s.finishSession(now.minus(i * 4, ChronoUnit.DAYS).plusSeconds(3600), 6000, 5000);
+            jpaStreamSessionRepository.save(s);
+        }
+
+        for (int i = 1; i <= 6; i++) {
+            StreamSessionEntity s = new StreamSessionEntity("reg-b", "sess-b-" + i, "최근방송B" + i, "토크", now.minus(i * 3, ChronoUnit.DAYS));
+            s.finishSession(now.minus(i * 3, ChronoUnit.DAYS).plusSeconds(3600), 9000, 8000);
+            jpaStreamSessionRepository.save(s);
+        }
+
+        for (int i = 1; i <= 4; i++) {
+            StreamSessionEntity s = new StreamSessionEntity("low-c", "sess-c-" + i, "최근방송C" + i, "소통", now.minus(i * 5, ChronoUnit.DAYS));
+            s.finishSession(now.minus(i * 5, ChronoUnit.DAYS).plusSeconds(3600), 12000, 10000);
+            jpaStreamSessionRepository.save(s);
+        }
+
+        List<StreamerLeaderboardProjection> results =
+            repository.findTopStreamersWith30dAvg(since, 5, 10);
+
+        assertThat(results).hasSize(2);
+
+        assertThat(results.get(0).getStreamerName()).isEqualTo("정규스트리머B");
+        assertThat(results.get(0).getAverageViewers()).isEqualTo(8000);
+
+        assertThat(results.get(1).getStreamerName()).isEqualTo("정규스트리머A");
+        assertThat(results.get(1).getAverageViewers()).isEqualTo(5000);
+
+        assertThat(results).extracting(StreamerLeaderboardProjection::getStreamerName)
+            .doesNotContain("활동부족C", "과거단발성D");
     }
 }

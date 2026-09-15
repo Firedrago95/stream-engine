@@ -62,7 +62,7 @@ class StreamerLeaderboardQueryServiceTest {
         StreamerLeaderboardProjection p1 = createProjection("ch_1", "울프", "토크", 30074, 1000, true, Instant.now());
         StreamerLeaderboardProjection p2 = createProjection("ch_2", "풍월량", "종합게임", 11634, 0, false, Instant.now().minusSeconds(7200));
 
-        given(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), eq(100)))
+        given(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), eq(5), eq(100)))
             .willReturn(List.of(p1, p2));
         given(targetStreamerService.getActiveTargetChannelIds())
             .willReturn(List.of("ch_1", "ch_2"));
@@ -120,7 +120,7 @@ class StreamerLeaderboardQueryServiceTest {
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
         given(valueOperations.get(StreamerLeaderboardQueryService.REDIS_LEADERBOARD_KEY)).willReturn(null);
 
-        given(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), eq(100)))
+        given(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), eq(5), eq(100)))
             .willReturn(Collections.emptyList());
 
         StreamerLeaderboardProjection projection =

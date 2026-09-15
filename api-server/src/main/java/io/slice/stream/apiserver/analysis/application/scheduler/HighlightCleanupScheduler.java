@@ -37,19 +37,31 @@ public class HighlightCleanupScheduler {
             }
         });
 
-        Instant expiredThreshold = Instant.now().minus(properties.sessionRetentionDays(), ChronoUnit.DAYS);
-        List<StreamSessionEntity> expiredSessions = sessionRepository.findFinishedSessionsOlderThan(expiredThreshold);
+        Instant highlightExpiredThreshold = Instant.now().minus(properties.highlightRetentionDays(), ChronoUnit.DAYS);
+        List<StreamSessionEntity> highlightExpiredSessions = sessionRepository.findFinishedSessionsOlderThan(highlightExpiredThreshold);
 
-        if (!expiredSessions.isEmpty()) {
-            List<String> expiredSessionIds = expiredSessions.stream()
+        if (!highlightExpiredSessions.isEmpty()) {
+            List<String> expiredSessionIds = highlightExpiredSessions.stream()
                 .map(StreamSessionEntity::getSessionId)
                 .toList();
 
             highlightRepository.deleteAllBySessionIds(expiredSessionIds);
-            segmentRepository.deleteAllBySessionIds(expiredSessionIds);
-            int deletedSessionCount = sessionRepository.deleteExpiredSessions(expiredThreshold);
 
-            log.info("[Cleanup] {}일 이상 지난 만료 세션 {}건 및 연관 하이라이트 영구 삭제 완료",
+            log.info("[Cleanup] {}일 이상 지난 만료 하이라이트 영상 클립 영구 삭제 완료 (총 {}개 세션)",
+                properties.highlightRetentionDays(), expiredSessionIds.size());
+        }
+
+        Instant sessionExpiredThreshold = Instant.now().minus(properties.sessionRetentionDays(), ChronoUnit.DAYS);
+        List<StreamSessionEntity> sessionExpiredSessions = sessionRepository.findFinishedSessionsOlderThan(sessionExpiredThreshold);
+        if (!sessionExpiredSessions.isEmpty()) {
+            List<String> expiredSessionIds = sessionExpiredSessions.stream()
+                .map(StreamSessionEntity::getSessionId)
+                .toList();
+
+            segmentRepository.deleteAllBySessionIds(expiredSessionIds);
+            int deletedSessionCount = sessionRepository.deleteExpiredSessions(sessionExpiredThreshold);
+
+            log.info("[Cleanup] {}일(1년) 이상 지난 만료 방송 세션 {}건 및 카테고리 구간 영구 삭제 완료",
                 properties.sessionRetentionDays(), deletedSessionCount);
         }
     }

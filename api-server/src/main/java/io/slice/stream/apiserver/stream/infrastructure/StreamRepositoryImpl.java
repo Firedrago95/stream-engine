@@ -55,8 +55,12 @@ public class StreamRepositoryImpl implements StreamRepository {
     }
 
     @Override
-    public List<StreamerLeaderboardProjection> findTopStreamersWith30dAvg(Instant since, int limit) {
-        return jpaStreamRepository.findTopStreamersWith30dAvg(since, limit);
+    public List<StreamerLeaderboardProjection> findTopStreamersWith30dAvg(
+        Instant since,
+        int minSessions,
+        int limit
+    ) {
+        return jpaStreamRepository.findTopStreamersWith30dAvg(since, minSessions, limit);
     }
 
     @Override
