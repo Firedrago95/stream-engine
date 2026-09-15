@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class TargetStreamerService {
 
     private static final int DAYS_30 = 30;
-    private static final int MIN_SESSIONS = 5;
+    private static final int MIN_DAYS = 5;
     private static final int TARGET_STREAMER_LIMIT = 300;
 
     private final TargetStreamerRepository targetStreamerRepository;
@@ -40,7 +40,7 @@ public class TargetStreamerService {
 
         Instant thirtyDaysAgo = Instant.now().minus(DAYS_30, ChronoUnit.DAYS);
         List<StreamerLeaderboardProjection> verifiedStreamers =
-            streamRepository.findTopStreamersWith30dAvg(thirtyDaysAgo, MIN_SESSIONS, TARGET_STREAMER_LIMIT);
+            streamRepository.findTopStreamersWith30dAvg(thirtyDaysAgo, MIN_DAYS, TARGET_STREAMER_LIMIT);
 
         List<String> trendChannels = (verifiedStreamers != null && !verifiedStreamers.isEmpty())
             ? verifiedStreamers.stream().map(StreamerLeaderboardProjection::getStreamId).toList()

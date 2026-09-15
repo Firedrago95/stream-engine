@@ -261,7 +261,7 @@ class StreamRepositoryImplTest implements PostgresTestSupport {
     }
 
     @Test
-    void 최근_30일간_5회_이상_방송한_정규_스트리머만_리더보드에_조회된다() {
+    void 최근_30일간_5일_이상_방송한_정규_스트리머만_리더보드에_조회된다() {
         Instant now = Instant.now();
         Instant since = now.minus(30, ChronoUnit.DAYS);
 
@@ -314,5 +314,28 @@ class StreamRepositoryImplTest implements PostgresTestSupport {
 
         assertThat(results).extracting(StreamerLeaderboardProjection::getStreamerName)
             .doesNotContain("활동부족C", "과거단발성D");
+    }
+
+    @Test
+    void 하루에_세션이_여러개_생성되어도_방송일수는_1일로_계산되어_5일_미만이면_탈락한다() {
+        Instant now = Instant.now();
+        Instant since = now.minus(30, ChronoUnit.DAYS);
+
+        StreamEntity multipleSessionsInOneDay = new StreamEntity("multi-one-day", "하루다중세션스트리머");
+        multipleSessionsInOneDay.heartbeat("하루다중세션스트리머", "방송", "url", "게임", 10000);
+        jpaStreamRepository.save(multipleSessionsInOneDay);
+
+        Instant sameDay = now.minus(2, ChronoUnit.DAYS);
+        for (int i = 1; i <= 5; i++) {
+            StreamSessionEntity s = new StreamSessionEntity("multi-one-day", "sess-same-" + i, "튕김방송" + i, "게임", sameDay.plusSeconds(i * 300));
+            s.finishSession(sameDay.plusSeconds(i * 300 + 100), 10000, 8000);
+            jpaStreamSessionRepository.save(s);
+        }
+
+        List<StreamerLeaderboardProjection> results =
+            repository.findTopStreamersWith30dAvg(since, 5, 10);
+
+        assertThat(results).extracting(StreamerLeaderboardProjection::getStreamId)
+            .doesNotContain("multi-one-day");
     }
 }

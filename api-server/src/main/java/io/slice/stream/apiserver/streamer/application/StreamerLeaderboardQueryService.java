@@ -35,7 +35,7 @@ public class StreamerLeaderboardQueryService {
     private static final Duration CACHE_TTL = Duration.ofHours(36);
     private static final int DEFAULT_TOP_LIMIT = 100;
     private static final int DAYS_30 = 30;
-    private static final int MIN_SESSIONS = 5;
+    private static final int MIN_DAYS = 5;
 
     private final StreamRepository streamRepository;
     private final AnalysisRepository analysisRepository;
@@ -75,7 +75,7 @@ public class StreamerLeaderboardQueryService {
     public List<StreamResponse> refreshDailyLeaderboard() {
         Instant since = Instant.now().minus(DAYS_30, ChronoUnit.DAYS);
         List<StreamerLeaderboardProjection> topStreamers =
-            streamRepository.findTopStreamersWith30dAvg(since, MIN_SESSIONS, DEFAULT_TOP_LIMIT);
+            streamRepository.findTopStreamersWith30dAvg(since, MIN_DAYS, DEFAULT_TOP_LIMIT);
 
         List<StreamResponse> calculated = bindRealtimeLiveStatus(topStreamers);
         if (!calculated.isEmpty()) {

@@ -100,14 +100,14 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
             WHERE ss.started_at >= :since
               AND ss.average_viewer_count > 0
             GROUP BY ss.stream_id
-            HAVING COUNT(ss.id) >= :minSessions
+            HAVING COUNT(DISTINCT DATE(ss.started_at AT TIME ZONE 'Asia/Seoul')) >= :minDays
         ) sub ON s.stream_id = sub.stream_id
         ORDER BY averageViewers DESC, s.id DESC
         LIMIT :limit
         """, nativeQuery = true)
     List<StreamerLeaderboardProjection> findTopStreamersWith30dAvg(
         @Param("since") Instant since,
-        @Param("minSessions") int minSessions,
+        @Param("minDays") int minDays,
         @Param("limit") int limit
     );
 
