@@ -11,9 +11,11 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.resilience.annotation.Retryable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 @Slf4j
 @Component
@@ -39,6 +41,11 @@ public class ApiServerClient {
         this.targetsPath = targetsPath;
     }
 
+    @Retryable(
+        includes = RestClientException.class,
+        maxRetries = 3,
+        delay = 1000
+    )
     public Optional<List<String>> fetchTargetChannels() {
         try {
             List<String> channels = restClient.get()

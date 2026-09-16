@@ -4,6 +4,7 @@ import io.slice.stream.apiserver.category.domain.CategoryRepository;
 import io.slice.stream.apiserver.category.domain.CategoryViewMetric;
 import io.slice.stream.apiserver.category.presentation.dto.WeeklyCategoryResponse;
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -17,6 +18,7 @@ import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -25,6 +27,7 @@ import tools.jackson.databind.json.JsonMapper;
 public class CategoryRankingBatchService {
 
     public static final String REDIS_WEEKLY_KEY = "category:ranking:weekly";
+    private static final Duration CACHE_TTL = Duration.ofDays(8);
     private static final int DEFAULT_TOP_LIMIT = 6;
     private static final ZoneId KST_ZONE = ZoneId.of("Asia/Seoul");
     private static final Map<String, String> ICON_MAP = Map.ofEntries(
@@ -59,6 +62,11 @@ public class CategoryRankingBatchService {
         this.timelineIntervalSeconds = timelineIntervalSeconds;
     }
 
+    @Retryable(
+        includes = Exception.class,
+        maxRetries = 3,
+        delay = 2000
+    )
     public List<WeeklyCategoryResponse> refreshWeeklyRanking() {
         log.info("[Batch] 주간 인기 카테고리 랭킹 집계 시작");
         LocalDate currentMonday = LocalDate.now(KST_ZONE).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
@@ -143,7 +151,7 @@ public class CategoryRankingBatchService {
     private void saveToRedis(List<WeeklyCategoryResponse> responses) {
         try {
             String weeklyJson = jsonMapper.writeValueAsString(responses);
-            redisTemplate.opsForValue().set(REDIS_WEEKLY_KEY, weeklyJson);
+            redisTemplate.opsForValue().set(REDIS_WEEKLY_KEY, weeklyJson, CACHE_TTL);
         } catch (Exception e) {
             log.error("[Batch] Redis 카테고리 랭킹 캐시 저장 실패", e);
         }

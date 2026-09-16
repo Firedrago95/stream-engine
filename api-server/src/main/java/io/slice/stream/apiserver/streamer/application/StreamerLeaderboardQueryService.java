@@ -21,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
@@ -72,6 +73,11 @@ public class StreamerLeaderboardQueryService {
         return cacheRefreshed ? cached : syncRealtimeStatusForCached(cached);
     }
 
+    @Retryable(
+        includes = Exception.class,
+        maxRetries = 3,
+        delay = 2000
+    )
     @Transactional
     public List<StreamResponse> refreshDailyLeaderboard() {
         Instant since = Instant.now().minus(DAYS_30, ChronoUnit.DAYS);
