@@ -47,13 +47,14 @@ const formatShortTime = (ts: any) => {
   return d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
 };
 
-const CustomTooltip = ({ active, payload, selectedTab, formatTime, segments = [] }: any) => {
+const CustomTooltip = ({ active, payload, selectedTab, timeframe = 'realtime', formatTime, segments = [] }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     if (!data.hasData) return null;
 
+    const isFixedRealtime = selectedTab === "realtime" && timeframe === "realtime";
     const tsMs = data.timestamp < 10000000000 ? data.timestamp * 1000 : data.timestamp;
-    const activeSeg = selectedTab === "realtime" ? null : segments.find((seg: any) => {
+    const activeSeg = isFixedRealtime ? null : segments.find((seg: any) => {
       const start = new Date(seg.startedAt).getTime();
       const end = seg.endedAt ? new Date(seg.endedAt).getTime() : Infinity;
       return tsMs >= start && tsMs < end;
@@ -71,22 +72,23 @@ const CustomTooltip = ({ active, payload, selectedTab, formatTime, segments = []
             </div>
           )}
         </div>
-        {selectedTab === "realtime" ? (
+        {isFixedRealtime ? (
           <div className="text-[11px] text-gray-200 font-mono tracking-tighter">
             실제 시각: {formatTime(data.timestamp)}
           </div>
         ) : (
           <div className="flex flex-col mt-2">
-            <div className="text-sm text-gray-100 font-bold mb-0.5 italic">
-              🎬 영상 {formatOffset(data.offsetMs)}
-            </div>
+            {data.offsetMs !== undefined && data.offsetMs !== null && (
+              <div className="text-sm text-gray-100 font-bold mb-0.5 italic">
+                🎬 {selectedTab === "realtime" ? "방송 진행" : "영상"} {formatOffset(data.offsetMs)}
+              </div>
+            )}
             <div className="text-[11px] text-gray-200 font-mono tracking-tighter">
               (방송 시각 {formatTime(data.timestamp)})
             </div>
           </div>
         )}
 
-        {/* 해당 시간의 방제/카테고리 툴팁에 표시 */}
         {activeSeg && (
           <div className="mt-2 pt-2 border-t border-gray-700/60 flex flex-col gap-1">
             <span className="text-[10px] text-purple-300 font-bold uppercase tracking-wider">
@@ -136,10 +138,11 @@ export const AnalysisChart: React.FC<Props> = ({
   historyEmpty, onMouseMove, onMouseLeave, formatTime, rebangIndexes = [], segments = [],
   showTimeframeToggle = false, timeframe = 'realtime', onTimeframeChange
 }) => {
-  const isRealtime = selectedTab === "realtime";
+  const isFixedRealtime = selectedTab === "realtime" && timeframe === "realtime";
+  const isLiveTab = selectedTab === "realtime";
 
   const { processedData, uniqueColors } = React.useMemo(() => {
-    if (isRealtime || !segments.length || !chartData.length) {
+    if (isFixedRealtime || !segments.length || !chartData.length) {
       return { processedData: chartData, uniqueColors: ['#00FFA3'] };
     }
 
@@ -174,7 +177,7 @@ export const AnalysisChart: React.FC<Props> = ({
     }
 
     return { processedData: newData, uniqueColors: Array.from(colors) };
-  }, [chartData, isRealtime, segments]);
+  }, [chartData, isFixedRealtime, segments]);
 
 
   return (
@@ -189,14 +192,14 @@ export const AnalysisChart: React.FC<Props> = ({
         </div>
       )}
 
-      {isRealtime && (isLoading || isGathering) && !error && (
+      {isLiveTab && (isLoading || isGathering) && !error && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="w-10 h-10 border-4 border-[#00FFA3] border-t-transparent rounded-full animate-spin mb-4" />
           <p className="text-[#00FFA3] font-black tracking-widest text-sm">데이터 불러오는 중...</p>
         </div>
       )}
 
-      {!isRealtime && historyEmpty && (
+      {!isLiveTab && historyEmpty && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
           <span className="text-4xl mb-4">🏜️</span>
           <p className="text-gray-400 font-bold tracking-widest">해당 날짜의 분석 기록이 없습니다.</p>
@@ -284,7 +287,7 @@ export const AnalysisChart: React.FC<Props> = ({
               ))}
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} opacity={0.3} />
-            {!isRealtime && segments.map((seg, index) => {
+            {!isFixedRealtime && segments.map((seg, index) => {
               const { x1 } = getSegmentXRange(seg, chartData);
               
               const isCategoryChanged = index === 0 || segments[index - 1].categoryName !== seg.categoryName;
@@ -314,10 +317,10 @@ export const AnalysisChart: React.FC<Props> = ({
               tickFormatter={(idx) => {
                 const ts = chartData[idx]?.timestamp;
                 if (!ts) return "";
-                return isRealtime ? formatTime(ts) : formatShortTime(ts);
+                return isFixedRealtime ? formatTime(ts) : formatShortTime(ts);
               }}
               interval="preserveStartEnd"
-              minTickGap={isRealtime ? 50 : 80}
+              minTickGap={isFixedRealtime ? 50 : 80}
               stroke="#475569"
               fontSize={10}
               tickMargin={15}
@@ -336,7 +339,7 @@ export const AnalysisChart: React.FC<Props> = ({
               tickFormatter={(v) => (v >= 10000 ? `${(v / 10000).toFixed(1)}만` : v >= 1000 ? `${(v / 1000).toFixed(1)}천` : `${v}`)}
             />
 
-            {!isRealtime && rebangIndexes.map((idx: number) => (
+            {!isFixedRealtime && rebangIndexes.map((idx: number) => (
               <ReferenceLine
                 key={idx}
                 x={idx}
@@ -346,7 +349,7 @@ export const AnalysisChart: React.FC<Props> = ({
               />
             ))}
 
-            {isRealtime ? (
+            {isFixedRealtime ? (
               <Area yAxisId="firepower" type="monotone" dataKey="value" stroke="#00FFA3" strokeWidth={3} fill="url(#colorValue)" isAnimationActive={false} connectNulls={false} />
             ) : (
               uniqueColors.map(color => (
@@ -375,7 +378,7 @@ export const AnalysisChart: React.FC<Props> = ({
               connectNulls={true}
             />
 
-            <Tooltip content={<CustomTooltip selectedTab={selectedTab} formatTime={formatTime} segments={segments} />} cursor={{ stroke: "#00FFA3", strokeWidth: 1 }} />
+            <Tooltip content={<CustomTooltip selectedTab={selectedTab} timeframe={timeframe} formatTime={formatTime} segments={segments} />} cursor={{ stroke: "#00FFA3", strokeWidth: 1 }} />
           </AreaChart>
         </ResponsiveContainer>
       </div>

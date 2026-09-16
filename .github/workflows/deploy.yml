@@ -1,21 +1,20 @@
 name: Production Deploy
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   # ---------------------------------------------------
   # 0. 어떤 모듈이 변경되었는지 감지
   # ---------------------------------------------------
   detect-changes:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     outputs:
-      api_server: ${{ steps.filter.outputs.api_server }}
-      engine: ${{ steps.filter.outputs.engine }}
+      api_server: ${{ steps.filter.outputs.api_server == 'true' || github.event_name == 'workflow_dispatch' }}
+      engine: ${{ steps.filter.outputs.engine == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4

@@ -22,12 +22,15 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 @Service
@@ -182,7 +185,7 @@ public class StreamSessionService {
                     segment.endSegment(endedAt, endOffset);
                 });
 
-            Objects.requireNonNull(cacheManager.getCache("activeSessions")).evict(session.getStreamId());
+            evictActiveSessionAfterCommit(session.getStreamId());
             log.info("[Session-Manager] 방송 종료 감지, 세션 마감 - Stream: {}, SessionId: {}", session.getStreamId(), session.getSessionId());
         }
     }
@@ -220,5 +223,27 @@ public class StreamSessionService {
         int finalPeak = peakViewers != null ? Math.max(peakViewers, session.getPeakViewers()) : session.getPeakViewers();
 
         session.finishSession(summaries.endedAt(), finalPeak, avgViewers);
+
+        evictActiveSessionAfterCommit(streamId);
+    }
+
+    private void evictActiveSessionAfterCommit(String streamId) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    doEvict(streamId);
+                }
+            });
+        } else {
+            doEvict(streamId);
+        }
+    }
+
+    private void doEvict(String streamId) {
+        Cache activeSessionsCache = cacheManager.getCache("activeSessions");
+        if (activeSessionsCache != null) {
+            activeSessionsCache.evict(streamId);
+        }
     }
 }

@@ -15,6 +15,7 @@ import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntit
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.ViewMetricTimelineEntity;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -124,9 +125,23 @@ public class AnalysisQueryService {
             .orElse(null);
 
         List<AnalysisDataPoint> summaryDataPoints = analysisRepository.findSummaryHistory(streamId, sessionId);
-        List<AnalysisDataPoint> points = !summaryDataPoints.isEmpty()
-            ? summaryDataPoints
-            : aggregateToOneMinuteIntervals(analysisRepository.findRawHistory(streamId, sessionId));
+        List<AnalysisDataPoint> rawDataPoints = aggregateToOneMinuteIntervals(analysisRepository.findRawHistory(streamId, sessionId));
+
+        List<AnalysisDataPoint> points;
+        if (summaryDataPoints.isEmpty()) {
+            points = rawDataPoints;
+        } else if (rawDataPoints.isEmpty()) {
+            points = summaryDataPoints;
+        } else {
+            Map<Long, AnalysisDataPoint> merged = new TreeMap<>();
+            for (AnalysisDataPoint p : summaryDataPoints) {
+                merged.put(p.timestamp(), p);
+            }
+            for (AnalysisDataPoint p : rawDataPoints) {
+                merged.putIfAbsent(p.timestamp(), p);
+            }
+            points = new ArrayList<>(merged.values());
+        }
 
         return new AnalysisResponse(streamId, points, segmentResponses, timelineResponses, summaryResponse);
     }
