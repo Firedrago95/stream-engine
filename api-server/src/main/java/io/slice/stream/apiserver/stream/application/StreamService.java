@@ -20,6 +20,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +34,7 @@ public class StreamService {
     private final JpaStreamSessionRepository sessionRepository;
     private final JpaStreamSessionSegmentRepository segmentRepository;
     private final JpaViewMetricTimelineRepository timelineRepository;
+    private final CacheManager cacheManager;
 
     @Transactional
     public void syncAll(List<StreamSyncRequest> requests) {
@@ -116,6 +119,10 @@ public class StreamService {
                         existing.reopen();
                         log.info("[Sync] 오판 종료된 세션 재활성화 - Stream: {}, SessionId: {}",
                             existing.getStreamId(), existing.getSessionId());
+                        Cache activeSessionsCache = cacheManager.getCache("activeSessions");
+                        if (activeSessionsCache != null) {
+                            activeSessionsCache.evict(existing.getStreamId());
+                        }
                     }
                     sessionMap.put(req.streamId(), existing);
 
@@ -164,6 +171,12 @@ public class StreamService {
 
         if (!newSessions.isEmpty()) {
             sessionRepository.saveAll(newSessions);
+            Cache activeSessionsCache = cacheManager.getCache("activeSessions");
+            if (activeSessionsCache != null) {
+                for (StreamSessionEntity s : newSessions) {
+                    activeSessionsCache.evict(s.getStreamId());
+                }
+            }
         }
         if (!newSegments.isEmpty()) {
             segmentRepository.saveAll(newSegments);

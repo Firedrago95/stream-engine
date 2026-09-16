@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 
@@ -27,6 +28,8 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
@@ -43,6 +46,9 @@ class StreamServiceTest {
 
     @Mock
     private JpaViewMetricTimelineRepository timelineRepository;
+
+    @Mock
+    private CacheManager cacheManager;
 
     @InjectMocks
     private StreamService streamService;
@@ -219,5 +225,23 @@ class StreamServiceTest {
         List<StreamSessionSegmentEntity> savedSegments = segmentListCaptor.getValue();
         assertThat(savedSegments).hasSize(1);
         assertThat(savedSegments.get(0).getSessionId()).isEqualTo("live1");
+    }
+
+    @Test
+    void 신규_세션_생성_시_activeSessions_캐시를_무효화한다() {
+        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
+        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", startedAt);
+        Cache activeSessionsCache = mock(Cache.class);
+
+        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
+            .willReturn(List.of());
+        given(sessionRepository.findAllBySessionIdIn(List.of("live1")))
+            .willReturn(List.of());
+        given(cacheManager.getCache("activeSessions"))
+            .willReturn(activeSessionsCache);
+
+        streamService.syncAll(List.of(request));
+
+        then(activeSessionsCache).should().evict("ch1");
     }
 }
