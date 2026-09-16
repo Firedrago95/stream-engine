@@ -256,6 +256,7 @@ class StreamRepositoryImplTest implements PostgresTestSupport {
         assertThat(results).hasSize(2);
         assertThat(results.get(0).getStreamerName()).isEqualTo("랄로");
         assertThat(results.get(0).getAverageViewers()).isEqualTo(5000);
+        assertThat(results.get(0).getLastUpdateAt()).isNotNull();
 
         assertThat(results.get(1).getStreamerName()).isEqualTo("랄로팬클럽");
         assertThat(results.get(1).getAverageViewers()).isEqualTo(0);

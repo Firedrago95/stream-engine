@@ -122,6 +122,7 @@ class JpaAnalysisSignalRepositoryTest implements PostgresTestSupport {
 
         assertThat(summaryHistory).isNotEmpty();
         assertThat(summaryHistory.get(0).getOffsetMs()).isNotNull();
+        assertThat(summaryHistory.get(0).getTimestampMinute()).isNotNull();
     }
 
     @Test
