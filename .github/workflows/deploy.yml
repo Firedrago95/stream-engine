@@ -81,6 +81,8 @@ jobs:
           # 확인된 서비스명 'api' 적용
           docker compose pull api
           docker compose up -d --no-deps api
+          docker image prune -af --filter "until=24h"
+          docker builder prune -af
 
   # ---------------------------------------------------
   # 2. 엔진 빌드 및 배포 (홈서버 - AMD64)
@@ -131,3 +133,5 @@ jobs:
           
           docker compose pull engine
           docker compose up -d --no-deps engine
+          docker image prune -af --filter "until=24h"
+          docker builder prune -af
