@@ -117,7 +117,9 @@ export const StreamAnalysisDashboard: React.FC = () => {
     const totalMinutes = data.length;
 
     let interval = 1;
-    if (totalMinutes > 360) interval = 5;
+    if (totalMinutes > 2880) interval = 15;
+    else if (totalMinutes > 1440) interval = 10;
+    else if (totalMinutes > 360) interval = 5;
     else if (totalMinutes > 180) interval = 3;
 
     if (interval === 1) {
