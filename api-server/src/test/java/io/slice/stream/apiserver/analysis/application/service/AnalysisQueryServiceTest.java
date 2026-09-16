@@ -97,29 +97,34 @@ class AnalysisQueryServiceTest {
     }
 
     @Test
-    void 과거_데이터_조회_시_요약_데이터가_존재하면_이를_우선적으로_반환한다() {
-        // given
+    void 과거_데이터_조회_시_요약_데이터와_원본_데이터를_시간순으로_병합하여_반환한다() {
         String streamId = "test-stream";
-        String sessionId = "target-session"; // 날짜(LocalDate) -> 세션(sessionId)으로 변경
+        String sessionId = "target-session";
         List<AnalysisDataPoint> summaryPoints = List.of(
-            new AnalysisDataPoint(1000L, 150L, "NORMAL", 5000L)
+            new AnalysisDataPoint(0L, 150L, "NORMAL", 0L)
+        );
+        List<AnalysisDataPoint> rawPoints = List.of(
+            new AnalysisDataPoint(60000L, 200L, "PEAK", 60000L)
         );
 
         given(segmentRepository.findBySessionIdOrderByStartedAtAsc(sessionId))
             .willReturn(List.of());
         given(analysisRepository.findSummaryHistory(streamId, sessionId))
             .willReturn(summaryPoints);
+        given(analysisRepository.findRawHistory(streamId, sessionId))
+            .willReturn(rawPoints);
 
-        // when
         AnalysisResponse response = analysisQueryService.getHistoryAnalysis(streamId, sessionId);
 
-        // then
-        assertThat(response.dataPoints()).hasSize(1);
+        assertThat(response.dataPoints()).hasSize(2);
+        assertThat(response.dataPoints().get(0).timestamp()).isEqualTo(0L);
         assertThat(response.dataPoints().get(0).value()).isEqualTo(150L);
+        assertThat(response.dataPoints().get(1).timestamp()).isEqualTo(60000L);
+        assertThat(response.dataPoints().get(1).value()).isEqualTo(200L);
         assertThat(response.segments()).isEmpty();
 
         verify(analysisRepository).findSummaryHistory(streamId, sessionId);
-        verify(analysisRepository, never()).findRawHistory(any(), any());
+        verify(analysisRepository).findRawHistory(streamId, sessionId);
     }
 
     @Test
