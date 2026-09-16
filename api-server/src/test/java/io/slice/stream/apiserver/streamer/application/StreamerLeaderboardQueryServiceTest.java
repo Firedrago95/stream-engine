@@ -17,8 +17,6 @@ import io.slice.stream.apiserver.stream.presentation.dto.StreamResponse;
 import io.slice.stream.apiserver.stream.targeting.TargetStreamerService;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardProjection;
 import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -228,7 +226,7 @@ class StreamerLeaderboardQueryServiceTest {
             @Override public String getProfileImageUrl() { return "https://img.png"; }
             @Override public String getCategoryName() { return categoryName; }
             @Override public boolean getIsLive() { return isLive; }
-            @Override public OffsetDateTime getLastUpdateAt() { return lastUpdateAt != null ? lastUpdateAt.atOffset(ZoneOffset.UTC) : null; }
+            @Override public Instant getLastUpdateAt() { return lastUpdateAt; }
             @Override public int getConcurrentUserCount() { return concurrentUserCount; }
             @Override public int getAverageViewers() { return averageViewers; }
         };

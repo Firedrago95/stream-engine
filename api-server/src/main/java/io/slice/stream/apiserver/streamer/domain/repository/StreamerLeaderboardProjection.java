@@ -1,6 +1,6 @@
 package io.slice.stream.apiserver.streamer.domain.repository;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 public interface StreamerLeaderboardProjection {
     String getStreamId();
@@ -9,7 +9,7 @@ public interface StreamerLeaderboardProjection {
     String getProfileImageUrl();
     String getCategoryName();
     boolean getIsLive();
-    OffsetDateTime getLastUpdateAt();
+    Instant getLastUpdateAt();
     int getConcurrentUserCount();
     int getAverageViewers();
 }

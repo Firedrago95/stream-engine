@@ -11,7 +11,6 @@ import static org.mockito.Mockito.when;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardProjection;
 import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -98,7 +97,7 @@ class TargetStreamerServiceTest {
             @Override public String getProfileImageUrl() { return "https://img.png"; }
             @Override public String getCategoryName() { return "종합게임"; }
             @Override public boolean getIsLive() { return true; }
-            @Override public OffsetDateTime getLastUpdateAt() { return OffsetDateTime.now(); }
+            @Override public Instant getLastUpdateAt() { return Instant.now(); }
             @Override public int getConcurrentUserCount() { return 1000; }
             @Override public int getAverageViewers() { return 1000; }
         };

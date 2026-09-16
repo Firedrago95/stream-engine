@@ -82,7 +82,7 @@ public class AnalysisRepositoryImpl implements AnalysisRepository {
             .map(p -> {
                 if (p.getTimestampMinute() == null) return null;
                 return new AnalysisDataPoint(
-                    p.getTimestampMinute().toInstant().toEpochMilli(),
+                    p.getTimestampMinute().toEpochMilli(),
                     p.getFirepowerMax(),
                     p.getStatus(),
                     p.getOffsetMs()

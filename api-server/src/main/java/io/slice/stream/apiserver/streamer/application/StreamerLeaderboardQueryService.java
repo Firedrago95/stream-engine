@@ -156,7 +156,7 @@ public class StreamerLeaderboardQueryService {
 
         return projections.stream()
             .map(p -> {
-                boolean isLive = p.getIsLive() && p.getLastUpdateAt() != null && p.getLastUpdateAt().toInstant().isAfter(threshold);
+                boolean isLive = p.getIsLive() && p.getLastUpdateAt() != null && p.getLastUpdateAt().isAfter(threshold);
                 StreamStatus status = StreamStatus.determine(
                     isLive,
                     analyzingIds.contains(p.getStreamId()) || targetIdSet.contains(p.getStreamId())
