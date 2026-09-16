@@ -1,7 +1,6 @@
 package io.slice.stream.apiserver.analysis.infrastructure;
 
 import io.slice.stream.apiserver.analysis.infrastructure.entity.AnalysisSignalEntity;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -57,7 +56,7 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
     List<AnalysisSignalEntity> findRawHistoryBySession(@Param("streamId") String streamId, @Param("sessionId") String sessionId);
 
     interface SummaryDataProjection {
-        Timestamp getTimestampMinute();
+        Instant getTimestampMinute();
         Long getFirepowerMax();
         String getStatus();
         Long getOffsetMs();
