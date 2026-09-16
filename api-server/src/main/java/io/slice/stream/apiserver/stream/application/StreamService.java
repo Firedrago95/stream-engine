@@ -24,6 +24,8 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 @Service
@@ -119,10 +121,7 @@ public class StreamService {
                         existing.reopen();
                         log.info("[Sync] 오판 종료된 세션 재활성화 - Stream: {}, SessionId: {}",
                             existing.getStreamId(), existing.getSessionId());
-                        Cache activeSessionsCache = cacheManager.getCache("activeSessions");
-                        if (activeSessionsCache != null) {
-                            activeSessionsCache.evict(existing.getStreamId());
-                        }
+                        evictActiveSessionAfterCommit(existing.getStreamId());
                     }
                     sessionMap.put(req.streamId(), existing);
 
@@ -171,11 +170,8 @@ public class StreamService {
 
         if (!newSessions.isEmpty()) {
             sessionRepository.saveAll(newSessions);
-            Cache activeSessionsCache = cacheManager.getCache("activeSessions");
-            if (activeSessionsCache != null) {
-                for (StreamSessionEntity s : newSessions) {
-                    activeSessionsCache.evict(s.getStreamId());
-                }
+            for (StreamSessionEntity s : newSessions) {
+                evictActiveSessionAfterCommit(s.getStreamId());
             }
         }
         if (!newSegments.isEmpty()) {
@@ -204,5 +200,25 @@ public class StreamService {
 
         log.info("[Sync] Native Upsert 완료 - {}건 (중복 제거 전: {}건, 시계열 적재: {}건)",
             uniqueRequests.size(), requests.size(), timelineEntities.size());
+    }
+
+    private void evictActiveSessionAfterCommit(String streamId) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    doEvict(streamId);
+                }
+            });
+        } else {
+            doEvict(streamId);
+        }
+    }
+
+    private void doEvict(String streamId) {
+        Cache activeSessionsCache = cacheManager.getCache("activeSessions");
+        if (activeSessionsCache != null) {
+            activeSessionsCache.evict(streamId);
+        }
     }
 }
