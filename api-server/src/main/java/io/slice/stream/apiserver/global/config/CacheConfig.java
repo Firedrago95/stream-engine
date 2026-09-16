@@ -13,10 +13,20 @@ public class CacheConfig {
 
     @Bean
     public CaffeineCacheManager cacheManager() {
-        CaffeineCacheManager cacheManager = new CaffeineCacheManager("activeSessions", "targetChannels");
-        cacheManager.setCaffeine(Caffeine.newBuilder()
-            .maximumSize(10_000)                              // 최대 1만 명의 스트리머 세션만 캐싱
-            .expireAfterAccess(10, TimeUnit.MINUTES));  // 10분간 신호없으면 캐시 삭제
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager();
+
+        cacheManager.registerCustomCache("activeSessions",
+            Caffeine.newBuilder()
+                .maximumSize(10_000)
+                .expireAfterAccess(10, TimeUnit.MINUTES)
+                .build());
+
+        cacheManager.registerCustomCache("targetChannels",
+            Caffeine.newBuilder()
+                .maximumSize(1)
+                .expireAfterWrite(25, TimeUnit.HOURS)
+                .build());
+
         return cacheManager;
     }
 }

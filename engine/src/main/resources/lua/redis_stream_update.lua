@@ -56,6 +56,8 @@ if #active_ids > 0 then
             redis.call('SADD', KEYS[3], unpack(chunk))
         end
     end
+    redis.call('EXPIRE', KEYS[1], 120)
+    redis.call('EXPIRE', KEYS[3], 120)
 end
 
 if #hash_data > 0 then
@@ -68,6 +70,7 @@ if #hash_data > 0 then
             redis.call('HSET', KEYS[2], unpack(chunk))
         end
     end
+    redis.call('EXPIRE', KEYS[2], 120)
 end
 
 return {}

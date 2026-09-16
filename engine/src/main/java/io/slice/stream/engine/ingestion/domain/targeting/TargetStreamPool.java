@@ -64,6 +64,7 @@ public class TargetStreamPool {
         "            redis.call('SADD', KEYS[1], unpack(chunk))\n" +
         "        end\n" +
         "    end\n" +
+        "    redis.call('EXPIRE', KEYS[1], 93600)\n" +
         "end\n" +
         "return 1\n",
         Long.class

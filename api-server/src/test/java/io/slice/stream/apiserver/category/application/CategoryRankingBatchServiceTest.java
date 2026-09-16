@@ -12,6 +12,7 @@ import io.slice.stream.apiserver.category.domain.CategoryRepository;
 import io.slice.stream.apiserver.category.domain.CategoryViewMetric;
 import io.slice.stream.apiserver.category.presentation.dto.WeeklyCategoryResponse;
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -104,7 +105,7 @@ class CategoryRankingBatchServiceTest {
         assertThat(rank4.changeValue()).isEqualTo(3);
 
         then(categoryRepository).should().saveAllWeeklyRankings(any(LocalDate.class), eq(results));
-        then(valueOps).should().set(eq(CategoryRankingBatchService.REDIS_WEEKLY_KEY), anyString());
+        then(valueOps).should().set(eq(CategoryRankingBatchService.REDIS_WEEKLY_KEY), anyString(), eq(Duration.ofDays(8)));
     }
 
     @Test
@@ -126,6 +127,6 @@ class CategoryRankingBatchServiceTest {
         assertThat(results.get(0).changeValue()).isNull();
 
         then(categoryRepository).should().saveAllWeeklyRankings(any(LocalDate.class), eq(results));
-        then(valueOps).should().set(eq(CategoryRankingBatchService.REDIS_WEEKLY_KEY), anyString());
+        then(valueOps).should().set(eq(CategoryRankingBatchService.REDIS_WEEKLY_KEY), anyString(), eq(Duration.ofDays(8)));
     }
 }

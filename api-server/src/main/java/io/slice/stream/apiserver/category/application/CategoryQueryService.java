@@ -2,6 +2,7 @@ package io.slice.stream.apiserver.category.application;
 
 import io.slice.stream.apiserver.category.domain.CategoryRepository;
 import io.slice.stream.apiserver.category.presentation.dto.WeeklyCategoryResponse;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,8 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 @RequiredArgsConstructor
 public class CategoryQueryService {
+
+    private static final Duration CACHE_TTL = Duration.ofDays(8);
 
     private final StringRedisTemplate redisTemplate;
     private final JsonMapper jsonMapper;
@@ -52,7 +55,7 @@ public class CategoryQueryService {
     private void writeToRedis(List<WeeklyCategoryResponse> rankings) {
         try {
             String json = jsonMapper.writeValueAsString(rankings);
-            redisTemplate.opsForValue().set(CategoryRankingBatchService.REDIS_WEEKLY_KEY, json);
+            redisTemplate.opsForValue().set(CategoryRankingBatchService.REDIS_WEEKLY_KEY, json, CACHE_TTL);
         } catch (Exception e) {
             log.error("[Cache] Redis 주간 카테고리 랭킹 갱신 실패", e);
         }
