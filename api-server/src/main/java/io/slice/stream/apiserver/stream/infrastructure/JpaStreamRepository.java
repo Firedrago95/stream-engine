@@ -17,6 +17,14 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
 
     Optional<StreamEntity> findByStreamId(String streamId);
 
+    @Modifying
+    @Query("""
+        UPDATE StreamEntity s 
+        SET s.isLive = false, s.concurrentUserCount = 0 
+        WHERE s.isLive = true AND s.lastUpdateAt < :threshold
+        """)
+    int markAllOfflineBefore(@Param("threshold") Instant threshold);
+
     @Query("""
            SELECT s FROM StreamEntity s 
            WHERE s.isLive = true 

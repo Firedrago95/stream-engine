@@ -81,14 +81,17 @@ public class StreamService {
                 if (Objects.equals(activeSession.getSessionId(), req.liveId())) {
                     sessionMap.put(req.streamId(), activeSession);
                 } else {
-                    activeSession.finishSession(currentTime, null);
+                    Double avgViewers = timelineRepository.findAverageViewerCountBySessionId(activeSession.getSessionId());
+                    Integer peakViewers = timelineRepository.findPeakViewerCountBySessionId(activeSession.getSessionId());
+                    int finalPeak = peakViewers != null ? Math.max(peakViewers, activeSession.getPeakViewers()) : activeSession.getPeakViewers();
+                    activeSession.finishSession(currentTime, finalPeak, avgViewers);
                     segmentRepository.findActiveSegment(activeSession.getSessionId())
                         .ifPresent(segment -> {
                             long endOffset = Duration.between(activeSession.getStartedAt(), currentTime).toMillis();
                             segment.endSegment(currentTime, endOffset);
                         });
-                    log.info("[Sync] 이전 세션 종료 (새 방송 감지) - Stream: {}, OldSession: {}, NewLiveId: {}",
-                        req.streamId(), activeSession.getSessionId(), req.liveId());
+                    log.info("[Sync] 이전 세션 종료 (새 방송 감지) - Stream: {}, OldSession: {}, NewLiveId: {}, AvgViewers: {}",
+                        req.streamId(), activeSession.getSessionId(), req.liveId(), activeSession.getAverageViewerCount());
                 }
             }
         }
@@ -198,8 +201,46 @@ public class StreamService {
             timelineRepository.saveAll(timelineEntities);
         }
 
+        closeOfflineStreams(currentTime);
+
         log.info("[Sync] Native Upsert 완료 - {}건 (중복 제거 전: {}건, 시계열 적재: {}건)",
             uniqueRequests.size(), requests.size(), timelineEntities.size());
+    }
+
+    private void closeOfflineStreams(Instant currentTime) {
+        Instant offlineThreshold = currentTime.minus(Duration.ofMinutes(6));
+        List<StreamSessionEntity> sessionsToClose = sessionRepository.findSessionsToClose(offlineThreshold);
+
+        if (!sessionsToClose.isEmpty()) {
+            List<String> streamIds = sessionsToClose.stream()
+                .map(StreamSessionEntity::getStreamId)
+                .distinct()
+                .toList();
+
+            Map<String, Instant> streamLastUpdateMap = streamRepository.findAllByStreamIdIn(streamIds).stream()
+                .collect(Collectors.toMap(StreamEntity::getStreamId, StreamEntity::getLastUpdateAt, (existing, replacement) -> existing));
+
+            for (StreamSessionEntity session : sessionsToClose) {
+                Double avgViewers = timelineRepository.findAverageViewerCountBySessionId(session.getSessionId());
+                Integer peakViewers = timelineRepository.findPeakViewerCountBySessionId(session.getSessionId());
+                int finalPeak = peakViewers != null ? Math.max(peakViewers, session.getPeakViewers()) : session.getPeakViewers();
+
+                Instant endedAt = streamLastUpdateMap.getOrDefault(session.getStreamId(), session.getStartedAt());
+                session.finishSession(endedAt, finalPeak, avgViewers);
+
+                segmentRepository.findActiveSegment(session.getSessionId())
+                    .ifPresent(segment -> {
+                        long endOffset = Duration.between(session.getStartedAt(), endedAt).toMillis();
+                        segment.endSegment(endedAt, endOffset);
+                    });
+
+                evictActiveSessionAfterCommit(session.getStreamId());
+                log.info("[Sync] 방송 종료 감지, 세션 마감 - Stream: {}, SessionId: {}, AvgViewers: {}",
+                    session.getStreamId(), session.getSessionId(), session.getAverageViewerCount());
+            }
+        }
+
+        streamRepository.markAllOfflineBefore(offlineThreshold);
     }
 
     private void evictActiveSessionAfterCommit(String streamId) {

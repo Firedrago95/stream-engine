@@ -179,7 +179,7 @@ class StreamServiceTest {
     }
 
     @Test
-    void 활성_세션의_liveId가_요청의_liveId와_다른_경우_이전_세션을_종료하고_신규_세션을_생성한다() {
+    void 활성_세션의_liveId가_요청의_liveId와_다른_경우_이전_세션을_평균시청자수와_함께_종료하고_신규_세션을_생성한다() {
         Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
         StreamSyncRequest request = new StreamSyncRequest("ch1", "live2", "침착맨", "새 방송", "thumb.jpg", 4000, "게임", startedAt);
         StreamSessionEntity oldActiveSession = new StreamSessionEntity("ch1", "live1", "이전 방송", "소통", startedAt.minusSeconds(3600));
@@ -188,10 +188,17 @@ class StreamServiceTest {
             .willReturn(List.of(oldActiveSession));
         given(sessionRepository.findAllBySessionIdIn(List.of("live2")))
             .willReturn(List.of());
+        given(timelineRepository.findAverageViewerCountBySessionId("live1"))
+            .willReturn(2500.0);
+        given(timelineRepository.findPeakViewerCountBySessionId("live1"))
+            .willReturn(3000);
 
         streamService.syncAll(List.of(request));
 
         assertThat(oldActiveSession.getEndedAt()).isNotNull();
+        assertThat(oldActiveSession.getAverageViewerCount()).isEqualTo(2500);
+        assertThat(oldActiveSession.getPeakViewers()).isEqualTo(3000);
+
         then(sessionRepository).should().saveAll(sessionListCaptor.capture());
         List<StreamSessionEntity> savedSessions = sessionListCaptor.getValue();
         assertThat(savedSessions).hasSize(1);
@@ -201,6 +208,39 @@ class StreamServiceTest {
         List<StreamSessionSegmentEntity> savedSegments = segmentListCaptor.getValue();
         assertThat(savedSegments).hasSize(1);
         assertThat(savedSegments.get(0).getSessionId()).isEqualTo("live2");
+    }
+
+    @Test
+    void 마지막_업데이트가_6분이_지난_스트림은_방종으로_감지되어_세션이_마감되고_스트림이_오프라인으로_전환된다() {
+        Instant now = Instant.parse("2026-02-13T10:10:00Z");
+        Instant lastUpdate = Instant.parse("2026-02-13T10:02:00Z"); // 8분 전 업데이트
+
+        StreamSyncRequest activeRequest = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", now);
+        StreamSessionEntity activeSession = new StreamSessionEntity("ch1", "live1", "제목", "소통", now.minusSeconds(600));
+
+        StreamSessionEntity offlineSession = new StreamSessionEntity("ch_offline", "live_offline", "방종방송", "종합게임", lastUpdate.minusSeconds(3600));
+        StreamEntity offlineStreamEntity = new StreamEntity("ch_offline", "오프라인스트리머");
+        offlineStreamEntity.heartbeat("오프라인스트리머", "방종방송", "thumb.jpg", "종합게임", 500);
+        // Reflection or setter not needed if lastUpdate is set, but StreamEntity sets Instant.now() on heartbeat.
+        // We can mock streamRepository.findAllByStreamIdIn
+        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
+            .willReturn(List.of(activeSession));
+        given(sessionRepository.findSessionsToClose(any(Instant.class)))
+            .willReturn(List.of(offlineSession));
+        given(streamRepository.findAllByStreamIdIn(List.of("ch_offline")))
+            .willReturn(List.of(offlineStreamEntity));
+        given(timelineRepository.findAverageViewerCountBySessionId("live_offline"))
+            .willReturn(1234.0);
+        given(timelineRepository.findPeakViewerCountBySessionId("live_offline"))
+            .willReturn(2000);
+
+        streamService.syncAll(List.of(activeRequest));
+
+        assertThat(offlineSession.getEndedAt()).isNotNull();
+        assertThat(offlineSession.getAverageViewerCount()).isEqualTo(1234);
+        assertThat(offlineSession.getPeakViewers()).isEqualTo(2000);
+
+        then(streamRepository).should().markAllOfflineBefore(any(Instant.class));
     }
 
     @Test
