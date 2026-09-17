@@ -99,22 +99,29 @@ class StreamSessionServiceTest {
     }
 
     @Test
-    void 종료_처리된_세션에_대해_동일한_sessionId로_요청이_오면_세션을_재활성화하고_sessionId를_반환한다() {
+    void 종료_처리된_세션에_대해_동일한_sessionId로_요청이_오면_세션과_마지막_세그먼트를_재활성화하고_sessionId를_반환한다() {
         String streamId = "stream-reopen";
         String liveId = "20882722";
         Instant now = Instant.now();
         StreamSessionEntity closedSession = new StreamSessionEntity(streamId, liveId, "방제", "카테고리", now.minusSeconds(3600));
         closedSession.finishSession(now.minusSeconds(600), 100);
 
+        StreamSessionSegmentEntity closedSegment = new StreamSessionSegmentEntity(streamId, liveId, "방제", "카테고리", now.minusSeconds(3600), 0L);
+        closedSegment.endSegment(now.minusSeconds(600), 3000000L);
+
         when(sessionRepository.findActiveSession(streamId))
             .thenReturn(Optional.empty());
         when(sessionRepository.findBySessionId(liveId))
             .thenReturn(Optional.of(closedSession));
+        when(segmentRepository.findFirstBySessionIdOrderByStartedAtDesc(liveId))
+            .thenReturn(Optional.of(closedSegment));
 
         String sessionId = streamSessionService.getOrCreateActiveSession(streamId, liveId, now);
 
         assertThat(sessionId).isEqualTo(liveId);
         assertThat(closedSession.getEndedAt()).isNull();
+        assertThat(closedSegment.getEndedAt()).isNull();
+        assertThat(closedSegment.getEndOffsetMs()).isNull();
         verify(sessionRepository, times(0)).save(any(StreamSessionEntity.class));
     }
 
@@ -228,9 +235,12 @@ class StreamSessionServiceTest {
     }
 
     @Test
-    void 방송_세션_요약정보가_수신되면_정상적으로_구독자_비율과_피크_평균시청자가_업데이트된다() {
+    void 방송_세션_요약정보가_수신되면_정상적으로_구독자_비율과_피크_평균시청자가_업데이트되고_활성_세그먼트도_마감된다() {
         String streamId = "stream-summary";
-        StreamSessionEntity session = new StreamSessionEntity(streamId, "test-live-id", "방제", "카테고리", Instant.now());
+        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
+        Instant endedAt = Instant.parse("2026-02-13T12:00:00Z");
+        StreamSessionEntity session = new StreamSessionEntity(streamId, "test-live-id", "방제", "카테고리", startedAt);
+        StreamSessionSegmentEntity activeSegment = new StreamSessionSegmentEntity(streamId, "test-live-id", "방제", "카테고리", startedAt, 0L);
 
         when(sessionRepository.findActiveSession(streamId, "test-live-id"))
             .thenReturn(Optional.of(session));
@@ -238,16 +248,20 @@ class StreamSessionServiceTest {
             .thenReturn(520.4);
         when(timelineRepository.findPeakViewerCountBySessionId("test-live-id"))
             .thenReturn(850);
+        when(segmentRepository.findActiveSegment("test-live-id"))
+            .thenReturn(Optional.of(activeSegment));
 
         StreamSessionSummaryRequest request =
-            new StreamSessionSummaryRequest(45.5, "test-live-id", Instant.now());
+            new StreamSessionSummaryRequest(45.5, "test-live-id", endedAt);
 
         streamSessionService.updateSessionSummary(streamId, request);
 
         assertThat(session.getSubscriberChatRatio()).isEqualTo(45.5);
         assertThat(session.getPeakViewers()).isEqualTo(850);
         assertThat(session.getAverageViewerCount()).isEqualTo(520);
-        assertThat(session.getEndedAt()).isNotNull();
+        assertThat(session.getEndedAt()).isEqualTo(endedAt);
+        assertThat(activeSegment.getEndedAt()).isEqualTo(endedAt);
+        assertThat(activeSegment.getEndOffsetMs()).isEqualTo(7200000L);
     }
 
     @Test
@@ -262,5 +276,59 @@ class StreamSessionServiceTest {
         assertDoesNotThrow(
             () -> streamSessionService.updateSessionSummary(streamId, request)
         );
+    }
+
+    @Test
+    void 방종시각이_null로_수신되면_현재_서버시각으로_안전하게_보정되어_세션과_세그먼트가_마감된다() {
+        String streamId = "stream-null-ended";
+        Instant startedAt = Instant.now().minusSeconds(3600);
+        StreamSessionEntity session = new StreamSessionEntity(streamId, "null-ended-id", "방제", "카테고리", startedAt);
+        StreamSessionSegmentEntity activeSegment = new StreamSessionSegmentEntity(streamId, "null-ended-id", "방제", "카테고리", startedAt, 0L);
+
+        when(sessionRepository.findActiveSession(streamId, "null-ended-id"))
+            .thenReturn(Optional.of(session));
+        when(timelineRepository.findAverageViewerCountBySessionId("null-ended-id"))
+            .thenReturn(100.0);
+        when(timelineRepository.findPeakViewerCountBySessionId("null-ended-id"))
+            .thenReturn(200);
+        when(segmentRepository.findActiveSegment("null-ended-id"))
+            .thenReturn(Optional.of(activeSegment));
+
+        StreamSessionSummaryRequest request =
+            new StreamSessionSummaryRequest(30.0, "null-ended-id", null);
+
+        assertDoesNotThrow(() -> streamSessionService.updateSessionSummary(streamId, request));
+
+        assertThat(session.getEndedAt()).isNotNull();
+        assertThat(session.getEndedAt()).isAfterOrEqualTo(startedAt);
+        assertThat(activeSegment.getEndedAt()).isNotNull();
+        assertThat(activeSegment.getEndOffsetMs()).isGreaterThanOrEqualTo(0L);
+    }
+
+    @Test
+    void 방종시각이_세션_시작시각보다_과거로_수신되면_서버_현재시각으로_보정되어_음수_오프셋이_발생하지_않는다() {
+        String streamId = "stream-invalid-ended";
+        Instant startedAt = Instant.now().minusSeconds(1800);
+        Instant pastEndedAt = startedAt.minusSeconds(600); // 시작보다 10분 과거
+        StreamSessionEntity session = new StreamSessionEntity(streamId, "invalid-ended-id", "방제", "카테고리", startedAt);
+        StreamSessionSegmentEntity activeSegment = new StreamSessionSegmentEntity(streamId, "invalid-ended-id", "방제", "카테고리", startedAt, 0L);
+
+        when(sessionRepository.findActiveSession(streamId, "invalid-ended-id"))
+            .thenReturn(Optional.of(session));
+        when(timelineRepository.findAverageViewerCountBySessionId("invalid-ended-id"))
+            .thenReturn(100.0);
+        when(timelineRepository.findPeakViewerCountBySessionId("invalid-ended-id"))
+            .thenReturn(200);
+        when(segmentRepository.findActiveSegment("invalid-ended-id"))
+            .thenReturn(Optional.of(activeSegment));
+
+        StreamSessionSummaryRequest request =
+            new StreamSessionSummaryRequest(30.0, "invalid-ended-id", pastEndedAt);
+
+        assertDoesNotThrow(() -> streamSessionService.updateSessionSummary(streamId, request));
+
+        assertThat(session.getEndedAt()).isAfterOrEqualTo(startedAt);
+        assertThat(activeSegment.getEndedAt()).isAfterOrEqualTo(startedAt);
+        assertThat(activeSegment.getEndOffsetMs()).isGreaterThanOrEqualTo(0L);
     }
 }

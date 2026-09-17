@@ -78,11 +78,17 @@ public class StreamSessionService {
             .map(session -> {
                 if (session.getEndedAt() != null) {
                     session.reopen();
-                    log.info("[Session-Manager] 오판 종료된 세션 재활성화 - Stream: {}, SessionId: {}", streamId, sessionId);
+                    reopenLastSegment(sessionId);
+                    log.info("[Session-Manager] 오판 종료된 세션 및 세그먼트 재활성화 - Stream: {}, SessionId: {}", streamId, sessionId);
                 }
                 return session.getSessionId();
             })
             .orElseGet(() -> createNewSession(streamId, sessionId, startedAt));
+    }
+
+    private void reopenLastSegment(String sessionId) {
+        segmentRepository.findFirstBySessionIdOrderByStartedAtDesc(sessionId)
+            .ifPresent(StreamSessionSegmentEntity::reopen);
     }
 
     @Transactional
@@ -152,10 +158,10 @@ public class StreamSessionService {
         ));
     }
 
-    @Scheduled(fixedRate = 120_000)
+    @Scheduled(fixedRate = 3_600_000)
     @Transactional
     public void closeOfflineSessions() {
-        Instant offlineThreshold = Instant.now().minus(Duration.ofMinutes(6));
+        Instant offlineThreshold = Instant.now().minus(Duration.ofHours(24));
         List<StreamSessionEntity> sessionsToClose = sessionRepository.findSessionsToClose(offlineThreshold);
 
         if (!sessionsToClose.isEmpty()) {
@@ -222,9 +228,26 @@ public class StreamSessionService {
         Integer peakViewers = timelineRepository.findPeakViewerCountBySessionId(session.getSessionId());
         int finalPeak = peakViewers != null ? Math.max(peakViewers, session.getPeakViewers()) : session.getPeakViewers();
 
-        session.finishSession(summaries.endedAt(), finalPeak, avgViewers);
+        Instant validEndedAt = normalizeEndedAt(summaries.endedAt(), session.getStartedAt());
+        session.finishSession(validEndedAt, finalPeak, avgViewers);
+
+        segmentRepository.findActiveSegment(session.getSessionId())
+            .ifPresent(segment -> {
+                long endOffset = Math.max(0L, Duration.between(session.getStartedAt(), validEndedAt).toMillis());
+                segment.endSegment(validEndedAt, endOffset);
+            });
 
         evictActiveSessionAfterCommit(streamId);
+    }
+
+    private Instant normalizeEndedAt(Instant requestEndedAt, Instant sessionStartedAt) {
+        if (requestEndedAt == null || requestEndedAt.isBefore(sessionStartedAt)) {
+            log.warn("[Session-Manager] 유효하지 않은 방종 시각 수신 (requestEndedAt: {}, startedAt: {}). 서버 시각으로 보정합니다.",
+                requestEndedAt, sessionStartedAt);
+            Instant now = Instant.now();
+            return now.isAfter(sessionStartedAt) ? now : sessionStartedAt;
+        }
+        return requestEndedAt;
     }
 
     private void evictActiveSessionAfterCommit(String streamId) {

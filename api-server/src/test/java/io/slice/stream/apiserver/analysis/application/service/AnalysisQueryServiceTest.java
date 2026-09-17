@@ -248,4 +248,85 @@ class AnalysisQueryServiceTest {
         verify(timelineRepository).findBySessionIdOrderByTimestampAsc(sessionId);
         verify(sessionRepository).findBySessionId(sessionId);
     }
+
+    @Test
+    void 방송시간이_6시간인_경우_화력과_시청자수가_3분_단위_평균으로_다운샘플링된다() {
+        String streamId = "test-stream";
+        String sessionId = "6h-session";
+        Instant sessionStart = Instant.parse("2026-03-17T12:00:00Z");
+        Instant sessionEnd = sessionStart.plusSeconds(6 * 3600); // 6시간
+
+        StreamSessionEntity session = new StreamSessionEntity(streamId, sessionId, "6시간 방송", "롤", sessionStart);
+        session.finishSession(sessionEnd, 3000, 2000.0);
+
+        // 3분(180,000ms) 버킷 내에 1분 단위 데이터 3개 배치 (화력: 100, 200, 300 -> 평균 200)
+        long startMs = sessionStart.toEpochMilli();
+        List<AnalysisDataPoint> summaryPoints = List.of(
+            new AnalysisDataPoint(startMs, 100L, "NORMAL", 0L),
+            new AnalysisDataPoint(startMs + 60_000L, 200L, "PEAK", 60_000L),
+            new AnalysisDataPoint(startMs + 120_000L, 300L, "NORMAL", 120_000L)
+        );
+
+        // 동일 3분 버킷 내 시청자 수 3개 배치 (시청자: 1000, 2000, 3000 -> 평균 2000)
+        List<ViewMetricTimelineEntity> timelines = List.of(
+            new ViewMetricTimelineEntity(streamId, sessionId, sessionStart, 1000),
+            new ViewMetricTimelineEntity(streamId, sessionId, sessionStart.plusSeconds(60), 2000),
+            new ViewMetricTimelineEntity(streamId, sessionId, sessionStart.plusSeconds(120), 3000)
+        );
+
+        given(sessionRepository.findBySessionId(sessionId)).willReturn(Optional.of(session));
+        given(segmentRepository.findBySessionIdOrderByStartedAtAsc(sessionId)).willReturn(List.of());
+        given(timelineRepository.findBySessionIdOrderByTimestampAsc(sessionId)).willReturn(timelines);
+        given(analysisRepository.findSummaryHistory(streamId, sessionId)).willReturn(summaryPoints);
+        given(analysisRepository.findRawHistory(streamId, sessionId)).willReturn(List.of());
+
+        AnalysisResponse response = analysisQueryService.getHistoryAnalysis(streamId, sessionId);
+
+        // 3분 버킷 1개로 합쳐져야 함
+        assertThat(response.dataPoints()).hasSize(1);
+        assertThat(response.dataPoints().get(0).value()).isEqualTo(200L); // 화력 산술평균
+        assertThat(response.dataPoints().get(0).status()).isEqualTo("PEAK"); // PEAK 보존
+
+        assertThat(response.timeline()).hasSize(1);
+        assertThat(response.timeline().get(0).viewerCount()).isEqualTo(2000); // 시청자 수 산술평균
+    }
+
+    @Test
+    void 방송시간이_92시간인_경우_화력과_시청자수가_1시간_단위_평균으로_다운샘플링된다() {
+        String streamId = "test-stream";
+        String sessionId = "92h-session";
+        Instant sessionStart = Instant.parse("2026-03-12T10:00:00Z");
+        Instant sessionEnd = sessionStart.plusSeconds(92 * 3600); // 92시간
+
+        StreamSessionEntity session = new StreamSessionEntity(streamId, sessionId, "켠왕 92시간", "롤", sessionStart);
+        session.finishSession(sessionEnd, 7000, 4500.0);
+
+        long startMs = sessionStart.toEpochMilli();
+        // 1시간(3,600,000ms) 버킷 내에 데이터 배치
+        List<AnalysisDataPoint> summaryPoints = List.of(
+            new AnalysisDataPoint(startMs, 50L, "NORMAL", 0L),
+            new AnalysisDataPoint(startMs + 1_800_000L, 150L, "PEAK", 1_800_000L)
+        );
+
+        List<ViewMetricTimelineEntity> timelines = List.of(
+            new ViewMetricTimelineEntity(streamId, sessionId, sessionStart, 4000),
+            new ViewMetricTimelineEntity(streamId, sessionId, sessionStart.plusSeconds(1800), 6000)
+        );
+
+        given(sessionRepository.findBySessionId(sessionId)).willReturn(Optional.of(session));
+        given(segmentRepository.findBySessionIdOrderByStartedAtAsc(sessionId)).willReturn(List.of());
+        given(timelineRepository.findBySessionIdOrderByTimestampAsc(sessionId)).willReturn(timelines);
+        given(analysisRepository.findSummaryHistory(streamId, sessionId)).willReturn(summaryPoints);
+        given(analysisRepository.findRawHistory(streamId, sessionId)).willReturn(List.of());
+
+        AnalysisResponse response = analysisQueryService.getHistoryAnalysis(streamId, sessionId);
+
+        // 1시간 버킷 1개로 합쳐져야 함
+        assertThat(response.dataPoints()).hasSize(1);
+        assertThat(response.dataPoints().get(0).value()).isEqualTo(100L); // (50 + 150) / 2 = 100
+        assertThat(response.dataPoints().get(0).status()).isEqualTo("PEAK");
+
+        assertThat(response.timeline()).hasSize(1);
+        assertThat(response.timeline().get(0).viewerCount()).isEqualTo(5000); // (4000 + 6000) / 2 = 5000
+    }
 }
