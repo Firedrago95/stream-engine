@@ -369,4 +369,49 @@ class StreamRepositoryImplTest implements PostgresTestSupport {
         assertThat(pagedResults).hasSize(1);
         assertThat(pagedResults.get(0).getStreamId()).isEqualTo("s-recent-2");
     }
+
+    @Test
+    void 여러_날에_걸쳐_진행된_장기_연속_방송도_걸친_일수만큼_방송일수로_인정되어_선정된다() {
+        Instant now = Instant.now();
+        Instant since = now.minus(30, ChronoUnit.DAYS);
+
+        StreamEntity marathonStreamer = new StreamEntity("marathon-streamer", "마라톤스트리머");
+        marathonStreamer.heartbeat("마라톤스트리머", "장기방송", "url", "게임", 10000);
+        jpaStreamRepository.save(marathonStreamer);
+
+        Instant marathonStart = now.minus(10, ChronoUnit.DAYS);
+        Instant marathonEnd = now.minus(8, ChronoUnit.DAYS);
+        StreamSessionEntity marathonSession = new StreamSessionEntity(
+            "marathon-streamer", "sess-marathon-1", "3일 연속 방송", "게임", marathonStart
+        );
+        marathonSession.finishSession(marathonEnd, 15000, 10000);
+        jpaStreamSessionRepository.save(marathonSession);
+
+        Instant day4 = now.minus(5, ChronoUnit.DAYS);
+        StreamSessionEntity normal1 = new StreamSessionEntity(
+            "marathon-streamer", "sess-normal-1", "일반방송1", "게임", day4
+        );
+        normal1.finishSession(day4.plusSeconds(3600), 8000, 6000);
+        jpaStreamSessionRepository.save(normal1);
+
+        Instant day5 = now.minus(3, ChronoUnit.DAYS);
+        StreamSessionEntity normal2 = new StreamSessionEntity(
+            "marathon-streamer", "sess-normal-2", "일반방송2", "게임", day5
+        );
+        normal2.finishSession(day5.plusSeconds(3600), 8000, 8000);
+        jpaStreamSessionRepository.save(normal2);
+
+        List<StreamerLeaderboardProjection> results =
+            repository.findTopStreamersWith30dAvg(since, 5, 10);
+
+        assertThat(results).extracting(StreamerLeaderboardProjection::getStreamId)
+            .contains("marathon-streamer");
+
+        StreamerLeaderboardProjection projection = results.stream()
+            .filter(p -> p.getStreamId().equals("marathon-streamer"))
+            .findFirst()
+            .orElseThrow();
+        assertThat(projection.getAverageViewers()).isEqualTo(8000);
+    }
 }
+
