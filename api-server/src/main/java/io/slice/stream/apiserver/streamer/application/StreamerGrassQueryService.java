@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,6 +53,7 @@ public class StreamerGrassQueryService {
         this(dailyStatRepository, sessionRepository, streakCalculator, Clock.system(KST));
     }
 
+    @Autowired
     public StreamerGrassQueryService(
         StreamerDailyStatRepository dailyStatRepository,
         JpaStreamSessionRepository sessionRepository,
