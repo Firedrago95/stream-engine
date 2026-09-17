@@ -132,7 +132,7 @@ public class StreamSessionService {
     @Transactional
     public void closeOfflineSessions() {
 
-        Instant offlineThreshold = Instant.now().minus(Duration.ofHours(24));
+        Instant offlineThreshold = Instant.now().minus(Duration.ofMinutes(6));
         List<StreamSessionEntity> sessionsToClose = sessionRepository.findSessionsToClose(offlineThreshold);
 
         if (!sessionsToClose.isEmpty()) {
@@ -182,9 +182,7 @@ public class StreamSessionService {
         StreamSessionEntity session = sessionOpt.get();
         session.updateSubscriberChatRatio(summaries.subscriberChatRatio());
 
-        if (session.getEndedAt() == null) {
-            finishSessionWithMetrics(session, summaries.endedAt());
-        }
+        finishSessionWithMetrics(session, summaries.endedAt());
 
         streamRepository.findByStreamId(streamId)
             .ifPresent(StreamEntity::markOffline);
@@ -201,9 +199,10 @@ public class StreamSessionService {
         Double avgViewers = timelineRepository.findAverageViewerCountBySessionId(session.getSessionId());
         Integer peakViewers = timelineRepository.findPeakViewerCountBySessionId(session.getSessionId());
         int finalPeak = peakViewers != null ? Math.max(peakViewers, session.getPeakViewers()) : session.getPeakViewers();
+        Integer finalAvg = avgViewers != null ? (int) Math.round(avgViewers) : session.getAverageViewerCount();
 
-        Instant validEndedAt = normalizeEndedAt(requestEndedAt, session.getStartedAt());
-        session.finishSession(validEndedAt, finalPeak, avgViewers);
+        Instant validEndedAt = determineEndedAt(session, requestEndedAt);
+        session.finishSession(validEndedAt, finalPeak, finalAvg);
 
         segmentRepository.findActiveSegment(session.getSessionId())
             .ifPresent(segment -> {
@@ -212,6 +211,13 @@ public class StreamSessionService {
             });
 
         dailyStatCommandService.recordSession(session);
+    }
+
+    private Instant determineEndedAt(StreamSessionEntity session, Instant requestEndedAt) {
+        if (session.getEndedAt() != null && requestEndedAt == null) {
+            return session.getEndedAt();
+        }
+        return normalizeEndedAt(requestEndedAt, session.getStartedAt());
     }
 
 

@@ -13,10 +13,10 @@ public class StreamSessionCleanupScheduler {
 
     private final StreamSessionService streamSessionService;
 
-    @Scheduled(fixedRate = 3_600_000)
+    @Scheduled(fixedDelay = 60_000)
     public void scheduleOfflineSessionCleanup() {
-        log.info("[Session-Cleanup-Scheduler] 정기 오프라인 방치 세션 정리 작업 시작");
+        log.info("[Session-Cleanup-Scheduler] 정기 오프라인 세션 정리 작업 시작");
         streamSessionService.closeOfflineSessions();
-        log.info("[Session-Cleanup-Scheduler] 정기 오프라인 방치 세션 정리 작업 완료");
+        log.info("[Session-Cleanup-Scheduler] 정기 오프라인 세션 정리 작업 완료");
     }
 }

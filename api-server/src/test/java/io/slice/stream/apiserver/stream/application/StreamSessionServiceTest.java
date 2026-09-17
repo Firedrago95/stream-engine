@@ -221,30 +221,6 @@ class StreamSessionServiceTest {
     }
 
     @Test
-    void 이미_마감된_세션에_요약정보_수신시_구독자_채팅_비율만_안전하게_주입된다() {
-        String streamId = "stream-closed";
-        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
-        Instant endedAt = Instant.parse("2026-02-13T12:00:00Z");
-        StreamSessionEntity session = new StreamSessionEntity(streamId, "closed-live-id", "방제", "카테고리", startedAt);
-        session.finishSession(endedAt, 1000, 500);
-
-        when(sessionRepository.findActiveSession(streamId, "closed-live-id"))
-            .thenReturn(Optional.empty());
-        when(sessionRepository.findBySessionId("closed-live-id"))
-            .thenReturn(Optional.of(session));
-
-        StreamSessionSummaryRequest request =
-            new StreamSessionSummaryRequest(75.5, "closed-live-id", endedAt);
-
-        streamSessionService.updateSessionSummary(streamId, request);
-
-        assertThat(session.getSubscriberChatRatio()).isEqualTo(75.5);
-        assertThat(session.getEndedAt()).isEqualTo(endedAt);
-        assertThat(session.getAverageViewerCount()).isEqualTo(500);
-        assertThat(session.getPeakViewers()).isEqualTo(1000);
-    }
-
-    @Test
     void 방종시각이_null로_수신되면_현재_서버시각으로_안전하게_보정되어_세션과_세그먼트가_마감된다() {
         String streamId = "stream-null-ended";
         Instant startedAt = Instant.now().minusSeconds(3600);
@@ -296,5 +272,38 @@ class StreamSessionServiceTest {
         assertThat(session.getEndedAt()).isAfterOrEqualTo(startedAt);
         assertThat(activeSegment.getEndedAt()).isAfterOrEqualTo(startedAt);
         assertThat(activeSegment.getEndOffsetMs()).isGreaterThanOrEqualTo(0L);
+    }
+
+    @Test
+    void 이미_종료된_세션에_요약정보가_수신되어도_정밀_시각으로_보정되고_일별_통계가_재적재된다() {
+        String streamId = "stream-summary-reconcile";
+        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
+        Instant oldEndedAt = Instant.parse("2026-02-13T11:55:00Z");
+        Instant accurateEndedAt = Instant.parse("2026-02-13T12:00:00Z");
+
+        StreamSessionEntity session = new StreamSessionEntity(streamId, "test-live-id", "방제", "카테고리", startedAt);
+        session.finishSession(oldEndedAt, 800, 500);
+
+        when(sessionRepository.findActiveSession(streamId, "test-live-id"))
+            .thenReturn(Optional.empty());
+        when(sessionRepository.findBySessionId("test-live-id"))
+            .thenReturn(Optional.of(session));
+        when(timelineRepository.findAverageViewerCountBySessionId("test-live-id"))
+            .thenReturn(520.4);
+        when(timelineRepository.findPeakViewerCountBySessionId("test-live-id"))
+            .thenReturn(850);
+        when(segmentRepository.findActiveSegment("test-live-id"))
+            .thenReturn(Optional.empty());
+
+        StreamSessionSummaryRequest request =
+            new StreamSessionSummaryRequest(50.0, "test-live-id", accurateEndedAt);
+
+        streamSessionService.updateSessionSummary(streamId, request);
+
+        assertThat(session.getSubscriberChatRatio()).isEqualTo(50.0);
+        assertThat(session.getEndedAt()).isEqualTo(accurateEndedAt);
+        assertThat(session.getPeakViewers()).isEqualTo(850);
+        assertThat(session.getAverageViewerCount()).isEqualTo(520);
+        verify(dailyStatCommandService).recordSession(session);
     }
 }

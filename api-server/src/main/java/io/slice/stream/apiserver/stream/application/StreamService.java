@@ -56,8 +56,6 @@ public class StreamService {
 
         recordViewMetricTimelines(uniqueRequests, sessionMap, currentTime);
 
-        closeOfflineStreams(currentTime);
-
         log.info("[Sync] Native Upsert 완료 - {}건 (중복 제거 전: {}건)",
             uniqueRequests.size(), requests.size());
     }
@@ -271,49 +269,6 @@ public class StreamService {
         if (!timelineEntities.isEmpty()) {
             timelineRepository.saveAll(timelineEntities);
         }
-    }
-
-    private void closeOfflineStreams(Instant currentTime) {
-        Instant offlineThreshold = currentTime.minus(Duration.ofMinutes(6));
-        List<StreamSessionEntity> sessionsToClose = sessionRepository.findSessionsToClose(offlineThreshold);
-
-        if (!sessionsToClose.isEmpty()) {
-            List<String> streamIds = sessionsToClose.stream()
-                .map(StreamSessionEntity::getStreamId)
-                .distinct()
-                .toList();
-
-            Map<String, Instant> streamLastUpdateMap = streamRepository.findAllByStreamIdIn(streamIds).stream()
-                .collect(Collectors.toMap(StreamEntity::getStreamId, StreamEntity::getLastUpdateAt, (existing, replacement) -> existing));
-
-            for (StreamSessionEntity session : sessionsToClose) {
-                closeOfflineSession(session, streamLastUpdateMap);
-            }
-        }
-
-        streamRepository.markAllOfflineBefore(offlineThreshold);
-    }
-
-    private void closeOfflineSession(StreamSessionEntity session, Map<String, Instant> streamLastUpdateMap) {
-        Double avgViewers = timelineRepository.findAverageViewerCountBySessionId(session.getSessionId());
-        Integer peakViewers = timelineRepository.findPeakViewerCountBySessionId(session.getSessionId());
-        int finalPeak = peakViewers != null ? Math.max(peakViewers, session.getPeakViewers()) : session.getPeakViewers();
-
-        Instant endedAt = streamLastUpdateMap.getOrDefault(session.getStreamId(), session.getStartedAt());
-        session.finishSession(endedAt, finalPeak, avgViewers);
-
-        segmentRepository.findActiveSegment(session.getSessionId())
-            .ifPresent(segment -> {
-                long endOffset = Duration.between(session.getStartedAt(), endedAt).toMillis();
-                segment.endSegment(endedAt, endOffset);
-            });
-
-        dailyStatCommandService.recordSession(session);
-
-        evictActiveSessionAfterCommit(session.getStreamId());
-
-        log.info("[Sync] 방송 종료 감지, 세션 마감 - Stream: {}, SessionId: {}, AvgViewers: {}",
-            session.getStreamId(), session.getSessionId(), session.getAverageViewerCount());
     }
 
     private void evictActiveSessionAfterCommit(String streamId) {
