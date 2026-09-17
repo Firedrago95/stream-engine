@@ -78,11 +78,17 @@ public class StreamSessionService {
             .map(session -> {
                 if (session.getEndedAt() != null) {
                     session.reopen();
-                    log.info("[Session-Manager] 오판 종료된 세션 재활성화 - Stream: {}, SessionId: {}", streamId, sessionId);
+                    reopenLastSegment(sessionId);
+                    log.info("[Session-Manager] 오판 종료된 세션 및 세그먼트 재활성화 - Stream: {}, SessionId: {}", streamId, sessionId);
                 }
                 return session.getSessionId();
             })
             .orElseGet(() -> createNewSession(streamId, sessionId, startedAt));
+    }
+
+    private void reopenLastSegment(String sessionId) {
+        segmentRepository.findFirstBySessionIdOrderByStartedAtDesc(sessionId)
+            .ifPresent(StreamSessionSegmentEntity::reopen);
     }
 
     @Transactional

@@ -99,22 +99,29 @@ class StreamSessionServiceTest {
     }
 
     @Test
-    void 종료_처리된_세션에_대해_동일한_sessionId로_요청이_오면_세션을_재활성화하고_sessionId를_반환한다() {
+    void 종료_처리된_세션에_대해_동일한_sessionId로_요청이_오면_세션과_마지막_세그먼트를_재활성화하고_sessionId를_반환한다() {
         String streamId = "stream-reopen";
         String liveId = "20882722";
         Instant now = Instant.now();
         StreamSessionEntity closedSession = new StreamSessionEntity(streamId, liveId, "방제", "카테고리", now.minusSeconds(3600));
         closedSession.finishSession(now.minusSeconds(600), 100);
 
+        StreamSessionSegmentEntity closedSegment = new StreamSessionSegmentEntity(streamId, liveId, "방제", "카테고리", now.minusSeconds(3600), 0L);
+        closedSegment.endSegment(now.minusSeconds(600), 3000000L);
+
         when(sessionRepository.findActiveSession(streamId))
             .thenReturn(Optional.empty());
         when(sessionRepository.findBySessionId(liveId))
             .thenReturn(Optional.of(closedSession));
+        when(segmentRepository.findFirstBySessionIdOrderByStartedAtDesc(liveId))
+            .thenReturn(Optional.of(closedSegment));
 
         String sessionId = streamSessionService.getOrCreateActiveSession(streamId, liveId, now);
 
         assertThat(sessionId).isEqualTo(liveId);
         assertThat(closedSession.getEndedAt()).isNull();
+        assertThat(closedSegment.getEndedAt()).isNull();
+        assertThat(closedSegment.getEndOffsetMs()).isNull();
         verify(sessionRepository, times(0)).save(any(StreamSessionEntity.class));
     }
 

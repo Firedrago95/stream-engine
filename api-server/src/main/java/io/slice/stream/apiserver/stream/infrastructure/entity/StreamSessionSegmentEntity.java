@@ -65,4 +65,9 @@ public class StreamSessionSegmentEntity {
         this.endedAt = endedAt;
         this.endOffsetMs = endOffsetMs;
     }
+
+    public void reopen() {
+        this.endedAt = null;
+        this.endOffsetMs = null;
+    }
 }
