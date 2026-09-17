@@ -1,4 +1,4 @@
-package io.slice.stream.apiserver.stream.targeting;
+package io.slice.stream.apiserver.stream.targeting.scheduler;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;

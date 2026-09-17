@@ -1,8 +1,10 @@
-package io.slice.stream.apiserver.streamer.application;
+package io.slice.stream.apiserver.streamer.application.scheduler;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 
+import io.slice.stream.apiserver.streamer.application.StreamerDailyStatCommandService;
+import io.slice.stream.apiserver.streamer.application.StreamerLeaderboardQueryService;
 import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;

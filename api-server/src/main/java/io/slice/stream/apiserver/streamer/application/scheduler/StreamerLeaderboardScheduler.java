@@ -1,5 +1,7 @@
-package io.slice.stream.apiserver.streamer.application;
+package io.slice.stream.apiserver.streamer.application.scheduler;
 
+import io.slice.stream.apiserver.streamer.application.StreamerDailyStatCommandService;
+import io.slice.stream.apiserver.streamer.application.StreamerLeaderboardQueryService;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
@@ -26,4 +28,3 @@ public class StreamerLeaderboardScheduler {
         log.info("[Leaderboard-Scheduler] 새벽 04:00 정기 스트리머 체급 리더보드 및 일별 통계 정산 완료");
     }
 }
-

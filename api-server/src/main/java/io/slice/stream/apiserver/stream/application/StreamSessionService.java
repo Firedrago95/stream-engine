@@ -23,9 +23,9 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -129,9 +129,9 @@ public class StreamSessionService {
         ));
     }
 
-    @Scheduled(fixedRate = 3_600_000)
     @Transactional
     public void closeOfflineSessions() {
+
         Instant offlineThreshold = Instant.now().minus(Duration.ofHours(24));
         List<StreamSessionEntity> sessionsToClose = sessionRepository.findSessionsToClose(offlineThreshold);
 
