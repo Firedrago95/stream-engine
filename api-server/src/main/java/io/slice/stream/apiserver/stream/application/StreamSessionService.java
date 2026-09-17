@@ -152,10 +152,10 @@ public class StreamSessionService {
         ));
     }
 
-    @Scheduled(fixedRate = 120_000)
+    @Scheduled(fixedRate = 3_600_000)
     @Transactional
     public void closeOfflineSessions() {
-        Instant offlineThreshold = Instant.now().minus(Duration.ofMinutes(6));
+        Instant offlineThreshold = Instant.now().minus(Duration.ofHours(24));
         List<StreamSessionEntity> sessionsToClose = sessionRepository.findSessionsToClose(offlineThreshold);
 
         if (!sessionsToClose.isEmpty()) {
@@ -223,6 +223,12 @@ public class StreamSessionService {
         int finalPeak = peakViewers != null ? Math.max(peakViewers, session.getPeakViewers()) : session.getPeakViewers();
 
         session.finishSession(summaries.endedAt(), finalPeak, avgViewers);
+
+        segmentRepository.findActiveSegment(session.getSessionId())
+            .ifPresent(segment -> {
+                long endOffset = Duration.between(session.getStartedAt(), summaries.endedAt()).toMillis();
+                segment.endSegment(summaries.endedAt(), endOffset);
+            });
 
         evictActiveSessionAfterCommit(streamId);
     }
