@@ -104,6 +104,8 @@ class StreamerProfileQueryServiceTest {
         assertThat(response.summary().totalBroadcastDurationSeconds()).isEqualTo(30000L);
         assertThat(response.summary().averageViewers()).isEqualTo(2667);
         assertThat(response.summary().hoursWatched()).isEqualTo(22.1);
+        assertThat(response.summary().broadcastDays30d()).isEqualTo(2);
+        assertThat(response.summary().attendanceRate30d()).isEqualTo(6.7);
 
         assertThat(response.mostPlayedCategories()).hasSize(2);
         assertThat(response.mostPlayedCategories().get(0).categoryName()).isEqualTo("League of Legends");

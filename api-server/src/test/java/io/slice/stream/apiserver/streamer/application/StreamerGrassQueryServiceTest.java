@@ -8,15 +8,19 @@ import static org.mockito.BDDMockito.given;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.slice.stream.apiserver.global.error.BusinessException;
+import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
+import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.streamer.domain.model.GrassLevel;
 import io.slice.stream.apiserver.streamer.domain.model.GrassTile;
 import io.slice.stream.apiserver.streamer.domain.model.StreamerDailyStat;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerDailyStatRepository;
 import io.slice.stream.apiserver.streamer.domain.service.StreakCalculator;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerGrassResponse;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -36,13 +40,16 @@ class StreamerGrassQueryServiceTest {
     private StreamerDailyStatRepository dailyStatRepository;
 
     @Mock
+    private JpaStreamSessionRepository sessionRepository;
+
+    @Mock
     private StreakCalculator streakCalculator;
 
     private StreamerGrassQueryService grassQueryService;
 
     @BeforeEach
     void setUp() {
-        grassQueryService = new StreamerGrassQueryService(dailyStatRepository, streakCalculator);
+        grassQueryService = new StreamerGrassQueryService(dailyStatRepository, sessionRepository, streakCalculator);
     }
 
     @Test
@@ -131,5 +138,37 @@ class StreamerGrassQueryServiceTest {
 
         assertThat(response.tiles()).hasSize(7);
         assertThat(response.currentStreak()).isEqualTo(120);
+    }
+
+    @Test
+    void 방송_진행_중인_활성_세션이_있으면_오늘_잔디_타일에_실시간_방송_시간이_합산되어_점등된다() {
+        String channelId = "ch_live";
+        int days = 7;
+        LocalDate today = LocalDate.now(KST);
+        LocalDate startDate = today.minusDays(days - 1L);
+
+        StreamSessionEntity activeSession = new StreamSessionEntity(
+            channelId, "live_1", "실시간 방송 중", "Just Chatting", Instant.now().minusSeconds(7200)
+        );
+        activeSession.updatePeakViewers(5000);
+        activeSession.updateAverageViewerCount(3000);
+
+        given(dailyStatRepository.findByChannelIdAndDateRange(eq(channelId), eq(startDate), eq(today)))
+            .willReturn(List.of());
+        given(sessionRepository.findActiveSession(eq(channelId)))
+            .willReturn(Optional.of(activeSession));
+        given(dailyStatRepository.findRecentActiveDates(eq(channelId), eq(today), any(Integer.class)))
+            .willReturn(List.of());
+        given(streakCalculator.calculate(any(), eq(today)))
+            .willReturn(1);
+
+        StreamerGrassResponse response = grassQueryService.getGrassData(channelId, days);
+
+        GrassTile todayTile = response.tiles().get(response.tiles().size() - 1);
+        assertThat(todayTile.date()).isEqualTo(today);
+        assertThat(todayTile.durationSeconds()).isGreaterThanOrEqualTo(7200);
+        assertThat(todayTile.level()).isNotEqualTo(GrassLevel.LEVEL_0);
+        assertThat(todayTile.peakViewers()).isEqualTo(5000);
+        assertThat(response.currentStreak()).isEqualTo(1);
     }
 }

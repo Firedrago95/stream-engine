@@ -22,6 +22,9 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -75,6 +78,11 @@ public class StreamerProfileQueryService {
             followerGrowth30d
         );
 
+        Set<LocalDate> broadcastDates = stats30d.stream()
+            .filter(stat -> stat.broadcastDurationSeconds() > 0)
+            .map(StreamerDailyStat::statDate)
+            .collect(Collectors.toSet());
+
         long totalBroadcastDurationSeconds = stats30d.stream()
             .mapToLong(StreamerDailyStat::broadcastDurationSeconds)
             .sum();
@@ -87,6 +95,24 @@ public class StreamerProfileQueryService {
             .mapToInt(StreamerDailyStat::peakViewers)
             .max()
             .orElse(0);
+
+        if (isLive) {
+            broadcastDates.add(today);
+            Optional<StreamSessionEntity> activeSession = sessionRepository.findActiveSession(channelId);
+            if (activeSession.isPresent()) {
+                Instant todayStart = today.atStartOfDay(KST).toInstant();
+                Instant sessionStart = activeSession.get().getStartedAt();
+                Instant liveStart = sessionStart.isAfter(todayStart) ? sessionStart : todayStart;
+                long liveSeconds = Math.max(0L, Duration.between(liveStart, now).getSeconds());
+                totalBroadcastDurationSeconds += liveSeconds;
+                if (activeSession.get().getPeakViewers() != null && activeSession.get().getPeakViewers() > peakViewers) {
+                    peakViewers = activeSession.get().getPeakViewers();
+                }
+            }
+        }
+
+        int broadcastDays30d = broadcastDates.size();
+        double attendanceRate30d = Math.round(((double) broadcastDays30d / DAYS_30 * 100.0) * 10.0) / 10.0;
 
         int averageViewers = 0;
         if (totalBroadcastDurationSeconds > 0) {
@@ -101,7 +127,9 @@ public class StreamerProfileQueryService {
             peakViewers,
             totalBroadcastDurationSeconds,
             Math.round(totalHoursWatched * 10.0) / 10.0,
-            followerGrowth30d
+            followerGrowth30d,
+            broadcastDays30d,
+            attendanceRate30d
         );
 
         List<StreamerCategoryDto> mostPlayedCategories = calculateMostPlayedCategories(channelId, now);
