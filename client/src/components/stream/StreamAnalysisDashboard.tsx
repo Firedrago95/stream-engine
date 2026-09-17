@@ -114,44 +114,11 @@ export const StreamAnalysisDashboard: React.FC = () => {
     matchViewer: (targetTs: number, timeline: any[], fallbackViewer?: number) => number
   ) => {
     if (!data || data.length === 0) return [];
-    const totalMinutes = data.length;
 
-    let interval = 1;
-    if (totalMinutes > 2880) interval = 15;
-    else if (totalMinutes > 1440) interval = 10;
-    else if (totalMinutes > 360) interval = 5;
-    else if (totalMinutes > 180) interval = 3;
-
-    if (interval === 1) {
-      return data.map((p: any) => ({
-        ...p,
-        viewerCount: matchViewer(p.timestamp, timeline, p.viewerCount || 0)
-      }));
-    }
-
-    const intervalMs = interval * 60 * 1000;
-    const grouped: Record<number, any> = {};
-
-    data.forEach((p: any) => {
-      const bucket = Math.floor(p.timestamp / intervalMs) * intervalMs;
-      if (!grouped[bucket]) {
-        grouped[bucket] = {
-          ...p,
-          timestamp: bucket,
-          viewerCount: matchViewer(bucket, timeline, p.viewerCount || 0)
-        };
-      } else {
-        grouped[bucket].value = Math.max(grouped[bucket].value || 0, p.value || 0);
-        if (p.status === 'PEAK') grouped[bucket].status = 'PEAK';
-        if (p.offsetMs !== undefined && (grouped[bucket].offsetMs === undefined || p.offsetMs < grouped[bucket].offsetMs)) {
-          grouped[bucket].offsetMs = p.offsetMs;
-        }
-        const matched = matchViewer(bucket, timeline, grouped[bucket].viewerCount || 0);
-        if (matched > 0) grouped[bucket].viewerCount = matched;
-      }
-    });
-
-    return Object.values(grouped).sort((a: any, b: any) => a.timestamp - b.timestamp);
+    return data.map((p: any) => ({
+      ...p,
+      viewerCount: matchViewer(p.timestamp, timeline, p.viewerCount || 0)
+    }));
   };
 
   const stableData = useMemo(() => {
@@ -511,6 +478,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
         formatTime={formatTime}
         rebangIndexes={rebangIndexes}
         segments={activeSegments}
+        highlights={highlights}
         showTimeframeToggle={isLiveTabSelected}
         timeframe={liveTimeframe}
         onTimeframeChange={setLiveTimeframe}

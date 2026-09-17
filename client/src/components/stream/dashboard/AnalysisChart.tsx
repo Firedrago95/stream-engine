@@ -3,6 +3,7 @@
 import React from 'react';
 import { AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import type { StreamSegment } from '../../../types/StreamSegment';
+import type { HighlightResponse } from '../../../hooks/useHighlights';
 
 interface Props {
   chartData: any[];
@@ -26,6 +27,7 @@ interface Props {
   formatTime: (ts: any) => string;
   rebangIndexes?: number[];
   segments: StreamSegment[];
+  highlights?: HighlightResponse[];
   showTimeframeToggle?: boolean;
   timeframe?: 'realtime' | 'cumulative';
   onTimeframeChange?: (tf: 'realtime' | 'cumulative') => void;
@@ -63,8 +65,14 @@ const CustomTooltip = ({ active, payload, selectedTab, timeframe = 'realtime', f
     return (
       <div className="bg-[#1a1a1c] border border-gray-700 p-3 rounded-xl shadow-2xl z-50 min-w-[200px]">
         <div className="flex items-center justify-between gap-4 mb-1.5">
-          <div className="text-[#00FFA3] font-black text-lg">
-            🔥 {data.value ?? 0} <span className="text-xs font-normal text-gray-200">건/초</span>
+          <div className="text-[#00FFA3] font-black text-lg flex items-center gap-1.5">
+            <span>🔥 {data.value ?? 0}</span>
+            <span className="text-xs font-normal text-gray-200">건/초</span>
+            {data.status === 'PEAK' && (
+              <span className="text-[10px] bg-red-500/20 text-red-400 border border-red-500/40 px-1 py-0.2 rounded font-bold">
+                PEAK
+              </span>
+            )}
           </div>
           {data.viewerCount !== undefined && data.viewerCount !== null && (
             <div className="text-[#67BFFF] font-bold text-sm font-mono">
@@ -115,27 +123,9 @@ const getCategoryColor = (category: string) => {
   return '#8B5CF6'
 };
 
-const getSegmentXRange = (seg: StreamSegment, data: any[]) => {
-  const startTs = new Date(seg.startedAt).getTime();
-  const endTs = seg.endedAt ? new Date(seg.endedAt).getTime() : Infinity;
-
-  const normalize = (ts: number) => (ts < 10000000000 ? ts * 1000 : ts);
-
-  let i1 = data.findIndex(d => d.timestamp && normalize(d.timestamp) >= startTs);
-  if (i1 === -1) i1 = 0;
-
-  let i2Raw = data.findIndex(d => d.timestamp && normalize(d.timestamp) >= endTs);
-  let i2 = i2Raw > 0 ? i2Raw - 1 : (i2Raw === -1 ? data.length - 1 : 0);
-
-  return {
-    x1: data[i1]?.slotIndex ?? i1,
-    x2: data[i2]?.slotIndex ?? i2,
-  };
-};
-
 export const AnalysisChart: React.FC<Props> = ({
   chartData, metric, viewerMetric, maxY, maxViewerY = 100, isLoading, isGathering, error, selectedTab,
-  historyEmpty, onMouseMove, onMouseLeave, formatTime, rebangIndexes = [], segments = [],
+  historyEmpty, onMouseMove, onMouseLeave, formatTime, rebangIndexes = [], segments = [], highlights = [],
   showTimeframeToggle = false, timeframe = 'realtime', onTimeframeChange
 }) => {
   const isFixedRealtime = selectedTab === "realtime" && timeframe === "realtime";
@@ -287,25 +277,24 @@ export const AnalysisChart: React.FC<Props> = ({
               ))}
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} opacity={0.3} />
-            {!isFixedRealtime && segments.map((seg, index) => {
-              const { x1 } = getSegmentXRange(seg, chartData);
-              
-              const isCategoryChanged = index === 0 || segments[index - 1].categoryName !== seg.categoryName;
-              
-              if (!isCategoryChanged) return null;
+            {!isFixedRealtime && highlights.map((h) => {
+              const hTs = new Date(h.startTime).getTime();
+              const normalize = (ts: number) => (ts < 10000000000 ? ts * 1000 : ts);
+              const idx = chartData.findIndex(d => d.timestamp && normalize(d.timestamp) >= hTs);
+              if (idx === -1) return null;
 
               return (
                 <ReferenceLine
-                  key={seg.id}
-                  x={x1}
-                  stroke={getCategoryColor(seg.categoryName)}
+                  key={`hl-${h.id}`}
+                  x={chartData[idx]?.slotIndex ?? idx}
+                  stroke="#F97316"
                   strokeDasharray="4 4"
-                  strokeOpacity={0.8}
+                  strokeOpacity={0.85}
                   label={{ 
                     position: 'insideTop', 
-                    value: `▼ ${seg.categoryName} 시작`, 
-                    fill: getCategoryColor(seg.categoryName), 
-                    fontSize: 11, 
+                    value: '🔥 하이라이트', 
+                    fill: '#F97316', 
+                    fontSize: 10, 
                     fontWeight: 'bold',
                     offset: 15
                   }}
