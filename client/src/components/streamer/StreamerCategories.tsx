@@ -19,7 +19,7 @@ const formatHours = (seconds: number) => {
 export const StreamerCategories: React.FC<StreamerCategoriesProps> = ({ categories }) => {
   if (!categories || categories.length === 0) {
     return (
-      <div className="p-6 bg-[#141416] border border-[#2A2A2C] rounded-2xl text-center text-gray-500 text-sm">
+      <div className="p-6 bg-[#141416] border border-[#2A2A2C] rounded-2xl text-center text-gray-400 font-medium text-sm">
         최근 30일간의 카테고리 분석 데이터가 없습니다.
       </div>
     );

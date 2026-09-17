@@ -22,8 +22,20 @@ public record StreamerProfileResponse(
         int peakViewers,
         long totalBroadcastDurationSeconds,
         double hoursWatched,
-        int followerGrowth30d
-    ) {}
+        int followerGrowth30d,
+        int broadcastDays30d,
+        double attendanceRate30d
+    ) {
+        public StreamerKpiSummaryDto(
+            int averageViewers,
+            int peakViewers,
+            long totalBroadcastDurationSeconds,
+            double hoursWatched,
+            int followerGrowth30d
+        ) {
+            this(averageViewers, peakViewers, totalBroadcastDurationSeconds, hoursWatched, followerGrowth30d, 0, 0.0);
+        }
+    }
 
     public record StreamerCategoryDto(
         String categoryName,

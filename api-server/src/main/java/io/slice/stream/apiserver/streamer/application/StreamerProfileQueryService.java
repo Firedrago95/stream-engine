@@ -12,6 +12,7 @@ import io.slice.stream.apiserver.streamer.presentation.dto.StreamerProfileRespon
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerProfileResponse.StreamerCategoryDto;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerProfileResponse.StreamerHeaderDto;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerProfileResponse.StreamerKpiSummaryDto;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -22,14 +23,15 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class StreamerProfileQueryService {
 
@@ -41,13 +43,34 @@ public class StreamerProfileQueryService {
     private final JpaStreamRepository streamRepository;
     private final StreamerDailyStatRepository dailyStatRepository;
     private final JpaStreamSessionRepository sessionRepository;
+    private final Clock clock;
+
+    public StreamerProfileQueryService(
+        JpaStreamRepository streamRepository,
+        StreamerDailyStatRepository dailyStatRepository,
+        JpaStreamSessionRepository sessionRepository
+    ) {
+        this(streamRepository, dailyStatRepository, sessionRepository, Clock.system(KST));
+    }
+
+    public StreamerProfileQueryService(
+        JpaStreamRepository streamRepository,
+        StreamerDailyStatRepository dailyStatRepository,
+        JpaStreamSessionRepository sessionRepository,
+        Clock clock
+    ) {
+        this.streamRepository = streamRepository;
+        this.dailyStatRepository = dailyStatRepository;
+        this.sessionRepository = sessionRepository;
+        this.clock = clock;
+    }
 
     public StreamerProfileResponse getProfile(String channelId) {
         StreamEntity stream = streamRepository.findByStreamId(channelId)
             .orElseThrow(() -> new BusinessException(ErrorCode.STREAM_NOT_FOUND, "존재하지 않는 스트리머 채널입니다: " + channelId));
 
-        Instant now = Instant.now();
-        LocalDate today = LocalDate.now(KST);
+        Instant now = Instant.now(clock);
+        LocalDate today = LocalDate.now(clock.withZone(KST));
         LocalDate start30d = today.minusDays(DAYS_30 - 1L);
         LocalDate start7d = today.minusDays(DAYS_7 - 1L);
 
@@ -75,6 +98,11 @@ public class StreamerProfileQueryService {
             followerGrowth30d
         );
 
+        Set<LocalDate> broadcastDates = stats30d.stream()
+            .filter(stat -> stat.broadcastDurationSeconds() > 0)
+            .map(StreamerDailyStat::statDate)
+            .collect(Collectors.toSet());
+
         long totalBroadcastDurationSeconds = stats30d.stream()
             .mapToLong(StreamerDailyStat::broadcastDurationSeconds)
             .sum();
@@ -88,11 +116,34 @@ public class StreamerProfileQueryService {
             .max()
             .orElse(0);
 
+        double liveWeightedViewerSeconds = 0.0;
+        if (isLive) {
+            broadcastDates.add(today);
+            Optional<StreamSessionEntity> activeSession = sessionRepository.findActiveSession(channelId);
+            if (activeSession.isPresent()) {
+                Instant todayStart = today.atStartOfDay(KST).toInstant();
+                Instant sessionStart = activeSession.get().getStartedAt();
+                Instant liveStart = sessionStart.isAfter(todayStart) ? sessionStart : todayStart;
+                long liveSeconds = Math.max(0L, Duration.between(liveStart, now).getSeconds());
+                totalBroadcastDurationSeconds += liveSeconds;
+                if (activeSession.get().getPeakViewers() != null && activeSession.get().getPeakViewers() > peakViewers) {
+                    peakViewers = activeSession.get().getPeakViewers();
+                }
+                int liveAvg = activeSession.get().getAverageViewerCount() != null
+                    ? activeSession.get().getAverageViewerCount()
+                    : stream.getConcurrentUserCount();
+                liveWeightedViewerSeconds = (double) liveAvg * liveSeconds;
+            }
+        }
+
+        int broadcastDays30d = broadcastDates.size();
+        double attendanceRate30d = Math.round(((double) broadcastDays30d / DAYS_30 * 100.0) * 10.0) / 10.0;
+
         int averageViewers = 0;
         if (totalBroadcastDurationSeconds > 0) {
             double weightedSum = stats30d.stream()
-                .mapToDouble(s -> s.averageViewers() * s.broadcastDurationSeconds())
-                .sum();
+                .mapToDouble(s -> (double) s.averageViewers() * s.broadcastDurationSeconds())
+                .sum() + liveWeightedViewerSeconds;
             averageViewers = (int) Math.round(weightedSum / totalBroadcastDurationSeconds);
         }
 
@@ -101,7 +152,9 @@ public class StreamerProfileQueryService {
             peakViewers,
             totalBroadcastDurationSeconds,
             Math.round(totalHoursWatched * 10.0) / 10.0,
-            followerGrowth30d
+            followerGrowth30d,
+            broadcastDays30d,
+            attendanceRate30d
         );
 
         List<StreamerCategoryDto> mostPlayedCategories = calculateMostPlayedCategories(channelId, now);

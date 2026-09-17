@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 export interface GrassTileData {
   date: string;
@@ -44,6 +44,8 @@ const getLevelColor = (level: string) => {
   }
 };
 
+const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+
 export const StreamerGrassGrid: React.FC<StreamerGrassGridProps> = ({
   tiles,
   currentStreak,
@@ -54,6 +56,58 @@ export const StreamerGrassGrid: React.FC<StreamerGrassGridProps> = ({
 }) => {
   const [hoveredTile, setHoveredTile] = useState<GrassTileData | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const { weeks, monthLabels } = useMemo(() => {
+    if (!tiles || tiles.length === 0) return { weeks: [], monthLabels: [] };
+
+    const weekList: (GrassTileData | null)[][] = [];
+    let currentWeek: (GrassTileData | null)[] = [];
+
+    const firstDate = new Date(tiles[0].date + 'T00:00:00');
+    const startDay = firstDate.getDay();
+    for (let i = 0; i < startDay; i++) {
+      currentWeek.push(null);
+    }
+
+    tiles.forEach((tile) => {
+      currentWeek.push(tile);
+      if (currentWeek.length === 7) {
+        weekList.push(currentWeek);
+        currentWeek = [];
+      }
+    });
+
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) {
+        currentWeek.push(null);
+      }
+      weekList.push(currentWeek);
+    }
+
+    const months: { weekIndex: number; label: string }[] = [];
+    let lastMonth = -1;
+
+    weekList.forEach((week, wIdx) => {
+      const firstValid = week.find((t) => t !== null);
+      if (firstValid) {
+        const d = new Date(firstValid.date + 'T00:00:00');
+        const m = d.getMonth() + 1;
+        if (m !== lastMonth) {
+          months.push({ weekIndex: wIdx, label: `${m}월` });
+          lastMonth = m;
+        }
+      }
+    });
+
+    return { weeks: weekList, monthLabels: months };
+  }, [tiles]);
+
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
+    }
+  }, [selectedDays, tiles.length]);
 
   const handleMouseEnter = (tile: GrassTileData, e: React.MouseEvent) => {
     setHoveredTile(tile);
@@ -82,8 +136,8 @@ export const StreamerGrassGrid: React.FC<StreamerGrassGridProps> = ({
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-400 mt-1">
-            최근 {selectedDays}일간 총 {totalBroadcastDays}일 방송 ({formatDuration(totalDurationSeconds)})
+          <p className="text-xs text-gray-300 mt-1">
+            최근 {selectedDays}일간 총 <strong className="text-white">{totalBroadcastDays}일</strong> 방송 ({formatDuration(totalDurationSeconds)})
           </p>
         </div>
 
@@ -104,30 +158,77 @@ export const StreamerGrassGrid: React.FC<StreamerGrassGridProps> = ({
         </div>
       </div>
 
-      <div className="overflow-x-auto no-scrollbar pb-2">
-        <div className="inline-flex gap-1.5 min-w-full">
-          {tiles.map((tile, idx) => (
-            <div
-              key={tile.date || idx}
-              onMouseEnter={(e) => handleMouseEnter(tile, e)}
-              onMouseLeave={handleMouseLeave}
-              className={`w-3.5 h-10 sm:w-4 sm:h-12 rounded-sm cursor-pointer transition-all duration-150 transform hover:scale-110 ${getLevelColor(
-                tile.level
-              )}`}
-            />
-          ))}
+      <div
+        ref={scrollContainerRef}
+        className="overflow-x-auto no-scrollbar pb-2"
+      >
+        <div className="inline-flex flex-col min-w-max">
+          <div className="flex pl-7 sm:pl-8 mb-1.5 text-[11px] font-medium text-gray-300 select-none">
+            {weeks.map((_, wIdx) => {
+              const mInfo = monthLabels.find((m) => m.weekIndex === wIdx);
+              return (
+                <div
+                  key={wIdx}
+                  className="w-3 sm:w-3.5 mr-1 sm:mr-1.5 text-left shrink-0"
+                >
+                  {mInfo ? <span className="font-bold text-gray-200">{mInfo.label}</span> : null}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex items-start">
+            <div className="flex flex-col gap-1 sm:gap-1.5 pr-2 select-none text-[10px] font-medium text-gray-400 shrink-0">
+              {DAY_LABELS.map((day, dIdx) => (
+                <div
+                  key={day}
+                  className="h-3 sm:h-3.5 flex items-center justify-end"
+                >
+                  {dIdx === 1 || dIdx === 3 || dIdx === 5 ? day : ''}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-1 sm:gap-1.5">
+              {weeks.map((week, wIdx) => (
+                <div key={wIdx} className="flex flex-col gap-1 sm:gap-1.5 shrink-0">
+                  {week.map((tile, dIdx) => {
+                    if (!tile) {
+                      return (
+                        <div
+                          key={`empty-${wIdx}-${dIdx}`}
+                          className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-[2px] opacity-0"
+                        />
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={tile.date}
+                        onMouseEnter={(e) => handleMouseEnter(tile, e)}
+                        onMouseLeave={handleMouseLeave}
+                        className={`w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-[2px] cursor-pointer transition-all duration-150 transform hover:scale-125 hover:z-10 ${getLevelColor(
+                          tile.level
+                        )}`}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="flex items-center justify-between mt-4 text-[11px] text-gray-500 pt-3 border-t border-gray-800/60">
-        <span>00:00 자정 기준 분할 집계</span>
+      <div className="flex items-center justify-between mt-4 text-[11px] text-gray-400 pt-3 border-t border-gray-800/80">
+        <span>00:00 자정 기준 분할 집계 (진행 중 방송 실시간 반영)</span>
         <div className="flex items-center gap-1.5">
           <span>Less</span>
-          <div className="w-2.5 h-2.5 rounded-xs bg-[#1e1e24]" />
-          <div className="w-2.5 h-2.5 rounded-xs bg-[#005234]" />
-          <div className="w-2.5 h-2.5 rounded-xs bg-[#008F5A]" />
-          <div className="w-2.5 h-2.5 rounded-xs bg-[#00D084]" />
-          <div className="w-2.5 h-2.5 rounded-xs bg-[#00FFA3]" />
+          <div className="w-2.5 h-2.5 rounded-[2px] bg-[#1e1e24]" />
+          <div className="w-2.5 h-2.5 rounded-[2px] bg-[#005234]" />
+          <div className="w-2.5 h-2.5 rounded-[2px] bg-[#008F5A]" />
+          <div className="w-2.5 h-2.5 rounded-[2px] bg-[#00D084]" />
+          <div className="w-2.5 h-2.5 rounded-[2px] bg-[#00FFA3]" />
           <span>More</span>
         </div>
       </div>
@@ -154,22 +255,22 @@ export const StreamerGrassGrid: React.FC<StreamerGrassGridProps> = ({
           {hoveredTile.durationSeconds > 0 ? (
             <div className="space-y-1">
               {hoveredTile.representativeTitle && (
-                <p className="text-gray-200 font-medium truncate">
+                <p className="text-gray-100 font-medium truncate">
                   📝 {hoveredTile.representativeTitle}
                 </p>
               )}
               {hoveredTile.dominantCategory && (
-                <p className="text-gray-400 truncate">
-                  🎮 카테고리: <span className="text-gray-300">{hoveredTile.dominantCategory}</span>
+                <p className="text-gray-300 truncate">
+                  🎮 카테고리: <span className="text-white font-medium">{hoveredTile.dominantCategory}</span>
                 </p>
               )}
-              <div className="flex items-center justify-between pt-1 text-[11px] text-gray-400 font-mono">
+              <div className="flex items-center justify-between pt-1 text-[11px] text-gray-300 font-mono">
                 <span>평균 {hoveredTile.avgViewers.toLocaleString()}명</span>
                 <span>최고 {hoveredTile.peakViewers.toLocaleString()}명</span>
               </div>
             </div>
           ) : (
-            <p className="text-gray-500 italic">방송 기록 없음 (휴방)</p>
+            <p className="text-gray-400 italic">방송 기록 없음 (휴방)</p>
           )}
         </div>
       )}
