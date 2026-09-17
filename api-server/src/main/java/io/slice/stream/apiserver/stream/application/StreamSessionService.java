@@ -222,15 +222,26 @@ public class StreamSessionService {
         Integer peakViewers = timelineRepository.findPeakViewerCountBySessionId(session.getSessionId());
         int finalPeak = peakViewers != null ? Math.max(peakViewers, session.getPeakViewers()) : session.getPeakViewers();
 
-        session.finishSession(summaries.endedAt(), finalPeak, avgViewers);
+        Instant validEndedAt = normalizeEndedAt(summaries.endedAt(), session.getStartedAt());
+        session.finishSession(validEndedAt, finalPeak, avgViewers);
 
         segmentRepository.findActiveSegment(session.getSessionId())
             .ifPresent(segment -> {
-                long endOffset = Duration.between(session.getStartedAt(), summaries.endedAt()).toMillis();
-                segment.endSegment(summaries.endedAt(), endOffset);
+                long endOffset = Math.max(0L, Duration.between(session.getStartedAt(), validEndedAt).toMillis());
+                segment.endSegment(validEndedAt, endOffset);
             });
 
         evictActiveSessionAfterCommit(streamId);
+    }
+
+    private Instant normalizeEndedAt(Instant requestEndedAt, Instant sessionStartedAt) {
+        if (requestEndedAt == null || requestEndedAt.isBefore(sessionStartedAt)) {
+            log.warn("[Session-Manager] 유효하지 않은 방종 시각 수신 (requestEndedAt: {}, startedAt: {}). 서버 시각으로 보정합니다.",
+                requestEndedAt, sessionStartedAt);
+            Instant now = Instant.now();
+            return now.isAfter(sessionStartedAt) ? now : sessionStartedAt;
+        }
+        return requestEndedAt;
     }
 
     private void evictActiveSessionAfterCommit(String streamId) {
