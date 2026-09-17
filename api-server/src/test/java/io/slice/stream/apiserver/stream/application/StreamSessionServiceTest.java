@@ -19,6 +19,7 @@ import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest;
+import io.slice.stream.apiserver.streamer.application.StreamerDailyStatCommandService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -50,6 +51,9 @@ class StreamSessionServiceTest {
     private JpaViewMetricTimelineRepository timelineRepository;
 
     @Mock
+    private StreamerDailyStatCommandService dailyStatCommandService;
+
+    @Mock
     private CacheManager cacheManager;
 
     @Spy
@@ -58,72 +62,8 @@ class StreamSessionServiceTest {
     @InjectMocks
     private StreamSessionService streamSessionService;
 
-    @Test
-    void 현재_진행중인_세션이_있으면_새로_생성하지_않고_기존_세션ID를_반환한다() {
-        // given
-        String streamId = "stream-1";
-        Instant now = Instant.now();
-        StreamSessionEntity existingSession = new StreamSessionEntity(streamId, "existing-session-id", "방제", "카테고리", now);
 
-        when(sessionRepository.findActiveSession(streamId))
-            .thenReturn(Optional.of(existingSession));
 
-        // when
-        String sessionId = streamSessionService.getOrCreateActiveSession(streamId, "test-live-id", now);
-
-        // then
-        assertThat(sessionId).isEqualTo("existing-session-id");
-        verify(sessionRepository, times(0)).save(any()); // save가 호출되지 않았음을 검증
-    }
-
-    @Test
-    void 진행중인_세션이_없으면_스트리머_정보를_조회하여_새로운_세션을_생성한다() {
-        String streamId = "stream-2";
-        Instant now = Instant.now();
-
-        when(sessionRepository.findActiveSession(streamId))
-            .thenReturn(Optional.empty());
-        when(sessionRepository.findBySessionId("test-live-id"))
-            .thenReturn(Optional.empty());
-
-        StreamEntity mockStreamInfo = mock(StreamEntity.class);
-        when(mockStreamInfo.getLiveTitle()).thenReturn("새로운 꿀잼 방송");
-        when(mockStreamInfo.getCategoryName()).thenReturn("Just Chatting");
-        when(streamRepository.findByStreamId(streamId))
-            .thenReturn(Optional.of(mockStreamInfo));
-
-        String sessionId = streamSessionService.getOrCreateActiveSession(streamId, "test-live-id", now);
-
-        assertThat(sessionId).isEqualTo("test-live-id");
-        verify(sessionRepository, times(1)).save(any(StreamSessionEntity.class));
-    }
-
-    @Test
-    void 종료_처리된_세션에_대해_동일한_sessionId로_요청이_오면_세션과_마지막_세그먼트를_재활성화하고_sessionId를_반환한다() {
-        String streamId = "stream-reopen";
-        String liveId = "20882722";
-        Instant now = Instant.now();
-        StreamSessionEntity closedSession = new StreamSessionEntity(streamId, liveId, "방제", "카테고리", now.minusSeconds(3600));
-        closedSession.finishSession(now.minusSeconds(600), 100);
-
-        StreamSessionSegmentEntity closedSegment = new StreamSessionSegmentEntity(streamId, liveId, "방제", "카테고리", now.minusSeconds(3600), 0L);
-        closedSegment.endSegment(now.minusSeconds(600), 3000000L);
-
-        when(sessionRepository.findActiveSession(streamId))
-            .thenReturn(Optional.empty());
-        when(sessionRepository.findBySessionId(liveId))
-            .thenReturn(Optional.of(closedSession));
-        when(segmentRepository.findFirstBySessionIdOrderByStartedAtDesc(liveId))
-            .thenReturn(Optional.of(closedSegment));
-
-        String sessionId = streamSessionService.getOrCreateActiveSession(streamId, liveId, now);
-
-        assertThat(sessionId).isEqualTo(liveId);
-        assertThat(closedSession.getEndedAt()).isNull();
-        assertThat(closedSegment.getEndedAt()).isNull();
-        assertThat(closedSegment.getEndOffsetMs()).isNull();
-        verify(sessionRepository, times(0)).save(any(StreamSessionEntity.class));
-    }
 
     @Test
     void 오프라인_임계치를_초과한_방종_세션을_찾아_종료하고_캐시를_명시적으로_제거한다() {
@@ -269,6 +209,8 @@ class StreamSessionServiceTest {
         String streamId = "stream-not-found";
         when(sessionRepository.findActiveSession(streamId, "test-live-id"))
             .thenReturn(Optional.empty());
+        when(sessionRepository.findBySessionId("test-live-id"))
+            .thenReturn(Optional.empty());
 
         StreamSessionSummaryRequest request =
             new StreamSessionSummaryRequest(45.5, "test-live-id", Instant.now());
@@ -330,5 +272,38 @@ class StreamSessionServiceTest {
         assertThat(session.getEndedAt()).isAfterOrEqualTo(startedAt);
         assertThat(activeSegment.getEndedAt()).isAfterOrEqualTo(startedAt);
         assertThat(activeSegment.getEndOffsetMs()).isGreaterThanOrEqualTo(0L);
+    }
+
+    @Test
+    void 이미_종료된_세션에_요약정보가_수신되어도_정밀_시각으로_보정되고_일별_통계가_재적재된다() {
+        String streamId = "stream-summary-reconcile";
+        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
+        Instant oldEndedAt = Instant.parse("2026-02-13T11:55:00Z");
+        Instant accurateEndedAt = Instant.parse("2026-02-13T12:00:00Z");
+
+        StreamSessionEntity session = new StreamSessionEntity(streamId, "test-live-id", "방제", "카테고리", startedAt);
+        session.finishSession(oldEndedAt, 800, 500);
+
+        when(sessionRepository.findActiveSession(streamId, "test-live-id"))
+            .thenReturn(Optional.empty());
+        when(sessionRepository.findBySessionId("test-live-id"))
+            .thenReturn(Optional.of(session));
+        when(timelineRepository.findAverageViewerCountBySessionId("test-live-id"))
+            .thenReturn(520.4);
+        when(timelineRepository.findPeakViewerCountBySessionId("test-live-id"))
+            .thenReturn(850);
+        when(segmentRepository.findActiveSegment("test-live-id"))
+            .thenReturn(Optional.empty());
+
+        StreamSessionSummaryRequest request =
+            new StreamSessionSummaryRequest(50.0, "test-live-id", accurateEndedAt);
+
+        streamSessionService.updateSessionSummary(streamId, request);
+
+        assertThat(session.getSubscriberChatRatio()).isEqualTo(50.0);
+        assertThat(session.getEndedAt()).isEqualTo(accurateEndedAt);
+        assertThat(session.getPeakViewers()).isEqualTo(850);
+        assertThat(session.getAverageViewerCount()).isEqualTo(520);
+        verify(dailyStatCommandService).recordSession(session);
     }
 }

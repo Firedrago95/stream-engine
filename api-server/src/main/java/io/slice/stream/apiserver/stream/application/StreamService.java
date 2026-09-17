@@ -9,6 +9,7 @@ import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntit
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.ViewMetricTimelineEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamSyncRequest;
+import io.slice.stream.apiserver.streamer.application.StreamerDailyStatCommandService;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -36,7 +37,9 @@ public class StreamService {
     private final JpaStreamSessionRepository sessionRepository;
     private final JpaStreamSessionSegmentRepository segmentRepository;
     private final JpaViewMetricTimelineRepository timelineRepository;
+    private final StreamerDailyStatCommandService dailyStatCommandService;
     private final CacheManager cacheManager;
+
 
     @Transactional
     public void syncAll(List<StreamSyncRequest> requests) {
@@ -45,15 +48,29 @@ public class StreamService {
         }
 
         Instant currentTime = Instant.now();
+        Map<String, StreamSyncRequest> uniqueRequests = deduplicateRequests(requests);
 
-        Map<String, StreamSyncRequest> uniqueRequests = requests.stream()
+        upsertLiveStreams(uniqueRequests, currentTime);
+
+        Map<String, StreamSessionEntity> sessionMap = resolveSessions(uniqueRequests, currentTime);
+
+        recordViewMetricTimelines(uniqueRequests, sessionMap, currentTime);
+
+        log.info("[Sync] Native Upsert 완료 - {}건 (중복 제거 전: {}건)",
+            uniqueRequests.size(), requests.size());
+    }
+
+    private Map<String, StreamSyncRequest> deduplicateRequests(List<StreamSyncRequest> requests) {
+        return requests.stream()
             .collect(Collectors.toMap(
                 StreamSyncRequest::streamId,
                 req -> req,
                 (existing, replacement) -> replacement
             ));
+    }
 
-        for (StreamSyncRequest req : uniqueRequests.values()) {
+    private void upsertLiveStreams(Map<String, StreamSyncRequest> requests, Instant currentTime) {
+        for (StreamSyncRequest req : requests.values()) {
             StreamEntity entity = new StreamEntity(req.streamId(), req.streamerName());
             entity.heartbeat(
                 req.streamerName(),
@@ -65,15 +82,30 @@ public class StreamService {
 
             streamRepository.upsertStream(entity, currentTime);
         }
+    }
 
+    private Map<String, StreamSessionEntity> resolveSessions(
+        Map<String, StreamSyncRequest> uniqueRequests,
+        Instant currentTime
+    ) {
+        Map<String, StreamSessionEntity> sessionMap = new HashMap<>();
+
+        handleActiveSessions(uniqueRequests, sessionMap, currentTime);
+        reopenClosedSessionsIfPresent(uniqueRequests, sessionMap, currentTime);
+        createNewSessions(uniqueRequests, sessionMap, currentTime);
+
+        return sessionMap;
+    }
+
+    private void handleActiveSessions(
+        Map<String, StreamSyncRequest> uniqueRequests,
+        Map<String, StreamSessionEntity> sessionMap,
+        Instant currentTime
+    ) {
         List<String> streamIds = new ArrayList<>(uniqueRequests.keySet());
         List<StreamSessionEntity> activeSessions = sessionRepository.findAllActiveSessions(streamIds);
         Map<String, StreamSessionEntity> activeSessionMap = activeSessions.stream()
             .collect(Collectors.toMap(StreamSessionEntity::getStreamId, s -> s, (a, b) -> a));
-
-        Map<String, StreamSessionEntity> sessionMap = new HashMap<>();
-        List<StreamSessionEntity> newSessions = new ArrayList<>();
-        List<StreamSessionSegmentEntity> newSegments = new ArrayList<>();
 
         for (StreamSyncRequest req : uniqueRequests.values()) {
             StreamSessionEntity activeSession = activeSessionMap.get(req.streamId());
@@ -81,67 +113,101 @@ public class StreamService {
                 if (Objects.equals(activeSession.getSessionId(), req.liveId())) {
                     sessionMap.put(req.streamId(), activeSession);
                 } else {
-                    activeSession.finishSession(currentTime, null);
-                    segmentRepository.findActiveSegment(activeSession.getSessionId())
-                        .ifPresent(segment -> {
-                            long endOffset = Duration.between(activeSession.getStartedAt(), currentTime).toMillis();
-                            segment.endSegment(currentTime, endOffset);
-                        });
-                    log.info("[Sync] 이전 세션 종료 (새 방송 감지) - Stream: {}, OldSession: {}, NewLiveId: {}",
-                        req.streamId(), activeSession.getSessionId(), req.liveId());
+                    closePreviousSession(activeSession, currentTime, req.liveId());
                 }
             }
         }
+    }
 
+    private void closePreviousSession(StreamSessionEntity activeSession, Instant currentTime, String newLiveId) {
+        Double avgViewers = timelineRepository.findAverageViewerCountBySessionId(activeSession.getSessionId());
+        Integer peakViewers = timelineRepository.findPeakViewerCountBySessionId(activeSession.getSessionId());
+        int finalPeak = peakViewers != null ? Math.max(peakViewers, activeSession.getPeakViewers()) : activeSession.getPeakViewers();
+        activeSession.finishSession(currentTime, finalPeak, avgViewers);
+
+        segmentRepository.findActiveSegment(activeSession.getSessionId())
+            .ifPresent(segment -> {
+                long endOffset = Duration.between(activeSession.getStartedAt(), currentTime).toMillis();
+                segment.endSegment(currentTime, endOffset);
+            });
+
+        dailyStatCommandService.recordSession(activeSession);
+
+        log.info("[Sync] 이전 세션 종료 (새 방송 감지) - Stream: {}, OldSession: {}, NewLiveId: {}, AvgViewers: {}",
+            activeSession.getStreamId(), activeSession.getSessionId(), newLiveId, activeSession.getAverageViewerCount());
+    }
+
+
+    private void reopenClosedSessionsIfPresent(
+        Map<String, StreamSyncRequest> uniqueRequests,
+        Map<String, StreamSessionEntity> sessionMap,
+        Instant currentTime
+    ) {
         List<String> remainingLiveIds = uniqueRequests.values().stream()
             .filter(req -> !sessionMap.containsKey(req.streamId()))
             .map(StreamSyncRequest::liveId)
             .filter(Objects::nonNull)
             .toList();
 
-        if (!remainingLiveIds.isEmpty()) {
-            List<StreamSessionEntity> existingSessions = sessionRepository.findAllBySessionIdIn(remainingLiveIds);
-            Map<String, StreamSessionEntity> existingSessionMap = existingSessions.stream()
-                .collect(Collectors.toMap(StreamSessionEntity::getSessionId, s -> s, (a, b) -> a));
+        if (remainingLiveIds.isEmpty()) {
+            return;
+        }
 
-            List<StreamSessionSegmentEntity> activeSegments = segmentRepository.findAllActiveSegments(
-                new ArrayList<>(existingSessionMap.keySet())
-            );
-            Set<String> activeSegmentSessionIds = activeSegments.stream()
-                .map(StreamSessionSegmentEntity::getSessionId)
-                .collect(Collectors.toSet());
+        List<StreamSessionEntity> existingSessions = sessionRepository.findAllBySessionIdIn(remainingLiveIds);
+        Map<String, StreamSessionEntity> existingSessionMap = existingSessions.stream()
+            .collect(Collectors.toMap(StreamSessionEntity::getSessionId, s -> s, (a, b) -> a));
 
-            for (StreamSyncRequest req : uniqueRequests.values()) {
-                if (sessionMap.containsKey(req.streamId()) || req.liveId() == null) {
-                    continue;
+        List<StreamSessionSegmentEntity> activeSegments = segmentRepository.findAllActiveSegments(
+            new ArrayList<>(existingSessionMap.keySet())
+        );
+        Set<String> activeSegmentSessionIds = activeSegments.stream()
+            .map(StreamSessionSegmentEntity::getSessionId)
+            .collect(Collectors.toSet());
+
+        List<StreamSessionSegmentEntity> newSegments = new ArrayList<>();
+        for (StreamSyncRequest req : uniqueRequests.values()) {
+            if (sessionMap.containsKey(req.streamId()) || req.liveId() == null) {
+                continue;
+            }
+            StreamSessionEntity existing = existingSessionMap.get(req.liveId());
+            if (existing != null) {
+                if (existing.getEndedAt() != null) {
+                    existing.reopen();
+                    log.info("[Sync] 오판 종료된 세션 재활성화 - Stream: {}, SessionId: {}",
+                        existing.getStreamId(), existing.getSessionId());
+                    evictActiveSessionAfterCommit(existing.getStreamId());
                 }
-                StreamSessionEntity existing = existingSessionMap.get(req.liveId());
-                if (existing != null) {
-                    if (existing.getEndedAt() != null) {
-                        existing.reopen();
-                        log.info("[Sync] 오판 종료된 세션 재활성화 - Stream: {}, SessionId: {}",
-                            existing.getStreamId(), existing.getSessionId());
-                        evictActiveSessionAfterCommit(existing.getStreamId());
-                    }
-                    sessionMap.put(req.streamId(), existing);
+                sessionMap.put(req.streamId(), existing);
 
-                    if (!activeSegmentSessionIds.contains(existing.getSessionId())) {
-                        Instant sessionStartedAt = req.startedAt() != null ? req.startedAt() : currentTime;
-                        long startOffset = Duration.between(existing.getStartedAt(), currentTime).toMillis();
-                        StreamSessionSegmentEntity segment = new StreamSessionSegmentEntity(
-                            req.streamId(),
-                            req.liveId(),
-                            req.liveTitle(),
-                            req.categoryName(),
-                            sessionStartedAt,
-                            Math.max(0L, startOffset)
-                        );
-                        newSegments.add(segment);
-                        activeSegmentSessionIds.add(existing.getSessionId());
-                    }
+                if (!activeSegmentSessionIds.contains(existing.getSessionId())) {
+                    Instant sessionStartedAt = req.startedAt() != null ? req.startedAt() : currentTime;
+                    long startOffset = Duration.between(existing.getStartedAt(), currentTime).toMillis();
+                    StreamSessionSegmentEntity segment = new StreamSessionSegmentEntity(
+                        req.streamId(),
+                        req.liveId(),
+                        req.liveTitle(),
+                        req.categoryName(),
+                        sessionStartedAt,
+                        Math.max(0L, startOffset)
+                    );
+                    newSegments.add(segment);
+                    activeSegmentSessionIds.add(existing.getSessionId());
                 }
             }
         }
+
+        if (!newSegments.isEmpty()) {
+            segmentRepository.saveAll(newSegments);
+        }
+    }
+
+    private void createNewSessions(
+        Map<String, StreamSyncRequest> uniqueRequests,
+        Map<String, StreamSessionEntity> sessionMap,
+        Instant currentTime
+    ) {
+        List<StreamSessionEntity> newSessions = new ArrayList<>();
+        List<StreamSessionSegmentEntity> newSegments = new ArrayList<>();
 
         for (StreamSyncRequest req : uniqueRequests.values()) {
             if (!sessionMap.containsKey(req.streamId())) {
@@ -179,7 +245,13 @@ public class StreamService {
             log.info("[Sync] 신규 방송 세션/세그먼트 벌크 생성 완료 - 세션 {}건, 세그먼트 {}건",
                 newSessions.size(), newSegments.size());
         }
+    }
 
+    private void recordViewMetricTimelines(
+        Map<String, StreamSyncRequest> uniqueRequests,
+        Map<String, StreamSessionEntity> sessionMap,
+        Instant currentTime
+    ) {
         List<ViewMetricTimelineEntity> timelineEntities = new ArrayList<>();
         for (StreamSyncRequest req : uniqueRequests.values()) {
             StreamSessionEntity session = sessionMap.get(req.streamId());
@@ -197,9 +269,6 @@ public class StreamService {
         if (!timelineEntities.isEmpty()) {
             timelineRepository.saveAll(timelineEntities);
         }
-
-        log.info("[Sync] Native Upsert 완료 - {}건 (중복 제거 전: {}건, 시계열 적재: {}건)",
-            uniqueRequests.size(), requests.size(), timelineEntities.size());
     }
 
     private void evictActiveSessionAfterCommit(String streamId) {

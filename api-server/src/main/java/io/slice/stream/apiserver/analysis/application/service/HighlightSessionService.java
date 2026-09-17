@@ -15,9 +15,9 @@ import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.resilience.annotation.Retryable;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
+
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -54,9 +54,9 @@ public class HighlightSessionService {
         }
     }
 
-    @Scheduled(fixedRate = 60_000)
     @Transactional
     public void cleanUpZombieSessions() {
+
         // 3분 전 시간 계산
         Instant zombieThreshold = Instant.now().minus(Duration.ofMinutes(3));
 

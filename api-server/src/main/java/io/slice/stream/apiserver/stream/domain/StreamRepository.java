@@ -26,4 +26,8 @@ public interface StreamRepository {
     List<StreamerLeaderboardProjection> findTopStreamersWith30dAvg(Instant since, int minDays, int limit);
 
     List<StreamerLeaderboardProjection> searchTopStreamersWith30dAvg(String keyword, Instant since, int limit);
+
+    List<StreamEntity> findAllByStreamIdIn(List<String> streamIds);
+
+    int markAllOfflineBefore(Instant threshold);
 }

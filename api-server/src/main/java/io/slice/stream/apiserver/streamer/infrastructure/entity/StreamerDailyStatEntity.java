@@ -134,4 +134,25 @@ public class StreamerDailyStatEntity {
             sessionCount
         );
     }
+
+    public void updateMetrics(
+        long broadcastDurationSeconds,
+        int averageViewers,
+        int peakViewers,
+        double hoursWatched,
+        String representativeTitle,
+        String dominantCategory,
+        int sessionCount
+    ) {
+        this.broadcastDurationSeconds = broadcastDurationSeconds;
+        this.averageViewers = averageViewers;
+        this.peakViewers = peakViewers;
+        this.hoursWatched = hoursWatched;
+        this.representativeTitle = representativeTitle;
+        this.dominantCategory = dominantCategory;
+        this.sessionCount = sessionCount;
+        this.updatedAt = Instant.now();
+    }
 }
+
+

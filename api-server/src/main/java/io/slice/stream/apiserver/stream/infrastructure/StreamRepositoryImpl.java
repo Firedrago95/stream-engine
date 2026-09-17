@@ -68,4 +68,17 @@ public class StreamRepositoryImpl implements StreamRepository {
     public List<StreamerLeaderboardProjection> searchTopStreamersWith30dAvg(String keyword, Instant since, int limit) {
         return jpaStreamRepository.searchTopStreamersWith30dAvg(keyword, since, limit);
     }
+
+    @Override
+    public List<StreamEntity> findAllByStreamIdIn(List<String> streamIds) {
+        if (streamIds == null || streamIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return jpaStreamRepository.findAllByStreamIdIn(streamIds);
+    }
+
+    @Override
+    public int markAllOfflineBefore(Instant threshold) {
+        return jpaStreamRepository.markAllOfflineBefore(threshold);
+    }
 }

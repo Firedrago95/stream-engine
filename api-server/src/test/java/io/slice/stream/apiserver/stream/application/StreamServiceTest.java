@@ -17,8 +17,13 @@ import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntit
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.ViewMetricTimelineEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamSyncRequest;
+import io.slice.stream.apiserver.streamer.application.StreamerDailyStatCommandService;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
@@ -46,6 +51,9 @@ class StreamServiceTest {
 
     @Mock
     private JpaViewMetricTimelineRepository timelineRepository;
+
+    @Mock
+    private StreamerDailyStatCommandService dailyStatCommandService;
 
     @Mock
     private CacheManager cacheManager;
@@ -179,7 +187,7 @@ class StreamServiceTest {
     }
 
     @Test
-    void 활성_세션의_liveId가_요청의_liveId와_다른_경우_이전_세션을_종료하고_신규_세션을_생성한다() {
+    void 활성_세션의_liveId가_요청의_liveId와_다른_경우_이전_세션을_평균시청자수와_함께_종료하고_신규_세션을_생성한다() {
         Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
         StreamSyncRequest request = new StreamSyncRequest("ch1", "live2", "침착맨", "새 방송", "thumb.jpg", 4000, "게임", startedAt);
         StreamSessionEntity oldActiveSession = new StreamSessionEntity("ch1", "live1", "이전 방송", "소통", startedAt.minusSeconds(3600));
@@ -188,10 +196,17 @@ class StreamServiceTest {
             .willReturn(List.of(oldActiveSession));
         given(sessionRepository.findAllBySessionIdIn(List.of("live2")))
             .willReturn(List.of());
+        given(timelineRepository.findAverageViewerCountBySessionId("live1"))
+            .willReturn(2500.0);
+        given(timelineRepository.findPeakViewerCountBySessionId("live1"))
+            .willReturn(3000);
 
         streamService.syncAll(List.of(request));
 
         assertThat(oldActiveSession.getEndedAt()).isNotNull();
+        assertThat(oldActiveSession.getAverageViewerCount()).isEqualTo(2500);
+        assertThat(oldActiveSession.getPeakViewers()).isEqualTo(3000);
+
         then(sessionRepository).should().saveAll(sessionListCaptor.capture());
         List<StreamSessionEntity> savedSessions = sessionListCaptor.getValue();
         assertThat(savedSessions).hasSize(1);

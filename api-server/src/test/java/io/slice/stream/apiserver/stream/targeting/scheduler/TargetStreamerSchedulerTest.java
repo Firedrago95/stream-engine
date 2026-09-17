@@ -1,4 +1,4 @@
-package io.slice.stream.apiserver.stream.targeting;
+package io.slice.stream.apiserver.stream.targeting.scheduler;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 

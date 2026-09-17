@@ -17,6 +17,14 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
 
     Optional<StreamEntity> findByStreamId(String streamId);
 
+    @Modifying
+    @Query("""
+        UPDATE StreamEntity s 
+        SET s.isLive = false, s.concurrentUserCount = 0 
+        WHERE s.isLive = true AND s.lastUpdateAt < :threshold
+        """)
+    int markAllOfflineBefore(@Param("threshold") Instant threshold);
+
     @Query("""
            SELECT s FROM StreamEntity s 
            WHERE s.isLive = true 
@@ -104,10 +112,22 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
         INNER JOIN (
             SELECT ss.stream_id, ROUND(AVG(ss.average_viewer_count)) AS avg_viewers
             FROM stream_sessions ss
+            INNER JOIN (
+                SELECT s2.stream_id
+                FROM stream_sessions s2
+                CROSS JOIN LATERAL generate_series(
+                    DATE(s2.started_at AT TIME ZONE 'Asia/Seoul'),
+                    DATE(COALESCE(s2.ended_at, NOW()) AT TIME ZONE 'Asia/Seoul'),
+                    '1 day'::interval
+                ) AS d(broadcast_date)
+                WHERE s2.started_at >= :since
+                  AND s2.average_viewer_count > 0
+                GROUP BY s2.stream_id
+                HAVING COUNT(DISTINCT d.broadcast_date) >= :minDays
+            ) active_days ON ss.stream_id = active_days.stream_id
             WHERE ss.started_at >= :since
               AND ss.average_viewer_count > 0
             GROUP BY ss.stream_id
-            HAVING COUNT(DISTINCT DATE(ss.started_at AT TIME ZONE 'Asia/Seoul')) >= :minDays
         ) sub ON s.stream_id = sub.stream_id
         ORDER BY averageViewers DESC, s.id DESC
         LIMIT :limit
