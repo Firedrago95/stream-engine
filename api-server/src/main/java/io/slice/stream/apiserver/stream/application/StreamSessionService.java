@@ -11,6 +11,7 @@ import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest;
+import io.slice.stream.apiserver.streamer.application.StreamerDailyStatCommandService;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -36,6 +37,7 @@ public class StreamSessionService {
     private final JpaStreamRepository streamRepository;
     private final JpaStreamSessionSegmentRepository segmentRepository;
     private final JpaViewMetricTimelineRepository timelineRepository;
+    private final StreamerDailyStatCommandService dailyStatCommandService;
     private final CacheManager cacheManager;
     private final Counter zombieSessionsClosedCounter;
 
@@ -44,6 +46,7 @@ public class StreamSessionService {
         JpaStreamRepository streamRepository,
         JpaStreamSessionSegmentRepository segmentRepository,
         JpaViewMetricTimelineRepository timelineRepository,
+        StreamerDailyStatCommandService dailyStatCommandService,
         CacheManager cacheManager,
         MeterRegistry meterRegistry
     ) {
@@ -51,11 +54,13 @@ public class StreamSessionService {
         this.streamRepository = streamRepository;
         this.segmentRepository = segmentRepository;
         this.timelineRepository = timelineRepository;
+        this.dailyStatCommandService = dailyStatCommandService;
         this.cacheManager = cacheManager;
         this.zombieSessionsClosedCounter = Counter.builder("apiserver.zombie.sessions.closed")
             .description("마감 처리된 오프라인 세션 누적 수")
             .register(meterRegistry);
     }
+
 
     @Transactional
     public void updateSessionSegment(List<ChangedStreamRequest> requests) {
@@ -157,6 +162,8 @@ public class StreamSessionService {
                     segment.endSegment(endedAt, endOffset);
                 });
 
+            dailyStatCommandService.recordSession(session);
+
             evictActiveSessionAfterCommit(session.getStreamId());
             log.info("[Session-Manager] 방송 종료 감지, 세션 마감 - Stream: {}, SessionId: {}", session.getStreamId(), session.getSessionId());
         }
@@ -203,7 +210,10 @@ public class StreamSessionService {
                 long endOffset = Math.max(0L, Duration.between(session.getStartedAt(), validEndedAt).toMillis());
                 segment.endSegment(validEndedAt, endOffset);
             });
+
+        dailyStatCommandService.recordSession(session);
     }
+
 
     private Instant normalizeEndedAt(Instant requestEndedAt, Instant sessionStartedAt) {
         if (requestEndedAt == null || requestEndedAt.isBefore(sessionStartedAt)) {

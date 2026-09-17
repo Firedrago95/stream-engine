@@ -75,4 +75,26 @@ public interface JpaStreamSessionRepository extends JpaRepository<StreamSessionE
     @Modifying
     @Query("DELETE FROM StreamSessionEntity ss WHERE ss.endedAt IS NOT NULL AND ss.endedAt < :threshold")
     int deleteExpiredSessions(@Param("threshold") Instant threshold);
+
+    @Query("""
+        SELECT ss FROM StreamSessionEntity ss
+        WHERE ss.streamId = :streamId
+          AND ss.startedAt < :rangeEnd
+          AND (ss.endedAt IS NULL OR ss.endedAt > :rangeStart)
+        ORDER BY ss.startedAt ASC
+        """)
+    List<StreamSessionEntity> findSessionsOverlapping(
+        @Param("streamId") String streamId,
+        @Param("rangeStart") Instant rangeStart,
+        @Param("rangeEnd") Instant rangeEnd
+    );
+
+    @Query("""
+        SELECT ss FROM StreamSessionEntity ss
+        WHERE ss.endedAt IS NULL
+          AND ss.startedAt < :threshold
+        ORDER BY ss.startedAt ASC
+        """)
+    List<StreamSessionEntity> findActiveSessionsStartedBefore(@Param("threshold") Instant threshold);
 }
+

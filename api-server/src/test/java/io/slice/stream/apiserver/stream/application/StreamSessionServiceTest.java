@@ -19,6 +19,7 @@ import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest;
+import io.slice.stream.apiserver.streamer.application.StreamerDailyStatCommandService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -50,6 +51,9 @@ class StreamSessionServiceTest {
     private JpaViewMetricTimelineRepository timelineRepository;
 
     @Mock
+    private StreamerDailyStatCommandService dailyStatCommandService;
+
+    @Mock
     private CacheManager cacheManager;
 
     @Spy
@@ -57,6 +61,7 @@ class StreamSessionServiceTest {
 
     @InjectMocks
     private StreamSessionService streamSessionService;
+
 
 
 

@@ -17,8 +17,13 @@ import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntit
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.ViewMetricTimelineEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamSyncRequest;
+import io.slice.stream.apiserver.streamer.application.StreamerDailyStatCommandService;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
@@ -46,6 +51,9 @@ class StreamServiceTest {
 
     @Mock
     private JpaViewMetricTimelineRepository timelineRepository;
+
+    @Mock
+    private StreamerDailyStatCommandService dailyStatCommandService;
 
     @Mock
     private CacheManager cacheManager;
