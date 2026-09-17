@@ -75,7 +75,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
           </div>
 
           {!isRealtime && (
-              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
             정렬: 시간순
           </span>
           )}
@@ -83,7 +83,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {processedHighlights.length === 0 ? (
-              <div className="col-span-full p-16 text-center bg-[#1a1a1c] border border-gray-800 rounded-3xl text-gray-500 font-bold italic">
+              <div className="col-span-full p-16 text-center bg-[#1a1a1c] border border-gray-800 rounded-3xl text-gray-400 font-bold italic">
                 데이터가 없습니다.
               </div>
           ) : (
@@ -109,14 +109,14 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
                         card: "border-orange-600/20 bg-[#1a1a1c] hover:border-orange-600/40",
                         badge: "border-orange-600 bg-orange-600/10 text-orange-600",
                         peak: "text-orange-600",
-                        label: "text-gray-500"
+                        label: "text-gray-300"
                       };
                     default: // 4등 이하
                       return {
                         card: hl.status === 'ONGOING' ? 'border-[#00FFA3] bg-[#00FFA3]/5' : 'border-gray-800 bg-[#1a1a1c]',
-                        badge: "border-gray-800 text-gray-500 bg-gray-900/50",
+                        badge: "border-gray-700 text-gray-300 bg-gray-900/50",
                         peak: "text-[#00FFA3]",
-                        label: "text-gray-400"
+                        label: "text-gray-300"
                       };
                   }
                 };
@@ -138,21 +138,21 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
                             className={`text-[9px] font-black mb-0.5 sm:mb-1 block tracking-widest uppercase ${style.label}`}>발생 시점</span>
                         <div className="flex flex-wrap sm:flex-nowrap items-center gap-1 sm:gap-2">
                           <span className="text-white font-mono text-sm sm:text-base lg:text-lg font-black shrink-0">
-                            <span className="text-gray-500 text-xs sm:text-base mr-1">🎬</span>
+                            <span className="text-gray-400 text-xs sm:text-base mr-1">🎬</span>
                             {formatOffset(hl.startTimeOffset)}
                             <span className="mx-1 text-white font-normal">~</span>
                             {formatOffset(hl.endTimeOffset)}
                           </span>
                           <span
-                              className="text-gray-400 text-[10px] font-bold">({formatAbsoluteTime(hl.startTime)})</span>
+                              className="text-gray-300 text-[10px] font-bold">({formatAbsoluteTime(hl.startTime)})</span>
                         </div>
                       </div>
 
                       <div className="text-right border-l border-gray-800/50 pl-3 sm:pl-4 ml-2 shrink-0">
-                        <span className="text-[9px] text-gray-400 font-black mb-0.5 sm:mb-1 block tracking-widest uppercase">최고 화력</span>
+                        <span className="text-[9px] text-gray-300 font-black mb-0.5 sm:mb-1 block tracking-widest uppercase">최고 화력</span>
                         <span className={`font-black text-lg sm:text-xl leading-none ${style.peak}`}>
                           {hl.peakFirepower}
-                          <span className="text-[10px] text-gray-500 ml-1 font-bold">msg/s</span>
+                          <span className="text-[10px] text-gray-400 ml-1 font-bold">msg/s</span>
                         </span>
                       </div>
                     </div>

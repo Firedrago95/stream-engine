@@ -35,7 +35,7 @@ export const WeeklyCategoryRanking: React.FC = () => {
           </span>
         );
       default:
-        return <span className="text-[10px] font-bold text-gray-500">-</span>;
+        return <span className="text-[10px] font-bold text-gray-400">-</span>;
     }
   };
 

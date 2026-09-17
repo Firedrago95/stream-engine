@@ -138,7 +138,7 @@ const MainPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>
           </a>
-          <p className="mt-8 text-[11px] text-gray-500 font-medium tracking-widest uppercase">
+          <p className="mt-8 text-[11px] text-gray-400 font-medium tracking-widest uppercase">
             © 2026 CheesePick. Advanced Stream Analytics Pipeline.
           </p>
         </footer>

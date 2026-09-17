@@ -43,10 +43,10 @@ export const StreamerStatsPage: React.FC = () => {
               placeholder="분석할 스트리머 활동명을 입력하세요..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full p-4 pl-12 pr-10 bg-[#0e0e10] border border-gray-700 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-[#00FFA3] focus:ring-2 focus:ring-[#00FFA3]/20 shadow-xl text-sm"
+              className="w-full p-4 pl-12 pr-10 bg-[#0e0e10] border border-gray-700 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:border-[#00FFA3] focus:ring-2 focus:ring-[#00FFA3]/20 shadow-xl text-sm"
             />
             <svg
-              className="w-5 h-5 text-gray-500 absolute left-4 top-1/2 -translate-y-1/2 pt-1"
+              className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 pt-1"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

@@ -65,7 +65,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
 
   if (!sessions || sessions.length === 0) {
     return (
-      <div className="p-8 bg-[#141416] border border-[#2A2A2C] rounded-2xl text-center text-gray-500 text-sm">
+      <div className="p-8 bg-[#141416] border border-[#2A2A2C] rounded-2xl text-center text-gray-400 font-medium text-sm">
         과거 방송 세션 기록이 없습니다.
       </div>
     );
@@ -109,12 +109,12 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
 
             <div className="flex items-center gap-4 sm:gap-6 self-end sm:self-auto shrink-0 text-xs font-mono">
               <div className="text-right">
-                <p className="text-[10px] text-gray-500">방송 시간</p>
+                <p className="text-[10px] text-gray-400 font-medium">방송 시간</p>
                 <p className="font-bold text-gray-200">{formatDuration(sess.durationSeconds)}</p>
               </div>
 
               <div className="text-right">
-                <p className="text-[10px] text-gray-500">평균 / 최고</p>
+                <p className="text-[10px] text-gray-400 font-medium">평균 / 최고</p>
                 <p className="font-bold text-gray-200">
                   <span className="text-[#67BFFF]">{sess.avgViewers.toLocaleString()}</span> /{' '}
                   <span className="text-[#A78BFA]">{sess.peakViewers.toLocaleString()}</span>
@@ -123,7 +123,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
 
               {sess.followerGrowth !== null && sess.followerGrowth !== undefined && (
                 <div className="text-right">
-                  <p className="text-[10px] text-gray-500">팔로워</p>
+                  <p className="text-[10px] text-gray-400 font-medium">팔로워</p>
                   <p className={`font-bold ${sess.followerGrowth >= 0 ? 'text-[#00FFA3]' : 'text-rose-400'}`}>
                     {sess.followerGrowth >= 0 ? `+${sess.followerGrowth}` : sess.followerGrowth}
                   </p>
@@ -132,7 +132,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
 
               {sess.subscriberChatRatio !== null && sess.subscriberChatRatio !== undefined && (
                 <div className="text-right">
-                  <p className="text-[10px] text-gray-500">구독자 채팅</p>
+                  <p className="text-[10px] text-gray-400 font-medium">구독자 채팅</p>
                   <p className="font-bold text-[#00FFA3]">{sess.subscriberChatRatio.toFixed(1)}%</p>
                 </div>
               )}
