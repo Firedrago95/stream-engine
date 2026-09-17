@@ -166,11 +166,7 @@ public class StreamSessionService {
 
     @Transactional
     public void updateSessionSummary(String streamId, StreamSessionSummaryRequest summaries) {
-        Optional<StreamSessionEntity> sessionOpt = sessionRepository.findActiveSession(streamId, summaries.liveId());
-        if (sessionOpt.isEmpty()) {
-            sessionOpt = sessionRepository.findBySessionId(summaries.liveId());
-        }
-
+        Optional<StreamSessionEntity> sessionOpt = findSessionForSummary(streamId, summaries.liveId());
         if (sessionOpt.isEmpty()) {
             log.warn("[Session-Manager] 종료 요약을 처리할 세션을 찾을 수 없습니다. Stream: {}, LiveId: {}", streamId, summaries.liveId());
             return;
@@ -180,24 +176,33 @@ public class StreamSessionService {
         session.updateSubscriberChatRatio(summaries.subscriberChatRatio());
 
         if (session.getEndedAt() == null) {
-            Double avgViewers = timelineRepository.findAverageViewerCountBySessionId(session.getSessionId());
-            Integer peakViewers = timelineRepository.findPeakViewerCountBySessionId(session.getSessionId());
-            int finalPeak = peakViewers != null ? Math.max(peakViewers, session.getPeakViewers()) : session.getPeakViewers();
-
-            Instant validEndedAt = normalizeEndedAt(summaries.endedAt(), session.getStartedAt());
-            session.finishSession(validEndedAt, finalPeak, avgViewers);
-
-            segmentRepository.findActiveSegment(session.getSessionId())
-                .ifPresent(segment -> {
-                    long endOffset = Math.max(0L, Duration.between(session.getStartedAt(), validEndedAt).toMillis());
-                    segment.endSegment(validEndedAt, endOffset);
-                });
+            finishSessionWithMetrics(session, summaries.endedAt());
         }
 
         streamRepository.findByStreamId(streamId)
             .ifPresent(StreamEntity::markOffline);
 
         evictActiveSessionAfterCommit(streamId);
+    }
+
+    private Optional<StreamSessionEntity> findSessionForSummary(String streamId, String liveId) {
+        return sessionRepository.findActiveSession(streamId, liveId)
+            .or(() -> sessionRepository.findBySessionId(liveId));
+    }
+
+    private void finishSessionWithMetrics(StreamSessionEntity session, Instant requestEndedAt) {
+        Double avgViewers = timelineRepository.findAverageViewerCountBySessionId(session.getSessionId());
+        Integer peakViewers = timelineRepository.findPeakViewerCountBySessionId(session.getSessionId());
+        int finalPeak = peakViewers != null ? Math.max(peakViewers, session.getPeakViewers()) : session.getPeakViewers();
+
+        Instant validEndedAt = normalizeEndedAt(requestEndedAt, session.getStartedAt());
+        session.finishSession(validEndedAt, finalPeak, avgViewers);
+
+        segmentRepository.findActiveSegment(session.getSessionId())
+            .ifPresent(segment -> {
+                long endOffset = Math.max(0L, Duration.between(session.getStartedAt(), validEndedAt).toMillis());
+                segment.endSegment(validEndedAt, endOffset);
+            });
     }
 
     private Instant normalizeEndedAt(Instant requestEndedAt, Instant sessionStartedAt) {
