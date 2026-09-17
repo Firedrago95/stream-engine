@@ -16,6 +16,7 @@ import io.slice.stream.apiserver.streamer.domain.model.StreamerDailyStat;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerDailyStatRepository;
 import io.slice.stream.apiserver.streamer.domain.service.StreakCalculator;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerGrassResponse;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -35,6 +36,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class StreamerGrassQueryServiceTest {
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    private static final Instant FIXED_NOW = Instant.parse("2026-09-17T06:00:00Z"); // 15:00 KST
+    private final Clock fixedClock = Clock.fixed(FIXED_NOW, KST);
 
     @Mock
     private StreamerDailyStatRepository dailyStatRepository;
@@ -49,14 +52,14 @@ class StreamerGrassQueryServiceTest {
 
     @BeforeEach
     void setUp() {
-        grassQueryService = new StreamerGrassQueryService(dailyStatRepository, sessionRepository, streakCalculator);
+        grassQueryService = new StreamerGrassQueryService(dailyStatRepository, sessionRepository, streakCalculator, fixedClock);
     }
 
     @Test
     void 지정된_기간만큼_빠짐없이_타일_목록을_생성하여_반환한다() {
         String channelId = "ch_test_1";
         int days = 7;
-        LocalDate today = LocalDate.now(KST);
+        LocalDate today = LocalDate.now(fixedClock.withZone(KST));
         LocalDate startDate = today.minusDays(days - 1L);
 
         StreamerDailyStat statToday = StreamerDailyStat.of(
@@ -92,7 +95,7 @@ class StreamerGrassQueryServiceTest {
     @Test
     void 조회_일수가_null이면_기본_90일_잔디를_조회한다() {
         String channelId = "ch_test_2";
-        LocalDate today = LocalDate.now(KST);
+        LocalDate today = LocalDate.now(fixedClock.withZone(KST));
         LocalDate startDate = today.minusDays(89L);
 
         given(dailyStatRepository.findByChannelIdAndDateRange(eq(channelId), eq(startDate), eq(today)))
@@ -124,7 +127,7 @@ class StreamerGrassQueryServiceTest {
     void 조회_기간보다_긴_연속_스트릭도_온전한_길이로_반환된다() {
         String channelId = "ch_test_4";
         int days = 7;
-        LocalDate today = LocalDate.now(KST);
+        LocalDate today = LocalDate.now(fixedClock.withZone(KST));
         LocalDate startDate = today.minusDays(days - 1L);
 
         given(dailyStatRepository.findByChannelIdAndDateRange(eq(channelId), eq(startDate), eq(today)))
@@ -144,11 +147,11 @@ class StreamerGrassQueryServiceTest {
     void 방송_진행_중인_활성_세션이_있으면_오늘_잔디_타일에_실시간_방송_시간이_합산되어_점등된다() {
         String channelId = "ch_live";
         int days = 7;
-        LocalDate today = LocalDate.now(KST);
+        LocalDate today = LocalDate.now(fixedClock.withZone(KST));
         LocalDate startDate = today.minusDays(days - 1L);
 
         StreamSessionEntity activeSession = new StreamSessionEntity(
-            channelId, "live_1", "실시간 방송 중", "Just Chatting", Instant.now().minusSeconds(7200)
+            channelId, "live_1", "실시간 방송 중", "Just Chatting", FIXED_NOW.minusSeconds(7200)
         );
         activeSession.updatePeakViewers(5000);
         activeSession.updateAverageViewerCount(3000);
@@ -166,9 +169,48 @@ class StreamerGrassQueryServiceTest {
 
         GrassTile todayTile = response.tiles().get(response.tiles().size() - 1);
         assertThat(todayTile.date()).isEqualTo(today);
-        assertThat(todayTile.durationSeconds()).isGreaterThanOrEqualTo(7200);
+        assertThat(todayTile.durationSeconds()).isEqualTo(7200);
         assertThat(todayTile.level()).isNotEqualTo(GrassLevel.LEVEL_0);
         assertThat(todayTile.peakViewers()).isEqualTo(5000);
+        assertThat(todayTile.avgViewers()).isEqualTo(3000);
         assertThat(response.currentStreak()).isEqualTo(1);
+    }
+
+    @Test
+    void 오늘_기종료된_세션과_현재_라이브_세션이_함께_있으면_방송_시간에_비례한_가중_평균_시청자가_계산된다() {
+        String channelId = "ch_multi";
+        int days = 7;
+        LocalDate today = LocalDate.now(fixedClock.withZone(KST));
+        LocalDate startDate = today.minusDays(days - 1L);
+
+        // 오늘 1부 방송: 3600초(1시간), 평균 1000명, 최고 1500명
+        StreamerDailyStat morningStat = StreamerDailyStat.of(
+            channelId, today, 3600L, 1000, 1500, 1.0, 10000, 10, "1부 방송", "Talk", 1
+        );
+
+        // 오늘 2부 방송(라이브 중): 3600초(1시간), 평균 3000명, 최고 4000명
+        StreamSessionEntity activeSession = new StreamSessionEntity(
+            channelId, "live_2", "2부 실시간", "Game", FIXED_NOW.minusSeconds(3600)
+        );
+        activeSession.updatePeakViewers(4000);
+        activeSession.updateAverageViewerCount(3000);
+
+        given(dailyStatRepository.findByChannelIdAndDateRange(eq(channelId), eq(startDate), eq(today)))
+            .willReturn(List.of(morningStat));
+        given(sessionRepository.findActiveSession(eq(channelId)))
+            .willReturn(Optional.of(activeSession));
+        given(dailyStatRepository.findRecentActiveDates(eq(channelId), eq(today), any(Integer.class)))
+            .willReturn(List.of(today));
+        given(streakCalculator.calculate(any(), eq(today)))
+            .willReturn(1);
+
+        StreamerGrassResponse response = grassQueryService.getGrassData(channelId, days);
+
+        GrassTile todayTile = response.tiles().get(response.tiles().size() - 1);
+        assertThat(todayTile.date()).isEqualTo(today);
+        assertThat(todayTile.durationSeconds()).isEqualTo(7200); // 3600 + 3600
+        // 가중 평균: (1000 * 3600 + 3000 * 3600) / 7200 = 2000명
+        assertThat(todayTile.avgViewers()).isEqualTo(2000);
+        assertThat(todayTile.peakViewers()).isEqualTo(4000); // max(1500, 4000)
     }
 }

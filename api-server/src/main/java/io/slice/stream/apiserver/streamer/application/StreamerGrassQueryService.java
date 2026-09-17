@@ -10,11 +10,13 @@ import io.slice.stream.apiserver.streamer.domain.model.StreamerDailyStat;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerDailyStatRepository;
 import io.slice.stream.apiserver.streamer.domain.service.StreakCalculator;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerGrassResponse;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -22,14 +24,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class StreamerGrassQueryService {
 
@@ -42,6 +42,27 @@ public class StreamerGrassQueryService {
     private final StreamerDailyStatRepository dailyStatRepository;
     private final JpaStreamSessionRepository sessionRepository;
     private final StreakCalculator streakCalculator;
+    private final Clock clock;
+
+    public StreamerGrassQueryService(
+        StreamerDailyStatRepository dailyStatRepository,
+        JpaStreamSessionRepository sessionRepository,
+        StreakCalculator streakCalculator
+    ) {
+        this(dailyStatRepository, sessionRepository, streakCalculator, Clock.system(KST));
+    }
+
+    public StreamerGrassQueryService(
+        StreamerDailyStatRepository dailyStatRepository,
+        JpaStreamSessionRepository sessionRepository,
+        StreakCalculator streakCalculator,
+        Clock clock
+    ) {
+        this.dailyStatRepository = dailyStatRepository;
+        this.sessionRepository = sessionRepository;
+        this.streakCalculator = streakCalculator;
+        this.clock = clock;
+    }
 
     public StreamerGrassResponse getGrassData(String channelId, Integer days) {
         if (days != null && (days < MIN_DAYS || days > MAX_DAYS)) {
@@ -52,7 +73,7 @@ public class StreamerGrassQueryService {
         }
 
         int targetDays = (days != null) ? days : DEFAULT_DAYS;
-        LocalDate today = LocalDate.now(KST);
+        LocalDate today = LocalDate.now(clock.withZone(KST));
         LocalDate startDate = today.minusDays(targetDays - 1L);
 
         List<StreamerDailyStat> recordedStats = dailyStatRepository.findByChannelIdAndDateRange(
@@ -62,7 +83,7 @@ public class StreamerGrassQueryService {
         Map<LocalDate, StreamerDailyStat> statMap = recordedStats.stream()
             .collect(Collectors.toMap(StreamerDailyStat::statDate, Function.identity(), (a, b) -> b));
 
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         Optional<StreamSessionEntity> activeSession = sessionRepository.findActiveSession(channelId);
 
         List<GrassTile> tiles = new ArrayList<>(targetDays);
@@ -133,14 +154,20 @@ public class StreamerGrassQueryService {
             Instant todayStart = today.atStartOfDay(KST).toInstant();
             Instant liveStart = session.getStartedAt().isAfter(todayStart) ? session.getStartedAt() : todayStart;
             long liveSeconds = Math.max(0L, Duration.between(liveStart, now).getSeconds());
-            baseDuration += liveSeconds;
 
             if (session.getPeakViewers() != null && session.getPeakViewers() > peakViewers) {
                 peakViewers = session.getPeakViewers();
             }
-            if (avgViewers == 0 && session.getAverageViewerCount() != null) {
-                avgViewers = session.getAverageViewerCount();
+
+            int liveAvg = session.getAverageViewerCount() != null ? session.getAverageViewerCount() : 0;
+            long totalTodayDuration = baseDuration + liveSeconds;
+            if (totalTodayDuration > 0) {
+                double totalWeightedViewerSeconds = ((double) avgViewers * baseDuration) + ((double) liveAvg * liveSeconds);
+                avgViewers = (int) Math.round(totalWeightedViewerSeconds / totalTodayDuration);
             }
+
+            baseDuration = totalTodayDuration;
+
             if (title == null) {
                 title = session.getTitle();
             }

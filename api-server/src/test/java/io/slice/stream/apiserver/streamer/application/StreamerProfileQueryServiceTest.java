@@ -14,6 +14,7 @@ import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntit
 import io.slice.stream.apiserver.streamer.domain.model.StreamerDailyStat;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerDailyStatRepository;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerProfileResponse;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -34,6 +35,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 class StreamerProfileQueryServiceTest {
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    private static final Instant FIXED_NOW = Instant.parse("2026-09-17T06:00:00Z"); // 15:00 KST
+    private final Clock fixedClock = Clock.fixed(FIXED_NOW, KST);
 
     @Mock
     private JpaStreamRepository streamRepository;
@@ -51,15 +54,16 @@ class StreamerProfileQueryServiceTest {
         profileQueryService = new StreamerProfileQueryService(
             streamRepository,
             dailyStatRepository,
-            sessionRepository
+            sessionRepository,
+            fixedClock
         );
     }
 
     @Test
     void 프로필_헤더와_30일_KPI_요약_및_주력_카테고리_Top5가_정상_계산되어_반환된다() {
         String channelId = "ch_tester";
-        LocalDate today = LocalDate.now(KST);
-        Instant now = Instant.now();
+        LocalDate today = LocalDate.now(fixedClock.withZone(KST));
+        Instant now = FIXED_NOW;
 
         StreamEntity stream = new StreamEntity(channelId, "테스트스트리머");
         stream.heartbeat("테스트스트리머", "오늘 방송", "https://image.png", "Talk", 2500);
@@ -74,9 +78,9 @@ class StreamerProfileQueryServiceTest {
         );
 
         StreamSessionEntity session1 = new StreamSessionEntity(
-            channelId, "sess_1", "토크 방송", "Talk", now.minus(3, ChronoUnit.HOURS)
+            channelId, "sess_1", "오늘 방송", "Talk", now.minus(2, ChronoUnit.HOURS)
         );
-        ReflectionTestUtils.setField(session1, "endedAt", now.minus(1, ChronoUnit.HOURS));
+        ReflectionTestUtils.setField(session1, "endedAt", now);
         ReflectionTestUtils.setField(session1, "averageViewerCount", 2500);
 
         StreamSessionEntity session2 = new StreamSessionEntity(
@@ -114,6 +118,44 @@ class StreamerProfileQueryServiceTest {
 
         assertThat(response.mostPlayedCategories().get(1).categoryName()).isEqualTo("Talk");
         assertThat(response.mostPlayedCategories().get(1).percentage()).isEqualTo(40.0);
+    }
+
+    @Test
+    void 현재_라이브_방송_중인_세션이_있으면_해당_세션의_시청자수와_시간도_가중_평균에_합산된다() {
+        String channelId = "ch_live_calc";
+        LocalDate today = LocalDate.now(fixedClock.withZone(KST));
+        Instant now = FIXED_NOW;
+
+        StreamEntity stream = new StreamEntity(channelId, "라이브스트리머");
+        stream.heartbeat("라이브스트리머", "실시간 방송", "https://image.png", "Just Chatting", 4000);
+        ReflectionTestUtils.setField(stream, "lastUpdateAt", now.minus(10, ChronoUnit.SECONDS));
+
+        // 과거 30일 통계: 10,000초 동안 평균 2,000명 (가중합 20,000,000)
+        StreamerDailyStat pastStat = StreamerDailyStat.of(
+            channelId, today.minusDays(1), 10000L, 2000, 3000, 5.5, 10000, 10, "어제 방송", "Game", 1
+        );
+
+        // 현재 라이브 세션: FIXED_NOW 기준 10,000초 전 시작, 평균 4,000명 (가중합 40,000,000)
+        StreamSessionEntity activeSession = new StreamSessionEntity(
+            channelId, "live_session_1", "실시간 방송", "Just Chatting", now.minusSeconds(10000)
+        );
+        activeSession.updatePeakViewers(5000);
+        activeSession.updateAverageViewerCount(4000);
+
+        given(streamRepository.findByStreamId(channelId)).willReturn(Optional.of(stream));
+        given(dailyStatRepository.findByChannelIdAndDateRange(eq(channelId), any(), eq(today)))
+            .willReturn(List.of(pastStat));
+        given(sessionRepository.findActiveSession(channelId)).willReturn(Optional.of(activeSession));
+        given(sessionRepository.findSessionsSince(eq(channelId), any())).willReturn(List.of());
+
+        StreamerProfileResponse response = profileQueryService.getProfile(channelId);
+
+        // 총 방송 시간 = 10,000(과거) + 10,000(라이브) = 20,000초
+        assertThat(response.summary().totalBroadcastDurationSeconds()).isEqualTo(20000L);
+        // 가중 평균 = (2000 * 10000 + 4000 * 10000) / 20000 = 3000명
+        assertThat(response.summary().averageViewers()).isEqualTo(3000);
+        assertThat(response.summary().peakViewers()).isEqualTo(5000);
+        assertThat(response.summary().broadcastDays30d()).isEqualTo(2);
     }
 
     @Test
