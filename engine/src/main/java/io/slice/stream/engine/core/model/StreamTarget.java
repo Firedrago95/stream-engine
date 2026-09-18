@@ -28,4 +28,18 @@ public record StreamTarget(
     public int hashCode() {
         return Objects.hashCode(liveId);
     }
+
+    public StreamTarget withChatChannelId(String newChatChannelId) {
+        return new StreamTarget(
+            channelId,
+            channelName,
+            newChatChannelId,
+            liveId,
+            liveTitle,
+            concurrentUserCount,
+            profileImageUrl,
+            categoryName,
+            startedAt
+        );
+    }
 }

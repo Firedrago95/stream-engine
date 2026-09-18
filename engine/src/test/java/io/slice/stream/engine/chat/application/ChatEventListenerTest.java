@@ -101,14 +101,13 @@ class ChatEventListenerTest {
         StreamTarget detailedTarget1 = new StreamTarget("ch1", "침착맨", "chatCh1", 1L, "title1", 100, "thumb1.jpg", "소통", Instant.EPOCH);
 
         when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
-        when(streamDiscoveryClient.fetchLiveStreams(Set.of("ch1"))).thenReturn(List.of(detailedTarget1));
+        when(streamDiscoveryClient.fetchLiveStreamsForChat(Set.of(streamTarget1))).thenReturn(List.of(detailedTarget1));
 
         StreamChangedEvent event = new StreamChangedEvent(newStreamTargets, Collections.emptySet(), Instant.now());
 
         chatEventListener.handleStreamChangedEvent(event);
 
-        verify(streamDiscoveryClient).fetchLiveStreams(Set.of("ch1"));
-        verify(streamDiscoveryClient, never()).fetchLiveStreams(Set.of("ch2"));
+        verify(streamDiscoveryClient).fetchLiveStreamsForChat(Set.of(streamTarget1));
         verify(chatManager).manageStreams(Set.of(detailedTarget1), Collections.emptySet());
     }
 
@@ -121,7 +120,7 @@ class ChatEventListenerTest {
 
         chatEventListener.handleStreamChangedEvent(event);
 
-        verify(streamDiscoveryClient, never()).fetchLiveStreams(any());
+        verify(streamDiscoveryClient, never()).fetchLiveStreamsForChat(any());
         verify(chatManager, never()).manageStreams(any(), any());
     }
 

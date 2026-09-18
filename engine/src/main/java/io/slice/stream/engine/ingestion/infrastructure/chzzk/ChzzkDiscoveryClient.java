@@ -10,6 +10,7 @@ import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkL
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.ChzzkLive;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.Page;
+import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveStatusResponse;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -45,6 +46,8 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
     private final String liveFetch;
     @Value("${chzzk.api.live-detail-fetch}")
     private final String liveDetailFetch;
+    @Value("${chzzk.api.live-status-polling:/polling/v2/channels/{channelId}/live-status}")
+    private final String liveStatusPolling;
 
     @Override
     @Retryable(
@@ -234,8 +237,62 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
         return builder.toUriString();
     }
 
+    @Override
+    public List<StreamTarget> fetchLiveStreamsForChat(Set<StreamTarget> targets) {
+        List<CompletableFuture<StreamTarget>> fetchResults = targets.stream()
+            .map(target -> CompletableFuture.supplyAsync(() -> {
+                try {
+                    rateLimiter.acquire();
+                    ChzzkLiveStatusResponse.Content statusContent = fetchLiveStatus(target.channelId());
+                    if (statusContent != null && "OPEN".equals(statusContent.status())) {
+                        String chatChannelId = statusContent.chatChannelId();
+                        if (chatChannelId != null && !chatChannelId.isBlank()) {
+                            return target.withChatChannelId(chatChannelId);
+                        }
+                    }
+                    return null;
+                } catch (Exception e) {
+                    log.warn("[Chzzk API] 웹소켓 연결용 경량 상태 조회 중 에러 발생. channelId: {}", target.channelId());
+                    return null;
+                }
+            }, virtualThreadExecutor))
+            .toList();
+
+        return fetchResults.stream()
+            .map(CompletableFuture::join)
+            .filter(Objects::nonNull)
+            .toList();
+    }
+
+    private ChzzkLiveStatusResponse.Content fetchLiveStatus(String channelId) {
+        String uri = buildLiveStatusApiUri(channelId);
+        ChzzkLiveStatusResponse response = callLiveStatusApi(uri);
+        return response != null ? response.content() : null;
+    }
+
+    private ChzzkLiveStatusResponse callLiveStatusApi(String url) {
+        try {
+            if (log.isDebugEnabled()) {
+                log.debug("[Chzzk API] LiveStatus 요청 URL: {}", url);
+            }
+            return restClient.get()
+                .uri(url)
+                .retrieve()
+                .body(ChzzkLiveStatusResponse.class);
+        } catch (RestClientException e) {
+            log.error("[Chzzk API Error] LiveStatus 호출 실패. URL: {}", url, e);
+            throw new IngestionException(ErrorCode.STREAM_PROVIDER_CLIENT_ERROR, "치지직 상태 조회 API 호출에 실패했습니다.");
+        }
+    }
+
     private String buildLiveDetailApiUri(String channelId) {
         return UriComponentsBuilder.fromPath(liveDetailFetch)
+            .buildAndExpand(channelId)
+            .toUriString();
+    }
+
+    private String buildLiveStatusApiUri(String channelId) {
+        return UriComponentsBuilder.fromPath(liveStatusPolling)
             .buildAndExpand(channelId)
             .toUriString();
     }

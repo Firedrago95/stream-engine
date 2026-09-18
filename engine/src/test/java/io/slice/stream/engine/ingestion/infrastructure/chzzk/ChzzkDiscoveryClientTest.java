@@ -17,6 +17,7 @@ import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkL
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.ChzzkLive.Channel;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.Next;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse.Content.Page;
+import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveStatusResponse;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -44,8 +45,9 @@ import tools.jackson.databind.ObjectMapper;
 class ChzzkDiscoveryClientTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private ChzzkDiscoveryClient chzzkDiscoveryClient;
+
     private MockRestServiceServer mockServer;
+    private ChzzkDiscoveryClient chzzkDiscoveryClient;
 
     @Mock
     private ExecutorService virtualExecutorService;
@@ -53,11 +55,13 @@ class ChzzkDiscoveryClientTest {
     private String baseUrl = "https://api.chzzk.naver.com";
     private String liveFetchUrl;
     private String liveDetailFetchUrl;
+    private String liveStatusPollingUrl;
 
     @BeforeEach
     void setUp() {
         liveFetchUrl = "/service/v1/lives";
-        liveDetailFetchUrl = "/service/v2/channels/{channelId}/live-detail";
+        liveDetailFetchUrl = "/service/v3/channels/{channelId}/live-detail";
+        liveStatusPollingUrl = "/polling/v2/channels/{channelId}/live-status";
 
         Builder builder = RestClient.builder().baseUrl(baseUrl);
         mockServer = MockRestServiceServer.bindTo(builder)
@@ -68,7 +72,13 @@ class ChzzkDiscoveryClientTest {
             return null;
         }).when(virtualExecutorService).execute(any(Runnable.class));
 
-        chzzkDiscoveryClient = new ChzzkDiscoveryClient(builder.build(), virtualExecutorService, liveFetchUrl, liveDetailFetchUrl);
+        chzzkDiscoveryClient = new ChzzkDiscoveryClient(
+            builder.build(),
+            virtualExecutorService,
+            liveFetchUrl,
+            liveDetailFetchUrl,
+            liveStatusPollingUrl
+        );
     }
 
     @Test
@@ -278,6 +288,61 @@ class ChzzkDiscoveryClientTest {
             .isEqualTo(ErrorCode.STREAM_PROVIDER_CLIENT_ERROR);
     }
 
+    @Test
+    void 웹소켓_연결을_위해_경량_상태_조회_후_chatChannelId를_채워_반환한다() throws Exception {
+        StreamTarget target = new StreamTarget("ch1", "스트리머1", null, 1001L, "방송 제목", 100, "thumb.jpg", "소통", Instant.EPOCH);
+        ChzzkLiveStatusResponse statusResponse = new ChzzkLiveStatusResponse(
+            new ChzzkLiveStatusResponse.Content(
+                "방송 제목",
+                "OPEN",
+                100,
+                0,
+                LocalDateTime.now(),
+                "chatCh1",
+                "소통",
+                "ch1"
+            )
+        );
+
+        mockServer.expect(requestTo(buildLiveStatusApiUri("ch1")))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(statusResponse), MediaType.APPLICATION_JSON));
+
+        List<StreamTarget> result = chzzkDiscoveryClient.fetchLiveStreamsForChat(Set.of(target));
+
+        mockServer.verify();
+        assertThat(result).hasSize(1);
+        StreamTarget readyTarget = result.get(0);
+        assertThat(readyTarget.channelId()).isEqualTo("ch1");
+        assertThat(readyTarget.channelName()).isEqualTo("스트리머1");
+        assertThat(readyTarget.liveId()).isEqualTo(1001L);
+        assertThat(readyTarget.chatChannelId()).isEqualTo("chatCh1");
+    }
+
+    @Test
+    void 경량_상태_조회_결과_CLOSE_상태이면_웹소켓_대상에서_제외한다() throws Exception {
+        StreamTarget target = new StreamTarget("ch1", "스트리머1", null, 1001L, "방송 제목", 100, "thumb.jpg", "소통", Instant.EPOCH);
+        ChzzkLiveStatusResponse statusResponse = new ChzzkLiveStatusResponse(
+            new ChzzkLiveStatusResponse.Content(
+                "방송 제목",
+                "CLOSE",
+                0,
+                500,
+                LocalDateTime.now(),
+                "chatCh1",
+                "소통",
+                "ch1"
+            )
+        );
+
+        mockServer.expect(requestTo(buildLiveStatusApiUri("ch1")))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(statusResponse), MediaType.APPLICATION_JSON));
+
+        List<StreamTarget> result = chzzkDiscoveryClient.fetchLiveStreamsForChat(Set.of(target));
+
+        mockServer.verify();
+        assertThat(result).isEmpty();
+    }
+
     private ChzzkLiveResponse createMockResponse(List<ChzzkLive> data, Long nextViewers, Long nextLiveId) {
         Next next = (nextViewers != null && nextLiveId != null) ? new Next(nextViewers, nextLiveId) : null;
         Page page = new Page(next);
@@ -299,6 +364,12 @@ class ChzzkDiscoveryClientTest {
 
     private String buildLiveDetailApiUri(String channelId) {
         return UriComponentsBuilder.fromUriString(baseUrl + liveDetailFetchUrl)
+            .buildAndExpand(channelId)
+            .toUriString();
+    }
+
+    private String buildLiveStatusApiUri(String channelId) {
+        return UriComponentsBuilder.fromUriString(baseUrl + liveStatusPollingUrl)
             .buildAndExpand(channelId)
             .toUriString();
     }

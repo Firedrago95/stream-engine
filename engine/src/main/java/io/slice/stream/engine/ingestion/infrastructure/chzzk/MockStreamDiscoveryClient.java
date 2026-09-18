@@ -4,6 +4,7 @@ import io.slice.stream.engine.core.model.StreamTarget;
 import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -34,7 +35,7 @@ public class MockStreamDiscoveryClient implements StreamDiscoveryClient {
     }
 
     @Override
-    public List<StreamTarget> fetchLiveStreams(java.util.Set<String> channelIds) {
+    public List<StreamTarget> fetchLiveStreams(Set<String> channelIds) {
         log.info("[부하 테스트] 순위 밖 {}개의 더미 방 상태를 유지합니다.", channelIds.size());
         
         return channelIds.stream()
@@ -49,6 +50,17 @@ public class MockStreamDiscoveryClient implements StreamDiscoveryClient {
                 "test",
                 Instant.now()
             ))
+            .toList();
+    }
+
+    @Override
+    public List<StreamTarget> fetchLiveStreamsForChat(Set<StreamTarget> targets) {
+        log.info("[부하 테스트] {}개의 타겟 스트림에 대해 웹소켓 연결용 세션을 준비합니다.", targets.size());
+
+        return targets.stream()
+            .map(target -> target.chatChannelId() != null
+                ? target
+                : target.withChatChannelId("mock_session_" + target.channelId()))
             .toList();
     }
 }
