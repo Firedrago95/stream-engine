@@ -10,8 +10,10 @@ import io.slice.stream.apiserver.global.config.HighlightProperties;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
+import io.slice.stream.apiserver.streamer.domain.repository.StreamerFollowerSnapshotRepository;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -34,6 +36,9 @@ class HighlightCleanupSchedulerTest {
 
     @Mock
     private JpaHighlightEventRepository highlightRepository;
+
+    @Mock
+    private StreamerFollowerSnapshotRepository followerSnapshotRepository;
 
     @InjectMocks
     private HighlightCleanupScheduler scheduler;
@@ -100,5 +105,6 @@ class HighlightCleanupSchedulerTest {
 
         verify(segmentRepository).deleteAllBySessionIds(List.of(expiredSessionId));
         verify(sessionRepository).deleteExpiredSessions(any(Instant.class));
+        verify(followerSnapshotRepository).deleteExpiredSnapshots(any(LocalDate.class));
     }
 }
