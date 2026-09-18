@@ -138,4 +138,36 @@ class DailyFollowerCollectorSchedulerTest {
         verify(apiServerClient, times(2)).fetchFollowerTargetChannels();
         verify(apiServerClient, times(1)).sendFollowerSnapshots(any());
     }
+
+    @Test
+    @DisplayName("수집된 데이터가 청크 크기를 초과하면 분할되어 순차적으로 전송된다")
+    void collectDailyFollowersChunked() {
+        DailyFollowerCollectorScheduler chunkedScheduler = new DailyFollowerCollectorScheduler(
+            apiServerClient,
+            chzzkChannelClient,
+            virtualThreadExecutor,
+            3,
+            0L,
+            2
+        );
+
+        List<String> targetChannels = List.of("ch1", "ch2", "ch3", "ch4", "ch5");
+        when(apiServerClient.fetchFollowerTargetChannels()).thenReturn(Optional.of(targetChannels));
+        when(chzzkChannelClient.fetchFollowerCount("ch1")).thenReturn(Optional.of(1000));
+        when(chzzkChannelClient.fetchFollowerCount("ch2")).thenReturn(Optional.of(2000));
+        when(chzzkChannelClient.fetchFollowerCount("ch3")).thenReturn(Optional.of(3000));
+        when(chzzkChannelClient.fetchFollowerCount("ch4")).thenReturn(Optional.of(4000));
+        when(chzzkChannelClient.fetchFollowerCount("ch5")).thenReturn(Optional.of(5000));
+
+        chunkedScheduler.collectDailyFollowers();
+
+        ArgumentCaptor<List<FollowerSnapshotRecord>> captor = ArgumentCaptor.forClass(List.class);
+        verify(apiServerClient, times(3)).sendFollowerSnapshots(captor.capture());
+
+        List<List<FollowerSnapshotRecord>> allBatches = captor.getAllValues();
+        assertThat(allBatches).hasSize(3);
+        assertThat(allBatches.get(0)).hasSize(2);
+        assertThat(allBatches.get(1)).hasSize(2);
+        assertThat(allBatches.get(2)).hasSize(1);
+    }
 }

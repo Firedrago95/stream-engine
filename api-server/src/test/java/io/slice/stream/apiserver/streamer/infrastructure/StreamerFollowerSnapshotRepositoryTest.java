@@ -105,4 +105,23 @@ class StreamerFollowerSnapshotRepositoryTest implements PostgresTestSupport {
         assertThat(remaining).extracting(StreamerFollowerSnapshotEntity::getSnapshotDate)
             .containsExactlyInAnyOrder(cutoffDate, cutoffDate.plusDays(5));
     }
+
+    @Test
+    void 특정_날짜의_여러_스트림_스냅샷을_일괄_조회한다() {
+        LocalDate targetDate = LocalDate.of(2026, 3, 15);
+        snapshotRepository.save(new StreamerFollowerSnapshotEntity("ch1", targetDate, 1000, 10));
+        snapshotRepository.save(new StreamerFollowerSnapshotEntity("ch2", targetDate, 2000, 20));
+        snapshotRepository.save(new StreamerFollowerSnapshotEntity("ch3", targetDate.minusDays(1), 3000, 30));
+        snapshotRepository.save(new StreamerFollowerSnapshotEntity("ch4", targetDate, 4000, 40));
+
+        em.flush();
+        em.clear();
+
+        List<StreamerFollowerSnapshotEntity> results =
+            snapshotRepository.findAllBySnapshotDateAndStreamIdIn(targetDate, List.of("ch1", "ch2", "ch3"));
+
+        assertThat(results).hasSize(2);
+        assertThat(results).extracting(StreamerFollowerSnapshotEntity::getStreamId)
+            .containsExactlyInAnyOrder("ch1", "ch2");
+    }
 }

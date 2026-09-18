@@ -2,24 +2,27 @@ package io.slice.stream.apiserver.streamer.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
-import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.streamer.application.dto.FollowerSnapshotRecordDto;
+import io.slice.stream.apiserver.streamer.application.dto.StreamFollowerUpdateDto;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerFollowerSnapshotRepository;
+import io.slice.stream.apiserver.streamer.infrastructure.StreamerFollowerJdbcRepository;
 import io.slice.stream.apiserver.streamer.infrastructure.entity.StreamerFollowerSnapshotEntity;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -35,6 +38,15 @@ class StreamerFollowerCommandServiceTest {
     @Mock
     private JpaStreamSessionRepository streamSessionRepository;
 
+    @Mock
+    private StreamerFollowerJdbcRepository followerJdbcRepository;
+
+    @Captor
+    private ArgumentCaptor<List<StreamerFollowerSnapshotEntity>> snapshotCaptor;
+
+    @Captor
+    private ArgumentCaptor<List<StreamFollowerUpdateDto>> streamUpdateCaptor;
+
     private StreamerFollowerCommandService commandService;
 
     @BeforeEach
@@ -42,125 +54,111 @@ class StreamerFollowerCommandServiceTest {
         commandService = new StreamerFollowerCommandService(
             snapshotRepository,
             streamRepository,
-            streamSessionRepository
+            streamSessionRepository,
+            followerJdbcRepository
         );
     }
 
     @Test
-    @DisplayName("직전 스냅샷이 없으면 팔로워 증감량(growth)은 0으로 저장된다")
+    @DisplayName("직전일(D-1) 스냅샷이 없으면 팔로워 증감량(growth)은 0으로 계산되어 벌크 저장된다")
     void recordFollowerWithoutPrevSnapshot() {
         String streamId = "ch1";
         LocalDate date = LocalDate.of(2026, 9, 17);
         int followerCount = 10000;
-        StreamEntity streamEntity = new StreamEntity(streamId, "스트리머1");
 
-        when(streamRepository.findByStreamId(streamId)).thenReturn(Optional.of(streamEntity));
-        when(snapshotRepository.findByStreamIdAndSnapshotDate(streamId, date)).thenReturn(Optional.empty());
-        when(snapshotRepository.findFirstByStreamIdAndSnapshotDateLessThanOrderBySnapshotDateDesc(streamId, date))
-            .thenReturn(Optional.empty());
+        when(snapshotRepository.findAllBySnapshotDateAndStreamIdIn(date.minusDays(1), List.of(streamId)))
+            .thenReturn(Collections.emptyList());
 
         commandService.recordFollower(streamId, followerCount, date);
 
-        ArgumentCaptor<StreamerFollowerSnapshotEntity> captor = ArgumentCaptor.forClass(StreamerFollowerSnapshotEntity.class);
-        verify(snapshotRepository).save(captor.capture());
+        verify(followerJdbcRepository).batchUpsertSnapshots(snapshotCaptor.capture());
+        verify(followerJdbcRepository).batchUpdateStreamFollowers(streamUpdateCaptor.capture());
 
-        StreamerFollowerSnapshotEntity saved = captor.getValue();
+        List<StreamerFollowerSnapshotEntity> savedSnapshots = snapshotCaptor.getValue();
+        assertThat(savedSnapshots).hasSize(1);
+        StreamerFollowerSnapshotEntity saved = savedSnapshots.get(0);
         assertThat(saved.getStreamId()).isEqualTo(streamId);
         assertThat(saved.getSnapshotDate()).isEqualTo(date);
         assertThat(saved.getFollowerCount()).isEqualTo(10000);
         assertThat(saved.getFollowerGrowth()).isEqualTo(0);
 
-        assertThat(streamEntity.getFollowerCount()).isEqualTo(10000);
-        assertThat(streamEntity.getLastFollowerUpdatedAt()).isNotNull();
+        List<StreamFollowerUpdateDto> savedUpdates = streamUpdateCaptor.getValue();
+        assertThat(savedUpdates).hasSize(1);
+        StreamFollowerUpdateDto update = savedUpdates.get(0);
+        assertThat(update.streamId()).isEqualTo(streamId);
+        assertThat(update.followerCount()).isEqualTo(10000);
+        assertThat(update.updatedAt()).isNotNull();
     }
 
     @Test
-    @DisplayName("직전 스냅샷이 있으면 증감량은 (현재 팔로워 - 직전 팔로워)로 계산된다")
+    @DisplayName("직전일(D-1) 스냅샷이 있으면 증감량은 (현재 팔로워 - 직전 팔로워)로 계산된다")
     void recordFollowerWithPrevSnapshot() {
         String streamId = "ch1";
-        LocalDate prevDate = LocalDate.of(2026, 9, 16);
         LocalDate date = LocalDate.of(2026, 9, 17);
+        LocalDate yesterday = date.minusDays(1);
         int followerCount = 10700;
 
-        StreamEntity streamEntity = new StreamEntity(streamId, "스트리머1");
-        StreamerFollowerSnapshotEntity prevSnapshot = new StreamerFollowerSnapshotEntity(streamId, prevDate, 10000, 100);
+        StreamerFollowerSnapshotEntity prevSnapshot = new StreamerFollowerSnapshotEntity(streamId, yesterday, 10000, 100);
 
-        when(streamRepository.findByStreamId(streamId)).thenReturn(Optional.of(streamEntity));
-        when(snapshotRepository.findByStreamIdAndSnapshotDate(streamId, date)).thenReturn(Optional.empty());
-        when(snapshotRepository.findFirstByStreamIdAndSnapshotDateLessThanOrderBySnapshotDateDesc(streamId, date))
-            .thenReturn(Optional.of(prevSnapshot));
+        when(snapshotRepository.findAllBySnapshotDateAndStreamIdIn(yesterday, List.of(streamId)))
+            .thenReturn(List.of(prevSnapshot));
 
         commandService.recordFollower(streamId, followerCount, date);
 
-        ArgumentCaptor<StreamerFollowerSnapshotEntity> captor = ArgumentCaptor.forClass(StreamerFollowerSnapshotEntity.class);
-        verify(snapshotRepository).save(captor.capture());
-
-        StreamerFollowerSnapshotEntity saved = captor.getValue();
+        verify(followerJdbcRepository).batchUpsertSnapshots(snapshotCaptor.capture());
+        StreamerFollowerSnapshotEntity saved = snapshotCaptor.getValue().get(0);
         assertThat(saved.getFollowerCount()).isEqualTo(10700);
         assertThat(saved.getFollowerGrowth()).isEqualTo(700);
     }
 
     @Test
-    @DisplayName("직전 스냅샷이 하루 전(D-1)이 아닌 비연속 스냅샷(공백 발생)이면 왜곡 방지를 위해 증감량은 0으로 기록된다")
-    void recordFollowerWithNonConsecutivePrevSnapshot() {
-        String streamId = "ch1";
-        LocalDate oldDate = LocalDate.of(2026, 9, 10);
-        LocalDate date = LocalDate.of(2026, 9, 17);
-        int followerCount = 12000;
-
-        StreamEntity streamEntity = new StreamEntity(streamId, "스트리머1");
-        StreamerFollowerSnapshotEntity oldSnapshot = new StreamerFollowerSnapshotEntity(streamId, oldDate, 10000, 100);
-
-        when(streamRepository.findByStreamId(streamId)).thenReturn(Optional.of(streamEntity));
-        when(snapshotRepository.findByStreamIdAndSnapshotDate(streamId, date)).thenReturn(Optional.empty());
-        when(snapshotRepository.findFirstByStreamIdAndSnapshotDateLessThanOrderBySnapshotDateDesc(streamId, date))
-            .thenReturn(Optional.of(oldSnapshot));
-
-        commandService.recordFollower(streamId, followerCount, date);
-
-        ArgumentCaptor<StreamerFollowerSnapshotEntity> captor = ArgumentCaptor.forClass(StreamerFollowerSnapshotEntity.class);
-        verify(snapshotRepository).save(captor.capture());
-
-        StreamerFollowerSnapshotEntity saved = captor.getValue();
-        assertThat(saved.getFollowerCount()).isEqualTo(12000);
-        assertThat(saved.getFollowerGrowth()).isEqualTo(0);
-    }
-
-    @Test
-    @DisplayName("동일 날짜 스냅샷이 이미 존재하면 새 수치와 재계산된 증감량으로 업데이트된다")
-    void updateExistingSnapshot() {
-        String streamId = "ch1";
-        LocalDate date = LocalDate.of(2026, 9, 17);
-        StreamEntity streamEntity = new StreamEntity(streamId, "스트리머1");
-        StreamerFollowerSnapshotEntity existing = new StreamerFollowerSnapshotEntity(streamId, date, 10000, 0);
-
-        StreamerFollowerSnapshotEntity prevSnapshot = new StreamerFollowerSnapshotEntity(streamId, date.minusDays(1), 9500, 100);
-
-        when(streamRepository.findByStreamId(streamId)).thenReturn(Optional.of(streamEntity));
-        when(snapshotRepository.findByStreamIdAndSnapshotDate(streamId, date)).thenReturn(Optional.of(existing));
-        when(snapshotRepository.findFirstByStreamIdAndSnapshotDateLessThanOrderBySnapshotDateDesc(streamId, date))
-            .thenReturn(Optional.of(prevSnapshot));
-
-        commandService.recordFollower(streamId, 10200, date);
-
-        assertThat(existing.getFollowerCount()).isEqualTo(10200);
-        assertThat(existing.getFollowerGrowth()).isEqualTo(700);
-    }
-
-    @Test
-    @DisplayName("벌크 수집 목록을 받아 일괄 적재한다")
+    @DisplayName("다건의 팔로워 스냅샷 목록을 받아 전일 데이터 일괄 조회 후 벌크 업서트 및 업데이트를 실행한다")
     void recordFollowersBulk() {
-        FollowerSnapshotRecordDto dto1 = new FollowerSnapshotRecordDto("ch1", 5000, LocalDate.of(2026, 9, 17));
-        FollowerSnapshotRecordDto dto2 = new FollowerSnapshotRecordDto("ch2", 3000, LocalDate.of(2026, 9, 17));
+        LocalDate date = LocalDate.of(2026, 9, 17);
+        LocalDate yesterday = date.minusDays(1);
 
-        when(streamRepository.findByStreamId("ch1")).thenReturn(Optional.of(new StreamEntity("ch1", "s1")));
-        when(streamRepository.findByStreamId("ch2")).thenReturn(Optional.of(new StreamEntity("ch2", "s2")));
-        when(snapshotRepository.findByStreamIdAndSnapshotDate(any(), any())).thenReturn(Optional.empty());
-        when(snapshotRepository.findFirstByStreamIdAndSnapshotDateLessThanOrderBySnapshotDateDesc(any(), any())).thenReturn(Optional.empty());
+        FollowerSnapshotRecordDto dto1 = new FollowerSnapshotRecordDto("ch1", 5000, date);
+        FollowerSnapshotRecordDto dto2 = new FollowerSnapshotRecordDto("ch2", 3000, date);
+
+        StreamerFollowerSnapshotEntity prev1 = new StreamerFollowerSnapshotEntity("ch1", yesterday, 4800, 50);
+
+        when(snapshotRepository.findAllBySnapshotDateAndStreamIdIn(yesterday, List.of("ch1", "ch2")))
+            .thenReturn(List.of(prev1));
 
         commandService.recordFollowers(List.of(dto1, dto2));
 
-        verify(snapshotRepository, org.mockito.Mockito.times(2)).save(any(StreamerFollowerSnapshotEntity.class));
+        verify(followerJdbcRepository).batchUpsertSnapshots(snapshotCaptor.capture());
+        verify(followerJdbcRepository).batchUpdateStreamFollowers(streamUpdateCaptor.capture());
+
+        List<StreamerFollowerSnapshotEntity> snapshots = snapshotCaptor.getValue();
+        assertThat(snapshots).hasSize(2);
+
+        StreamerFollowerSnapshotEntity s1 = snapshots.get(0);
+        assertThat(s1.getStreamId()).isEqualTo("ch1");
+        assertThat(s1.getFollowerCount()).isEqualTo(5000);
+        assertThat(s1.getFollowerGrowth()).isEqualTo(200);
+
+        StreamerFollowerSnapshotEntity s2 = snapshots.get(1);
+        assertThat(s2.getStreamId()).isEqualTo("ch2");
+        assertThat(s2.getFollowerCount()).isEqualTo(3000);
+        assertThat(s2.getFollowerGrowth()).isEqualTo(0);
+
+        List<StreamFollowerUpdateDto> updates = streamUpdateCaptor.getValue();
+        assertThat(updates).hasSize(2);
+        assertThat(updates.get(0).streamId()).isEqualTo("ch1");
+        assertThat(updates.get(0).followerCount()).isEqualTo(5000);
+        assertThat(updates.get(1).streamId()).isEqualTo("ch2");
+        assertThat(updates.get(1).followerCount()).isEqualTo(3000);
+    }
+
+    @Test
+    @DisplayName("빈 목록이나 null이 전달되면 아무런 DB 작업도 수행하지 않는다")
+    void recordFollowersWithEmptyList() {
+        commandService.recordFollowers(null);
+        commandService.recordFollowers(Collections.emptyList());
+
+        verify(followerJdbcRepository, never()).batchUpsertSnapshots(any());
+        verify(followerJdbcRepository, never()).batchUpdateStreamFollowers(any());
     }
 
     @Test

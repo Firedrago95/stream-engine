@@ -2,6 +2,7 @@ package io.slice.stream.apiserver.streamer.domain.repository;
 
 import io.slice.stream.apiserver.streamer.infrastructure.entity.StreamerFollowerSnapshotEntity;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,6 +22,11 @@ public interface StreamerFollowerSnapshotRepository extends JpaRepository<Stream
     Optional<StreamerFollowerSnapshotEntity> findFirstByStreamIdAndSnapshotDateLessThanOrderBySnapshotDateDesc(
         String streamId,
         LocalDate snapshotDate
+    );
+
+    List<StreamerFollowerSnapshotEntity> findAllBySnapshotDateAndStreamIdIn(
+        LocalDate snapshotDate,
+        Collection<String> streamIds
     );
 
     @Modifying
