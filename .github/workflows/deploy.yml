@@ -22,14 +22,33 @@ jobs:
           fetch-depth: 0
 
       - name: Detect Changed Files
-        uses: dorny/paths-filter@v3
         id: filter
-        with:
-          filters: |
-            api_server:
-              - 'api-server/**'
-            engine:
-              - 'engine/**'
+        run: |
+          # 머지 전 기준 커밋(BASE) 결정: 이벤트의 before 또는 머지 커밋의 부모 1
+          if [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ] && git cat-file -e "${{ github.event.before }}" 2>/dev/null; then
+            BASE="${{ github.event.before }}"
+          elif git rev-parse HEAD^2 >/dev/null 2>&1; then
+            BASE="HEAD^1"
+          else
+            BASE="HEAD~1"
+          fi
+
+          echo "기준 커밋(BASE): $BASE"
+          CHANGED_FILES=$(git diff --name-only "$BASE" HEAD)
+          echo "=== 변경된 파일 목록 ==="
+          echo "$CHANGED_FILES"
+
+          if echo "$CHANGED_FILES" | grep -q '^api-server/'; then
+            echo "api_server=true" >> $GITHUB_OUTPUT
+          else
+            echo "api_server=false" >> $GITHUB_OUTPUT
+          fi
+
+          if echo "$CHANGED_FILES" | grep -q '^engine/'; then
+            echo "engine=true" >> $GITHUB_OUTPUT
+          else
+            echo "engine=false" >> $GITHUB_OUTPUT
+          fi
 
   # ---------------------------------------------------
   # 1. API 서버 빌드 및 배포 (OCI Flex1 - ARM64)
