@@ -78,7 +78,7 @@ class StreamerProfileQueryServiceTest {
         session2.updateSessionFollowerGrowth(50);
 
         given(streamRepository.findByStreamId(channelId)).willReturn(Optional.of(stream));
-        given(sessionRepository.findSessionsSince(eq(channelId), any()))
+        given(sessionRepository.findSessionsOverlapping(eq(channelId), any(), any()))
             .willReturn(List.of(session1, session2));
 
         StreamerProfileResponse response = profileQueryService.getProfile(channelId);
@@ -130,7 +130,7 @@ class StreamerProfileQueryServiceTest {
         activeSession.updateAverageViewerCount(4000);
 
         given(streamRepository.findByStreamId(channelId)).willReturn(Optional.of(stream));
-        given(sessionRepository.findSessionsSince(eq(channelId), any()))
+        given(sessionRepository.findSessionsOverlapping(eq(channelId), any(), any()))
             .willReturn(List.of(pastSession, activeSession));
 
         StreamerProfileResponse response = profileQueryService.getProfile(channelId);
@@ -141,6 +141,61 @@ class StreamerProfileQueryServiceTest {
         assertThat(response.summary().averageViewers()).isEqualTo(3000);
         assertThat(response.summary().peakViewers()).isEqualTo(5000);
         assertThat(response.summary().broadcastDays30d()).isEqualTo(2);
+    }
+
+    @Test
+    void 자정에_정확히_종료된_세션은_익일이_아닌_전일까지만_방송일수로_반영된다() {
+        String channelId = "ch_midnight_test";
+        Instant now = FIXED_NOW;
+
+        StreamEntity stream = new StreamEntity(channelId, "자정테스트");
+        ReflectionTestUtils.setField(stream, "lastUpdateAt", now.minus(1, ChronoUnit.HOURS));
+
+        // 9월 16일 20:00 KST 시작 ~ 9월 17일 00:00:00 KST 정확히 자정 종료 (4시간)
+        Instant sStart = Instant.parse("2026-09-16T11:00:00Z"); // 20:00 KST
+        Instant sEnd = Instant.parse("2026-09-16T15:00:00Z");   // 00:00:00 KST (9/17)
+        StreamSessionEntity session = new StreamSessionEntity(
+            channelId, "sess_midnight", "자정 종료 방송", "Chat", sStart
+        );
+        session.finishSession(sEnd, 1000, 500.0);
+
+        given(streamRepository.findByStreamId(channelId)).willReturn(Optional.of(stream));
+        given(sessionRepository.findSessionsOverlapping(eq(channelId), any(), any()))
+            .willReturn(List.of(session));
+
+        StreamerProfileResponse response = profileQueryService.getProfile(channelId);
+
+        // 9월 17일 00:00:00 종료이므로 9월 16일 하루만 방송일수로 인정되어야 함 (2일이 아님)
+        assertThat(response.summary().broadcastDays30d()).isEqualTo(1);
+        assertThat(response.summary().totalBroadcastDurationSeconds()).isEqualTo(14400L);
+    }
+
+    @Test
+    void 삼십일_시작_경계에_걸친_밤샘_세션도_정상_조회되어_30일_내_시간만_합산된다() {
+        String channelId = "ch_boundary_test";
+        Instant now = FIXED_NOW; // 2026-09-17T06:00:00Z
+
+        StreamEntity stream = new StreamEntity(channelId, "경계테스트");
+        ReflectionTestUtils.setField(stream, "lastUpdateAt", now.minus(1, ChronoUnit.HOURS));
+
+        // 30일 시작 경계: 2026-08-19 00:00:00 KST = 2026-08-18T15:00:00Z
+        // 시작은 경계 1시간 전(14:00Z = 23:00 KST), 종료는 경계 3시간 후(18:00Z = 03:00 KST) (총 4시간 중 3시간만 30일 범위)
+        Instant sStart = Instant.parse("2026-08-18T14:00:00Z");
+        Instant sEnd = Instant.parse("2026-08-18T18:00:00Z");
+        StreamSessionEntity session = new StreamSessionEntity(
+            channelId, "sess_boundary", "밤샘 방송", "LoL", sStart
+        );
+        session.finishSession(sEnd, 2000, 1000.0);
+
+        given(streamRepository.findByStreamId(channelId)).willReturn(Optional.of(stream));
+        given(sessionRepository.findSessionsOverlapping(eq(channelId), any(), any()))
+            .willReturn(List.of(session));
+
+        StreamerProfileResponse response = profileQueryService.getProfile(channelId);
+
+        // 30일 범위 내 시간인 3시간(10,800초)만 합산되어야 함
+        assertThat(response.summary().totalBroadcastDurationSeconds()).isEqualTo(10800L);
+        assertThat(response.summary().broadcastDays30d()).isEqualTo(1);
     }
 
     @Test
@@ -166,7 +221,7 @@ class StreamerProfileQueryServiceTest {
         noiseSession.finishSession(noiseStart.plusSeconds(120), 2000, 1500.0);
 
         given(streamRepository.findByStreamId(channelId)).willReturn(Optional.of(stream));
-        given(sessionRepository.findSessionsSince(eq(channelId), any()))
+        given(sessionRepository.findSessionsOverlapping(eq(channelId), any(), any()))
             .willReturn(List.of(validSession, noiseSession));
 
         StreamerProfileResponse response = profileQueryService.getProfile(channelId);

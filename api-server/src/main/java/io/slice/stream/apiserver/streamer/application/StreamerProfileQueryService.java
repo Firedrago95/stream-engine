@@ -62,8 +62,7 @@ public class StreamerProfileQueryService {
     }
 
     public StreamerProfileResponse getProfile(String channelId) {
-        StreamEntity stream = streamRepository.findByStreamId(channelId)
-            .orElseThrow(() -> new BusinessException(ErrorCode.STREAM_NOT_FOUND, "존재하지 않는 스트리머 채널입니다: " + channelId));
+        StreamEntity stream = findStreamOrThrow(channelId);
 
         Instant now = Instant.now(clock);
         LocalDate today = LocalDate.now(clock.withZone(KST));
@@ -71,25 +70,57 @@ public class StreamerProfileQueryService {
         Instant start30dInstant = start30d.atStartOfDay(KST).toInstant();
         Instant start7dInstant = today.minusDays(DAYS_7 - 1L).atStartOfDay(KST).toInstant();
 
-        List<StreamSessionEntity> sessions30d = sessionRepository.findSessionsSince(channelId, start30dInstant);
+        List<StreamSessionEntity> sessions30d = sessionRepository.findSessionsOverlapping(channelId, start30dInstant, now);
 
+        boolean isLive = isStreamLive(stream, now);
+        SessionKpiAccumulator kpi = aggregateSessions(sessions30d, start30dInstant, start7dInstant, start30d, today, now, isLive);
+
+        StreamerHeaderDto header = buildHeader(stream, isLive, kpi.followerGrowth7d(), kpi.followerGrowth30d());
+        StreamerKpiSummaryDto summary = buildKpiSummary(kpi);
+        List<StreamerCategoryDto> mostPlayedCategories = calculateMostPlayedCategories(sessions30d, start30dInstant, now);
+
+        log.debug("스트리머 프로필 및 요약 통계 조회 완료: channelId={}", channelId);
+
+        return new StreamerProfileResponse(header, summary, mostPlayedCategories);
+    }
+
+    private StreamEntity findStreamOrThrow(String channelId) {
+        return streamRepository.findByStreamId(channelId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.STREAM_NOT_FOUND, "존재하지 않는 스트리머 채널입니다: " + channelId));
+    }
+
+    private boolean isStreamLive(StreamEntity stream, Instant now) {
+        return stream.isLive() && stream.getLastUpdateAt().isAfter(now.minus(2, ChronoUnit.MINUTES));
+    }
+
+    private SessionKpiAccumulator aggregateSessions(
+        List<StreamSessionEntity> sessions,
+        Instant start30dInstant,
+        Instant start7dInstant,
+        LocalDate start30d,
+        LocalDate today,
+        Instant now,
+        boolean isLive
+    ) {
         int followerGrowth30d = 0;
         int followerGrowth7d = 0;
         Set<LocalDate> broadcastDates = new HashSet<>();
-        long totalBroadcastDurationSeconds = 0L;
+        long totalDuration = 0L;
         double totalWeightedViewerSeconds = 0.0;
         int peakViewers = 0;
 
-        for (StreamSessionEntity session : sessions30d) {
+        for (StreamSessionEntity session : sessions) {
             Instant sStart = session.getStartedAt();
             Instant sEnd = session.getEndedAt() != null ? session.getEndedAt() : now;
-            long dur = Math.max(0L, Duration.between(sStart, sEnd).getSeconds());
+
+            Instant effectiveStart = sStart.isBefore(start30dInstant) ? start30dInstant : sStart;
+            long dur = Math.max(0L, Duration.between(effectiveStart, sEnd).getSeconds());
 
             if (session.getEndedAt() != null && dur < NOISE_THRESHOLD_SECONDS) {
                 continue;
             }
 
-            totalBroadcastDurationSeconds += dur;
+            totalDuration += dur;
 
             int sPeak = session.getPeakViewers() != null ? session.getPeakViewers() : 0;
             peakViewers = Math.max(peakViewers, sPeak);
@@ -105,70 +136,93 @@ public class StreamerProfileQueryService {
                 }
             }
 
-            LocalDate dStart = sStart.atZone(KST).toLocalDate();
-            LocalDate dEnd = sEnd.atZone(KST).toLocalDate();
-            LocalDate cur = dStart.isBefore(start30d) ? start30d : dStart;
-            LocalDate limit = dEnd.isAfter(today) ? today : dEnd;
-            while (!cur.isAfter(limit)) {
-                broadcastDates.add(cur);
-                cur = cur.plusDays(1L);
-            }
+            accumulateBroadcastDates(broadcastDates, effectiveStart, sEnd, session.getEndedAt() != null, start30d, today);
         }
 
-        boolean isLive = stream.isLive() && stream.getLastUpdateAt().isAfter(now.minus(2, ChronoUnit.MINUTES));
-        int currentFollowers = stream.getFollowerCount() != null ? stream.getFollowerCount() : 0;
         if (isLive) {
             broadcastDates.add(today);
         }
 
-        StreamerHeaderDto header = new StreamerHeaderDto(
+        return new SessionKpiAccumulator(
+            totalDuration,
+            totalWeightedViewerSeconds,
+            peakViewers,
+            followerGrowth30d,
+            followerGrowth7d,
+            broadcastDates
+        );
+    }
+
+    private void accumulateBroadcastDates(
+        Set<LocalDate> broadcastDates,
+        Instant effectiveStart,
+        Instant sEnd,
+        boolean isFinished,
+        LocalDate start30d,
+        LocalDate today
+    ) {
+        Instant exclusiveEnd = (isFinished && sEnd.isAfter(effectiveStart))
+            ? sEnd.minusNanos(1)
+            : sEnd;
+
+        LocalDate dStart = effectiveStart.atZone(KST).toLocalDate();
+        LocalDate dEnd = exclusiveEnd.atZone(KST).toLocalDate();
+        LocalDate cur = dStart.isBefore(start30d) ? start30d : dStart;
+        LocalDate limit = dEnd.isAfter(today) ? today : dEnd;
+
+        while (!cur.isAfter(limit)) {
+            broadcastDates.add(cur);
+            cur = cur.plusDays(1L);
+        }
+    }
+
+    private StreamerHeaderDto buildHeader(StreamEntity stream, boolean isLive, int growth7d, int growth30d) {
+        int currentFollowers = stream.getFollowerCount() != null ? stream.getFollowerCount() : 0;
+        return new StreamerHeaderDto(
             stream.getStreamId(),
             stream.getStreamerName(),
             stream.getProfileImageUrl(),
             isLive,
             currentFollowers,
-            followerGrowth7d,
-            followerGrowth30d
+            growth7d,
+            growth30d
         );
+    }
 
-        int broadcastDays30d = broadcastDates.size();
+    private StreamerKpiSummaryDto buildKpiSummary(SessionKpiAccumulator kpi) {
+        int broadcastDays30d = kpi.broadcastDates().size();
         double attendanceRate30d = Math.round(((double) broadcastDays30d / DAYS_30 * 100.0) * 10.0) / 10.0;
 
         int averageViewers = 0;
-        if (totalBroadcastDurationSeconds > 0) {
-            averageViewers = (int) Math.round(totalWeightedViewerSeconds / totalBroadcastDurationSeconds);
+        if (kpi.totalBroadcastDurationSeconds() > 0) {
+            averageViewers = (int) Math.round(kpi.totalWeightedViewerSeconds() / kpi.totalBroadcastDurationSeconds());
         }
-        double totalHoursWatched = Math.round((totalWeightedViewerSeconds / 3600.0) * 10.0) / 10.0;
+        double totalHoursWatched = Math.round((kpi.totalWeightedViewerSeconds() / 3600.0) * 10.0) / 10.0;
 
-        StreamerKpiSummaryDto summary = new StreamerKpiSummaryDto(
+        return new StreamerKpiSummaryDto(
             averageViewers,
-            peakViewers,
-            totalBroadcastDurationSeconds,
+            kpi.peakViewers(),
+            kpi.totalBroadcastDurationSeconds(),
             totalHoursWatched,
-            followerGrowth30d,
+            kpi.followerGrowth30d(),
             broadcastDays30d,
             attendanceRate30d
         );
-
-        List<StreamerCategoryDto> mostPlayedCategories = calculateMostPlayedCategories(channelId, now);
-
-        log.debug("스트리머 프로필 및 요약 통계 조회 완료: channelId={}", channelId);
-
-        return new StreamerProfileResponse(header, summary, mostPlayedCategories);
     }
 
-    private List<StreamerCategoryDto> calculateMostPlayedCategories(String channelId, Instant now) {
-        Instant rangeStart = now.minus(DAYS_30, ChronoUnit.DAYS);
-        List<StreamSessionEntity> recentSessions = sessionRepository.findSessionsSince(channelId, rangeStart);
-
-        if (recentSessions.isEmpty()) {
+    private List<StreamerCategoryDto> calculateMostPlayedCategories(
+        List<StreamSessionEntity> sessions,
+        Instant rangeStart,
+        Instant now
+    ) {
+        if (sessions.isEmpty()) {
             return Collections.emptyList();
         }
 
         Map<String, Long> durationByCategory = new HashMap<>();
         Map<String, Double> weightedViewerSecondsByCategory = new HashMap<>();
 
-        for (StreamSessionEntity session : recentSessions) {
+        for (StreamSessionEntity session : sessions) {
             String category = session.getCategoryName();
             if (category == null || category.isBlank()) {
                 continue;
@@ -213,4 +267,13 @@ public class StreamerProfileQueryService {
             })
             .toList();
     }
+
+    private record SessionKpiAccumulator(
+        long totalBroadcastDurationSeconds,
+        double totalWeightedViewerSeconds,
+        int peakViewers,
+        int followerGrowth30d,
+        int followerGrowth7d,
+        Set<LocalDate> broadcastDates
+    ) {}
 }
