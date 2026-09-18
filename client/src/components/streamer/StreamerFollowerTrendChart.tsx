@@ -80,7 +80,7 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
   };
 
   return (
-    <div className="p-6 sm:p-7 bg-[#141416] border border-[#2A2A2C] rounded-2xl space-y-5">
+    <div className="p-4 sm:p-6 bg-[#141416] border border-[#2A2A2C] rounded-2xl space-y-4 sm:space-y-5">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-gray-800/80">
         <div>
           <div className="flex items-center gap-2.5">
@@ -203,7 +203,7 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
         <div className="h-72 w-full pt-2">
           <ResponsiveContainer width="100%" height="100%">
             {viewMode === 'TOTAL' ? (
-              <AreaChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+              <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="followerGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#00FFA3" stopOpacity={0.4} />
@@ -215,13 +215,15 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
                   dataKey="date"
                   tickFormatter={formatDateLabel}
                   stroke="#52525B"
-                  tick={{ fill: '#A1A1AA', fontSize: 11 }}
+                  tick={{ fill: '#A1A1AA', fontSize: 10 }}
                   tickLine={false}
                   axisLine={{ stroke: '#27272A' }}
+                  minTickGap={20}
                 />
                 <YAxis
+                  width={42}
                   stroke="#52525B"
-                  tick={{ fill: '#A1A1AA', fontSize: 11 }}
+                  tick={{ fill: '#A1A1AA', fontSize: 10 }}
                   tickLine={false}
                   axisLine={false}
                   domain={['auto', 'auto']}
@@ -260,19 +262,21 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
                 />
               </AreaChart>
             ) : (
-              <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+              <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#262628" vertical={false} />
                 <XAxis
                   dataKey="date"
                   tickFormatter={formatDateLabel}
                   stroke="#52525B"
-                  tick={{ fill: '#A1A1AA', fontSize: 11 }}
+                  tick={{ fill: '#A1A1AA', fontSize: 10 }}
                   tickLine={false}
                   axisLine={{ stroke: '#27272A' }}
+                  minTickGap={20}
                 />
                 <YAxis
+                  width={42}
                   stroke="#52525B"
-                  tick={{ fill: '#A1A1AA', fontSize: 11 }}
+                  tick={{ fill: '#A1A1AA', fontSize: 10 }}
                   tickLine={false}
                   axisLine={false}
                   domain={['auto', 'auto']}
