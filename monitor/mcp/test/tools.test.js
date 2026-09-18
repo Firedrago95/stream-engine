@@ -27,6 +27,7 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
         if (query.includes("records_lag")) val = "0";
         if (query.includes("analysis_processing_time")) val = "0.01";
         if (query.includes("jvm_threads")) val = "45";
+        if (query.includes("scheduler_execution_total")) val = "0";
 
         return {
           ok: true,
@@ -97,6 +98,7 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
         if (query.includes("engine_active_streams")) val = "100";
         if (query.includes("records_lag")) val = "0";
         if (query.includes("analysis_processing_time")) val = "0.01";
+        if (query.includes("scheduler_execution_total")) val = "0";
 
         return {
           ok: true,
@@ -114,6 +116,38 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
       assert.equal(result.status, "DEGRADED");
       assert.equal(result.failedMetrics.length, 1);
       assert.equal(result.failedMetrics[0].key, "liveThreads");
+    });
+
+    it("엔진 스케줄러 작업 실패가 감지되면 CRITICAL 상태를 반환한다", async () => {
+      globalThis.fetch = async (url) => {
+        const u = new URL(url);
+        const query = u.searchParams.get("query") || "";
+
+        let val = "0";
+        if (query.includes("engine_active_streams")) val = "100";
+        if (query.includes("records_lag")) val = "0";
+        if (query.includes("producer_record_send_rate")) val = "50";
+        if (query.includes("records_consumed_rate")) val = "50";
+        if (query.includes("analysis_processing_time")) val = "0.01";
+        if (query.includes("jvm_threads")) val = "45";
+        if (query.includes("scheduler_execution_total")) val = "2"; // 2건 실패 발생
+
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            status: "success",
+            data: {
+              result: [{ metric: {}, value: [1000, val] }],
+            },
+          }),
+        };
+      };
+
+      const result = await diagnosePipelineHealth();
+      assert.equal(result.status, "CRITICAL");
+      assert.equal(result.metrics.engineSchedulerFailures, 2);
+      assert.ok(result.criticals.some((c) => c.includes("엔진 스케줄러 작업 실패")));
     });
   });
 
@@ -306,6 +340,40 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
       assert.equal(result.status, "UNKNOWN");
       assert.ok(result.failedMetrics.some((f) => f.key === "hikariPending" && f.required));
       assert.ok(result.summary.includes("hikariPending"));
+    });
+
+    it("API 서버 스케줄러 실패 발생 시 CRITICAL 상태를 반환한다", async () => {
+      globalThis.fetch = async (url) => {
+        const u = new URL(url);
+        const query = u.searchParams.get("query") || "";
+
+        let val = "0";
+        if (query.includes("disk_free")) val = "107374182400";
+        if (query.includes("disk_total")) val = "161061273600";
+        if (query.includes("hikaricp_connections_pending")) val = "0";
+        if (query.includes("hikaricp_connections_active")) val = "2";
+        if (query.includes("system_cpu_usage")) val = "0.05";
+        if (query.includes("jvm_memory_used_bytes")) val = "209715200";
+        if (query.includes("jvm_memory_max_bytes")) val = "1073741824";
+        if (query.includes("scheduler_execution_total")) val = "3"; // 3건 실패 발생
+
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            status: "success",
+            data: {
+              resultType: "vector",
+              result: [{ metric: {}, value: [1000, val] }],
+            },
+          }),
+        };
+      };
+
+      const result = await diagnoseApiServerHealth();
+      assert.equal(result.status, "CRITICAL");
+      assert.equal(result.metrics.schedulerFailures, 3);
+      assert.ok(result.criticals.some((c) => c.includes("API 서버 스케줄러 작업 실패")));
     });
   });
 });

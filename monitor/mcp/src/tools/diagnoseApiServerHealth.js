@@ -13,6 +13,7 @@ export async function diagnoseApiServerHealth() {
     { key: "signalRps", query: `sum(rate(http_server_requests_seconds_count{job="${jobLabel}",uri=~".*signals.*"}[5m]))`, required: false },
     { key: "syncRps", query: `sum(rate(http_server_requests_seconds_count{job="${jobLabel}",uri=~".*streams/sync.*"}[5m]))`, required: false },
     { key: "http5xxRate", query: `sum(rate(http_server_requests_seconds_count{job="${jobLabel}",status=~"5.."}[5m]))`, required: false },
+    { key: "schedulerFailures", query: `sum(increase(scheduler_execution_total{job="${jobLabel}",status="failure"}[1h]))`, required: false },
   ];
 
   const results = await Promise.allSettled(
@@ -27,7 +28,7 @@ export async function diagnoseApiServerHealth() {
     if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length > 0 && res.value[0]?.value) {
       parsedMetrics[def.key] = Number(res.value[0].value[1]);
     } else if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length === 0) {
-      if (def.key === "http5xxRate" || def.key === "signalRps" || def.key === "syncRps") {
+      if (def.key === "http5xxRate" || def.key === "signalRps" || def.key === "syncRps" || def.key === "schedulerFailures") {
         parsedMetrics[def.key] = 0;
       } else {
         failedMetrics.push({ key: def.key, query: def.query, error: "데이터가 비어있습니다 (0건 반환)", required: def.required });
@@ -67,6 +68,7 @@ export async function diagnoseApiServerHealth() {
   const signalRps = Number((parsedMetrics.signalRps ?? 0).toFixed(2));
   const syncRps = Number((parsedMetrics.syncRps ?? 0).toFixed(2));
   const http5xxRate = Number((parsedMetrics.http5xxRate ?? 0).toFixed(2));
+  const schedulerFailures = Number(parsedMetrics.schedulerFailures ?? 0);
 
   const warnings = [];
   const criticals = [];
@@ -87,6 +89,10 @@ export async function diagnoseApiServerHealth() {
 
   if (http5xxRate > 0.5) {
     criticals.push(`API 서버 5xx 에러율이 감지되었습니다 (${http5xxRate} RPS).`);
+  }
+
+  if (schedulerFailures > 0) {
+    criticals.push(`최근 1시간 동안 API 서버 스케줄러 작업 실패가 감지되었습니다 (${schedulerFailures}건).`);
   }
 
   if (cpuPercent >= 90) {
@@ -120,13 +126,14 @@ export async function diagnoseApiServerHealth() {
       signalRps,
       syncRps,
       http5xxRate,
+      schedulerFailures,
     },
     failedMetrics,
     criticals,
     warnings,
     summary:
       status === "HEALTHY"
-        ? `[정상] OCI api-server CPU ${cpuPercent}%, 힙 ${heapUsagePercent}%, 디스크 사용률 ${diskUsagePercent ?? "N/A"}% (여유 ${diskFreeGb ?? "N/A"}GB), HikariCP 대기 0건으로 안정 서빙 중입니다.`
+        ? `[정상] OCI api-server CPU ${cpuPercent}%, 힙 ${heapUsagePercent}%, 디스크 사용률 ${diskUsagePercent ?? "N/A"}% (여유 ${diskFreeGb ?? "N/A"}GB), HikariCP 대기 0건, 스케줄러 실패 0건으로 안정 서빙 중입니다.`
         : `[${status}] ${[...criticals, ...warnings].join(" / ")}`,
   };
 }
