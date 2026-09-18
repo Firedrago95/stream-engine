@@ -35,28 +35,7 @@ public class StreamerSessionQueryService {
         Instant now = Instant.now();
 
         List<StreamerSessionItemDto> items = sessionPage.getContent().stream()
-            .map(session -> {
-                Instant start = session.getStartedAt();
-                Instant end = session.getEndedAt() != null ? session.getEndedAt() : now;
-                long durationSeconds = Math.max(0L, Duration.between(start, end).getSeconds());
-
-                int peak = session.getPeakViewers() != null ? session.getPeakViewers() : 0;
-                int avg = session.getAverageViewerCount() != null ? session.getAverageViewerCount() : 0;
-
-                return new StreamerSessionItemDto(
-                    session.getSessionId(),
-                    session.getTitle(),
-                    session.getCategoryName(),
-                    start,
-                    session.getEndedAt(),
-                    durationSeconds,
-                    peak,
-                    avg,
-                    session.getSessionFollowerGrowth(),
-                    session.getSubscriberChatRatio(),
-                    null
-                );
-            })
+            .map(session -> toSessionItemDto(session, now))
             .toList();
 
         log.debug("스트리머 세션 전적 히스토리 조회 완료: channelId={}, page={}, items={}",
@@ -69,6 +48,29 @@ public class StreamerSessionQueryService {
             sessionPage.getTotalElements(),
             sessionPage.getTotalPages(),
             sessionPage.hasNext()
+        );
+    }
+
+    private StreamerSessionItemDto toSessionItemDto(StreamSessionEntity session, Instant now) {
+        Instant start = session.getStartedAt();
+        Instant end = session.getEndedAt() != null ? session.getEndedAt() : now;
+        long durationSeconds = Math.max(0L, Duration.between(start, end).getSeconds());
+
+        int peak = session.getPeakViewers() != null ? session.getPeakViewers() : 0;
+        int avg = session.getAverageViewerCount() != null ? session.getAverageViewerCount() : 0;
+
+        return new StreamerSessionItemDto(
+            session.getSessionId(),
+            session.getTitle(),
+            session.getCategoryName(),
+            start,
+            session.getEndedAt(),
+            durationSeconds,
+            peak,
+            avg,
+            session.getSessionFollowerGrowth(),
+            session.getSubscriberChatRatio(),
+            null
         );
     }
 }

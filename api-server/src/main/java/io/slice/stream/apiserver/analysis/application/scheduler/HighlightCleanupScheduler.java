@@ -30,6 +30,13 @@ public class HighlightCleanupScheduler {
     @Scheduled(cron = "0 0 6 * * *", zone = "Asia/Seoul")
     @Transactional
     public void cleanupOldHighlights() {
+        trimOldSessionHighlights();
+        purgeExpiredHighlights();
+        purgeExpiredSessions();
+        purgeExpiredFollowerSnapshots();
+    }
+
+    private void trimOldSessionHighlights() {
         Instant twentyFourHoursAgo = Instant.now().minus(properties.cleanupGraceHours(), ChronoUnit.HOURS);
 
         sessionRepository.findFinishedSessionsOlderThan(twentyFourHoursAgo).forEach(session -> {
@@ -39,7 +46,9 @@ public class HighlightCleanupScheduler {
                     session.getSessionId(), deletedCount);
             }
         });
+    }
 
+    private void purgeExpiredHighlights() {
         Instant highlightExpiredThreshold = Instant.now().minus(properties.highlightRetentionDays(), ChronoUnit.DAYS);
         List<StreamSessionEntity> highlightExpiredSessions = sessionRepository.findFinishedSessionsOlderThan(highlightExpiredThreshold);
 
@@ -53,7 +62,9 @@ public class HighlightCleanupScheduler {
             log.info("[Cleanup] {}일 이상 지난 만료 하이라이트 영상 클립 영구 삭제 완료 (총 {}개 세션)",
                 properties.highlightRetentionDays(), expiredSessionIds.size());
         }
+    }
 
+    private void purgeExpiredSessions() {
         Instant sessionExpiredThreshold = Instant.now().minus(properties.sessionRetentionDays(), ChronoUnit.DAYS);
         List<StreamSessionEntity> sessionExpiredSessions = sessionRepository.findFinishedSessionsOlderThan(sessionExpiredThreshold);
         if (!sessionExpiredSessions.isEmpty()) {
@@ -67,7 +78,9 @@ public class HighlightCleanupScheduler {
             log.info("[Cleanup] {}일(1년) 이상 지난 만료 방송 세션 {}건 및 카테고리 구간 영구 삭제 완료",
                 properties.sessionRetentionDays(), deletedSessionCount);
         }
+    }
 
+    private void purgeExpiredFollowerSnapshots() {
         LocalDate snapshotExpiredThreshold = LocalDate.now().minusDays(properties.sessionRetentionDays());
         int deletedSnapshotCount = followerSnapshotRepository.deleteExpiredSnapshots(snapshotExpiredThreshold);
         if (deletedSnapshotCount > 0) {
