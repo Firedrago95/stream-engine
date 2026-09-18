@@ -1,8 +1,12 @@
 package io.slice.stream.engine.ingestion.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -47,7 +51,9 @@ class DailyFollowerCollectorSchedulerTest {
         scheduler = new DailyFollowerCollectorScheduler(
             apiServerClient,
             chzzkChannelClient,
-            virtualThreadExecutor
+            virtualThreadExecutor,
+            3,
+            0L
         );
     }
 
@@ -83,5 +89,53 @@ class DailyFollowerCollectorSchedulerTest {
 
         verify(chzzkChannelClient, never()).fetchFollowerCount(any());
         verify(apiServerClient, never()).sendFollowerSnapshots(any());
+    }
+
+    @Test
+    @DisplayName("스냅샷 전송이 1차 실패 후 2차 재시도에서 성공하면 정상 완료된다")
+    void collectDailyFollowersRetrySuccessOnSecondAttempt() {
+        List<String> targetChannels = List.of("ch1");
+        when(apiServerClient.fetchFollowerTargetChannels()).thenReturn(Optional.of(targetChannels));
+        when(chzzkChannelClient.fetchFollowerCount("ch1")).thenReturn(Optional.of(15000));
+
+        doThrow(new RuntimeException("API 서버 연결 일시 오류"))
+            .doNothing()
+            .when(apiServerClient).sendFollowerSnapshots(any());
+
+        scheduler.collectDailyFollowers();
+
+        verify(apiServerClient, times(2)).sendFollowerSnapshots(any());
+    }
+
+    @Test
+    @DisplayName("스냅샷 전송이 최대 재시도(3회)를 초과하여 모두 실패하면 예외를 상위로 전파한다")
+    void collectDailyFollowersRetryFailAllThrowsException() {
+        List<String> targetChannels = List.of("ch1");
+        when(apiServerClient.fetchFollowerTargetChannels()).thenReturn(Optional.of(targetChannels));
+        when(chzzkChannelClient.fetchFollowerCount("ch1")).thenReturn(Optional.of(15000));
+
+        doThrow(new RuntimeException("500 Internal Server Error"))
+            .when(apiServerClient).sendFollowerSnapshots(any());
+
+        assertThatThrownBy(() -> scheduler.collectDailyFollowers())
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("3회 재시도 후에도 최종 실패했습니다");
+
+        verify(apiServerClient, times(3)).sendFollowerSnapshots(any());
+    }
+
+    @Test
+    @DisplayName("대상 채널 조회가 1차 실패 후 2차 재시도에서 성공하면 정상 수집을 진행한다")
+    void fetchTargetChannelsRetrySuccess() {
+        List<String> targetChannels = List.of("ch1");
+        when(apiServerClient.fetchFollowerTargetChannels())
+            .thenReturn(Optional.empty())
+            .thenReturn(Optional.of(targetChannels));
+        when(chzzkChannelClient.fetchFollowerCount("ch1")).thenReturn(Optional.of(15000));
+
+        scheduler.collectDailyFollowers();
+
+        verify(apiServerClient, times(2)).fetchFollowerTargetChannels();
+        verify(apiServerClient, times(1)).sendFollowerSnapshots(any());
     }
 }

@@ -161,19 +161,12 @@ public class ApiServerClient {
         if (records == null || records.isEmpty()) {
             return;
         }
-        try {
-            restClient.post()
-                .uri(followerSnapshotsPath)
-                .body(records)
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, (request, response) -> {
-                    log.error("[Follower Sync Error] 서버 응답 오류: {}", response.getStatusCode());
-                })
-                .toBodilessEntity();
+        restClient.post()
+            .uri(followerSnapshotsPath)
+            .body(records)
+            .retrieve()
+            .toBodilessEntity();
 
-            log.info("[Follower Sync] {}개의 팔로워 스냅샷 전송 완료", records.size());
-        } catch (Exception e) {
-            log.error("[Follower Sync Failed] 일일 팔로워 스냅샷 API 서버 전송 실패: {}", e.getMessage());
-        }
+        log.info("[Follower Sync] {}개의 팔로워 스냅샷 전송 완료", records.size());
     }
 }
