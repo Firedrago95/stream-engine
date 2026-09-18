@@ -4,6 +4,7 @@ import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.FollowerSnapshotRecord;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.ChzzkChannelClient;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class DailyFollowerCollectorScheduler {
 
+    private static final int DEFAULT_CHUNK_SIZE = 1000;
     private static final int DEFAULT_MAX_RETRIES = 3;
     private static final long DEFAULT_INITIAL_BACKOFF_MS = 2000L;
 
@@ -27,6 +29,7 @@ public class DailyFollowerCollectorScheduler {
     private final ExecutorService virtualThreadExecutor;
     private final int maxRetries;
     private final long initialBackoffMs;
+    private final int chunkSize;
 
     @Autowired
     public DailyFollowerCollectorScheduler(
@@ -34,7 +37,7 @@ public class DailyFollowerCollectorScheduler {
         ChzzkChannelClient chzzkChannelClient,
         ExecutorService virtualThreadExecutor
     ) {
-        this(apiServerClient, chzzkChannelClient, virtualThreadExecutor, DEFAULT_MAX_RETRIES, DEFAULT_INITIAL_BACKOFF_MS);
+        this(apiServerClient, chzzkChannelClient, virtualThreadExecutor, DEFAULT_MAX_RETRIES, DEFAULT_INITIAL_BACKOFF_MS, DEFAULT_CHUNK_SIZE);
     }
 
     public DailyFollowerCollectorScheduler(
@@ -44,11 +47,23 @@ public class DailyFollowerCollectorScheduler {
         int maxRetries,
         long initialBackoffMs
     ) {
+        this(apiServerClient, chzzkChannelClient, virtualThreadExecutor, maxRetries, initialBackoffMs, DEFAULT_CHUNK_SIZE);
+    }
+
+    public DailyFollowerCollectorScheduler(
+        ApiServerClient apiServerClient,
+        ChzzkChannelClient chzzkChannelClient,
+        ExecutorService virtualThreadExecutor,
+        int maxRetries,
+        long initialBackoffMs,
+        int chunkSize
+    ) {
         this.apiServerClient = apiServerClient;
         this.chzzkChannelClient = chzzkChannelClient;
         this.virtualThreadExecutor = virtualThreadExecutor;
         this.maxRetries = maxRetries;
         this.initialBackoffMs = initialBackoffMs;
+        this.chunkSize = chunkSize;
     }
 
     @Scheduled(cron = "${chzzk.collector.follower.cron:0 30 3 * * *}", zone = "Asia/Seoul")
@@ -72,9 +87,8 @@ public class DailyFollowerCollectorScheduler {
             return;
         }
 
-        sendSnapshotsWithRetry(collectedRecords);
-        log.info("[Follower Collector] 일일 팔로워 수집 및 전송 완료 (성공: {}/{}건)",
-            collectedRecords.size(), targetChannels.size());
+        sendSnapshotsInChunks(collectedRecords);
+        log.info("[Follower Collector] 일일 팔로워 수집 및 전송 완료 (총 {}건)", collectedRecords.size());
     }
 
     private List<String> fetchTargetChannelsWithRetry() {
@@ -101,7 +115,27 @@ public class DailyFollowerCollectorScheduler {
         return Collections.emptyList();
     }
 
-    private void sendSnapshotsWithRetry(List<FollowerSnapshotRecord> records) {
+    private void sendSnapshotsInChunks(List<FollowerSnapshotRecord> records) {
+        List<List<FollowerSnapshotRecord>> chunks = partitionRecords(records, chunkSize);
+        int totalChunks = chunks.size();
+
+        for (int i = 0; i < totalChunks; i++) {
+            List<FollowerSnapshotRecord> chunk = chunks.get(i);
+            int chunkIndex = i + 1;
+            sendSingleChunkWithRetry(chunk, chunkIndex, totalChunks);
+        }
+    }
+
+    private List<List<FollowerSnapshotRecord>> partitionRecords(List<FollowerSnapshotRecord> records, int size) {
+        List<List<FollowerSnapshotRecord>> partitions = new ArrayList<>();
+        for (int i = 0; i < records.size(); i += size) {
+            int end = Math.min(i + size, records.size());
+            partitions.add(records.subList(i, end));
+        }
+        return partitions;
+    }
+
+    private void sendSingleChunkWithRetry(List<FollowerSnapshotRecord> chunk, int chunkIndex, int totalChunks) {
         int attempt = 0;
         long backoff = initialBackoffMs;
         Exception lastException = null;
@@ -109,11 +143,14 @@ public class DailyFollowerCollectorScheduler {
         while (attempt < maxRetries) {
             attempt++;
             try {
-                apiServerClient.sendFollowerSnapshots(records);
+                apiServerClient.sendFollowerSnapshots(chunk);
+                log.info("[Follower Collector] 팔로워 스냅샷 청크 전송 완료 ({}/{} 청크, {}건)",
+                    chunkIndex, totalChunks, chunk.size());
                 return;
             } catch (Exception e) {
                 lastException = e;
-                log.warn("[Follower Collector] 팔로워 스냅샷 전송 실패 (시도: {}/{}): {}", attempt, maxRetries, e.getMessage());
+                log.warn("[Follower Collector] 팔로워 스냅샷 청크 전송 실패 (청크: {}/{}, 시도: {}/{}): {}",
+                    chunkIndex, totalChunks, attempt, maxRetries, e.getMessage());
                 if (attempt < maxRetries) {
                     sleep(backoff);
                     backoff *= 2;
@@ -121,8 +158,11 @@ public class DailyFollowerCollectorScheduler {
             }
         }
 
+        log.error("[Follower Collector] 팔로워 스냅샷 청크 전송 최종 실패 (청크: {}/{}, {}건)",
+            chunkIndex, totalChunks, chunk.size(), lastException);
         throw new IllegalStateException(
-            String.format("[Follower Collector] 팔로워 스냅샷 전송이 %d회 재시도 후에도 최종 실패했습니다.", maxRetries),
+            String.format("[Follower Collector] 팔로워 스냅샷 청크(%d/%d) 전송이 %d회 재시도 후에도 최종 실패했습니다.",
+                chunkIndex, totalChunks, maxRetries),
             lastException
         );
     }

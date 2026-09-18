@@ -291,9 +291,23 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
         const effectiveStart = Math.max(sStart, weekStartMs);
         const effectiveEnd = Math.min(sEnd, weekEndMs);
 
-        const leftPercent = Math.max(0, Math.min(99.8, ((effectiveStart - weekStartMs) / weekDurationMs) * 100));
-        const rightPercent = Math.max(leftPercent + 0.5, Math.min(100, ((effectiveEnd - weekStartMs) / weekDurationMs) * 100));
-        const widthPercent = Math.max(0.6, rightPercent - leftPercent);
+        const DAY_PERCENT = 100 / 7;
+        const rawLeft = ((effectiveStart - weekStartMs) / weekDurationMs) * 100;
+        const rawRight = ((effectiveEnd - weekStartMs) / weekDurationMs) * 100;
+        const rawWidth = rawRight - rawLeft;
+
+        const durationHours = (effectiveEnd - effectiveStart) / 3600000;
+
+        let boostedWidth = rawWidth;
+        if (durationHours < 24) {
+          const fillRatio = Math.min(0.92, Math.max(0.55, 0.45 + (durationHours / 14) * 0.47));
+          const targetVisualWidth = DAY_PERCENT * fillRatio;
+          boostedWidth = Math.max(rawWidth, targetVisualWidth);
+        }
+
+        const leftPercent = Math.max(0, Math.min(99.5, rawLeft));
+        const widthPercent = Math.max(3.0, Math.min(100 - leftPercent, boostedWidth));
+        const rightPercent = leftPercent + widthPercent;
 
         const isStartOfSession = sStart >= weekStartMs;
         const isEndOfSession = sEnd <= weekEndMs;
@@ -305,11 +319,13 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
           barLabel = widthPercent > 4 ? 'LIVE 🔴' : '🔴';
         } else {
           const hoursStr = formatDurationHours(s.durationSeconds);
-          if (widthPercent >= 8) {
+          if (widthPercent >= 8.5) {
             const startStr = formatKstTimeOnly(new Date(sStart));
             const endStr = formatKstTimeOnly(new Date(sEnd));
             barLabel = `${startStr} ~ ${endStr} (${hoursStr})`;
-          } else if (widthPercent >= 3.5) {
+          } else if (widthPercent >= 5.0) {
+            barLabel = s.categoryName ? `${s.categoryName} (${hoursStr})` : hoursStr;
+          } else if (widthPercent >= 3.0) {
             barLabel = hoursStr;
           } else {
             barLabel = '';
@@ -433,7 +449,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
           <span className="text-base sm:text-lg font-bold text-white flex items-center gap-1.5">
             <span>📅</span> 월간 방송 타임라인
           </span>
-          <span className="text-xs font-mono text-gray-400">
+          <span className="text-xs font-mono text-gray-300">
             {selectedYear}.{String(selectedMonth).padStart(2, '0')}
           </span>
         </div>
@@ -441,7 +457,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
         <div className="flex items-center gap-1.5 bg-[#1a1a1c] border border-[#2A2A2C] rounded-lg p-1">
           <button
             onClick={handlePrevMonth}
-            className="p-1 rounded hover:bg-[#2A2A2C] text-gray-400 hover:text-white transition-colors"
+            className="p-1 rounded hover:bg-[#2A2A2C] text-gray-300 hover:text-white transition-colors"
             title="이전 달"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -453,7 +469,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
           </span>
           <button
             onClick={handleNextMonth}
-            className="p-1 rounded hover:bg-[#2A2A2C] text-gray-400 hover:text-white transition-colors"
+            className="p-1 rounded hover:bg-[#2A2A2C] text-gray-300 hover:text-white transition-colors"
             title="다음 달"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -462,7 +478,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
           </button>
           <button
             onClick={handleGoToday}
-            className="ml-1 text-[11px] font-semibold px-2 py-0.5 rounded bg-[#2A2A2C] hover:bg-[#38383b] text-gray-300 hover:text-white transition-colors"
+            className="ml-1 text-[11px] font-semibold px-2 py-0.5 rounded bg-[#2A2A2C] hover:bg-[#38383b] text-gray-200 hover:text-white transition-colors"
           >
             오늘
           </button>
@@ -471,7 +487,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
 
       <div className="mt-3.5 overflow-x-auto">
         <div className="min-w-[640px] border border-[#2A2A2C] rounded-xl overflow-hidden bg-[#101012]">
-          <div className="grid grid-cols-7 text-center py-1.5 bg-[#18181b] border-b border-[#2A2A2C] text-[11px] font-medium text-gray-400">
+          <div className="grid grid-cols-7 text-center py-1.5 bg-[#18181b] border-b border-[#2A2A2C] text-[11px] font-semibold text-gray-300">
             <div className="text-rose-500">일</div>
             <div>월</div>
             <div>화</div>
@@ -482,9 +498,9 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
           </div>
 
           {loading ? (
-            <div className="p-12 text-center text-sm text-gray-400 flex flex-col items-center justify-center gap-2">
+            <div className="p-12 text-center text-sm text-gray-200 flex flex-col items-center justify-center gap-2">
               <div className="w-6 h-6 border-2 border-[#00FFA3] border-t-transparent rounded-full animate-spin" />
-              <span>방송 세션 타임라인을 불러오는 중...</span>
+              <span className="font-medium">방송 세션 타임라인을 불러오는 중...</span>
             </div>
           ) : error ? (
             <div className="p-8 text-center text-sm text-rose-400">{error}</div>
@@ -511,8 +527,8 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
                           key={day.dateKey}
                           className={`p-1.5 relative flex flex-col justify-start transition-colors ${
                             !day.isCurrentMonth
-                              ? 'bg-[#0d0d0f]/60 text-gray-600'
-                              : 'bg-[#141416] text-gray-400 hover:bg-[#18181b]'
+                              ? 'bg-[#0d0d0f]/60 text-gray-500'
+                              : 'bg-[#141416] text-gray-200 hover:bg-[#18181b]'
                           } ${day.isToday ? 'bg-[#1e293b]/25 ring-1 ring-inset ring-[#00FFA3]/30' : ''}`}
                         >
                           <div className="flex items-center justify-between w-full z-10 relative leading-none">
@@ -549,15 +565,15 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
                       {weekSegments
                         .filter((seg) => seg.laneIndex < 2)
                         .map((seg, sIdx) => {
-                          const topPx = 24 + seg.laneIndex * 21;
-                          const roundedClass = `${seg.isStartOfSession ? 'rounded-l-full' : 'rounded-l-none'} ${
-                            seg.isEndOfSession ? 'rounded-r-full' : 'rounded-r-none'
+                          const topPx = 24 + seg.laneIndex * 23;
+                          const roundedClass = `${seg.isStartOfSession ? 'rounded-l-[5px]' : 'rounded-l-none'} ${
+                            seg.isEndOfSession ? 'rounded-r-[5px]' : 'rounded-r-none'
                           }`;
 
                           return (
                             <div
                               key={`seg-${wIdx}-${sIdx}`}
-                              className={`track-bar pointer-events-auto absolute h-[18px] cursor-pointer flex items-center justify-center px-1.5 shadow-sm border overflow-hidden transition-all ${
+                              className={`track-bar pointer-events-auto absolute h-[20px] cursor-pointer flex items-center justify-center px-1.5 shadow-sm border overflow-hidden transition-all ${
                                 seg.palette.borderColor
                               } bg-gradient-to-r ${seg.palette.gradient} ${roundedClass} ${
                                 seg.session.isLive ? 'animate-pulse' : ''
@@ -572,7 +588,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
                               onMouseLeave={handleMouseLeave}
                             >
                               {seg.barLabel && (
-                                <span className="font-bold text-white text-[10px] leading-none tracking-tight drop-shadow-sm flex items-center justify-center gap-1 whitespace-nowrap overflow-hidden text-ellipsis">
+                                <span className="font-bold text-white text-[10.5px] leading-none tracking-tight drop-shadow-sm flex items-center justify-center gap-1 whitespace-nowrap overflow-hidden text-ellipsis">
                                   <span className="w-1.5 h-1.5 rounded-full bg-white/90 shrink-0" />
                                   {seg.barLabel}
                                 </span>
@@ -611,9 +627,9 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
           <div className="font-bold text-white text-xs leading-snug line-clamp-2 mb-2">
             {hoveredSession.session.title || '제목 없음'}
           </div>
-          <div className="space-y-1.5 border-t border-[#2A2A2C] pt-2 text-gray-300 text-[11px]">
+          <div className="space-y-1.5 border-t border-[#2A2A2C] pt-2 text-gray-200 text-[11px]">
             <div className="flex justify-between items-center gap-4">
-              <span className="text-gray-400 shrink-0">⏱️ 방송 시간</span>
+              <span className="text-gray-300 shrink-0">⏱️ 방송 시간</span>
               <span className="font-semibold text-white whitespace-nowrap text-right">
                 {formatKstTimeOnly(parseKstInstant(hoveredSession.session.startedAt))} ~{' '}
                 {hoveredSession.session.endedAt
@@ -623,7 +639,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
               </span>
             </div>
             <div className="flex justify-between items-center gap-4">
-              <span className="text-gray-400 shrink-0">👥 평균 / 피크</span>
+              <span className="text-gray-300 shrink-0">👥 평균 / 피크</span>
               <span className="font-semibold text-[#38bdf8] whitespace-nowrap text-right">
                 {hoveredSession.session.averageViewers.toLocaleString()}명 /{' '}
                 {hoveredSession.session.peakViewers.toLocaleString()}명
@@ -648,7 +664,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
             </span>
             <button
               onClick={() => setPopoverDate(null)}
-              className="text-gray-400 hover:text-white p-0.5 rounded hover:bg-[#2A2A2C]"
+              className="text-gray-300 hover:text-white p-0.5 rounded hover:bg-[#2A2A2C]"
             >
               ✕
             </button>
@@ -662,12 +678,12 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
                     <span className={`font-bold ${palette.textColor}`}>
                       {s.categoryName || '카테고리 없음'}
                     </span>
-                    <span className="text-gray-400 font-mono text-[10px]">
+                    <span className="text-gray-300 font-mono text-[10px]">
                       {formatDurationHours(s.durationSeconds)}
                     </span>
                   </div>
                   <div className="text-white font-medium line-clamp-1">{s.title || '제목 없음'}</div>
-                  <div className="text-gray-400 text-[10px] flex justify-between">
+                  <div className="text-gray-300 text-[10px] flex justify-between">
                     <span>
                       {formatKstTimeOnly(parseKstInstant(s.startedAt))} ~{' '}
                       {s.endedAt ? formatKstTimeOnly(parseKstInstant(s.endedAt)) : '진행 중'}

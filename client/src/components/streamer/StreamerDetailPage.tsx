@@ -151,18 +151,18 @@ export const StreamerDetailPage: React.FC = () => {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-300 font-mono">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-200 font-mono">
               <span>
                 총 팔로워 <strong className="text-white font-bold">{header.currentFollowers.toLocaleString()}명</strong>
               </span>
-              <span className="text-gray-500">|</span>
+              <span className="text-gray-300">|</span>
               <span className="flex items-center gap-1">
                 최근 7일{' '}
                 <strong className={header.followerGrowth7d >= 0 ? 'text-[#00FFA3] font-bold' : 'text-rose-400 font-bold'}>
                   {header.followerGrowth7d >= 0 ? `+${header.followerGrowth7d}` : header.followerGrowth7d}
                 </strong>
               </span>
-              <span className="text-gray-500">|</span>
+              <span className="text-gray-300">|</span>
               <span className="flex items-center gap-1">
                 최근 30일{' '}
                 <strong className={header.followerGrowth30d >= 0 ? 'text-[#00FFA3] font-bold' : 'text-rose-400 font-bold'}>
@@ -181,9 +181,9 @@ export const StreamerDetailPage: React.FC = () => {
           </p>
           <p className="text-xl sm:text-2xl font-black text-[#67BFFF] font-mono">
             {summary.averageViewers.toLocaleString()}
-            <span className="text-xs text-gray-400 font-normal ml-1">명</span>
+            <span className="text-xs text-gray-300 font-normal ml-1">명</span>
           </p>
-          <p className="text-[10px] text-gray-400 mt-1">최근 30일 가중 평균</p>
+          <p className="text-[11px] text-gray-300 font-medium mt-1">최근 30일 가중 평균</p>
         </div>
 
         <div className="p-4 sm:p-5 bg-[#141416] border border-[#2A2A2C] rounded-2xl">
@@ -192,9 +192,9 @@ export const StreamerDetailPage: React.FC = () => {
           </p>
           <p className="text-xl sm:text-2xl font-black text-[#A78BFA] font-mono">
             {summary.peakViewers.toLocaleString()}
-            <span className="text-xs text-gray-400 font-normal ml-1">명</span>
+            <span className="text-xs text-gray-300 font-normal ml-1">명</span>
           </p>
-          <p className="text-[10px] text-gray-400 mt-1">최근 30일 순간 피크</p>
+          <p className="text-[11px] text-gray-300 font-medium mt-1">최근 30일 순간 피크</p>
         </div>
 
         <div className="p-4 sm:p-5 bg-[#141416] border border-[#2A2A2C] rounded-2xl">
@@ -204,7 +204,7 @@ export const StreamerDetailPage: React.FC = () => {
           <p className="text-xl sm:text-2xl font-black text-white font-mono">
             {formatHours(summary.totalBroadcastDurationSeconds)}
           </p>
-          <p className="text-[10px] text-gray-400 mt-1">최근 30일 누적 라이브</p>
+          <p className="text-[11px] text-gray-300 font-medium mt-1">최근 30일 누적 라이브</p>
         </div>
 
         <div className="p-4 sm:p-5 bg-[#141416] border border-[#2A2A2C] rounded-2xl">
@@ -213,10 +213,10 @@ export const StreamerDetailPage: React.FC = () => {
           </p>
           <p className="text-xl sm:text-2xl font-black text-[#00FFA3] font-mono">
             {summary.broadcastDays30d ?? 0}
-            <span className="text-xs text-gray-300 font-normal ml-1">일</span>
-            <span className="text-sm text-gray-400 font-normal ml-2">({summary.attendanceRate30d ?? 0}%)</span>
+            <span className="text-xs text-gray-200 font-normal ml-1">일</span>
+            <span className="text-sm text-gray-300 font-normal ml-2">({summary.attendanceRate30d ?? 0}%)</span>
           </p>
-          <p className="text-[10px] text-gray-400 mt-1">최근 30일 방송 출석률</p>
+          <p className="text-[11px] text-gray-300 font-medium mt-1">최근 30일 방송 출석률</p>
         </div>
 
         <div className="p-4 sm:p-5 bg-[#141416] border border-[#2A2A2C] rounded-2xl col-span-2 lg:col-span-1">
@@ -225,9 +225,9 @@ export const StreamerDetailPage: React.FC = () => {
           </p>
           <p className={`text-xl sm:text-2xl font-black font-mono ${summary.followerGrowth30d >= 0 ? 'text-[#00FFA3]' : 'text-rose-400'}`}>
             {summary.followerGrowth30d >= 0 ? `+${summary.followerGrowth30d.toLocaleString()}` : summary.followerGrowth30d.toLocaleString()}
-            <span className="text-xs text-gray-400 font-normal ml-1">명</span>
+            <span className="text-xs text-gray-300 font-normal ml-1">명</span>
           </p>
-          <p className="text-[10px] text-gray-400 mt-1">최근 30일간 성장</p>
+          <p className="text-[11px] text-gray-300 font-medium mt-1">최근 30일간 성장</p>
         </div>
       </div>
 
