@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { StreamerCalendarTimeline } from './StreamerCalendarTimeline';
+import { StreamerFollowerTrendChart } from './StreamerFollowerTrendChart';
 import { StreamerCategories, type CategoryData } from './StreamerCategories';
 import { StreamerSessionList, type SessionItemData } from './StreamerSessionList';
 
@@ -231,6 +232,8 @@ export const StreamerDetailPage: React.FC = () => {
       </div>
 
       <StreamerCalendarTimeline channelId={channelId!} />
+
+      <StreamerFollowerTrendChart channelId={channelId!} />
 
       <StreamerCategories categories={mostPlayedCategories} />
 
