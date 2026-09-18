@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { StreamerGrassGrid, type GrassTileData } from './StreamerGrassGrid';
+import { StreamerCalendarTimeline } from './StreamerCalendarTimeline';
 import { StreamerCategories, type CategoryData } from './StreamerCategories';
 import { StreamerSessionList, type SessionItemData } from './StreamerSessionList';
 
@@ -40,12 +40,6 @@ export const StreamerDetailPage: React.FC = () => {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
 
-  const [selectedDays, setSelectedDays] = useState(90);
-  const [grassTiles, setGrassTiles] = useState<GrassTileData[]>([]);
-  const [currentStreak, setCurrentStreak] = useState(0);
-  const [totalGrassDuration, setTotalGrassDuration] = useState(0);
-  const [totalGrassDays, setTotalGrassDays] = useState(0);
-
   const [sessions, setSessions] = useState<SessionItemData[]>([]);
   const [sessionPage, setSessionPage] = useState(0);
   const [sessionTotalPages, setSessionTotalPages] = useState(0);
@@ -72,20 +66,6 @@ export const StreamerDetailPage: React.FC = () => {
         setProfileLoading(false);
       });
   }, [channelId]);
-
-  useEffect(() => {
-    if (!channelId) return;
-
-    fetch(`${API_BASE_URL}/api/v1/streamers/${channelId}/grass?days=${selectedDays}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setGrassTiles(data.tiles || []);
-        setCurrentStreak(data.currentStreak || 0);
-        setTotalGrassDuration(data.totalBroadcastDurationSeconds || 0);
-        setTotalGrassDays(data.totalBroadcastDays || 0);
-      })
-      .catch((err) => console.error('잔디 조회 실패', err));
-  }, [channelId, selectedDays]);
 
   useEffect(() => {
     if (!channelId) return;
@@ -250,14 +230,7 @@ export const StreamerDetailPage: React.FC = () => {
         </div>
       </div>
 
-      <StreamerGrassGrid
-        tiles={grassTiles}
-        currentStreak={currentStreak}
-        totalDurationSeconds={totalGrassDuration}
-        totalBroadcastDays={totalGrassDays}
-        selectedDays={selectedDays}
-        onDaysChange={setSelectedDays}
-      />
+      <StreamerCalendarTimeline channelId={channelId!} />
 
       <StreamerCategories categories={mostPlayedCategories} />
 
