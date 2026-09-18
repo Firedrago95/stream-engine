@@ -11,7 +11,6 @@ import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest;
-import io.slice.stream.apiserver.streamer.application.StreamerDailyStatCommandService;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -37,7 +36,6 @@ public class StreamSessionService {
     private final JpaStreamRepository streamRepository;
     private final JpaStreamSessionSegmentRepository segmentRepository;
     private final JpaViewMetricTimelineRepository timelineRepository;
-    private final StreamerDailyStatCommandService dailyStatCommandService;
     private final CacheManager cacheManager;
     private final Counter zombieSessionsClosedCounter;
 
@@ -46,7 +44,6 @@ public class StreamSessionService {
         JpaStreamRepository streamRepository,
         JpaStreamSessionSegmentRepository segmentRepository,
         JpaViewMetricTimelineRepository timelineRepository,
-        StreamerDailyStatCommandService dailyStatCommandService,
         CacheManager cacheManager,
         MeterRegistry meterRegistry
     ) {
@@ -54,7 +51,6 @@ public class StreamSessionService {
         this.streamRepository = streamRepository;
         this.segmentRepository = segmentRepository;
         this.timelineRepository = timelineRepository;
-        this.dailyStatCommandService = dailyStatCommandService;
         this.cacheManager = cacheManager;
         this.zombieSessionsClosedCounter = Counter.builder("apiserver.zombie.sessions.closed")
             .description("마감 처리된 오프라인 세션 누적 수")
@@ -152,17 +148,16 @@ public class StreamSessionService {
             Integer peakViewers = timelineRepository.findPeakViewerCountBySessionId(session.getSessionId());
             int finalPeak = peakViewers != null ? Math.max(peakViewers, session.getPeakViewers()) : session.getPeakViewers();
 
-            Instant endedAt = streamLastUpdateMap.getOrDefault(session.getStreamId(), session.getStartedAt());
+            Instant rawEndedAt = streamLastUpdateMap.getOrDefault(session.getStreamId(), session.getStartedAt());
+            Instant endedAt = rawEndedAt.isBefore(session.getStartedAt()) ? session.getStartedAt() : rawEndedAt;
 
             session.finishSession(endedAt, finalPeak, avgViewers);
 
             segmentRepository.findActiveSegment(session.getSessionId())
                 .ifPresent(segment -> {
-                    long endOffset = Duration.between(session.getStartedAt(), endedAt).toMillis();
+                    long endOffset = Math.max(0L, Duration.between(session.getStartedAt(), endedAt).toMillis());
                     segment.endSegment(endedAt, endOffset);
                 });
-
-            dailyStatCommandService.recordSession(session);
 
             evictActiveSessionAfterCommit(session.getStreamId());
             log.info("[Session-Manager] 방송 종료 감지, 세션 마감 - Stream: {}, SessionId: {}", session.getStreamId(), session.getSessionId());
@@ -209,8 +204,6 @@ public class StreamSessionService {
                 long endOffset = Math.max(0L, Duration.between(session.getStartedAt(), validEndedAt).toMillis());
                 segment.endSegment(validEndedAt, endOffset);
             });
-
-        dailyStatCommandService.recordSession(session);
     }
 
     private Instant determineEndedAt(StreamSessionEntity session, Instant requestEndedAt) {

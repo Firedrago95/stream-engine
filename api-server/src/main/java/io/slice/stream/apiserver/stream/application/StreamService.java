@@ -9,7 +9,6 @@ import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntit
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.ViewMetricTimelineEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamSyncRequest;
-import io.slice.stream.apiserver.streamer.application.StreamerDailyStatCommandService;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -37,7 +36,6 @@ public class StreamService {
     private final JpaStreamSessionRepository sessionRepository;
     private final JpaStreamSessionSegmentRepository segmentRepository;
     private final JpaViewMetricTimelineRepository timelineRepository;
-    private final StreamerDailyStatCommandService dailyStatCommandService;
     private final CacheManager cacheManager;
 
 
@@ -130,8 +128,6 @@ public class StreamService {
                 long endOffset = Duration.between(activeSession.getStartedAt(), currentTime).toMillis();
                 segment.endSegment(currentTime, endOffset);
             });
-
-        dailyStatCommandService.recordSession(activeSession);
 
         log.info("[Sync] 이전 세션 종료 (새 방송 감지) - Stream: {}, OldSession: {}, NewLiveId: {}, AvgViewers: {}",
             activeSession.getStreamId(), activeSession.getSessionId(), newLiveId, activeSession.getAverageViewerCount());

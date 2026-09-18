@@ -1,13 +1,15 @@
 package io.slice.stream.apiserver.streamer.presentation;
 
 import io.slice.stream.apiserver.stream.presentation.dto.StreamResponse;
-import io.slice.stream.apiserver.streamer.application.StreamerGrassQueryService;
+import io.slice.stream.apiserver.streamer.application.StreamerCalendarQueryService;
 import io.slice.stream.apiserver.streamer.application.StreamerLeaderboardQueryService;
 import io.slice.stream.apiserver.streamer.application.StreamerProfileQueryService;
 import io.slice.stream.apiserver.streamer.application.StreamerSessionQueryService;
-import io.slice.stream.apiserver.streamer.presentation.dto.StreamerGrassResponse;
+import io.slice.stream.apiserver.streamer.presentation.dto.StreamerCalendarResponse;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerProfileResponse;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerSessionHistoryResponse;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,9 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class StreamerQueryController {
 
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
     private final StreamerLeaderboardQueryService leaderboardQueryService;
     private final StreamerProfileQueryService profileQueryService;
-    private final StreamerGrassQueryService grassQueryService;
+    private final StreamerCalendarQueryService calendarQueryService;
     private final StreamerSessionQueryService sessionQueryService;
 
     @GetMapping
@@ -43,12 +47,16 @@ public class StreamerQueryController {
         return ResponseEntity.ok(profileQueryService.getProfile(channelId));
     }
 
-    @GetMapping("/{channelId}/grass")
-    public ResponseEntity<StreamerGrassResponse> getGrass(
+    @GetMapping("/{channelId}/calendar")
+    public ResponseEntity<StreamerCalendarResponse> getCalendar(
         @PathVariable String channelId,
-        @RequestParam(required = false) Integer days
+        @RequestParam(required = false) Integer year,
+        @RequestParam(required = false) Integer month
     ) {
-        return ResponseEntity.ok(grassQueryService.getGrassData(channelId, days));
+        LocalDate today = LocalDate.now(KST);
+        int targetYear = (year != null) ? year : today.getYear();
+        int targetMonth = (month != null) ? month : today.getMonthValue();
+        return ResponseEntity.ok(calendarQueryService.getMonthlyCalendar(channelId, targetYear, targetMonth));
     }
 
     @GetMapping("/{channelId}/sessions")

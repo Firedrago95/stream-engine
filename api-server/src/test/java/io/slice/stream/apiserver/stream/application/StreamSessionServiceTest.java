@@ -19,7 +19,6 @@ import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest;
-import io.slice.stream.apiserver.streamer.application.StreamerDailyStatCommandService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -49,9 +48,6 @@ class StreamSessionServiceTest {
 
     @Mock
     private JpaViewMetricTimelineRepository timelineRepository;
-
-    @Mock
-    private StreamerDailyStatCommandService dailyStatCommandService;
 
     @Mock
     private CacheManager cacheManager;
@@ -124,6 +120,42 @@ class StreamSessionServiceTest {
         assertThat(zombieSession.getEndedAt()).isEqualTo(streamLastUpdatedAt);
         assertThat(activeSegment.getEndedAt()).isEqualTo(streamLastUpdatedAt);
         assertThat(activeSegment.getEndOffsetMs()).isEqualTo(3600000L);
+    }
+
+    @Test
+    void 오프라인_세션_종료시_스트림_마지막_갱신시각이_시작시각보다_과거이면_시작시각으로_역전방어된다() {
+        String streamId = "stream-inversion";
+        String sessionId = "session-inversion";
+        Instant streamStartedAt = Instant.parse("2026-02-13T10:00:00Z");
+        Instant streamLastUpdatedAt = Instant.parse("2026-02-13T09:30:00Z");
+
+        StreamSessionEntity zombieSession = new StreamSessionEntity(streamId, sessionId, "방제", "카테고리", streamStartedAt);
+        StreamSessionSegmentEntity activeSegment = new StreamSessionSegmentEntity(streamId, sessionId, "방제", "카테고리", streamStartedAt, 0L);
+
+        when(sessionRepository.findSessionsToClose(any(Instant.class)))
+            .thenReturn(List.of(zombieSession));
+        when(timelineRepository.findAverageViewerCountBySessionId(sessionId))
+            .thenReturn(0.0);
+        when(timelineRepository.findPeakViewerCountBySessionId(sessionId))
+            .thenReturn(0);
+
+        StreamEntity streamEntity = mock(StreamEntity.class);
+        when(streamEntity.getStreamId()).thenReturn(streamId);
+        when(streamEntity.getLastUpdateAt()).thenReturn(streamLastUpdatedAt);
+        when(streamRepository.findAllByStreamIdIn(List.of(streamId)))
+            .thenReturn(List.of(streamEntity));
+
+        when(segmentRepository.findActiveSegment(sessionId))
+            .thenReturn(Optional.of(activeSegment));
+
+        Cache mockCache = mock(Cache.class);
+        when(cacheManager.getCache("activeSessions")).thenReturn(mockCache);
+
+        streamSessionService.closeOfflineSessions();
+
+        assertThat(zombieSession.getEndedAt()).isEqualTo(streamStartedAt);
+        assertThat(activeSegment.getEndedAt()).isEqualTo(streamStartedAt);
+        assertThat(activeSegment.getEndOffsetMs()).isEqualTo(0L);
     }
 
     @Test
@@ -304,6 +336,5 @@ class StreamSessionServiceTest {
         assertThat(session.getEndedAt()).isEqualTo(accurateEndedAt);
         assertThat(session.getPeakViewers()).isEqualTo(850);
         assertThat(session.getAverageViewerCount()).isEqualTo(520);
-        verify(dailyStatCommandService).recordSession(session);
     }
 }
