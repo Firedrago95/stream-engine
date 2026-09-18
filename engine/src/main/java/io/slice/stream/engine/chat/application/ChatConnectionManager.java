@@ -1,5 +1,6 @@
 package io.slice.stream.engine.chat.application;
 
+import io.slice.stream.engine.chat.domain.BackoffPolicy;
 import io.slice.stream.engine.chat.domain.ChatClient;
 import io.slice.stream.engine.chat.domain.ChatCollector;
 import io.slice.stream.engine.chat.domain.ChatMessageListener;
@@ -12,22 +13,30 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ChatConnectionManager implements ChatCollector, ChatMessageListener {
 
+    private static final BackoffPolicy DEFAULT_BACKOFF_POLICY = BackoffPolicy.exponential(1000L, 30000L);
+
     private final ChatClient chatClient;
     private final ChatMessageListener downstreamListener;
     private final String chatChannelId;
     private final String channelId;
     private final ExecutorService executorService;
+    private final BackoffPolicy backoffPolicy;
 
     private final AtomicBoolean isReconnecting = new AtomicBoolean(false);
     private volatile boolean isManualDisconnect = false;
     private volatile int retryCount = 0;
 
     public ChatConnectionManager(ChatClient chatClient, ChatMessageListener downstreamListener, String chatChannelId, String channelId, ExecutorService executorService) {
+        this(chatClient, downstreamListener, chatChannelId, channelId, executorService, DEFAULT_BACKOFF_POLICY);
+    }
+
+    public ChatConnectionManager(ChatClient chatClient, ChatMessageListener downstreamListener, String chatChannelId, String channelId, ExecutorService executorService, BackoffPolicy backoffPolicy) {
         this.chatClient = chatClient;
         this.downstreamListener = downstreamListener;
         this.chatChannelId = chatChannelId;
         this.channelId = channelId;
         this.executorService = executorService;
+        this.backoffPolicy = backoffPolicy;
     }
 
     @Override
@@ -86,9 +95,7 @@ public class ChatConnectionManager implements ChatCollector, ChatMessageListener
     }
 
     private long calculateBackoffDelay() {
-        // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s, 30s...
-        long delay = 1000L * (1L << Math.min(retryCount, 5));
-        return Math.min(delay, 30000L);
+        return backoffPolicy.calculateDelay(retryCount);
     }
 
     @Override
