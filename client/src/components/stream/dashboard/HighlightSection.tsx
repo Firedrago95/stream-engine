@@ -75,7 +75,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
           </div>
 
           {!isRealtime && (
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+              <span className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">
             정렬: 시간순
           </span>
           )}
@@ -83,7 +83,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {processedHighlights.length === 0 ? (
-              <div className="col-span-full p-16 text-center bg-[#1a1a1c] border border-gray-800 rounded-3xl text-gray-400 font-bold italic">
+              <div className="col-span-full p-16 text-center bg-[#1a1a1c] border border-gray-800 rounded-3xl text-gray-200 font-bold italic">
                 데이터가 없습니다.
               </div>
           ) : (
@@ -138,7 +138,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
                             className={`text-[9px] font-black mb-0.5 sm:mb-1 block tracking-widest uppercase ${style.label}`}>발생 시점</span>
                         <div className="flex flex-wrap sm:flex-nowrap items-center gap-1 sm:gap-2">
                           <span className="text-white font-mono text-sm sm:text-base lg:text-lg font-black shrink-0">
-                            <span className="text-gray-400 text-xs sm:text-base mr-1">🎬</span>
+                            <span className="text-gray-300 text-xs sm:text-base mr-1">🎬</span>
                             {formatOffset(hl.startTimeOffset)}
                             <span className="mx-1 text-white font-normal">~</span>
                             {formatOffset(hl.endTimeOffset)}
@@ -152,7 +152,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
                         <span className="text-[9px] text-gray-300 font-black mb-0.5 sm:mb-1 block tracking-widest uppercase">최고 화력</span>
                         <span className={`font-black text-lg sm:text-xl leading-none ${style.peak}`}>
                           {hl.peakFirepower}
-                          <span className="text-[10px] text-gray-400 ml-1 font-bold">msg/s</span>
+                          <span className="text-[10px] text-gray-300 ml-1 font-bold">msg/s</span>
                         </span>
                       </div>
                     </div>
@@ -164,7 +164,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
         {!isRealtime && highlights.length > 6 && (
             <button
                 onClick={() => setShowAll(!showAll)}
-                className="w-full mt-6 py-4 bg-[#1a1a1c] border border-gray-800 rounded-2xl text-gray-400 text-sm font-bold hover:bg-gray-800 hover:text-white transition-all shadow-lg group"
+                className="w-full mt-6 py-4 bg-[#1a1a1c] border border-gray-800 rounded-2xl text-gray-300 text-sm font-bold hover:bg-gray-800 hover:text-white transition-all shadow-lg group"
             >
               {showAll ? (
                   "▲ 하이라이트 접기"

@@ -56,7 +56,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
 }) => {
   if (isLoading) {
     return (
-      <div className="p-8 bg-[#141416] border border-[#2A2A2C] rounded-2xl text-center text-gray-400">
+      <div className="p-8 bg-[#141416] border border-[#2A2A2C] rounded-2xl text-center text-gray-200 font-medium">
         <div className="w-8 h-8 border-2 border-[#00FFA3] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
         전적 데이터를 불러오는 중...
       </div>
@@ -65,7 +65,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
 
   if (!sessions || sessions.length === 0) {
     return (
-      <div className="p-8 bg-[#141416] border border-[#2A2A2C] rounded-2xl text-center text-gray-400 font-medium text-sm">
+      <div className="p-8 bg-[#141416] border border-[#2A2A2C] rounded-2xl text-center text-gray-200 font-medium text-sm">
         과거 방송 세션 기록이 없습니다.
       </div>
     );
@@ -77,7 +77,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
         <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
           <span>📜</span> 방송 세션 히스토리
         </h3>
-        <span className="text-xs text-gray-400 font-mono">
+        <span className="text-xs text-gray-300 font-mono font-semibold">
           총 {totalElements.toLocaleString()}개 방송
         </span>
       </div>
@@ -90,7 +90,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
           >
             <div className="space-y-1.5 flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono text-gray-400">
+                <span className="text-xs font-mono text-gray-300">
                   {formatDate(sess.startedAt)}
                 </span>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#1e1e24] text-[#67BFFF] border border-gray-800 truncate">
@@ -109,13 +109,13 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
 
             <div className="flex items-center gap-4 sm:gap-6 self-end sm:self-auto shrink-0 text-xs font-mono">
               <div className="text-right">
-                <p className="text-[10px] text-gray-400 font-medium">방송 시간</p>
-                <p className="font-bold text-gray-200">{formatDuration(sess.durationSeconds)}</p>
+                <p className="text-[10.5px] text-gray-300 font-medium">방송 시간</p>
+                <p className="font-bold text-gray-100">{formatDuration(sess.durationSeconds)}</p>
               </div>
 
               <div className="text-right">
-                <p className="text-[10px] text-gray-400 font-medium">평균 / 최고</p>
-                <p className="font-bold text-gray-200">
+                <p className="text-[10.5px] text-gray-300 font-medium">평균 / 최고</p>
+                <p className="font-bold text-gray-100">
                   <span className="text-[#67BFFF]">{sess.avgViewers.toLocaleString()}</span> /{' '}
                   <span className="text-[#A78BFA]">{sess.peakViewers.toLocaleString()}</span>
                 </p>
@@ -123,7 +123,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
 
               {sess.followerGrowth !== null && sess.followerGrowth !== undefined && (
                 <div className="text-right">
-                  <p className="text-[10px] text-gray-400 font-medium">팔로워</p>
+                  <p className="text-[10.5px] text-gray-300 font-medium">팔로워</p>
                   <p className={`font-bold ${sess.followerGrowth >= 0 ? 'text-[#00FFA3]' : 'text-rose-400'}`}>
                     {sess.followerGrowth >= 0 ? `+${sess.followerGrowth}` : sess.followerGrowth}
                   </p>
@@ -132,7 +132,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
 
               {sess.subscriberChatRatio !== null && sess.subscriberChatRatio !== undefined && (
                 <div className="text-right">
-                  <p className="text-[10px] text-gray-400 font-medium">구독자 채팅</p>
+                  <p className="text-[10.5px] text-gray-300 font-medium">구독자 채팅</p>
                   <p className="font-bold text-[#00FFA3]">{sess.subscriberChatRatio.toFixed(1)}%</p>
                 </div>
               )}
@@ -150,7 +150,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
           >
             이전
           </button>
-          <span className="text-gray-400 font-mono">
+          <span className="text-gray-200 font-mono font-semibold">
             {page + 1} / {totalPages}
           </span>
           <button
