@@ -96,5 +96,8 @@ public interface JpaStreamSessionRepository extends JpaRepository<StreamSessionE
         ORDER BY ss.startedAt ASC
         """)
     List<StreamSessionEntity> findActiveSessionsStartedBefore(@Param("threshold") Instant threshold);
+
+    @Query("SELECT DISTINCT ss.streamId FROM StreamSessionEntity ss WHERE ss.startedAt >= :since")
+    List<String> findDistinctStreamIdsByStartedAtAfter(@Param("since") Instant since);
 }
 

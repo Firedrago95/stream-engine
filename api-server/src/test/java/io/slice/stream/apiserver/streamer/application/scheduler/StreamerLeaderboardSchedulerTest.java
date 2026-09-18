@@ -1,11 +1,8 @@
 package io.slice.stream.apiserver.streamer.application.scheduler;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 
-import io.slice.stream.apiserver.streamer.application.StreamerDailyStatCommandService;
 import io.slice.stream.apiserver.streamer.application.StreamerLeaderboardQueryService;
-import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
@@ -21,17 +18,14 @@ class StreamerLeaderboardSchedulerTest {
     @Mock
     private StreamerLeaderboardQueryService leaderboardQueryService;
 
-    @Mock
-    private StreamerDailyStatCommandService dailyStatCommandService;
-
     @InjectMocks
     private StreamerLeaderboardScheduler scheduler;
 
     @Test
-    void 새벽_정기_스케줄러는_어제_일별_통계_스냅샷과_리더보드_정산을_순서대로_수행한다() {
+    void 정기_스케줄러는_리더보드_정산을_수행한다() {
         scheduler.scheduleDailyLeaderboardCalculation();
 
-        verify(dailyStatCommandService).recordActiveSessionsDailySnapshot(any(LocalDate.class));
         verify(leaderboardQueryService).refreshDailyLeaderboard();
     }
 }
+

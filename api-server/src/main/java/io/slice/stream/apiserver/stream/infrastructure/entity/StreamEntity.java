@@ -52,6 +52,9 @@ public class StreamEntity {
     @Column(name = "subscriber_count")
     private Integer subscriberCount;
 
+    @Column(name = "last_follower_updated_at")
+    private Instant lastFollowerUpdatedAt;
+
     @Column(nullable = false)
     private Instant lastUpdateAt;
 
@@ -81,5 +84,10 @@ public class StreamEntity {
     public void updateChannelMetrics(Integer followerCount, Integer subscriberCount) {
         this.followerCount = followerCount;
         this.subscriberCount = subscriberCount;
+    }
+
+    public void updateFollower(Integer followerCount, Instant updatedAt) {
+        this.followerCount = followerCount;
+        this.lastFollowerUpdatedAt = updatedAt;
     }
 }

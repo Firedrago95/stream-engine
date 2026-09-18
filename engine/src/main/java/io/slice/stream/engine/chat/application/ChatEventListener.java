@@ -11,7 +11,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -76,11 +75,7 @@ public class ChatEventListener {
             }
 
             if (!targetStreams.isEmpty()) {
-                Set<String> channelIds = targetStreams.stream()
-                    .map(StreamTarget::channelId)
-                    .collect(Collectors.toSet());
-
-                List<StreamTarget> detailedTargets = streamDiscoveryClient.fetchLiveStreams(channelIds);
+                List<StreamTarget> detailedTargets = streamDiscoveryClient.fetchLiveStreamsForChat(targetStreams);
                 if (!detailedTargets.isEmpty()) {
                     chatService.manageStreams(new HashSet<>(detailedTargets), Collections.emptySet());
                 }

@@ -8,6 +8,7 @@ export async function diagnosePipelineHealth() {
     { key: "kafkaLag", query: "sum(kafka_consumer_fetch_manager_records_lag)", required: true },
     { key: "p95LatencySec", query: "histogram_quantile(0.95, sum(rate(analysis_processing_time_seconds_bucket[5m])) by (le))", required: true },
     { key: "liveThreads", query: 'jvm_threads_live_threads{application="engine"}', required: false },
+    { key: "engineSchedulerFailures", query: 'sum(increase(scheduler_execution_total{application="engine",status="failure"}[1h]))', required: false },
   ];
 
   const results = await Promise.allSettled(
@@ -22,7 +23,7 @@ export async function diagnosePipelineHealth() {
     if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length > 0 && res.value[0]?.value) {
       parsedMetrics[def.key] = Number(res.value[0].value[1]);
     } else if (res.status === "fulfilled" && Array.isArray(res.value) && res.value.length === 0) {
-      if (def.key === "kafkaLag" || def.key === "producerTps" || def.key === "consumerTps") {
+      if (def.key === "kafkaLag" || def.key === "producerTps" || def.key === "consumerTps" || def.key === "engineSchedulerFailures") {
         parsedMetrics[def.key] = 0;
       } else {
         failedMetrics.push({ key: def.key, query: def.query, error: "데이터가 비어있습니다 (0건 반환)", required: def.required });
@@ -54,6 +55,7 @@ export async function diagnosePipelineHealth() {
   const p95LatencySec = Number(parsedMetrics.p95LatencySec ?? 0);
   const p95LatencyMs = Number((p95LatencySec * 1000).toFixed(2));
   const liveThreads = parsedMetrics.liveThreads !== undefined ? Number(parsedMetrics.liveThreads) : null;
+  const engineSchedulerFailures = Number(parsedMetrics.engineSchedulerFailures ?? 0);
 
   const warnings = [];
   const criticals = [];
@@ -64,6 +66,10 @@ export async function diagnosePipelineHealth() {
 
   if (activeStreams === 0) {
     criticals.push("수집 중인 활성 스트림 수가 0개입니다 (수집 엔진 중단 또는 웹소켓 미연결).");
+  }
+
+  if (engineSchedulerFailures > 0) {
+    criticals.push(`최근 1시간 동안 엔진 스케줄러 작업 실패가 감지되었습니다 (${engineSchedulerFailures}건).`);
   }
 
   if (kafkaLag >= 100) {
@@ -99,13 +105,14 @@ export async function diagnosePipelineHealth() {
       kafkaLag,
       p95LatencyMs,
       liveThreads,
+      engineSchedulerFailures,
     },
     failedMetrics,
     criticals,
     warnings,
     summary:
       status === "HEALTHY"
-        ? `[정상] 활성 채널 ${activeStreams}개, Kafka ${producerTps.toFixed(1)} TPS (Lag: ${kafkaLag}), 분석 P95 지연 ${p95LatencyMs}ms로 사일런트 페일러 없이 정상 가동 중입니다.`
+        ? `[정상] 활성 채널 ${activeStreams}개, Kafka ${producerTps.toFixed(1)} TPS (Lag: ${kafkaLag}), 분석 P95 지연 ${p95LatencyMs}ms, 스케줄러 실패 0건으로 사일런트 페일러 없이 정상 가동 중입니다.`
         : `[${status}] ${[...criticals, ...warnings].join(" / ")}`,
   };
 }

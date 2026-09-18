@@ -9,4 +9,6 @@ public interface StreamDiscoveryClient {
     List<StreamTarget> fetchTopLiveStreams(int limit);
 
     List<StreamTarget> fetchLiveStreams(Set<String> channelIds);
+
+    List<StreamTarget> fetchLiveStreamsForChat(Set<StreamTarget> targets);
 }

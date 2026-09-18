@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
+import io.slice.stream.engine.chat.domain.BackoffPolicy;
 import io.slice.stream.engine.chat.domain.ChatClient;
 import io.slice.stream.engine.chat.domain.ChatMessageListener;
 import io.slice.stream.engine.chat.domain.model.ChatMessage;
@@ -51,7 +52,7 @@ class ChatConnectionManagerTest {
         }).when(executorService).submit(any(Runnable.class));
 
         chatConnectionManager = new ChatConnectionManager(
-            chatClient, downstreamListener, CHAT_CHANNEL_ID, CHANNEL_ID, executorService
+            chatClient, downstreamListener, CHAT_CHANNEL_ID, CHANNEL_ID, executorService, BackoffPolicy.noDelay()
         );
     }
 

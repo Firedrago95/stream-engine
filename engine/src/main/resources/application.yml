@@ -61,7 +61,14 @@ chzzk:
   api:
     base-url: "https://api.chzzk.naver.com"
     live-fetch: "/service/v1/lives"
-    live-detail-fetch: "/service/v2/channels/{channelId}/live-detail"
+    # [기존 v2 상세 API 보존]
+    live-detail-fetch-v2: "/service/v2/channels/{channelId}/live-detail"
+    # [v3 상세 API - accumulateCount 누적 시청자 수 추가 수집 지원]
+    live-detail-fetch: "/service/v3/channels/{channelId}/live-detail"
+    # [웹소켓 연결용 경량 상태 폴링 API]
+    live-status-polling: "/polling/v2/channels/{channelId}/live-status"
+    # [채널 기본 정보 및 팔로워 조회 API]
+    channel-fetch: "/service/v1/channels/{channelId}"
     default-chrome-version: "152.0.0.0"
     version-api-url: "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions.json"
 
@@ -72,6 +79,12 @@ chzzk:
   # 3. 수집할 방송 갯수
   discovery:
     limit: 200
+
+  # 4. 일일 팔로워 정기 수집기 설정 (채팅 웹소켓 풀과 독립)
+  collector:
+    follower:
+      cron: "0 30 3 * * *"
+      tps: 5.0
 
 api-server:
   host: ${SERVER_HOST}
@@ -84,6 +97,8 @@ api-server:
   meta-path: ${api-server.internal-prefix}/segments
   summary-path: ${api-server.internal-prefix}/summaries/{streamId}
   targets-path: ${api-server.internal-prefix}/targets
+  follower-targets-path: ${api-server.internal-prefix}/follower-targets
+  follower-snapshots-path: ${api-server.internal-prefix}/follower-snapshots
 
 targeting:
   trend-redis-key: "target:streamers:pool"

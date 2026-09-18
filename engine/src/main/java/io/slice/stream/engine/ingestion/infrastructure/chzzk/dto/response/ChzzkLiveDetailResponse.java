@@ -19,8 +19,22 @@ public record ChzzkLiveDetailResponse(
         String liveTitle,
         String liveCategoryValue,
         int concurrentUserCount,
+        int accumulateCount,
         long liveId,
         Channel channel
     ) {
+
+        public Content(
+            String status,
+            String chatChannelId,
+            LocalDateTime openDate,
+            String liveTitle,
+            String liveCategoryValue,
+            int concurrentUserCount,
+            long liveId,
+            Channel channel
+        ) {
+            this(status, chatChannelId, openDate, liveTitle, liveCategoryValue, concurrentUserCount, 0, liveId, channel);
+        }
     }
 }

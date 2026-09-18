@@ -1,6 +1,7 @@
 package io.slice.stream.engine.ingestion.infrastructure.apiServer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatNoException;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -11,8 +12,10 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.FollowerSnapshotRecord;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSyncRequest;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -107,5 +110,30 @@ class ApiServerClientTest {
         Optional<List<String>> result = apiServerClient.fetchTargetChannels();
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void 팔로워_스냅샷_전송_시_정확한_경로로_데이터를_전송해야_한다() throws Exception {
+        FollowerSnapshotRecord record = new FollowerSnapshotRecord("ch1", 100, LocalDate.parse("2026-03-01"));
+        List<FollowerSnapshotRecord> records = List.of(record);
+
+        mockServer.expect(requestTo("http://localhost:8080/api/v1/internal/follower-snapshots"))
+            .andExpect(method(HttpMethod.POST))
+            .andRespond(withSuccess());
+
+        assertThatNoException().isThrownBy(() -> apiServerClient.sendFollowerSnapshots(records));
+        mockServer.verify();
+    }
+
+    @Test
+    void 팔로워_스냅샷_전송_실패_시_예외를_상위로_전파해야_한다() {
+        FollowerSnapshotRecord record = new FollowerSnapshotRecord("ch1", 100, LocalDate.parse("2026-03-01"));
+        List<FollowerSnapshotRecord> records = List.of(record);
+
+        mockServer.expect(requestTo("http://localhost:8080/api/v1/internal/follower-snapshots"))
+            .andExpect(method(HttpMethod.POST))
+            .andRespond(withServerError());
+
+        assertThatThrownBy(() -> apiServerClient.sendFollowerSnapshots(records));
     }
 }
