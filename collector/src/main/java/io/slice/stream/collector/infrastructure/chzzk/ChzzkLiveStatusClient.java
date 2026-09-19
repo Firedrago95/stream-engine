@@ -68,11 +68,13 @@ public class ChzzkLiveStatusClient implements LiveStatusClient {
                 ? content.openDate().toInstant(ZoneOffset.of("+09:00"))
                 : Instant.now();
 
+            long liveId = content.liveId() != null ? content.liveId() : 0L;
+
             return new StreamTarget(
                 channelId,
                 channelId,
                 chatChannelId,
-                0L,
+                liveId,
                 content.liveTitle(),
                 content.concurrentUserCount(),
                 null,

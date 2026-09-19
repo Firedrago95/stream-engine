@@ -155,4 +155,55 @@ class CollectorTargetPollerTest {
         assertThat(newCollector.isConnected()).isTrue();
         assertThat(chatManager.isCollecting("ch_target_1", "chat_room_new")).isTrue();
     }
+
+    @Test
+    @DisplayName("여러 채널이 동시에 방송을 시작할 때 liveId가 0이어도 모든 채널의 수집기가 정상 시작된다")
+    void startAllCollectorsWhenMultipleStreamsGoLiveConcurrently() {
+        fakeTargetStreamReader.addTarget("ch_target_1");
+        fakeTargetStreamReader.addTarget("ch_target_2");
+        fakeTargetStreamReader.addTarget("ch_target_3");
+
+        StreamTarget live1 = new StreamTarget("ch_target_1", "침착맨", "chat_room_1", 0L, "제목1", 500, null, "소통", Instant.now());
+        StreamTarget live2 = new StreamTarget("ch_target_2", "풍월량", "chat_room_2", 0L, "제목2", 600, null, "게임", Instant.now());
+        StreamTarget live3 = new StreamTarget("ch_target_3", "옥냥이", "chat_room_3", 0L, "제목3", 700, null, "게임", Instant.now());
+        fakeLiveStatusClient.setOpenStream(live1);
+        fakeLiveStatusClient.setOpenStream(live2);
+        fakeLiveStatusClient.setOpenStream(live3);
+
+        poller.pollTargets();
+
+        assertThat(chatManager.getActiveChannelIds()).containsExactlyInAnyOrder("ch_target_1", "ch_target_2", "ch_target_3");
+        assertThat(fakeCollectorFactory.getCollector("ch_target_1").isConnected()).isTrue();
+        assertThat(fakeCollectorFactory.getCollector("ch_target_2").isConnected()).isTrue();
+        assertThat(fakeCollectorFactory.getCollector("ch_target_3").isConnected()).isTrue();
+    }
+
+    @Test
+    @DisplayName("여러 채널이 동시에 방송을 종료하거나 타겟 풀이 비었을 때 모든 수집기가 누락 없이 종료된다")
+    void stopAllCollectorsWhenMultipleStreamsCloseConcurrently() {
+        fakeTargetStreamReader.addTarget("ch_target_1");
+        fakeTargetStreamReader.addTarget("ch_target_2");
+        fakeTargetStreamReader.addTarget("ch_target_3");
+
+        StreamTarget live1 = new StreamTarget("ch_target_1", "침착맨", "chat_room_1", 0L, "제목1", 500, null, "소통", Instant.now());
+        StreamTarget live2 = new StreamTarget("ch_target_2", "풍월량", "chat_room_2", 0L, "제목2", 600, null, "게임", Instant.now());
+        StreamTarget live3 = new StreamTarget("ch_target_3", "옥냥이", "chat_room_3", 0L, "제목3", 700, null, "게임", Instant.now());
+        fakeLiveStatusClient.setOpenStream(live1);
+        fakeLiveStatusClient.setOpenStream(live2);
+        fakeLiveStatusClient.setOpenStream(live3);
+
+        poller.pollTargets();
+        assertThat(chatManager.getActiveChannelIds()).hasSize(3);
+
+        fakeLiveStatusClient.removeOpenStream("ch_target_1");
+        fakeLiveStatusClient.removeOpenStream("ch_target_2");
+        fakeLiveStatusClient.removeOpenStream("ch_target_3");
+
+        poller.pollTargets();
+
+        assertThat(chatManager.getActiveChannelIds()).isEmpty();
+        assertThat(fakeCollectorFactory.getCollector("ch_target_1").isConnected()).isFalse();
+        assertThat(fakeCollectorFactory.getCollector("ch_target_2").isConnected()).isFalse();
+        assertThat(fakeCollectorFactory.getCollector("ch_target_3").isConnected()).isFalse();
+    }
 }

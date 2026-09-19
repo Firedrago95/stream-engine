@@ -11,6 +11,7 @@ public record ChzzkLiveStatusResponse(
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Content(
+        Long liveId,
         String liveTitle,
         String status,
         int concurrentUserCount,

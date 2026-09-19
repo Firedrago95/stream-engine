@@ -17,16 +17,19 @@ public record StreamTarget(
 
     @Override
     public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
         StreamTarget that = (StreamTarget) o;
-        return liveId == that.liveId;
+        return liveId == that.liveId && Objects.equals(channelId, that.channelId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(liveId);
+        return Objects.hash(channelId, liveId);
     }
 
     public StreamTarget withChatChannelId(String newChatChannelId) {
