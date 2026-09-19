@@ -1181,7 +1181,7 @@
           },
           "direction": "backward",
           "editorMode": "code",
-          "expr": "{job=\"engine-logs\"} |= \"ERROR\"\n  |~ \"^202\\\\d-\"\n  | regexp \"^(?P<time>\\\\S+)\\\\s+(?P<level>[A-Z]+)\\\\s+\\\\d+\\\\s+---\\\\s+\\\\[[^\\\\]]+\\\\]\\\\s+\\\\[(?P<thread>[^\\\\]]+)\\\\]\\\\s+(?P<logger>\\\\S+)\\\\s+:\\\\s+(?P<msg>.*)$\"\n  | level=\"ERROR\"\n  | line_format \"🚨 [{{.module}}] {{.time}} [{{.level}}] [{{.logger}}] ➡️ {{.msg}}\"",
+          "expr": "{filename=~\".*(collector|engine).*\"} |~ \"(?i)(Exception|ERROR|예외|오류)\"",
           "queryType": "range",
           "refId": "A"
         }
@@ -1225,7 +1225,7 @@
           },
           "direction": "backward",
           "editorMode": "code",
-          "expr": "{job=\"engine-logs\", module=\"collector\"}\n  |~ \"^202\\\\d-\"\n  | regexp \"^(?P<time>\\\\S+)\\\\s+(?P<level>[A-Z]+)\\\\s+\\\\d+\\\\s+---\\\\s+\\\\[[^\\\\]]+\\\\]\\\\s+\\\\[(?P<thread>[^\\\\]]+)\\\\]\\\\s+(?P<logger>\\\\S+)\\\\s+:\\\\s+(?P<msg>.*)$\"\n  | line_format \"📡 {{.time}} [{{.level}}] [{{.logger}}] ➡️ {{.msg}}\"",
+          "expr": "{filename=~\".*collector.*\"}\n  |~ \"^202\\\\d-\"\n  | regexp \"^(?P<time>\\\\S+)\\\\s+(?P<level>[A-Z]+)\\\\s+\\\\d+\\\\s+---\\\\s+\\\\[[^\\\\]]+\\\\]\\\\s+\\\\[(?P<thread>[^\\\\]]+)\\\\]\\\\s+(?P<logger>\\\\S+)\\\\s+:\\\\s+(?P<msg>.*)$\"\n  | line_format \"📡 {{.time}} [{{.level}}] [{{.logger}}] ➡️ {{.msg}}\"",
           "queryType": "range",
           "refId": "A"
         }
@@ -1264,11 +1264,11 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "grafanacloud-prom"
+            "type": "loki",
+            "uid": "grafanacloud-logs"
           },
           "editorMode": "code",
-          "expr": "{job=\"engine-logs\", module=\"engine\"}\n  |~ \"^202\\\\d-\"\n  | regexp \"^(?P<time>\\\\S+)\\\\s+(?P<level>[A-Z]+)\\\\s+\\\\d+\\\\s+---\\\\s+\\\\[[^\\\\]]+\\\\]\\\\s+\\\\[(?P<thread>[^\\\\]]+)\\\\]\\\\s+(?P<logger>\\\\S+)\\\\s+:\\\\s+(?P<msg>.*)$\"\n  | line_format \"⚙️ {{.time}} [{{.level}}] [{{.logger}}] ➡️ {{.msg}}\"",
+          "expr": "{filename=~\".*engine.*\"}\n  |~ \"^202\\\\d-\"\n  | regexp \"^(?P<time>\\\\S+)\\\\s+(?P<level>[A-Z]+)\\\\s+\\\\d+\\\\s+---\\\\s+\\\\[[^\\\\]]+\\\\]\\\\s+\\\\[(?P<thread>[^\\\\]]+)\\\\]\\\\s+(?P<logger>\\\\S+)\\\\s+:\\\\s+(?P<msg>.*)$\"\n  | line_format \"⚙️ {{.time}} [{{.level}}] [{{.logger}}] ➡️ {{.msg}}\"",
           "range": true,
           "refId": "A"
         }
