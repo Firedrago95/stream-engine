@@ -2,6 +2,7 @@ package io.slice.stream.collector.infrastructure.chzzk.api;
 
 import io.slice.stream.collector.infrastructure.chzzk.dto.response.ChatAccessResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -11,19 +12,24 @@ import org.springframework.web.client.RestClient;
 @Component
 public class ChzzkApiClient {
 
-    public static final String URL = "/nng_main/v1/chats/access-token?channelId={channelId}&chatType=STREAMING";
+    public static final String PATH = "/nng_main/v1/chats/access-token?channelId={channelId}&chatType=STREAMING";
 
     private final RestClient restClient;
+    private final String gameApiBaseUrl;
 
-    public ChzzkApiClient(RestClient restClient) {
+    public ChzzkApiClient(
+        RestClient restClient,
+        @Value("${chzzk.game-api.base-url:https://comm-api.game.naver.com}") String gameApiBaseUrl
+    ) {
         this.restClient = restClient;
+        this.gameApiBaseUrl = gameApiBaseUrl;
     }
 
     public String getAccessToken(String chatChannelId) {
         try {
             ChatAccessResponse chatAccessResponse = restClient
                 .get()
-                .uri(URL, chatChannelId)
+                .uri(gameApiBaseUrl + PATH, chatChannelId)
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, (request, response) -> {
