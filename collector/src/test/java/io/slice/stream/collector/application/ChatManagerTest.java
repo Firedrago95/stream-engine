@@ -78,4 +78,24 @@ class ChatManagerTest {
         assertThat(oldCollector.isConnected()).isFalse();
         assertThat(chatManager.getActiveChannelIds()).contains("ch1");
     }
+
+    @Test
+    @DisplayName("수집기 활성화 시 기존 engine 및 collector 규격의 웹소켓 연결 게이지가 모두 정확히 반영된다")
+    void measureActiveWebSocketConnectionsMetrics() {
+        StreamTarget target1 = new StreamTarget("ch1", "스트리머1", "chat1", 1L, "방송1", 100, "thumb1.jpg", "게임", Instant.now());
+        StreamTarget target2 = new StreamTarget("ch2", "스트리머2", "chat2", 2L, "방송2", 200, "thumb2.jpg", "게임", Instant.now());
+
+        chatManager.manageStreams(Set.of(target1, target2), Collections.emptySet());
+
+        double collectorGauge = meterRegistry.get("collector.websocket.connections.active").gauge().value();
+        double engineGauge = meterRegistry.get("engine.websocket.connections.active").gauge().value();
+
+        assertThat(collectorGauge).isEqualTo(2.0);
+        assertThat(engineGauge).isEqualTo(2.0);
+
+        chatManager.manageStreams(Collections.emptySet(), Set.of(target1));
+
+        assertThat(meterRegistry.get("collector.websocket.connections.active").gauge().value()).isEqualTo(1.0);
+        assertThat(meterRegistry.get("engine.websocket.connections.active").gauge().value()).isEqualTo(1.0);
+    }
 }

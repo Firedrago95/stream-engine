@@ -29,8 +29,16 @@ public class ChatManager {
     ) {
         this.chatCollectorFactory = chatCollectorFactory;
         this.executor = executor;
+        registerMetrics(meterRegistry);
+    }
+
+    private void registerMetrics(MeterRegistry meterRegistry) {
         Gauge.builder("collector.websocket.connections.active", chatCollectors, Map::size)
             .description("현재 활성 상태인 치지직 WebSocket 수집기 수")
+            .register(meterRegistry);
+
+        Gauge.builder("engine.websocket.connections.active", chatCollectors, Map::size)
+            .description("기존 엔진 대시보드 호환용 치지직 WebSocket 수집기 수")
             .register(meterRegistry);
     }
 

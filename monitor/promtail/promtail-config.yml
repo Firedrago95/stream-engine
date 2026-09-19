@@ -15,4 +15,4 @@ scrape_configs:
           - localhost
         labels:
           job: engine-logs
-          __path__: /var/log/engine.log
+          __path__: /var/log/*.log

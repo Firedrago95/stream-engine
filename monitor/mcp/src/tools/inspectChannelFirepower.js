@@ -11,7 +11,7 @@ export async function inspectChannelFirepower({ channelIdOrName }) {
   }
 
   const safeKeyword = keyword.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-  const logql = `{filename=~".*engine.*"} |= "${safeKeyword}"`;
+  const logql = `{filename=~".*(engine|collector).*"} |= "${safeKeyword}"`;
 
   const endNs = BigInt(Date.now()) * 1000000n;
   const startNs = endNs - (30n * 60n * 1000n * 1000000n);
