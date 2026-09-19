@@ -1,6 +1,6 @@
 package io.slice.stream.engine.chat.domain;
 
-import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.core.model.StreamTarget;
 import org.springframework.stereotype.Component;
 
 @Component

@@ -5,7 +5,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.slice.stream.engine.analyzer.domain.stream.ActiveStreamProvider;
 import io.slice.stream.engine.chat.domain.ChatCollector;
 import io.slice.stream.engine.chat.domain.ChatCollectorFactory;
-import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.core.model.StreamTarget;
 import io.slice.stream.engine.ingestion.domain.targeting.TargetStreamPool;
 import java.util.List;
 import java.util.Map;

@@ -2,8 +2,8 @@ package io.slice.stream.engine.chat.infrastructure.chzzk;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.slice.stream.engine.chat.domain.model.ChatMessage;
-import io.slice.stream.engine.chat.domain.model.MessageType;
+import io.slice.stream.core.model.ChatMessage;
+import io.slice.stream.core.model.MessageType;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;

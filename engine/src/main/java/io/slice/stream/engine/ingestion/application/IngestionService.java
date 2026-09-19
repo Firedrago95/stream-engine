@@ -1,7 +1,7 @@
 package io.slice.stream.engine.ingestion.application;
 
 import io.slice.stream.engine.core.event.StreamChangedEvent;
-import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.core.model.StreamTarget;
 import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
 import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
 import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;

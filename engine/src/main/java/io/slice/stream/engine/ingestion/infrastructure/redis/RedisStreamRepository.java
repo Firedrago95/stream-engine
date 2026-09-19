@@ -1,7 +1,7 @@
 package io.slice.stream.engine.ingestion.infrastructure.redis;
 
-import io.slice.stream.engine.core.model.StreamTarget;
-import io.slice.stream.engine.core.redis.Rediskeys;
+import io.slice.stream.core.model.StreamTarget;
+import io.slice.stream.core.redis.Rediskeys;
 import io.slice.stream.engine.global.error.ErrorCode;
 import io.slice.stream.engine.ingestion.domain.error.IngestionException;
 import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;

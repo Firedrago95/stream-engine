@@ -1,6 +1,6 @@
 package io.slice.stream.engine.analyzer.domain.stream;
 
-import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.core.model.StreamTarget;
 import java.util.List;
 
 public interface ActiveStreamProvider {

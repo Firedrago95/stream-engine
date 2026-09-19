@@ -6,8 +6,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import io.slice.stream.engine.core.model.StreamTarget;
-import io.slice.stream.engine.core.redis.Rediskeys;
+import io.slice.stream.core.model.StreamTarget;
+import io.slice.stream.core.redis.Rediskeys;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;

@@ -1,4 +1,4 @@
-package io.slice.stream.engine.core.model;
+package io.slice.stream.core.model;
 
 import java.time.Instant;
 import java.util.Objects;

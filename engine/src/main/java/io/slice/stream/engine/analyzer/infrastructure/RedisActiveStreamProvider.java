@@ -1,8 +1,8 @@
 package io.slice.stream.engine.analyzer.infrastructure;
 
 import io.slice.stream.engine.analyzer.domain.stream.ActiveStreamProvider;
-import io.slice.stream.engine.core.model.StreamTarget;
-import io.slice.stream.engine.core.redis.Rediskeys;
+import io.slice.stream.core.model.StreamTarget;
+import io.slice.stream.core.redis.Rediskeys;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;

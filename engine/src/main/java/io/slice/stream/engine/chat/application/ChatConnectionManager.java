@@ -4,7 +4,7 @@ import io.slice.stream.engine.chat.domain.BackoffPolicy;
 import io.slice.stream.engine.chat.domain.ChatClient;
 import io.slice.stream.engine.chat.domain.ChatCollector;
 import io.slice.stream.engine.chat.domain.ChatMessageListener;
-import io.slice.stream.engine.chat.domain.model.ChatMessage;
+import io.slice.stream.core.model.ChatMessage;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;

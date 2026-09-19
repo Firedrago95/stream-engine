@@ -4,9 +4,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import io.slice.stream.engine.chat.domain.model.Author;
-import io.slice.stream.engine.chat.domain.model.ChatMessage;
-import io.slice.stream.engine.chat.domain.model.MessageType;
+import io.slice.stream.core.model.Author;
+import io.slice.stream.core.model.ChatMessage;
+import io.slice.stream.core.model.MessageType;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;

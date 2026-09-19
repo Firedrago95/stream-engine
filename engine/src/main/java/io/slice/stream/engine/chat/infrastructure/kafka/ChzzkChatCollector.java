@@ -1,7 +1,7 @@
 package io.slice.stream.engine.chat.infrastructure.kafka;
 
 import io.slice.stream.engine.chat.domain.ChatMessageListener;
-import io.slice.stream.engine.chat.domain.model.ChatMessage;
+import io.slice.stream.core.model.ChatMessage;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

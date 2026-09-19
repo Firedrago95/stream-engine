@@ -1,4 +1,4 @@
-package io.slice.stream.engine.chat.domain.model;
+package io.slice.stream.core.model;
 
 public record Author(
     String id,

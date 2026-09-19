@@ -1,7 +1,7 @@
 package io.slice.stream.engine.analyzer.application;
 
 import io.micrometer.core.instrument.MeterRegistry;
-import io.slice.stream.engine.chat.domain.model.ChatMessage;
+import io.slice.stream.core.model.ChatMessage;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
