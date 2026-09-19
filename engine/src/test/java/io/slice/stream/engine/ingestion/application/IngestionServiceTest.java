@@ -95,13 +95,13 @@ class IngestionServiceTest {
 
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(liveStreams);
         when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
-        when(discoveryClient.fetchLiveStreams(Set.of("ch1"))).thenReturn(liveStreams);
         when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1"));
         when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(streamTarget1));
         when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
 
         ingestionService.ingest();
 
+        verify(discoveryClient, never()).fetchLiveStreams(anySet());
         verify(eventPublisher, never()).publishEvent(any());
         verify(apiServerClient).syncStreams(anyList());
         verify(streamRepository).sync(results.closedStreamIds(), liveStreams);
@@ -144,13 +144,13 @@ class IngestionServiceTest {
 
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(targets);
         when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
-        when(discoveryClient.fetchLiveStreams(Set.of("ch1"))).thenReturn(targets);
         when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1"));
         when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(target));
         when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
 
         ingestionService.ingest();
 
+        verify(discoveryClient, never()).fetchLiveStreams(anySet());
         verify(apiServerClient, times(1)).syncStreams(anyList());
         verify(eventPublisher, never()).publishEvent(any());
         verify(streamRepository).sync(results.closedStreamIds(), targets);
@@ -178,22 +178,23 @@ class IngestionServiceTest {
 
     @Test
     void 메타데이터_변경이_감지되면_API_서버에_세그먼트_기록을_전송해야_한다() {
-        StreamTarget dummyTarget = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 100, "url", "cat", Instant.EPOCH);
-        ChangedStream changed = new ChangedStream("ch1", "live1", "롤", "롤 솔랭", "GAME", "GAME", Instant.EPOCH, 0L);
+        StreamTarget cachedTarget = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 100, "url", "cat", Instant.EPOCH);
+        StreamTarget changedLiveTarget = new StreamTarget("ch1", "이름", null, 1L, "변경된 제목", 150, "url", "cat", Instant.EPOCH);
+        ChangedStream changed = new ChangedStream("ch1", "1", "제목", "변경된 제목", "cat", "cat", Instant.EPOCH, 0L);
         Set<ChangedStream> changedStreams = Set.of(changed);
         StreamUpdateResults results = new StreamUpdateResults(Set.of(), Set.of(), changedStreams, Instant.now());
 
-        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(List.of(dummyTarget));
+        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(List.of(changedLiveTarget));
         when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
-        when(discoveryClient.fetchLiveStreams(Set.of("ch1"))).thenReturn(List.of(dummyTarget));
         when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1"));
-        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(dummyTarget));
+        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(cachedTarget));
         when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
 
         ingestionService.ingest();
 
+        verify(discoveryClient, never()).fetchLiveStreams(anySet());
         verify(apiServerClient).recordNewSegments(anyList());
-        verify(streamRepository).sync(results.closedStreamIds(), List.of(dummyTarget));
+        verify(streamRepository).sync(results.closedStreamIds(), List.of(changedLiveTarget.withChatChannelId("chat1")));
     }
 
     @Test
@@ -203,13 +204,13 @@ class IngestionServiceTest {
 
         when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(List.of(dummyTarget));
         when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
-        when(discoveryClient.fetchLiveStreams(Set.of("ch1"))).thenReturn(List.of(dummyTarget));
         when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1"));
         when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(dummyTarget));
         when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
 
         ingestionService.ingest();
 
+        verify(discoveryClient, never()).fetchLiveStreams(anySet());
         verify(apiServerClient, never()).recordNewSegments(anyList());
         verify(streamRepository).sync(results.closedStreamIds(), List.of(dummyTarget));
     }
@@ -314,5 +315,43 @@ class IngestionServiceTest {
             .orElseThrow();
         assertThat(ch2Request.concurrentUserCount()).isEqualTo(500);
         assertThat(ch2Request.startedAt()).isNull();
+    }
+
+    @Test
+    void 이미_추적_중인_동일_세션_스트림은_상세_API를_호출하지_않고_캐시된_chatChannelId를_재사용한다() {
+        StreamTarget cachedTarget = new StreamTarget("ch1", "침착맨", "chatCh1", 1001L, "과거제목", 1000, "url1", "소통", Instant.EPOCH);
+        StreamTarget liveTarget = new StreamTarget("ch1", "침착맨", null, 1001L, "최신제목", 2500, "url1", "소통", Instant.EPOCH);
+        StreamUpdateResults results = new StreamUpdateResults(Collections.emptySet(), Collections.emptySet(), Collections.emptySet(), Instant.now());
+
+        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(List.of(liveTarget));
+        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
+        when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1"));
+        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(cachedTarget));
+        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
+
+        ingestionService.ingest();
+
+        verify(discoveryClient, never()).fetchLiveStreams(anySet());
+        verify(streamRepository).sync(results.closedStreamIds(), List.of(liveTarget.withChatChannelId("chatCh1")));
+    }
+
+    @Test
+    void 동일_채널이더라도_liveId가_변경된_새_방송은_상세_API를_호출한다() {
+        StreamTarget cachedTarget = new StreamTarget("ch1", "침착맨", "chatCh1_old", 1001L, "과거방송", 1000, "url1", "소통", Instant.EPOCH);
+        StreamTarget newLiveTarget = new StreamTarget("ch1", "침착맨", null, 1002L, "새로운방송", 3000, "url1", "게임", Instant.EPOCH);
+        StreamTarget detailedNewTarget = new StreamTarget("ch1", "침착맨", "chatCh1_new", 1002L, "새로운방송", 3000, "url1", "게임", Instant.EPOCH);
+        StreamUpdateResults results = new StreamUpdateResults(Set.of(detailedNewTarget), Collections.emptySet(), Collections.emptySet(), Instant.now());
+
+        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(List.of(newLiveTarget));
+        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
+        when(discoveryClient.fetchLiveStreams(Set.of("ch1"))).thenReturn(List.of(detailedNewTarget));
+        when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1"));
+        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(cachedTarget));
+        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
+
+        ingestionService.ingest();
+
+        verify(discoveryClient).fetchLiveStreams(Set.of("ch1"));
+        verify(streamRepository).sync(results.closedStreamIds(), List.of(detailedNewTarget));
     }
 }

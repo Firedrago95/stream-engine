@@ -50,19 +50,16 @@ public class IngestionService {
             Instant now = Instant.now();
             Set<String> activeChannelIds = streamRepository.getActiveChannelIds();
 
-            Set<String> activeTargetChannels = targetStreamPool.getAllActiveTargetChannels();
-            Set<String> targetLiveIds = topLiveStreams.stream()
-                .map(StreamTarget::channelId)
-                .filter(activeTargetChannels::contains)
-                .collect(Collectors.toSet());
-
-            List<StreamTarget> currentTargetStreams = targetLiveIds.isEmpty()
-                ? Collections.emptyList()
-                : streamDiscoveryClient.fetchLiveStreams(targetLiveIds);
-
             List<StreamTarget> activeStreamTargets = streamRepository.getStreamTargets(
                 new ArrayList<>(activeChannelIds)
             );
+
+            Set<String> activeTargetChannels = targetStreamPool.getAllActiveTargetChannels();
+            List<StreamTarget> targetLiveStreams = topLiveStreams.stream()
+                .filter(stream -> activeTargetChannels.contains(stream.channelId()))
+                .toList();
+
+            List<StreamTarget> currentTargetStreams = resolveCurrentTargetStreams(targetLiveStreams, activeStreamTargets);
 
             StreamUpdateResults updateResults = streamUpdateAnalyzer.analyze(
                 currentTargetStreams,
@@ -78,6 +75,40 @@ public class IngestionService {
         } catch (Exception e) {
             log.error("[Ingestion] 수집 주기 중 오류 발생: {}", e.getMessage(), e);
         }
+    }
+
+    private List<StreamTarget> resolveCurrentTargetStreams(
+        List<StreamTarget> targetLiveStreams,
+        List<StreamTarget> activeStreamTargets
+    ) {
+        Map<String, StreamTarget> activeTargetMap = activeStreamTargets.stream()
+            .collect(Collectors.toMap(StreamTarget::channelId, target -> target, (existing, replacing) -> existing));
+
+        Set<String> newChannelIds = new HashSet<>();
+        List<StreamTarget> resolvedTargets = new ArrayList<>();
+
+        for (StreamTarget liveTarget : targetLiveStreams) {
+            StreamTarget oldTarget = activeTargetMap.get(liveTarget.channelId());
+            if (isSameLiveSession(oldTarget, liveTarget)) {
+                resolvedTargets.add(liveTarget.withChatChannelId(oldTarget.chatChannelId()));
+            } else {
+                newChannelIds.add(liveTarget.channelId());
+            }
+        }
+
+        if (!newChannelIds.isEmpty()) {
+            List<StreamTarget> newDetailedStreams = streamDiscoveryClient.fetchLiveStreams(newChannelIds);
+            resolvedTargets.addAll(newDetailedStreams);
+        }
+
+        return resolvedTargets;
+    }
+
+    private boolean isSameLiveSession(StreamTarget oldTarget, StreamTarget newTarget) {
+        return oldTarget != null
+            && oldTarget.liveId() == newTarget.liveId()
+            && oldTarget.chatChannelId() != null
+            && !oldTarget.chatChannelId().isBlank();
     }
 
     private void handleExternalSync(List<StreamTarget> allLiveTargets, List<StreamTarget> detailedTargets, StreamUpdateResults results) {
