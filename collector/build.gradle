@@ -30,6 +30,7 @@ dependencies {
     // Utility & Metrics
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'org.bitbucket.b_c:jose4j:0.9.6'
 
     // Lombok
     compileOnly 'org.projectlombok:lombok'
