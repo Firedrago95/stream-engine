@@ -3,6 +3,7 @@ package io.slice.stream.collector.infrastructure.kafka;
 import io.slice.stream.collector.domain.ChatMessageListener;
 import io.slice.stream.core.model.ChatMessage;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 
@@ -32,7 +33,14 @@ public class ChzzkChatCollector implements ChatMessageListener {
         }
         log.info("[Kafka 전송] {}건의 채팅을 Kafka로 전송합니다. 채널 ID: {}, 토픽: {}", messages.size(), streamId, topic);
         for (ChatMessage msg : messages) {
-            kafkaTemplate.send(topic, streamId, msg);
+            CompletableFuture<?> future = kafkaTemplate.send(topic, streamId, msg);
+            if (future != null) {
+                future.whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("[Kafka 전송 실패] 채널 ID: {}, 토픽: {}, 오류: {}", streamId, topic, ex.getMessage(), ex);
+                    }
+                });
+            }
         }
     }
 

@@ -102,7 +102,27 @@ class CollectorTargetPollerTest {
         FakeChatCollector secondCollector = fakeCollectorFactory.getCollector("ch_target_1");
 
         assertThat(firstCollector).isSameAs(secondCollector);
-        assertThat(chatManager.getActiveChannelIds()).hasSize(1);
+        assertThat(firstCollector.isConnected()).isTrue();
+    }
+
+    @Test
+    @DisplayName("타겟 조회 중 일시적 Redis 장애(예외)가 발생해도 기존 활성 수집기는 종료되지 않고 안전하게 유지된다")
+    void preserveActiveCollectorsWhenTargetReaderThrowsException() {
+        // given: 정상적으로 1개 채널 수집 중
+        fakeTargetStreamReader.addTarget("ch_target_1");
+        StreamTarget liveTarget = new StreamTarget("ch_target_1", "침착맨", "chat_room_1", 100L, "제목1", 500, "thumb1.jpg", "소통", Instant.now());
+        fakeLiveStatusClient.setOpenStream(liveTarget);
+        poller.pollTargets();
+        assertThat(chatManager.getActiveChannelIds()).contains("ch_target_1");
+
+        // when: Redis 장애 발생 (예외 발생) 후 폴링
+        fakeTargetStreamReader.setThrowOnRead(true);
+        poller.pollTargets();
+
+        // then: 빈 타겟으로 오판하여 수집기를 종료하지 않고 그대로 유지됨
+        assertThat(chatManager.getActiveChannelIds()).contains("ch_target_1");
+        FakeChatCollector collector = fakeCollectorFactory.getCollector("ch_target_1");
+        assertThat(collector.isConnected()).isTrue();
     }
 
     @Test
@@ -111,5 +131,28 @@ class CollectorTargetPollerTest {
         poller.pollTargets();
 
         assertThat(chatManager.getActiveChannelIds()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("동일 채널이 새 방송을 시작하여 chatChannelId가 변경되면 폴러가 이를 감지하여 새 채팅방으로 갱신한다")
+    void refreshCollectorWhenStreamRestartedWithNewChatChannelId() {
+        // given: 1차 방송 수집 중
+        fakeTargetStreamReader.addTarget("ch_target_1");
+        StreamTarget firstLive = new StreamTarget("ch_target_1", "침착맨", "chat_room_old", 100L, "1차 방송", 500, "thumb1.jpg", "소통", Instant.now());
+        fakeLiveStatusClient.setOpenStream(firstLive);
+        poller.pollTargets();
+        FakeChatCollector firstCollector = fakeCollectorFactory.getCollector("ch_target_1");
+        assertThat(firstCollector.isConnected()).isTrue();
+
+        // when: 새 방송 시작으로 chatChannelId 변경됨
+        StreamTarget secondLive = new StreamTarget("ch_target_1", "침착맨", "chat_room_new", 200L, "2차 방송", 700, "thumb1.jpg", "소통", Instant.now());
+        fakeLiveStatusClient.setOpenStream(secondLive);
+        poller.pollTargets();
+
+        // then: 기존 수집기는 종료되고 새 수집기가 연결됨
+        assertThat(firstCollector.isConnected()).isFalse();
+        FakeChatCollector newCollector = fakeCollectorFactory.getCollector("ch_target_1");
+        assertThat(newCollector.isConnected()).isTrue();
+        assertThat(chatManager.isCollecting("ch_target_1", "chat_room_new")).isTrue();
     }
 }

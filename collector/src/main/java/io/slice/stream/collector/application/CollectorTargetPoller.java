@@ -51,7 +51,7 @@ public class CollectorTargetPoller {
             .collect(Collectors.toMap(StreamTarget::channelId, target -> target, (existing, replace) -> existing));
 
         Set<StreamTarget> missingTargets = openStreams.stream()
-            .filter(target -> !chatManager.isCollecting(target.channelId()))
+            .filter(target -> !chatManager.isCollecting(target.channelId(), target.chatChannelId()))
             .collect(Collectors.toSet());
 
         Set<String> activeChannelIds = chatManager.getActiveChannelIds();

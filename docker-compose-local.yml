@@ -70,7 +70,7 @@ services:
     container_name: slice-stream-collector
     ports:
       - "${COLLECTOR_EXTERNAL_PORT:-8082}:8080"
-      - "9092:9090"  # Actuator 포트
+      - "127.0.0.1:9092:9090"  # Actuator 포트 (로컬 루프백 제한)
     environment:
       JAVA_OPTS: "-Xms512M -Xmx512M"
       SPRING_DATA_REDIS_HOST: redis

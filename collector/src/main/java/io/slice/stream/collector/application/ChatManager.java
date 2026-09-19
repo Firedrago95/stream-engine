@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class ChatManager {
 
-    private final Map<String, ChatCollector> chatCollectors = new ConcurrentHashMap<>();
+    private final Map<String, ActiveCollector> chatCollectors = new ConcurrentHashMap<>();
     private final ChatCollectorFactory chatCollectorFactory;
     private final Executor executor;
 
@@ -52,9 +52,9 @@ public class ChatManager {
             return;
         }
         closedStreams.forEach(closedStream -> {
-            ChatCollector collector = chatCollectors.remove(closedStream.channelId());
-            if (collector != null) {
-                collector.disconnect();
+            ActiveCollector activeCollector = chatCollectors.remove(closedStream.channelId());
+            if (activeCollector != null) {
+                activeCollector.collector().disconnect();
                 log.info("[수집기 종료] 채널 ID: {}", closedStream.channelId());
             }
         });
@@ -84,9 +84,19 @@ public class ChatManager {
             if (index > 0) {
                 Thread.sleep(index * 600L);
             }
-            chatCollectors.computeIfAbsent(streamTarget.channelId(), id -> {
-                log.info("[수집기 시작] 채널 ID: {}, 스트리머: {}", streamTarget.channelId(), streamTarget.channelName());
-                return chatCollectorFactory.start(streamTarget);
+            chatCollectors.compute(streamTarget.channelId(), (id, existing) -> {
+                if (existing != null) {
+                    if (existing.chatChannelId().equals(streamTarget.chatChannelId())) {
+                        return existing;
+                    }
+                    existing.collector().disconnect();
+                    log.info("[채팅방 변경 감지] 이전 수집기를 종료하고 새 채팅방으로 교체합니다. 채널 ID: {}, 이전 채팅방: {}, 신규 채팅방: {}",
+                        id, existing.chatChannelId(), streamTarget.chatChannelId());
+                }
+                log.info("[수집기 시작] 채널 ID: {}, 스트리머: {}, 채팅방: {}",
+                    streamTarget.channelId(), streamTarget.channelName(), streamTarget.chatChannelId());
+                ChatCollector newCollector = chatCollectorFactory.start(streamTarget);
+                return new ActiveCollector(streamTarget.chatChannelId(), newCollector);
             });
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -101,7 +111,14 @@ public class ChatManager {
         return Collections.unmodifiableSet(chatCollectors.keySet());
     }
 
+    public boolean isCollecting(String channelId, String chatChannelId) {
+        ActiveCollector active = chatCollectors.get(channelId);
+        return active != null && active.chatChannelId().equals(chatChannelId);
+    }
+
     public boolean isCollecting(String channelId) {
         return chatCollectors.containsKey(channelId);
     }
+
+    private record ActiveCollector(String chatChannelId, ChatCollector collector) {}
 }

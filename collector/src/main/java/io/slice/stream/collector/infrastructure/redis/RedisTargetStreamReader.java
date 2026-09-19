@@ -29,7 +29,7 @@ public class RedisTargetStreamReader implements TargetStreamReader {
             return members;
         } catch (Exception e) {
             log.error("[Redis 타겟 풀 조회 실패] 키: {}, 오류: {}", trendRedisKey, e.getMessage());
-            return Collections.emptySet();
+            throw new IllegalStateException("[Redis 타겟 풀 조회 실패] 키: " + trendRedisKey, e);
         }
     }
 }

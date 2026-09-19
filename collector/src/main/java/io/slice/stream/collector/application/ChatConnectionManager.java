@@ -100,15 +100,20 @@ public class ChatConnectionManager implements ChatCollector, ChatMessageListener
                     if (delayMillis > 0) {
                         Thread.sleep(delayMillis);
                     }
-                    connect();
                 } catch (InterruptedException e) {
                     log.warn("[재연결 중단] 대기 중 스레드가 인터럽트되었습니다. 채널 ID: {}", channelId);
                     Thread.currentThread().interrupt();
+                    return;
                 } finally {
                     isReconnecting.set(false);
                 }
+                connect();
             });
         }
+    }
+
+    boolean isReconnecting() {
+        return isReconnecting.get();
     }
 
     @Override

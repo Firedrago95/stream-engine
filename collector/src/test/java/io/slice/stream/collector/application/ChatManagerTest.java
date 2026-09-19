@@ -80,6 +80,26 @@ class ChatManagerTest {
     }
 
     @Test
+    @DisplayName("동일 채널에서 chatChannelId가 변경된 타겟이 들어오면 기존 수집기를 disconnect하고 새 수집기로 자동 교체한다")
+    void replaceCollectorWhenChatChannelIdChanged() {
+        StreamTarget oldTarget = new StreamTarget("ch1", "스트리머1", "chatOld", 1L, "방송1", 100, "thumb1.jpg", "게임", Instant.now());
+        chatManager.manageStreams(Set.of(oldTarget), Collections.emptySet());
+        FakeChatCollector oldCollector = collectorFactory.getCollector("ch1");
+        assertThat(oldCollector.isConnected()).isTrue();
+        assertThat(chatManager.isCollecting("ch1", "chatOld")).isTrue();
+        assertThat(chatManager.isCollecting("ch1", "chatNew")).isFalse();
+
+        StreamTarget newTarget = new StreamTarget("ch1", "스트리머1", "chatNew", 2L, "방송2", 200, "thumb2.jpg", "게임", Instant.now());
+        chatManager.manageStreams(Set.of(newTarget), Collections.emptySet());
+
+        assertThat(oldCollector.isConnected()).isFalse();
+        FakeChatCollector newCollector = collectorFactory.getCollector("ch1");
+        assertThat(newCollector.isConnected()).isTrue();
+        assertThat(chatManager.isCollecting("ch1", "chatNew")).isTrue();
+    }
+
+
+    @Test
     @DisplayName("수집기 활성화 시 기존 engine 및 collector 규격의 웹소켓 연결 게이지가 모두 정확히 반영된다")
     void measureActiveWebSocketConnectionsMetrics() {
         StreamTarget target1 = new StreamTarget("ch1", "스트리머1", "chat1", 1L, "방송1", 100, "thumb1.jpg", "게임", Instant.now());

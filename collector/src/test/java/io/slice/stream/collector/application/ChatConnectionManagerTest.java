@@ -78,4 +78,15 @@ class ChatConnectionManagerTest {
 
         assertThat(fakeChatClient.isConnected()).isFalse();
     }
+
+    @Test
+    @DisplayName("connect 도중 동기 예외가 발생해도 isReconnecting 플래그가 해제된 후 재연결이 정상 실행된다")
+    void continueReconnectingEvenWhenConnectThrowsSynchronousException() {
+        fakeChatClient.setThrowTimes(1);
+
+        connectionManager.start();
+
+        assertThat(fakeChatClient.isConnected()).isTrue();
+        assertThat(connectionManager.isReconnecting()).isFalse();
+    }
 }

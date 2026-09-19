@@ -80,8 +80,8 @@ public class ChzzkLiveStatusClient implements LiveStatusClient {
                 startedAt
             );
         } catch (Exception e) {
-            log.debug("[상태 조회 실패] 채널 ID: {}, 사유: {}", channelId, e.getMessage());
-            return null;
+            log.warn("[상태 조회 실패] 채널 ID: {}, 사유: {}", channelId, e.getMessage());
+            throw new IllegalStateException("[상태 조회 실패] 채널 ID: " + channelId, e);
         }
     }
 }

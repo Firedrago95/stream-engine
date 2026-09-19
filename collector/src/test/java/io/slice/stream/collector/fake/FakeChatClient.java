@@ -11,9 +11,14 @@ public class FakeChatClient implements ChatClient {
     private ChatMessageListener listener;
     private boolean connected = false;
     private boolean throwOnConnect = false;
+    private int throwTimes = 0;
 
     @Override
     public void connect(String channelId, String chatChannelId, ChatMessageListener listener) throws URISyntaxException {
+        if (throwTimes > 0) {
+            throwTimes--;
+            throw new RuntimeException("강제 연결 에러");
+        }
         if (throwOnConnect) {
             throw new RuntimeException("강제 연결 에러");
         }
@@ -44,6 +49,10 @@ public class FakeChatClient implements ChatClient {
 
     public void setThrowOnConnect(boolean throwOnConnect) {
         this.throwOnConnect = throwOnConnect;
+    }
+
+    public void setThrowTimes(int throwTimes) {
+        this.throwTimes = throwTimes;
     }
 
     public boolean isConnected() {

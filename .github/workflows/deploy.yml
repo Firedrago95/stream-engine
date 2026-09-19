@@ -116,6 +116,9 @@ jobs:
   deploy-engine:
     needs: detect-changes
     if: needs.detect-changes.outputs.engine == 'true'
+    concurrency:
+      group: cheese-pick-compose-deploy
+      cancel-in-progress: false
     runs-on: [self-hosted, X64]
     steps:
       - name: Checkout Code
@@ -168,6 +171,9 @@ jobs:
   deploy-collector:
     needs: detect-changes
     if: needs.detect-changes.outputs.collector == 'true'
+    concurrency:
+      group: cheese-pick-compose-deploy
+      cancel-in-progress: false
     runs-on: [self-hosted, X64]
     steps:
       - name: Checkout Code
