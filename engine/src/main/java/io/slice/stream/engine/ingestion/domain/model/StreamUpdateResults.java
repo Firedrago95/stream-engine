@@ -1,6 +1,6 @@
 package io.slice.stream.engine.ingestion.domain.model;
 
-import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.core.model.StreamTarget;
 import java.time.Instant;
 import java.util.Set;
 

@@ -3,7 +3,7 @@ package io.slice.stream.engine.ingestion.domain.service;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
-import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.core.model.StreamTarget;
 import io.slice.stream.engine.ingestion.domain.model.ChangedStream;
 import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
 import java.time.Duration;

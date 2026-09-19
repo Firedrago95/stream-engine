@@ -7,7 +7,7 @@ export async function scanSystemErrors({ limit = 50, lookbackMinutes = 15 } = {}
   const endNs = BigInt(Date.now()) * 1000000n;
   const startNs = endNs - (BigInt(safeLookback) * 60n * 1000n * 1000000n);
 
-  const logql = '{filename=~".*engine.*"} |= "ERROR"';
+  const logql = '{filename=~".*(engine|collector).*"} |= "ERROR"';
   const logsResult = await queryLogql(logql, safeLimit, startNs.toString(), endNs.toString());
 
   const errorLines = [];

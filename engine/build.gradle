@@ -19,6 +19,7 @@ repositories {
 }
 
 dependencies {
+    implementation project(':core')
     // Core Starters
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-web'

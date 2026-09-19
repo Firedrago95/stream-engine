@@ -13,7 +13,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.slice.stream.engine.core.event.StreamChangedEvent;
-import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.core.model.StreamTarget;
 import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
 import io.slice.stream.engine.ingestion.domain.model.ChangedStream;
 import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;

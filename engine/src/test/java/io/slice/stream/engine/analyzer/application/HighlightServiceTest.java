@@ -22,7 +22,7 @@ import io.slice.stream.engine.analyzer.domain.signal.HighlightSignalClient;
 import io.slice.stream.engine.analyzer.domain.stream.ActiveStreamProvider;
 import io.slice.stream.engine.analyzer.domain.tier.StreamTier;
 import io.slice.stream.engine.analyzer.domain.tier.StreamTierInfo;
-import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.core.model.StreamTarget;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;

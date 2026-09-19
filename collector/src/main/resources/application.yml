@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: slice-stream-collector
+
+  config:
+    import: "optional:file:.env[.properties]"
+
+  threads:
+    virtual:
+      enabled: true
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+management:
+  server:
+    port: ${MANAGEMENT_SERVER_PORT:9090}
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: collector
+
+chzzk:
+  api:
+    base-url: "https://api.chzzk.naver.com"
+    live-status-polling: "/polling/v2/channels/{channelId}/live-status"
+  game-api:
+    base-url: "https://comm-api.game.naver.com"
+
+collector:
+  polling:
+    interval-ms: 15000
+
+targeting:
+  trend-redis-key: "target:streamers:pool"
+
+kafka:
+  topic:
+    chat: "chat-messages"
+
+logging:
+  level:
+    io.slice.stream.collector.infrastructure.chzzk.websocket.ChzzkWebSocketListener: WARN
+    io.slice.stream.collector.infrastructure.kafka.ChzzkChatCollector: WARN

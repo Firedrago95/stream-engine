@@ -3,7 +3,7 @@ package io.slice.stream.engine.ingestion.domain.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
-import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.core.model.StreamTarget;
 import io.slice.stream.engine.ingestion.domain.model.ChangedStream;
 import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
 import java.time.Instant;

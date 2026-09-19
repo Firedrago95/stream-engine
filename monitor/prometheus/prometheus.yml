@@ -18,3 +18,9 @@ scrape_configs:
       # 배포 후 상태: api-server가 EC2로 넘어가면 아래 타겟을 EC2의 공인 IP로 변경해야 한다.
       # 예시: - targets: ['3.3.3.3:9090'] 
       - targets: ['api:9090'] # docker-compose.yml의 api-server 서비스 이름('api')과 맞춰줍니다.
+
+  # 3. 실시간 채팅 수집기 모듈 수집
+  - job_name: 'collector-home'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['collector:9090']

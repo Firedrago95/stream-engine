@@ -1,7 +1,7 @@
 package io.slice.stream.engine.ingestion.infrastructure.chzzk;
 
 import com.google.common.util.concurrent.RateLimiter;
-import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.core.model.StreamTarget;
 import io.slice.stream.engine.global.error.ErrorCode;
 import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
 import io.slice.stream.engine.ingestion.domain.error.IngestionException;

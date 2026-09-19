@@ -4,7 +4,7 @@ import io.slice.stream.engine.analyzer.domain.aggregation.ChatAggregationResult;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatAggregationResult.DataPoint;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregation;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregationRepository;
-import io.slice.stream.engine.core.redis.Rediskeys;
+import io.slice.stream.core.redis.Rediskeys;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;

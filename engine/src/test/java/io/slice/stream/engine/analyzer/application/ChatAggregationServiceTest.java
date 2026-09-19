@@ -12,7 +12,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregation;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregationRepository;
-import io.slice.stream.engine.chat.domain.model.ChatMessage;
+import io.slice.stream.core.model.ChatMessage;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSessionSummary;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
@@ -52,7 +52,7 @@ class ChatAggregationServiceTest {
     }
 
     private ChatMessage createChatMessage(String streamId, Instant time, boolean isSubscriber) {
-        return new ChatMessage(null, new io.slice.stream.engine.chat.domain.model.Author("test", "test", "url", isSubscriber), "message", time, streamId, 0L, null);
+        return new ChatMessage(null, new io.slice.stream.core.model.Author("test", "test", "url", isSubscriber), "message", time, streamId, 0L, null);
     }
 
     @Test
@@ -210,7 +210,7 @@ class ChatAggregationServiceTest {
             chatAggregationService.aggregate(createChatMessage(streamId, Instant.now(), true));
         }
 
-        io.slice.stream.engine.core.model.StreamTarget closedTarget = new io.slice.stream.engine.core.model.StreamTarget(streamId, "이름", "chat1", 999L, "제목", 100, "url", "cat", Instant.EPOCH);
+        io.slice.stream.core.model.StreamTarget closedTarget = new io.slice.stream.core.model.StreamTarget(streamId, "이름", "chat1", 999L, "제목", 100, "url", "cat", Instant.EPOCH);
         io.slice.stream.engine.core.event.StreamChangedEvent event = new io.slice.stream.engine.core.event.StreamChangedEvent(
             Collections.emptySet(),
             Set.of(closedTarget),

@@ -2,7 +2,7 @@ package io.slice.stream.engine.ingestion.infrastructure.apiServer.dto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.core.model.StreamTarget;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;

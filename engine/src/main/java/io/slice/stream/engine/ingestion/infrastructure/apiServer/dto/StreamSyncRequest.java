@@ -1,6 +1,6 @@
 package io.slice.stream.engine.ingestion.infrastructure.apiServer.dto;
 
-import io.slice.stream.engine.core.model.StreamTarget;
+import io.slice.stream.core.model.StreamTarget;
 import java.time.Instant;
 
 public record StreamSyncRequest(
