@@ -175,19 +175,21 @@ class ChzzkDiscoveryClientTest {
     }
 
     @Test
-    void 마지막_방송의_시청자수가_0명이면_다음_페이지_커서가_있어도_순회를_즉시_종료한다() throws Exception {
+    void 마지막_방송의_시청자수가_10명_미만이면_10명_이상만_수집하고_다음_페이지_커서가_있어도_순회를_즉시_종료한다() throws Exception {
         ChzzkLive live1 = new ChzzkLive(1001L, "방송1", "url", "게임", "chatCh1", 100, false, new Channel("ch1", "스트리머1", "imageUrl"));
-        ChzzkLive live2 = new ChzzkLive(1002L, "방송2", "url", "게임", "chatCh2", 0, false, new Channel("ch2", "스트리머2", "imageUrl"));
+        ChzzkLive live2 = new ChzzkLive(1002L, "방송2", "url", "게임", "chatCh2", 10, false, new Channel("ch2", "스트리머2", "imageUrl"));
+        ChzzkLive live3 = new ChzzkLive(1003L, "방송3", "url", "게임", "chatCh3", 9, false, new Channel("ch3", "스트리머3", "imageUrl"));
 
-        ChzzkLiveResponse pageResponse = createMockResponse(List.of(live1, live2), 0L, 1002L);
+        ChzzkLiveResponse pageResponse = createMockResponse(List.of(live1, live2, live3), 9L, 1003L);
         mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
             .andRespond(withSuccess(objectMapper.writeValueAsString(pageResponse), MediaType.APPLICATION_JSON));
 
         List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(200);
 
         mockServer.verify();
-        assertThat(result).hasSize(2);
-        assertThat(result.get(1).concurrentUserCount()).isEqualTo(0);
+        assertThat(result).hasSize(2)
+            .extracting(StreamTarget::concurrentUserCount)
+            .containsExactly(100, 10);
     }
 
     @Test

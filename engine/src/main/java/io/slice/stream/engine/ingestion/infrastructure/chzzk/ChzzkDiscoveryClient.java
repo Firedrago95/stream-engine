@@ -38,6 +38,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 @RequiredArgsConstructor
 public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
 
+    private static final int MIN_CONCURRENT_USERS = 10;
+
     private final RestClient restClient;
     private final ExecutorService virtualThreadExecutor;
     private final RateLimiter rateLimiter = RateLimiter.create(10.0);
@@ -145,13 +147,13 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             List<ChzzkLive> data = topLiveResponse.content().data();
 
             List<ChzzkLive> validLives = data.stream()
-                .filter(live -> !live.adult())
+                .filter(live -> !live.adult() && live.concurrentUserCount() >= MIN_CONCURRENT_USERS)
                 .toList();
 
             collectedLives.addAll(validLives);
 
             ChzzkLive lastLive = data.get(data.size() - 1);
-            if (lastLive.concurrentUserCount() == 0) {
+            if (lastLive.concurrentUserCount() < MIN_CONCURRENT_USERS) {
                 break;
             }
 
