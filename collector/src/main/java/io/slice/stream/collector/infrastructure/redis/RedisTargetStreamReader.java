@@ -1,6 +1,7 @@
 package io.slice.stream.collector.infrastructure.redis;
 
 import io.slice.stream.collector.domain.TargetStreamReader;
+import io.slice.stream.core.redis.Rediskeys;
 import java.util.Collections;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -16,8 +17,8 @@ public class RedisTargetStreamReader implements TargetStreamReader {
 
     private final StringRedisTemplate redisTemplate;
 
-    @Value("${targeting.trend-redis-key:target:streamers:pool}")
-    private String trendRedisKey = "target:streamers:pool";
+    @Value("${targeting.trend-redis-key:stream:targets}")
+    private String trendRedisKey = Rediskeys.STREAM_TARGETS;
 
     @Override
     public Set<String> getTargetChannels() {

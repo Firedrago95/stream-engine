@@ -77,7 +77,7 @@ services:
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
-      TARGETING_TREND_REDIS_KEY: "target:streamers:pool"
+      TARGETING_TREND_REDIS_KEY: "stream:targets"
     depends_on:
       kafka:
         condition: service_healthy

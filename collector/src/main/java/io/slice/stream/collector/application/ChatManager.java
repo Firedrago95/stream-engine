@@ -100,6 +100,8 @@ public class ChatManager {
             });
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            log.error("[수집기 시작 실패] 채널 ID: {}, 사유: {}", streamTarget.channelId(), e.getMessage(), e);
         }
     }
 

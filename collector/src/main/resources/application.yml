@@ -46,7 +46,7 @@ collector:
     interval-ms: 15000
 
 targeting:
-  trend-redis-key: "target:streamers:pool"
+  trend-redis-key: "stream:targets"
 
 kafka:
   topic:
