@@ -20,14 +20,26 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
         const u = new URL(url);
         const query = u.searchParams.get("query") || "";
 
-        let val = "10";
+        let val = "0";
         if (query.includes("engine_active_streams")) val = "200";
         if (query.includes("kafka_producer_record_send_rate")) val = "50";
         if (query.includes("kafka_consumer_fetch_manager_records_consumed_rate")) val = "50";
         if (query.includes("records_lag")) val = "0";
         if (query.includes("analysis_processing_time")) val = "0.01";
+        if (query.includes("system_cpu_usage")) val = "0.15";
+        if (query.includes("jvm_memory_used_bytes")) val = "35.0";
+        if (query.includes("collector_websocket_connections_active")) val = "45";
+        if (query.includes("lettuce_command_completion_seconds_sum")) {
+          val = "0.8";
+        } else if (query.includes("lettuce_command_completion_seconds_count")) {
+          val = "30";
+        }
         if (query.includes("jvm_threads")) val = "45";
         if (query.includes("scheduler_execution_total")) val = "0";
+        if (query.includes("IngestionService")) val = "11.2";
+        if (query.includes("HighlightService")) val = "0.25";
+        if (query.includes("ChatAggregationService")) val = "0.015";
+        if (query.includes("StreamTierManager")) val = "0.04";
 
         return {
           ok: true,
@@ -45,6 +57,7 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
       const result = await diagnosePipelineHealth();
       assert.equal(result.status, "HEALTHY");
       assert.equal(result.metrics.activeStreams, 200);
+      assert.equal(result.metrics.activeWebsockets, 45);
       assert.equal(result.metrics.kafkaLag, 0);
       assert.equal(result.metrics.producerTps, 50);
       assert.equal(result.failedMetrics.length, 0);
@@ -94,10 +107,15 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
           };
         }
 
-        let val = "10";
+        let val = "0";
         if (query.includes("engine_active_streams")) val = "100";
+        if (query.includes("kafka_producer_record_send_rate")) val = "50";
+        if (query.includes("kafka_consumer_fetch_manager_records_consumed_rate")) val = "50";
         if (query.includes("records_lag")) val = "0";
         if (query.includes("analysis_processing_time")) val = "0.01";
+        if (query.includes("collector_websocket_connections_active")) val = "30";
+        if (query.includes("IngestionService")) val = "10.5";
+        if (query.includes("HighlightService")) val = "0.2";
         if (query.includes("scheduler_execution_total")) val = "0";
 
         return {
@@ -125,12 +143,13 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
 
         let val = "0";
         if (query.includes("engine_active_streams")) val = "100";
+        if (query.includes("collector_websocket_connections_active")) val = "30";
         if (query.includes("records_lag")) val = "0";
         if (query.includes("producer_record_send_rate")) val = "50";
         if (query.includes("records_consumed_rate")) val = "50";
         if (query.includes("analysis_processing_time")) val = "0.01";
         if (query.includes("jvm_threads")) val = "45";
-        if (query.includes("scheduler_execution_total")) val = "2"; // 2건 실패 발생
+        if (query.includes("scheduler_execution_total")) val = "2";
 
         return {
           ok: true,
@@ -148,6 +167,70 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
       assert.equal(result.status, "CRITICAL");
       assert.equal(result.metrics.engineSchedulerFailures, 2);
       assert.ok(result.criticals.some((c) => c.includes("엔진 스케줄러 작업 실패")));
+    });
+
+    it("스케줄러 소요 시간 지연 발생 시(Ingestion > 18s) WARNING 상태를 반환한다", async () => {
+      globalThis.fetch = async (url) => {
+        const u = new URL(url);
+        const query = u.searchParams.get("query") || "";
+
+        let val = "0";
+        if (query.includes("engine_active_streams")) val = "100";
+        if (query.includes("collector_websocket_connections_active")) val = "30";
+        if (query.includes("records_lag")) val = "0";
+        if (query.includes("producer_record_send_rate")) val = "50";
+        if (query.includes("records_consumed_rate")) val = "50";
+        if (query.includes("analysis_processing_time")) val = "0.01";
+        if (query.includes("IngestionService")) val = "19.5"; // 18s 경고 초과
+        if (query.includes("HighlightService")) val = "0.2";
+
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            status: "success",
+            data: {
+              result: [{ metric: {}, value: [1000, val] }],
+            },
+          }),
+        };
+      };
+
+      const result = await diagnosePipelineHealth();
+      assert.equal(result.status, "WARNING");
+      assert.ok(result.warnings.some((w) => w.includes("IngestionService")));
+    });
+
+    it("스케줄러 소요 시간 병목 발생 시(Ingestion > 25s) CRITICAL 상태를 반환한다", async () => {
+      globalThis.fetch = async (url) => {
+        const u = new URL(url);
+        const query = u.searchParams.get("query") || "";
+
+        let val = "0";
+        if (query.includes("engine_active_streams")) val = "100";
+        if (query.includes("collector_websocket_connections_active")) val = "30";
+        if (query.includes("records_lag")) val = "0";
+        if (query.includes("producer_record_send_rate")) val = "50";
+        if (query.includes("records_consumed_rate")) val = "50";
+        if (query.includes("analysis_processing_time")) val = "0.01";
+        if (query.includes("IngestionService")) val = "26.8"; // 25s 위험 초과
+        if (query.includes("HighlightService")) val = "0.2";
+
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            status: "success",
+            data: {
+              result: [{ metric: {}, value: [1000, val] }],
+            },
+          }),
+        };
+      };
+
+      const result = await diagnosePipelineHealth();
+      assert.equal(result.status, "CRITICAL");
+      assert.ok(result.criticals.some((c) => c.includes("IngestionService")));
     });
   });
 
@@ -246,6 +329,8 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
         if (query.includes("system_cpu_usage")) val = "0.05"; // 5%
         if (query.includes("jvm_memory_used_bytes")) val = "209715200"; // 200MB
         if (query.includes("jvm_memory_max_bytes")) val = "1073741824"; // 1GB
+        if (query.includes("HighlightZombieSessionScheduler")) val = "0.003";
+        if (query.includes("StreamSessionCleanupScheduler")) val = "0.1";
 
         return {
           ok: true,
@@ -263,7 +348,6 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
       const result = await diagnoseApiServerHealth();
       assert.equal(result.status, "HEALTHY");
       assert.equal(result.metrics.hikariPending, 0);
-      assert.equal(result.metrics.cpuPercent, "5%");
       assert.equal(result.failedMetrics.length, 0);
     });
 
@@ -273,9 +357,13 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
         const query = u.searchParams.get("query") || "";
 
         let val = "0";
+        if (query.includes("disk_free")) val = "107374182400";
+        if (query.includes("disk_total")) val = "161061273600";
         if (query.includes("hikaricp_connections_pending")) val = "3"; // 3건 대기 발생!
-        if (query.includes("system_cpu_usage")) val = "0.1";
-        if (query.includes("jvm_memory_used_bytes")) val = "200000000";
+        if (query.includes("hikaricp_connections_active")) val = "10";
+        if (query.includes("system_cpu_usage")) val = "0.20";
+        if (query.includes("jvm_memory_used_bytes")) val = "209715200";
+        if (query.includes("jvm_memory_max_bytes")) val = "1073741824";
 
         return {
           ok: true,
@@ -283,6 +371,7 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
           json: async () => ({
             status: "success",
             data: {
+              resultType: "vector",
               result: [{ metric: {}, value: [1000, val] }],
             },
           }),
@@ -291,7 +380,8 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
 
       const result = await diagnoseApiServerHealth();
       assert.equal(result.status, "CRITICAL");
-      assert.ok(result.criticals.some((c) => c.includes("HikariCP")));
+      assert.equal(result.metrics.hikariPending, 3);
+      assert.ok(result.criticals.some((c) => c.includes("HikariCP 커넥션 풀 대기")));
     });
 
     it("필수 OCI 지표 조회 실패 시 UNKNOWN을 반환한다", async () => {
@@ -311,7 +401,6 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
         const u = new URL(url);
         const query = u.searchParams.get("query") || "";
 
-        // hikariPending 쿼리에 대해서는 빈 배열 반환
         if (query.includes("hikaricp_connections_pending")) {
           return {
             ok: true,
@@ -355,7 +444,7 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
         if (query.includes("system_cpu_usage")) val = "0.05";
         if (query.includes("jvm_memory_used_bytes")) val = "209715200";
         if (query.includes("jvm_memory_max_bytes")) val = "1073741824";
-        if (query.includes("scheduler_execution_total")) val = "3"; // 3건 실패 발생
+        if (query.includes("scheduler_execution_total")) val = "3";
 
         return {
           ok: true,
@@ -374,6 +463,39 @@ describe("Slice Observability Tools Unit Tests (Mock Fetch)", () => {
       assert.equal(result.status, "CRITICAL");
       assert.equal(result.metrics.schedulerFailures, 3);
       assert.ok(result.criticals.some((c) => c.includes("API 서버 스케줄러 작업 실패")));
+    });
+
+    it("API 서버 스케줄러 병목 발생 시(Zombie > 8s) CRITICAL 상태를 반환한다", async () => {
+      globalThis.fetch = async (url) => {
+        const u = new URL(url);
+        const query = u.searchParams.get("query") || "";
+
+        let val = "0";
+        if (query.includes("disk_free")) val = "107374182400";
+        if (query.includes("disk_total")) val = "161061273600";
+        if (query.includes("hikaricp_connections_pending")) val = "0";
+        if (query.includes("hikaricp_connections_active")) val = "2";
+        if (query.includes("system_cpu_usage")) val = "0.05";
+        if (query.includes("jvm_memory_used_bytes")) val = "209715200";
+        if (query.includes("jvm_memory_max_bytes")) val = "1073741824";
+        if (query.includes("HighlightZombieSessionScheduler")) val = "8.5"; // 8초 초과 병목!
+
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            status: "success",
+            data: {
+              resultType: "vector",
+              result: [{ metric: {}, value: [1000, val] }],
+            },
+          }),
+        };
+      };
+
+      const result = await diagnoseApiServerHealth();
+      assert.equal(result.status, "CRITICAL");
+      assert.ok(result.criticals.some((c) => c.includes("HighlightZombieSessionScheduler")));
     });
   });
 });

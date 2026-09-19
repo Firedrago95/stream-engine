@@ -167,7 +167,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "(sum(jvm_memory_used_bytes{job=\"engine-home\", area=\"heap\"}) / sum(jvm_memory_max_bytes{job=\"engine-home\", area=\"heap\"})) * 100",
@@ -358,7 +358,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "sum(rate(kafka_producer_record_send_total{job=~\"engine-home|collector-home\"}[5m]))",
@@ -422,7 +422,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "sum(rate(spring_kafka_listener_seconds_count{job=\"engine-home\"}[5m]))",
@@ -507,7 +507,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "kafka_consumer_fetch_manager_records_lag{job=\"engine-home\"}",
@@ -620,7 +620,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.95, sum by (le) (rate(analysis_processing_time_seconds_bucket{job=\"engine-home\"}[5m]))) * 1000",
@@ -631,7 +631,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "(rate(analysis_processing_time_seconds_sum{job=\"engine-home\"}[5m]) / rate(analysis_processing_time_seconds_count{job=\"engine-home\"}[5m])) * 1000",
@@ -735,7 +735,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "(sum(rate(lettuce_command_completion_seconds_sum{job=\"engine-home\"}[5m])) / \nsum(rate(lettuce_command_completion_seconds_count{job=\"engine-home\"}[5m]))) * 1000",
@@ -746,7 +746,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "max(lettuce_command_completion_seconds_max{job=\"engine-home\"}) * 1000",
@@ -849,7 +849,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "sum(rate(lettuce_command_completion_seconds_count{job=\"engine-home\"}[5m]))",
@@ -952,7 +952,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "sum(jvm_memory_used_bytes{job=\"engine-home\", area=\"heap\"})",
@@ -1055,7 +1055,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "jvm_threads_live_threads{job=\"engine-home\"}",
@@ -1132,7 +1132,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "sum by (state) (jvm_threads_states_threads{job=\"engine-home\"})",
@@ -1181,7 +1181,7 @@
           },
           "direction": "backward",
           "editorMode": "code",
-          "expr": "{job=\"engine-logs\"} |= \"ERROR\"\n  |~ \"^202\\\\d-\"\n  | regexp \"^(?P<time>\\\\S+)\\\\s+(?P<level>[A-Z]+)\\\\s+\\\\d+\\\\s+---\\\\s+\\\\[[^\\\\]]+\\\\]\\\\s+\\\\[(?P<thread>[^\\\\]]+)\\\\]\\\\s+(?P<logger>\\\\S+)\\\\s+:\\\\s+(?P<msg>.*)$\"\n  | level=\"ERROR\"\n  | line_format \"🚨 [{{.module}}] {{.time}} [{{.level}}] [{{.logger}}] ➡️ {{.msg}}\"",
+          "expr": "{filename=~\".*(collector|engine).*\"} |~ \"(?i)(Exception|ERROR|예외|오류)\"",
           "queryType": "range",
           "refId": "A"
         }
@@ -1225,7 +1225,7 @@
           },
           "direction": "backward",
           "editorMode": "code",
-          "expr": "{job=\"engine-logs\", module=\"collector\"}\n  |~ \"^202\\\\d-\"\n  | regexp \"^(?P<time>\\\\S+)\\\\s+(?P<level>[A-Z]+)\\\\s+\\\\d+\\\\s+---\\\\s+\\\\[[^\\\\]]+\\\\]\\\\s+\\\\[(?P<thread>[^\\\\]]+)\\\\]\\\\s+(?P<logger>\\\\S+)\\\\s+:\\\\s+(?P<msg>.*)$\"\n  | line_format \"📡 {{.time}} [{{.level}}] [{{.logger}}] ➡️ {{.msg}}\"",
+          "expr": "{filename=~\".*collector.*\"}\n  |~ \"^202\\\\d-\"\n  | regexp \"^(?P<time>\\\\S+)\\\\s+(?P<level>[A-Z]+)\\\\s+\\\\d+\\\\s+---\\\\s+\\\\[[^\\\\]]+\\\\]\\\\s+\\\\[(?P<thread>[^\\\\]]+)\\\\]\\\\s+(?P<logger>\\\\S+)\\\\s+:\\\\s+(?P<msg>.*)$\"\n  | line_format \"📡 {{.time}} [{{.level}}] [{{.logger}}] ➡️ {{.msg}}\"",
           "queryType": "range",
           "refId": "A"
         }
@@ -1264,11 +1264,11 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
-            "uid": "grafanacloud-prom"
+            "type": "loki",
+            "uid": "grafanacloud-logs"
           },
           "editorMode": "code",
-          "expr": "{job=\"engine-logs\", module=\"engine\"}\n  |~ \"^202\\\\d-\"\n  | regexp \"^(?P<time>\\\\S+)\\\\s+(?P<level>[A-Z]+)\\\\s+\\\\d+\\\\s+---\\\\s+\\\\[[^\\\\]]+\\\\]\\\\s+\\\\[(?P<thread>[^\\\\]]+)\\\\]\\\\s+(?P<logger>\\\\S+)\\\\s+:\\\\s+(?P<msg>.*)$\"\n  | line_format \"⚙️ {{.time}} [{{.level}}] [{{.logger}}] ➡️ {{.msg}}\"",
+          "expr": "{filename=~\".*engine.*\"}\n  |~ \"^202\\\\d-\"\n  | regexp \"^(?P<time>\\\\S+)\\\\s+(?P<level>[A-Z]+)\\\\s+\\\\d+\\\\s+---\\\\s+\\\\[[^\\\\]]+\\\\]\\\\s+\\\\[(?P<thread>[^\\\\]]+)\\\\]\\\\s+(?P<logger>\\\\S+)\\\\s+:\\\\s+(?P<msg>.*)$\"\n  | line_format \"⚙️ {{.time}} [{{.level}}] [{{.logger}}] ➡️ {{.msg}}\"",
           "range": true,
           "refId": "A"
         }
@@ -1281,7 +1281,7 @@
         "type": "prometheus",
         "uid": "grafanacloud-prom"
       },
-      "description": "엔진 내부 스케줄러별 최대 실행 소요 시간 (각 작업별 상한 주기 대비)",
+      "description": "작업별 병목 임계 기준(Max SLA) 대비 실측 소요 시간. IngestionService: 경고 18s/위험 25s, HighlightService: 경고 1.5s/위험 2.4s 등 기준치를 초과하면 노란색/빨간색으로 전환됩니다.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1301,11 +1301,13 @@
               },
               {
                 "color": "red",
-                "value": 30
+                "value": 25
               }
             ]
           },
-          "unit": "s"
+          "unit": "s",
+          "min": 0,
+          "max": 30
         },
         "overrides": [
           {
@@ -1316,7 +1318,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "IngestionService (상한: 30s)"
+                "value": "IngestionService [주기 30s] (경고: 18s / 위험: 25s)"
               },
               {
                 "id": "max",
@@ -1333,7 +1335,7 @@
                     },
                     {
                       "color": "yellow",
-                      "value": 15
+                      "value": 18
                     },
                     {
                       "color": "red",
@@ -1352,7 +1354,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "HighlightService (상한: 3s)"
+                "value": "HighlightService [주기 3s] (경고: 1.5s / 위험: 2.4s)"
               },
               {
                 "id": "max",
@@ -1373,7 +1375,7 @@
                     },
                     {
                       "color": "red",
-                      "value": 2.5
+                      "value": 2.4
                     }
                   ]
                 }
@@ -1388,7 +1390,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "ChatAggregationService (상한: 3s)"
+                "value": "ChatAggregationService [주기 3s] (경고: 1.0s / 위험: 2.0s)"
               },
               {
                 "id": "max",
@@ -1405,11 +1407,11 @@
                     },
                     {
                       "color": "yellow",
-                      "value": 1.5
+                      "value": 1
                     },
                     {
                       "color": "red",
-                      "value": 2.5
+                      "value": 2
                     }
                   ]
                 }
@@ -1424,7 +1426,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "StreamTierManager (상한: 60s)"
+                "value": "StreamTierManager [주기 60s] (경고: 20s / 위험: 40s)"
               },
               {
                 "id": "max",
@@ -1441,11 +1443,119 @@
                     },
                     {
                       "color": "yellow",
-                      "value": 30
+                      "value": 20
                     },
                     {
                       "color": "red",
-                      "value": 50
+                      "value": 40
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "DailyFollowerCollectorScheduler"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "DailyFollowerCollectorScheduler [24h] (경고: 20s / 위험: 45s)"
+              },
+              {
+                "id": "max",
+                "value": 60
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 20
+                    },
+                    {
+                      "color": "red",
+                      "value": 45
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "TargetSyncEventListener"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "TargetSyncEventListener [24h] (경고: 10s / 위험: 20s)"
+              },
+              {
+                "id": "max",
+                "value": 30
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 10
+                    },
+                    {
+                      "color": "red",
+                      "value": 20
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ChromeVersionManager"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "ChromeVersionManager [주간] (경고: 3s / 위험: 7s)"
+              },
+              {
+                "id": "max",
+                "value": 10
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 3
+                    },
+                    {
+                      "color": "red",
+                      "value": 7
                     }
                   ]
                 }
@@ -1487,7 +1597,7 @@
           "refId": "A"
         }
       ],
-      "title": "[스케줄러] 작업별 최대 소요 시간 및 상한 기준",
+      "title": "[스케줄러] 작업별 최대 소요 시간 및 경고/위험 기준 (SLA)",
       "type": "bargauge"
     },
     {
@@ -1495,7 +1605,7 @@
         "type": "prometheus",
         "uid": "grafanacloud-prom"
       },
-      "description": "스케줄러별 주기에 대한 실행 시간 점유율 (100% 초과 시 지연/밀림 발생 위험)",
+      "description": "실행 주기 대비 점유율. 0~60% 정상(초록), 60~80% 주의/경고(노랑), 80% 초과 위험/병목(빨강)",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1513,15 +1623,11 @@
               },
               {
                 "color": "yellow",
-                "value": 50
-              },
-              {
-                "color": "orange",
-                "value": 75
+                "value": 60
               },
               {
                 "color": "red",
-                "value": 90
+                "value": 80
               }
             ]
           },
@@ -1557,7 +1663,7 @@
           },
           "editorMode": "code",
           "expr": "(max(scheduler_execution_duration_seconds_max{job=\"engine-home\", scheduler=\"IngestionService\"}) / 30) * 100",
-          "legendFormat": "IngestionService (주기 30s)",
+          "legendFormat": "IngestionService (주기 30s, 경고 60% / 위험 83%)",
           "range": true,
           "refId": "A"
         },
@@ -1568,7 +1674,7 @@
           },
           "editorMode": "code",
           "expr": "(max(scheduler_execution_duration_seconds_max{job=\"engine-home\", scheduler=\"HighlightService\"}) / 3) * 100",
-          "legendFormat": "HighlightService (주기 3s)",
+          "legendFormat": "HighlightService (주기 3s, 경고 50% / 위험 80%)",
           "range": true,
           "refId": "B"
         },
@@ -1579,7 +1685,7 @@
           },
           "editorMode": "code",
           "expr": "(max(scheduler_execution_duration_seconds_max{job=\"engine-home\", scheduler=\"ChatAggregationService\"}) / 3) * 100",
-          "legendFormat": "ChatAggregationService (주기 3s)",
+          "legendFormat": "ChatAggregationService (주기 3s, 경고 33% / 위험 67%)",
           "range": true,
           "refId": "C"
         },
@@ -1590,12 +1696,12 @@
           },
           "editorMode": "code",
           "expr": "(max(scheduler_execution_duration_seconds_max{job=\"engine-home\", scheduler=\"StreamTierManager\"}) / 60) * 100",
-          "legendFormat": "StreamTierManager (주기 60s)",
+          "legendFormat": "StreamTierManager (주기 60s, 경고 33% / 위험 67%)",
           "range": true,
           "refId": "D"
         }
       ],
-      "title": "[스케줄러] 주기 대비 실행 점유율 (%)",
+      "title": "[스케줄러] 주기 대비 실행 점유율 (%) (경고: 60% / 위험: 80%)",
       "type": "bargauge"
     }
   ],
