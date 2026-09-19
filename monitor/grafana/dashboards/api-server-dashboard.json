@@ -1024,7 +1024,7 @@
             "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
-          "expr": "max by (scheduler) (scheduler_execution_duration_seconds_max)",
+          "expr": "max by (scheduler) (scheduler_execution_duration_seconds_max{job=\"api-server-oci\"})",
           "legendFormat": "{{scheduler}}",
           "range": true,
           "refId": "A"
