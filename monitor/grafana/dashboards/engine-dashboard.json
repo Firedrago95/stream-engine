@@ -167,7 +167,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "(sum(jvm_memory_used_bytes{job=\"engine-home\", area=\"heap\"}) / sum(jvm_memory_max_bytes{job=\"engine-home\", area=\"heap\"})) * 100",
@@ -358,7 +358,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "sum(rate(kafka_producer_record_send_total{job=~\"engine-home|collector-home\"}[5m]))",
@@ -422,7 +422,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "sum(rate(spring_kafka_listener_seconds_count{job=\"engine-home\"}[5m]))",
@@ -507,7 +507,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "kafka_consumer_fetch_manager_records_lag{job=\"engine-home\"}",
@@ -620,7 +620,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.95, sum by (le) (rate(analysis_processing_time_seconds_bucket{job=\"engine-home\"}[5m]))) * 1000",
@@ -631,7 +631,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "(rate(analysis_processing_time_seconds_sum{job=\"engine-home\"}[5m]) / rate(analysis_processing_time_seconds_count{job=\"engine-home\"}[5m])) * 1000",
@@ -735,7 +735,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "(sum(rate(lettuce_command_completion_seconds_sum{job=\"engine-home\"}[5m])) / \nsum(rate(lettuce_command_completion_seconds_count{job=\"engine-home\"}[5m]))) * 1000",
@@ -746,7 +746,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "max(lettuce_command_completion_seconds_max{job=\"engine-home\"}) * 1000",
@@ -849,7 +849,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "sum(rate(lettuce_command_completion_seconds_count{job=\"engine-home\"}[5m]))",
@@ -952,7 +952,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "sum(jvm_memory_used_bytes{job=\"engine-home\", area=\"heap\"})",
@@ -1055,7 +1055,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "jvm_threads_live_threads{job=\"engine-home\"}",
@@ -1132,7 +1132,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "aff9x25zfzkzkc"
+            "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
           "expr": "sum by (state) (jvm_threads_states_threads{job=\"engine-home\"})",
