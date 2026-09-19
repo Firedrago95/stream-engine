@@ -1154,7 +1154,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 19
+        "y": 25
       },
       "id": 14,
       "options": {
@@ -1198,7 +1198,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 27
+        "y": 33
       },
       "id": 16,
       "options": {
@@ -1242,7 +1242,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 27
+        "y": 33
       },
       "id": 12,
       "options": {
@@ -1275,6 +1275,328 @@
       ],
       "title": "[엔진] 3초 윈도우 집계 & PEAK 시그널 실시간 로그",
       "type": "logs"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "grafanacloud-prom"
+      },
+      "description": "엔진 내부 스케줄러별 최대 실행 소요 시간 (각 작업별 상한 주기 대비)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 15
+              },
+              {
+                "color": "red",
+                "value": 30
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "IngestionService"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "IngestionService (상한: 30s)"
+              },
+              {
+                "id": "max",
+                "value": 30
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 15
+                    },
+                    {
+                      "color": "red",
+                      "value": 25
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "HighlightService"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "HighlightService (상한: 3s)"
+              },
+              {
+                "id": "max",
+                "value": 3
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 1.5
+                    },
+                    {
+                      "color": "red",
+                      "value": 2.5
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ChatAggregationService"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "ChatAggregationService (상한: 3s)"
+              },
+              {
+                "id": "max",
+                "value": 3
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 1.5
+                    },
+                    {
+                      "color": "red",
+                      "value": 2.5
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "StreamTierManager"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "StreamTierManager (상한: 60s)"
+              },
+              {
+                "id": "max",
+                "value": 60
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 30
+                    },
+                    {
+                      "color": "red",
+                      "value": 50
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 19
+      },
+      "id": 17,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      },
+      "pluginVersion": "13.0.0-23069273608.patch3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "grafanacloud-prom"
+          },
+          "editorMode": "code",
+          "expr": "max by (scheduler) (scheduler_execution_duration_seconds_max{job=\"engine-home\"})",
+          "legendFormat": "{{scheduler}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "[스케줄러] 작업별 최대 소요 시간 및 상한 기준",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "grafanacloud-prom"
+      },
+      "description": "스케줄러별 주기에 대한 실행 시간 점유율 (100% 초과 시 지연/밀림 발생 위험)",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "orange",
+                "value": 75
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 19
+      },
+      "id": 18,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      },
+      "pluginVersion": "13.0.0-23069273608.patch3",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "grafanacloud-prom"
+          },
+          "editorMode": "code",
+          "expr": "(max(scheduler_execution_duration_seconds_max{job=\"engine-home\", scheduler=\"IngestionService\"}) / 30) * 100",
+          "legendFormat": "IngestionService (주기 30s)",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "grafanacloud-prom"
+          },
+          "editorMode": "code",
+          "expr": "(max(scheduler_execution_duration_seconds_max{job=\"engine-home\", scheduler=\"HighlightService\"}) / 3) * 100",
+          "legendFormat": "HighlightService (주기 3s)",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "grafanacloud-prom"
+          },
+          "editorMode": "code",
+          "expr": "(max(scheduler_execution_duration_seconds_max{job=\"engine-home\", scheduler=\"ChatAggregationService\"}) / 3) * 100",
+          "legendFormat": "ChatAggregationService (주기 3s)",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "grafanacloud-prom"
+          },
+          "editorMode": "code",
+          "expr": "(max(scheduler_execution_duration_seconds_max{job=\"engine-home\", scheduler=\"StreamTierManager\"}) / 60) * 100",
+          "legendFormat": "StreamTierManager (주기 60s)",
+          "range": true,
+          "refId": "D"
+        }
+      ],
+      "title": "[스케줄러] 주기 대비 실행 점유율 (%)",
+      "type": "bargauge"
     }
   ],
   "preload": false,
