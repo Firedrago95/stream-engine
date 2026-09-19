@@ -350,7 +350,28 @@
           "color": {
             "mode": "thresholds"
           },
-          "mappings": [],
+          "mappings": [
+            {
+              "options": {
+                "match": "empty",
+                "result": {
+                  "color": "green",
+                  "text": "0"
+                }
+              },
+              "type": "special"
+            },
+            {
+              "options": {
+                "match": "null+nan",
+                "result": {
+                  "color": "green",
+                  "text": "0"
+                }
+              },
+              "type": "special"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
