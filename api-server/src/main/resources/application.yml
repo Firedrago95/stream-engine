@@ -46,9 +46,13 @@ management:
   metrics:
     tags:
       application: api-server
+    enable:
+      spring.data.repository: false
     distribution:
       percentiles-histogram:
-        http.server.requests: true
+        http.server.requests: false
+      slo:
+        http.server.requests: 50ms, 100ms, 250ms, 500ms, 1s, 2s, 3s, 5s
 
 analysis:
   internal-prefix: ${INTERNAL_API_PREFIX}
