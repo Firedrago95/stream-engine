@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { AnalysisTabs, type DashboardSessionTab } from './dashboard/AnalysisTabs';
 import { AnalysisChart } from './dashboard/AnalysisChart';
 import { HighlightSection } from './dashboard/HighlightSection';
@@ -54,6 +54,8 @@ const formatSessionDate = (isoString: string) => {
 export const StreamAnalysisDashboard: React.FC = () => {
   const { streamId } = useParams<{ streamId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedSessionId = searchParams.get('sessionId');
 
   const [selectedTab, setSelectedTab] = useState<string>("");
   const [segments, setSegments] = useState<StreamSegment[]>([]);
@@ -75,7 +77,19 @@ export const StreamAnalysisDashboard: React.FC = () => {
   const [liveCumulativeSegments, setLiveCumulativeSegments] = useState<StreamSegment[]>([]);
   const [isLiveCumulativeLoading, setIsLiveCumulativeLoading] = useState(false);
 
-  const currentSessionInfo = availableSessions.find(s => s.sessionId === selectedTab);
+  const visibleSessions = useMemo(() => {
+    if (requestedSessionId) {
+      return availableSessions.filter((session) => session.sessionId === requestedSessionId);
+    }
+
+    if (isLive) {
+      return availableSessions.filter((session) => session.isLive);
+    }
+
+    return availableSessions.slice(0, 1);
+  }, [availableSessions, isLive, requestedSessionId]);
+
+  const currentSessionInfo = visibleSessions.find(s => s.sessionId === selectedTab);
   const isLiveTabSelected = currentSessionInfo?.isLive === true;
 
   const { analysisData, isLoading, error, isGathering } = useStreamAnalysis(
@@ -165,7 +179,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   useEffect(() => {
     if (!streamId) return;
-    fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/available-sessions?limit=10`)
+    const sessionLimit = requestedSessionId ? 1000 : 10;
+    fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/available-sessions?limit=${sessionLimit}`)
       .then(res => res.ok ? res.json() : [])
       .then((sessions: any[]) => {
         const isCurrentlyLive = streamerInfo?.status !== 'OFFLINE';
@@ -229,16 +244,16 @@ export const StreamAnalysisDashboard: React.FC = () => {
         }
       })
       .catch(err => console.error("세션 목록 로드 실패", err));
-  }, [streamId, streamerInfo]);
+  }, [streamId, streamerInfo, requestedSessionId]);
 
   useEffect(() => {
-    if (availableSessions.length > 0) {
-      const exists = availableSessions.some(s => s.sessionId === selectedTab);
+    if (visibleSessions.length > 0) {
+      const exists = visibleSessions.some(s => s.sessionId === selectedTab);
       if (!exists) {
-        setSelectedTab(availableSessions[0].sessionId);
+        setSelectedTab(visibleSessions[0].sessionId);
       }
     }
-  }, [availableSessions, selectedTab]);
+  }, [visibleSessions, selectedTab]);
 
   useEffect(() => {
     if (isLiveTabSelected || !selectedTab || !streamId || selectedTab === 'realtime') {
@@ -454,7 +469,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
       />
 
       <AnalysisTabs
-        availableSessions={availableSessions}
+        availableSessions={visibleSessions}
         selected={selectedTab}
         onSelect={(tab) => {
           setSelectedTab(tab);

@@ -28,19 +28,19 @@ export const StreamerStatsPage: React.FC = () => {
       <div className="p-8 sm:p-12 bg-gradient-to-b from-[#18181c] to-[#121214] border border-[#2A2A2C] rounded-3xl text-center relative overflow-hidden shadow-2xl">
         <div className="max-w-2xl mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-[#00FFA3]/15 text-[#00FFA3] border border-[#00FFA3]/30">
-            📊 치지직 스트리머 뷰어쉽 & 전적 분석
+            📊 치지직 스트리머 리포트
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight italic">
             STREAMER <span className="text-[#00FFA3]">ANALYTICS</span>
           </h1>
           <p className="text-sm text-gray-200 font-medium">
-            순수 체급 랭킹 리더보드, 90일 활동 잔디, 주력 카테고리 및 과거 방송 전적을 확인하세요.
+            방송 중이 아니어도 활동명을 검색해 시청자, 팔로워, 방송 이력을 확인하세요.
           </p>
 
           <div className="relative pt-2">
             <input
               type="text"
-              placeholder="분석할 스트리머 활동명을 입력하세요..."
+              placeholder="스트리머 검색 (오프라인 포함)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full p-4 pl-12 pr-10 bg-[#0e0e10] border border-gray-700 rounded-2xl text-white placeholder-gray-300 focus:outline-none focus:border-[#00FFA3] focus:ring-2 focus:ring-[#00FFA3]/20 shadow-xl text-sm"
@@ -235,6 +235,11 @@ export const StreamerStatsPage: React.FC = () => {
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-red-500/15 text-red-400 border border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.25)]">
                             <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                             LIVE
+                          </span>
+                        )}
+                        {!isStreaming && (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-gray-800/70 text-gray-300 border border-gray-700">
+                            OFFLINE
                           </span>
                         )}
                       </td>
