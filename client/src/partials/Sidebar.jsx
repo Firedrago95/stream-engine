@@ -54,8 +54,8 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
               <h3 className="text-xs uppercase tracking-wider text-gray-400 font-bold pl-3">
                 메뉴
               </h3>
-              <ul className="mt-3 space-y-1.5">
-                <li>
+              <ul className="mt-3 space-y-1.5 flex flex-col">
+                <li className="order-2">
                   <NavLink
                     to="/streamers"
                     onClick={() => setSidebarOpen(false)}
@@ -79,13 +79,13 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
-                    <span className="text-sm font-bold ml-3 duration-200 whitespace-nowrap">스트리머 통계</span>
+                    <span className="text-sm font-bold ml-3 duration-200 whitespace-nowrap">스트리머 리포트</span>
                     <span className="ml-auto px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded bg-[#00FFA3]/20 text-[#00FFA3] border border-[#00FFA3]/40">
                       NEW
                     </span>
                   </NavLink>
                 </li>
-                <li>
+                <li className="order-1">
                   <NavLink
                     end
                     to="/"

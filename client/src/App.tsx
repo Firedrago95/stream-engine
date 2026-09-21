@@ -55,13 +55,14 @@ const MainPage = () => {
 
   if (error) return <div className="text-rose-500 p-8 text-center">에러: {error}</div>;
 
+  // 실시간 라이브는 현재 방송 중인 채널만 노출한다.
+  const liveStreams = streams.filter((stream) => stream.status === 'LIVE' || stream.status === 'ANALYZING');
+
   // 화면에 렌더링할 데이터만 잘라냄
-  const displayedStreams = streams.slice(0, visibleCount);
+  const displayedStreams = liveStreams.slice(0, visibleCount);
 
   return (
       <div className="w-full">
-        <WeeklyCategoryRanking />
-
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8 px-1 mt-2 sm:mt-4">
           <div className="flex items-center gap-2 mb-1 sm:mb-0">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-100 italic uppercase tracking-tighter whitespace-nowrap">
@@ -77,7 +78,7 @@ const MainPage = () => {
           <div className="relative w-full sm:max-w-xs min-w-[140px]">
             <input
                 type="text"
-                placeholder="스트리머 검색 (오프라인 포함)"
+                placeholder="현재 라이브 검색"
                 className="w-full p-2.5 bg-[#1a1a1c] border border-gray-800 rounded-lg text-sm text-white placeholder-white/70 focus:outline-none focus:border-[#00FFA3] hover:border-[#00FFA3] hover:ring-1 hover:ring-[#00FFA3] hover:shadow-lg transition-all duration-200"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -93,8 +94,10 @@ const MainPage = () => {
           </div>
         </div>
 
+        <WeeklyCategoryRanking />
+
         {/* 로딩 상태 표시 (24개 스켈레톤 그리드 렌더링으로 CLS 방지) */}
-        {isLoading && streams.length === 0 && (
+        {isLoading && liveStreams.length === 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
             {Array.from({ length: 24 }).map((_, index) => (
               <StreamCardSkeleton key={index} />
@@ -103,7 +106,7 @@ const MainPage = () => {
         )}
 
         {/* 결과 없음 처리 */}
-        {!isLoading && streams.length === 0 && (
+        {!isLoading && liveStreams.length === 0 && (
             <div className="text-center py-20 text-[#a1a1aa] bg-[#1a1a1c] rounded-2xl border border-gray-800">
               {searchTerm ? `'${searchTerm}'에 대한 검색 결과가 없습니다.` : "현재 라이브 중인 방송이 없습니다."}
             </div>
@@ -117,7 +120,7 @@ const MainPage = () => {
         </div>
 
         {/* 100개 대응: 무한 스크롤 감지용 투명 요소 */}
-        {visibleCount < streams.length && (
+        {visibleCount < liveStreams.length && (
             <div ref={loadMoreRef} className="w-full h-10 mt-8 flex justify-center items-center">
               <div className="w-6 h-6 border-2 border-[#00FFA3] border-t-transparent rounded-full animate-spin opacity-30"></div>
             </div>

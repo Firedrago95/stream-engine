@@ -20,6 +20,7 @@ interface StreamerSessionListProps {
   totalPages: number;
   totalElements: number;
   onPageChange: (newPage: number) => void;
+  onSessionClick?: (sessionId: string) => void;
   isLoading: boolean;
 }
 
@@ -52,6 +53,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
   totalPages,
   totalElements,
   onPageChange,
+  onSessionClick,
   isLoading,
 }) => {
   if (isLoading) {
@@ -86,6 +88,15 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
         {sessions.map((sess) => (
           <div
             key={sess.sessionId}
+            onClick={() => onSessionClick?.(sess.sessionId)}
+            onKeyDown={(event) => {
+              if (onSessionClick && (event.key === 'Enter' || event.key === ' ')) {
+                event.preventDefault();
+                onSessionClick(sess.sessionId);
+              }
+            }}
+            role={onSessionClick ? 'button' : undefined}
+            tabIndex={onSessionClick ? 0 : undefined}
             className="p-4 bg-[#0e0e10] border border-gray-800/80 rounded-xl hover:border-gray-700 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
           >
             <div className="space-y-1.5 flex-1 min-w-0">

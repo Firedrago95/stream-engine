@@ -120,7 +120,7 @@ export const StreamerDetailPage: React.FC = () => {
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
         </svg>
-        스트리머 통계 리더보드로 이동
+        스트리머 리포트로 이동
       </button>
 
       <div className="p-6 sm:p-8 bg-[#141416] border border-[#2A2A2C] rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative overflow-hidden">
@@ -243,6 +243,7 @@ export const StreamerDetailPage: React.FC = () => {
         totalPages={sessionTotalPages}
         totalElements={sessionTotalElements}
         onPageChange={setSessionPage}
+        onSessionClick={(sessionId) => navigate(`/streams/${channelId}?sessionId=${encodeURIComponent(sessionId)}`)}
         isLoading={sessionsLoading}
       />
     </div>
