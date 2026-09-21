@@ -63,6 +63,8 @@ const MainPage = () => {
 
   return (
       <div className="w-full">
+        <WeeklyCategoryRanking />
+
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8 px-1 mt-2 sm:mt-4">
           <div className="flex items-center gap-2 mb-1 sm:mb-0">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-100 italic uppercase tracking-tighter whitespace-nowrap">
@@ -93,8 +95,6 @@ const MainPage = () => {
             )}
           </div>
         </div>
-
-        <WeeklyCategoryRanking />
 
         {/* 로딩 상태 표시 (24개 스켈레톤 그리드 렌더링으로 CLS 방지) */}
         {isLoading && liveStreams.length === 0 && (
