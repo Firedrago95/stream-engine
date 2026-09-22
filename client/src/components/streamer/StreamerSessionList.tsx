@@ -97,7 +97,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
             }}
             role={onSessionClick ? 'button' : undefined}
             tabIndex={onSessionClick ? 0 : undefined}
-            className="p-4 bg-[#0e0e10] border border-gray-800/80 rounded-xl hover:border-gray-700 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+            className="p-4 bg-[#0e0e10] border border-gray-800/80 rounded-xl cursor-pointer group hover:bg-[#16231c]/70 hover:shadow-[inset_0_0_0_1px_rgba(0,255,163,0.5),0_0_16px_rgba(0,255,163,0.15)] transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
           >
             <div className="space-y-1.5 flex-1 min-w-0">
               <div className="flex items-center gap-2">
