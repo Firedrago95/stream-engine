@@ -3,14 +3,17 @@ package io.slice.stream.engine.analyzer.infrastructure;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
+import io.slice.stream.core.redis.Rediskeys;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatAggregationResult;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatAggregationResult.DataPoint;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregation;
+import io.slice.stream.engine.analyzer.domain.aggregation.ChatSummary;
 import io.slice.stream.engine.global.config.RedisConfig;
 import io.slice.stream.testcontainer.redis.RedisTestSupport;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
@@ -132,5 +135,58 @@ class RedisChatRoomAggregationRepositoryTest implements RedisTestSupport {
         // T=9초의 패딩: 0
         // T=12초의 델타: 3
         assertThat(deltas).containsExactly(2L, 0L, 0L, 3L);
+    }
+
+    @Test
+    void incrementSummary_증분값을_누적하고_누적된_요약_정보를_반환한다() {
+        String streamId = "summary_test_stream";
+
+        ChatSummary firstResult = repository.incrementSummary(streamId, 10, 3);
+        ChatSummary secondResult = repository.incrementSummary(streamId, 5, 2);
+
+        assertAll(
+            () -> assertThat(firstResult.totalChatCount()).isEqualTo(10L),
+            () -> assertThat(firstResult.subscriberChatCount()).isEqualTo(3L),
+            () -> assertThat(secondResult.totalChatCount()).isEqualTo(15L),
+            () -> assertThat(secondResult.subscriberChatCount()).isEqualTo(5L)
+        );
+
+        String key = String.format(Rediskeys.CHAT_SUMMARY_PREFIX, streamId);
+        Long expire = redisTemplate.getExpire(key, TimeUnit.SECONDS);
+        assertThat(expire).isNotNull().isGreaterThan(0L);
+    }
+
+    @Test
+    void findSummaryByStreamId_존재하지_않는_스트림이면_빈_Optional을_반환한다() {
+        Optional<ChatSummary> result = repository.findSummaryByStreamId("non_existent_stream");
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void findSummaryByStreamId_누적된_요약_정보를_정상적으로_조회한다() {
+        String streamId = "find_summary_stream";
+        repository.incrementSummary(streamId, 20, 8);
+
+        Optional<ChatSummary> result = repository.findSummaryByStreamId(streamId);
+
+        assertThat(result).isPresent();
+        ChatSummary summary = result.get();
+        assertAll(
+            () -> assertThat(summary.totalChatCount()).isEqualTo(20L),
+            () -> assertThat(summary.subscriberChatCount()).isEqualTo(8L),
+            () -> assertThat(summary.calculateSubscriberRatio()).isEqualTo(40.0)
+        );
+    }
+
+    @Test
+    void deleteSummary_정산_완료_후_키를_삭제한다() {
+        String streamId = "delete_summary_stream";
+        repository.incrementSummary(streamId, 15, 5);
+
+        repository.deleteSummary(streamId);
+
+        Optional<ChatSummary> result = repository.findSummaryByStreamId(streamId);
+        assertThat(result).isEmpty();
     }
 }

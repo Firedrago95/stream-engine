@@ -1,16 +1,20 @@
 package io.slice.stream.engine.analyzer.infrastructure;
 
+import io.slice.stream.core.redis.Rediskeys;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatAggregationResult;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatAggregationResult.DataPoint;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregation;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregationRepository;
-import io.slice.stream.core.redis.Rediskeys;
+import io.slice.stream.engine.analyzer.domain.aggregation.ChatSummary;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Repository;
@@ -31,9 +35,14 @@ public class RedisChatRoomAggregationRepository implements ChatRoomAggregationRe
 
     @Override
     public void save(ChatRoomAggregation chatRoomAggregation, Instant now) {
-        String key = String.format(Rediskeys.CHAT_AGGREGATION_PREFIX, chatRoomAggregation.getStreamId());
+        save(chatRoomAggregation.getStreamId(), chatRoomAggregation.getCount(), now);
+    }
 
-        String count = String.valueOf(chatRoomAggregation.getCount());
+    @Override
+    public void save(String streamId, long totalCount, Instant now) {
+        String key = String.format(Rediskeys.CHAT_AGGREGATION_PREFIX, streamId);
+
+        String count = String.valueOf(totalCount);
         String timestamp = String.valueOf(now.toEpochMilli());
         String retention = String.valueOf(Rediskeys.CHAT_AGGREGATION_RETENTION);
 
@@ -114,5 +123,71 @@ public class RedisChatRoomAggregationRepository implements ChatRoomAggregationRe
             previousTimestamp = currentTimestamp;
         }
         return deltas;
+    }
+
+    @Override
+    public ChatSummary incrementSummary(String streamId, long deltaTotal, long deltaSubscriber) {
+        String key = String.format(Rediskeys.CHAT_SUMMARY_PREFIX, streamId);
+
+        List<Object> results = redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            byte[] rawKey = key.getBytes(StandardCharsets.UTF_8);
+            byte[] rawFieldTotal = Rediskeys.CHAT_SUMMARY_FIELD_TOTAL.getBytes(StandardCharsets.UTF_8);
+            byte[] rawFieldSub = Rediskeys.CHAT_SUMMARY_FIELD_SUBSCRIBER.getBytes(StandardCharsets.UTF_8);
+
+            connection.hashCommands().hIncrBy(rawKey, rawFieldTotal, deltaTotal);
+            connection.hashCommands().hIncrBy(rawKey, rawFieldSub, deltaSubscriber);
+            connection.keyCommands().expire(rawKey, Rediskeys.CHAT_SUMMARY_TTL_SECONDS);
+            return null;
+        });
+
+        long total = parseLongFromPipeline(results, 0);
+        long subscriber = parseLongFromPipeline(results, 1);
+
+        return new ChatSummary(total, subscriber);
+    }
+
+    @Override
+    public Optional<ChatSummary> findSummaryByStreamId(String streamId) {
+        String key = String.format(Rediskeys.CHAT_SUMMARY_PREFIX, streamId);
+        Map<Object, Object> entries = redisTemplate.opsForHash().entries(key);
+
+        if (entries.isEmpty()) {
+            return Optional.empty();
+        }
+
+        long total = parseLongFromEntry(entries.get(Rediskeys.CHAT_SUMMARY_FIELD_TOTAL));
+        long subscriber = parseLongFromEntry(entries.get(Rediskeys.CHAT_SUMMARY_FIELD_SUBSCRIBER));
+
+        return Optional.of(new ChatSummary(total, subscriber));
+    }
+
+    @Override
+    public void deleteSummary(String streamId) {
+        String key = String.format(Rediskeys.CHAT_SUMMARY_PREFIX, streamId);
+        Boolean deleted = redisTemplate.delete(key);
+        if (Boolean.TRUE.equals(deleted)) {
+            log.info("[Redis] 스트림 요약 키 삭제 완료 - Key: {}", key);
+        }
+    }
+
+    private long parseLongFromPipeline(List<Object> results, int index) {
+        if (results == null || results.size() <= index || results.get(index) == null) {
+            return 0L;
+        }
+        Object value = results.get(index);
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return Long.parseLong(value.toString());
+    }
+
+    private long parseLongFromEntry(Object value) {
+        if (value == null) {
+            return 0L;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return Long.parseLong(value.toString());
     }
 }
