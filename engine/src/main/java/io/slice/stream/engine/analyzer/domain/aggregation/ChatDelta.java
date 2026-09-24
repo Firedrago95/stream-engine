@@ -5,6 +5,6 @@ public record ChatDelta(
     long subscriberCount
 ) {
     public boolean hasDelta() {
-        return totalCount > 0;
+        return totalCount > 0 || subscriberCount > 0;
     }
 }

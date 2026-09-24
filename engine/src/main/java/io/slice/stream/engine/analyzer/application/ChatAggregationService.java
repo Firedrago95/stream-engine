@@ -85,19 +85,27 @@ public class ChatAggregationService {
             return;
         }
 
+        ChatSummary summary;
         try {
             if (log.isDebugEnabled()) {
                 log.debug("[Redis-Save] 증분 누적 시도 - Stream: {}, 증분총채팅: {}, 증분구독채팅: {}",
                     streamId, delta.totalCount(), delta.subscriberCount());
             }
-            ChatSummary summary = chatRoomAggregationRepository.incrementSummary(
+            summary = chatRoomAggregationRepository.incrementSummary(
                 streamId, delta.totalCount(), delta.subscriberCount()
             );
-            chatRoomAggregationRepository.save(streamId, summary.totalChatCount(), aggregation.getLastChatTime());
+        } catch (Exception e) {
+            aggregation.restoreDelta(delta);
+            redisSaveErrorCounter.increment();
+            log.error("[Redis-Save] Redis 증분 누적 실패 (델타 복구 완료) - Stream: {}", streamId, e);
+            return;
+        }
 
+        try {
+            chatRoomAggregationRepository.save(streamId, summary.totalChatCount(), aggregation.getLastChatTime());
         } catch (Exception e) {
             redisSaveErrorCounter.increment();
-            log.error("[Redis-Save] 저장 실패 - Stream: {}", streamId, e);
+            log.error("[Redis-Save] TimeSeries 저장 실패 - Stream: {}", streamId, e);
         }
     }
 

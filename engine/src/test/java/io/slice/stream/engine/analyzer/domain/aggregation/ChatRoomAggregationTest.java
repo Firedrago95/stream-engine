@@ -65,6 +65,29 @@ class ChatRoomAggregationTest {
     }
 
     @Test
+    void restoreDelta_호출_시_드레인된_델타만큼_카운터가_복구된다() {
+        Instant now = Instant.now();
+        ChatRoomAggregation aggregation = new ChatRoomAggregation("stream1", Instant.EPOCH);
+        aggregation.increaseCount(now, false);
+        aggregation.increaseCount(now, true);
+
+        ChatDelta delta = aggregation.drainDelta();
+        aggregation.restoreDelta(delta);
+
+        assertAll(
+            () -> assertThat(aggregation.getCount()).isEqualTo(2L),
+            () -> assertThat(aggregation.getSubscriberCount()).isEqualTo(1L)
+        );
+    }
+
+    @Test
+    void hasDelta_구독자_채팅만_존재하는_경우에도_참을_반환한다() {
+        ChatDelta delta = new ChatDelta(0L, 1L);
+
+        assertThat(delta.hasDelta()).isTrue();
+    }
+
+    @Test
     void drainDelta_이후_새로운_채팅이_들어오면_새로운_델타만_수집된다() {
         Instant now = Instant.now();
         ChatRoomAggregation aggregation = new ChatRoomAggregation("stream1", Instant.EPOCH);

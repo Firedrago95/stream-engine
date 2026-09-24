@@ -34,6 +34,14 @@ public class ChatRoomAggregation {
         return new ChatDelta(currentTotal, currentSubscriber);
     }
 
+    public void restoreDelta(ChatDelta delta) {
+        if (delta == null || !delta.hasDelta()) {
+            return;
+        }
+        count.addAndGet(delta.totalCount());
+        subscriberCount.addAndGet(delta.subscriberCount());
+    }
+
     public String getStreamId() {
         return streamId;
     }

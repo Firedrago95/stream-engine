@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -180,6 +181,49 @@ class ChatAggregationServiceTest {
 
         verify(chatRoomAggregationRepository, never()).incrementSummary(anyString(), anyLong(), anyLong());
         verify(chatRoomAggregationRepository, never()).save(anyString(), anyLong(), any());
+    }
+
+    @Test
+    void saveAggregations_Redis_증분_누적_실패_시_로컬_델타를_복구하여_유실을_방지한다() {
+        Instant time = Instant.parse("2026-02-12T10:00:00Z");
+        String streamId = "retryStream";
+        ChatRoomAggregation aggregation = new ChatRoomAggregation(streamId, time);
+        aggregation.increaseCount(time, false);
+        aggregation.increaseCount(time, true);
+
+        Cache<String, ChatRoomAggregation> cache = (Cache<String, ChatRoomAggregation>) ReflectionTestUtils.getField(
+            chatAggregationService, "chatRoomAggregations");
+        cache.put(streamId, aggregation);
+
+        when(chatRoomAggregationRepository.incrementSummary(eq(streamId), eq(2L), eq(1L)))
+            .thenThrow(new RuntimeException("Redis 연결 에러"));
+
+        chatAggregationService.saveAggregations();
+
+        assertThat(aggregation.getCount()).isEqualTo(2L);
+        assertThat(aggregation.getSubscriberCount()).isEqualTo(1L);
+        verify(chatRoomAggregationRepository, never()).save(anyString(), anyLong(), any());
+    }
+
+    @Test
+    void saveAggregations_TimeSeries_저장만_실패_시_로컬_델타를_중복_복구하지_않는다() {
+        Instant time = Instant.parse("2026-02-12T10:00:00Z");
+        String streamId = "partialFailStream";
+        ChatRoomAggregation aggregation = new ChatRoomAggregation(streamId, time);
+        aggregation.increaseCount(time, false);
+
+        Cache<String, ChatRoomAggregation> cache = (Cache<String, ChatRoomAggregation>) ReflectionTestUtils.getField(
+            chatAggregationService, "chatRoomAggregations");
+        cache.put(streamId, aggregation);
+
+        when(chatRoomAggregationRepository.incrementSummary(eq(streamId), eq(1L), eq(0L)))
+            .thenReturn(new ChatSummary(10L, 2L));
+        doThrow(new RuntimeException("TimeSeries 저장 에러"))
+            .when(chatRoomAggregationRepository).save(eq(streamId), eq(10L), eq(time));
+
+        chatAggregationService.saveAggregations();
+
+        assertThat(aggregation.getCount()).isEqualTo(0L);
     }
 
     @Test
