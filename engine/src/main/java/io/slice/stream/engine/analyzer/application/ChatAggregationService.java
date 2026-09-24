@@ -6,14 +6,17 @@ import com.github.benmanes.caffeine.cache.RemovalCause;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.slice.stream.core.model.ChatMessage;
+import io.slice.stream.core.model.StreamTarget;
+import io.slice.stream.engine.analyzer.domain.aggregation.ChatDelta;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregation;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregationRepository;
-import io.slice.stream.core.model.ChatMessage;
+import io.slice.stream.engine.analyzer.domain.aggregation.ChatSummary;
 import io.slice.stream.engine.core.event.StreamChangedEvent;
-import io.slice.stream.core.model.StreamTarget;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSessionSummary;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -76,17 +79,25 @@ public class ChatAggregationService {
         chatRoomAggregations.asMap().forEach(this::saveToRepository);
     }
 
-    private void saveToRepository(String key, ChatRoomAggregation aggregation) {
+    private void saveToRepository(String streamId, ChatRoomAggregation aggregation) {
+        ChatDelta delta = aggregation.drainDelta();
+        if (!delta.hasDelta()) {
+            return;
+        }
+
         try {
             if (log.isDebugEnabled()) {
-                log.debug("[Redis-Save] 저장 시도 - Key: {}, 누적카운트: {}, 마지막채팅: {}",
-                    key, aggregation.getCount(), aggregation.getLastChatTime());
+                log.debug("[Redis-Save] 증분 누적 시도 - Stream: {}, 증분총채팅: {}, 증분구독채팅: {}",
+                    streamId, delta.totalCount(), delta.subscriberCount());
             }
-            chatRoomAggregationRepository.save(aggregation, aggregation.getLastChatTime());
+            ChatSummary summary = chatRoomAggregationRepository.incrementSummary(
+                streamId, delta.totalCount(), delta.subscriberCount()
+            );
+            chatRoomAggregationRepository.save(streamId, summary.totalChatCount(), aggregation.getLastChatTime());
 
         } catch (Exception e) {
             redisSaveErrorCounter.increment();
-            log.error("[Redis-Save] 저장 실패 - Key: {}", key, e);
+            log.error("[Redis-Save] 저장 실패 - Stream: {}", streamId, e);
         }
     }
 
@@ -100,22 +111,34 @@ public class ChatAggregationService {
 
         Instant changedAt = event.changedAt();
         for (StreamTarget closedStream : event.closedStreams()) {
-            String closedStreamId = closedStream.channelId();
-            String closedLiveId = String.valueOf(closedStream.liveId());
-            ChatRoomAggregation aggregation = chatRoomAggregations.getIfPresent(closedStreamId);
+            processStreamClose(closedStream, changedAt);
+        }
+    }
 
-            if (aggregation != null) {
-                Long total = aggregation.getCount();
-                Long sub = aggregation.getSubscriberCount();
+    private void processStreamClose(StreamTarget closedStream, Instant changedAt) {
+        String closedStreamId = closedStream.channelId();
+        String closedLiveId = String.valueOf(closedStream.liveId());
 
-                double ratio = (total == 0) ? 0.0 : Math.round(((double) sub / total) * 1000.0) / 10.0;
+        ChatRoomAggregation aggregation = chatRoomAggregations.getIfPresent(closedStreamId);
+        if (aggregation != null) {
+            saveToRepository(closedStreamId, aggregation);
+            chatRoomAggregations.invalidate(closedStreamId);
+        }
 
-                log.info("[정산 완료] 스트림 {} 종료. 총 채팅: {}, 구독자 채팅: {}, 비율: {}", closedStreamId, total, sub, ratio);
+        Optional<ChatSummary> summaryOpt = chatRoomAggregationRepository.findSummaryByStreamId(closedStreamId);
+        if (summaryOpt.isPresent()) {
+            ChatSummary summary = summaryOpt.get();
+            double ratio = summary.calculateSubscriberRatio();
 
-                apiServerClient.sendSessionSummaryAsync(new StreamSessionSummary(closedStreamId, closedLiveId, ratio, changedAt));
+            log.info("[정산 완료] 스트림 {} 종료. 총 채팅: {}, 구독자 채팅: {}, 비율: {}%",
+                closedStreamId, summary.totalChatCount(), summary.subscriberChatCount(), ratio);
 
-                chatRoomAggregations.invalidate(closedStreamId);
-            }
+            apiServerClient.sendSessionSummaryAsync(
+                new StreamSessionSummary(closedStreamId, closedLiveId, ratio, changedAt)
+            );
+            chatRoomAggregationRepository.deleteSummary(closedStreamId);
+        } else {
+            log.warn("[정산 건너뜀] 스트림 {} 종료 집계 데이터가 Redis에 존재하지 않습니다.", closedStreamId);
         }
     }
 }

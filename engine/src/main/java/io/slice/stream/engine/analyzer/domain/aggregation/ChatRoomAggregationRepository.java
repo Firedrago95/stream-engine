@@ -8,6 +8,8 @@ public interface ChatRoomAggregationRepository {
 
     void save(ChatRoomAggregation chatRoomAggregation, Instant now);
 
+    void save(String streamId, long totalCount, Instant now);
+
     Optional<ChatAggregationResult> findByStreamId(String streamId);
 
     List<Long> getFirepowerDeltas(String streamId, Instant from, Instant to);
