@@ -25,6 +25,7 @@ import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSessionSummary;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -270,5 +271,36 @@ class ChatAggregationServiceTest {
         assertThat(summary.subscriberChatRatio()).isEqualTo(25.0);
 
         verify(chatRoomAggregationRepository, times(1)).deleteSummary(streamId);
+    }
+
+    @Test
+    void handleStreamChangedEvent_특정_스트림_정산_중_예외가_발생해도_나머지_스트림_정산은_계속_수행된다() {
+        String failedStreamId = "failedStream";
+        String successStreamId = "successStream";
+
+        when(chatRoomAggregationRepository.findSummaryByStreamId(failedStreamId))
+            .thenThrow(new RuntimeException("Redis 연결 오류"));
+        when(chatRoomAggregationRepository.findSummaryByStreamId(successStreamId))
+            .thenReturn(Optional.of(new ChatSummary(50L, 10L)));
+
+        StreamTarget failedTarget = new StreamTarget(failedStreamId, "이름1", "chat1", 111L, "제목1", 100, "url1", "cat1", Instant.EPOCH);
+        StreamTarget successTarget = new StreamTarget(successStreamId, "이름2", "chat2", 222L, "제목2", 100, "url2", "cat2", Instant.EPOCH);
+
+        Set<StreamTarget> closedStreams = new LinkedHashSet<>();
+        closedStreams.add(failedTarget);
+        closedStreams.add(successTarget);
+
+        StreamChangedEvent event = new StreamChangedEvent(
+            Collections.emptySet(),
+            closedStreams,
+            Instant.now()
+        );
+
+        chatAggregationService.handleStreamChangedEvent(event);
+
+        ArgumentCaptor<StreamSessionSummary> captor = ArgumentCaptor.forClass(StreamSessionSummary.class);
+        verify(apiServerClient, times(1)).sendSessionSummaryAsync(captor.capture());
+        assertThat(captor.getValue().streamId()).isEqualTo(successStreamId);
+        verify(chatRoomAggregationRepository, times(1)).deleteSummary(successStreamId);
     }
 }

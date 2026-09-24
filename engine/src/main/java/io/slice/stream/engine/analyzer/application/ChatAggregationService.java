@@ -111,7 +111,11 @@ public class ChatAggregationService {
 
         Instant changedAt = event.changedAt();
         for (StreamTarget closedStream : event.closedStreams()) {
-            processStreamClose(closedStream, changedAt);
+            try {
+                processStreamClose(closedStream, changedAt);
+            } catch (Exception e) {
+                log.error("[정산 에러] 스트림 {} 종료 정산 중 예외 발생", closedStream.channelId(), e);
+            }
         }
     }
 
