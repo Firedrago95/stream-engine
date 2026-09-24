@@ -11,4 +11,10 @@ public interface ChatRoomAggregationRepository {
     Optional<ChatAggregationResult> findByStreamId(String streamId);
 
     List<Long> getFirepowerDeltas(String streamId, Instant from, Instant to);
+
+    ChatSummary incrementSummary(String streamId, long deltaTotal, long deltaSubscriber);
+
+    Optional<ChatSummary> findSummaryByStreamId(String streamId);
+
+    void deleteSummary(String streamId);
 }
