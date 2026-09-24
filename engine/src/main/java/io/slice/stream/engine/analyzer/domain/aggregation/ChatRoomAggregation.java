@@ -28,6 +28,12 @@ public class ChatRoomAggregation {
         );
     }
 
+    public ChatDelta drainDelta() {
+        long currentTotal = count.getAndSet(0);
+        long currentSubscriber = subscriberCount.getAndSet(0);
+        return new ChatDelta(currentTotal, currentSubscriber);
+    }
+
     public String getStreamId() {
         return streamId;
     }
