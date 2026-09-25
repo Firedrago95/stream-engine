@@ -2,7 +2,7 @@ import React, {useState} from 'react';
 
 const InfoTooltip = ({text}: { text: string }) => (
     <div className="group relative inline-flex items-center ml-1.5 cursor-help z-50">
-    <span className="text-gray-300 hover:text-[#00FFA3] transition-colors">
+    <span className="text-gray-100 hover:text-[#00FFA3] transition-colors">
       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
         <path fillRule="evenodd"
               d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z"
@@ -75,7 +75,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
           </div>
 
           {!isRealtime && (
-              <span className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">
+              <span className="text-[10px] text-gray-100 font-bold uppercase tracking-widest">
             정렬: 시간순
           </span>
           )}
@@ -109,14 +109,14 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
                         card: "border-orange-600/20 bg-[#1a1a1c] hover:border-orange-600/40",
                         badge: "border-orange-600 bg-orange-600/10 text-orange-600",
                         peak: "text-orange-600",
-                        label: "text-gray-300"
+                        label: "text-gray-100"
                       };
                     default: // 4등 이하
                       return {
                         card: hl.status === 'ONGOING' ? 'border-[#00FFA3] bg-[#00FFA3]/5' : 'border-gray-800 bg-[#1a1a1c]',
-                        badge: "border-gray-700 text-gray-300 bg-gray-900/50",
+                        badge: "border-gray-700 text-gray-100 bg-gray-900/50",
                         peak: "text-[#00FFA3]",
-                        label: "text-gray-300"
+                        label: "text-gray-100"
                       };
                   }
                 };
@@ -138,21 +138,21 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
                             className={`text-[9px] font-black mb-0.5 sm:mb-1 block tracking-widest uppercase ${style.label}`}>발생 시점</span>
                         <div className="flex flex-wrap sm:flex-nowrap items-center gap-1 sm:gap-2">
                           <span className="text-white font-mono text-sm sm:text-base lg:text-lg font-black shrink-0">
-                            <span className="text-gray-300 text-xs sm:text-base mr-1">🎬</span>
+                            <span className="text-gray-100 text-xs sm:text-base mr-1">🎬</span>
                             {formatOffset(hl.startTimeOffset)}
                             <span className="mx-1 text-white font-normal">~</span>
                             {formatOffset(hl.endTimeOffset)}
                           </span>
                           <span
-                              className="text-gray-300 text-[10px] font-bold">({formatAbsoluteTime(hl.startTime)})</span>
+                              className="text-gray-100 text-[10px] font-bold">({formatAbsoluteTime(hl.startTime)})</span>
                         </div>
                       </div>
 
                       <div className="text-right border-l border-gray-800/50 pl-3 sm:pl-4 ml-2 shrink-0">
-                        <span className="text-[9px] text-gray-300 font-black mb-0.5 sm:mb-1 block tracking-widest uppercase">최고 화력</span>
+                        <span className="text-[9px] text-gray-100 font-black mb-0.5 sm:mb-1 block tracking-widest uppercase">최고 화력</span>
                         <span className={`font-black text-lg sm:text-xl leading-none ${style.peak}`}>
                           {hl.peakFirepower}
-                          <span className="text-[10px] text-gray-300 ml-1 font-bold">msg/s</span>
+                          <span className="text-[10px] text-gray-100 ml-1 font-bold">msg/s</span>
                         </span>
                       </div>
                     </div>
@@ -164,7 +164,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
         {!isRealtime && highlights.length > 6 && (
             <button
                 onClick={() => setShowAll(!showAll)}
-                className="w-full mt-6 py-4 bg-[#1a1a1c] border border-gray-800 rounded-2xl text-gray-300 text-sm font-bold hover:bg-gray-800 hover:text-white transition-all shadow-lg group"
+                className="w-full mt-6 py-4 bg-[#1a1a1c] border border-gray-800 rounded-2xl text-gray-100 text-sm font-bold hover:bg-gray-800 hover:text-white transition-all shadow-lg group"
             >
               {showAll ? (
                   "▲ 하이라이트 접기"

@@ -32,7 +32,7 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
                 <span className="text-[#FACC15] drop-shadow-[0_0_12px_rgba(250,204,21,0.45)]">CHEESE</span>
                 <span className="text-[#00FFA3] ml-1.5 drop-shadow-[0_0_12px_rgba(0,255,163,0.5)]">PICK</span>
               </div>
-              <span className="text-[9px] font-extrabold text-gray-400 tracking-[0.25em] uppercase font-mono mt-1.5 opacity-70 group-hover:opacity-100 transition-opacity">
+              <span className="text-[9px] font-extrabold text-gray-200 tracking-[0.25em] uppercase font-mono mt-1.5 opacity-70 group-hover:opacity-100 transition-opacity">
                 STREAM ENGINE
               </span>
             </NavLink>
@@ -40,7 +40,7 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
             {/* 모바일 전용 닫기 버튼 */}
             <button
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+              className="lg:hidden text-gray-100 hover:text-white p-1.5 rounded-lg hover:bg-gray-800 transition-colors"
               aria-label="사이드바 닫기"
             >
               <svg className="w-5 h-5 fill-current" viewBox="0 0 20 20">
@@ -51,7 +51,7 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
 
           <div className="space-y-8">
             <div>
-              <h3 className="text-xs uppercase tracking-wider text-gray-400 font-bold pl-3">
+              <h3 className="text-xs uppercase tracking-wider text-gray-100 font-bold pl-3">
                 메뉴
               </h3>
               <ul className="mt-3 space-y-1.5 flex flex-col">
@@ -63,7 +63,7 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
                       `group flex items-center px-3 py-2.5 rounded-xl transition-all duration-150 ${
                         pathname.startsWith('/streamers')
                           ? 'bg-[#00FFA3]/15 text-[#00FFA3] font-black border border-[#00FFA3]/40 shadow-[0_0_15px_rgba(0,255,163,0.15)]'
-                          : 'text-gray-200 hover:text-white hover:bg-gray-800/80 font-bold border border-transparent'
+                          : 'text-gray-100 hover:text-white hover:bg-gray-800/80 font-bold border border-transparent'
                       }`
                     }
                   >
@@ -71,7 +71,7 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
                       className={`shrink-0 h-5 w-5 transition-colors ${
                         pathname.startsWith('/streamers')
                           ? 'text-[#00FFA3] drop-shadow-[0_0_8px_rgba(0,255,163,0.6)]'
-                          : 'text-gray-300 group-hover:text-white'
+                          : 'text-gray-100 group-hover:text-white'
                       }`}
                       fill="none"
                       stroke="currentColor"
@@ -94,7 +94,7 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
                       `group flex items-center px-3 py-2.5 rounded-xl transition-all duration-150 ${
                         (pathname === '/' || pathname.startsWith('/streams'))
                           ? 'bg-[#00FFA3]/15 text-[#00FFA3] font-black border border-[#00FFA3]/40 shadow-[0_0_15px_rgba(0,255,163,0.15)]'
-                          : 'text-gray-200 hover:text-white hover:bg-gray-800/80 font-bold border border-transparent'
+                          : 'text-gray-100 hover:text-white hover:bg-gray-800/80 font-bold border border-transparent'
                       }`
                     }
                   >
@@ -102,7 +102,7 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
                       className={`shrink-0 h-5 w-5 transition-colors ${
                         (pathname === '/' || pathname.startsWith('/streams'))
                           ? 'text-[#00FFA3] drop-shadow-[0_0_8px_rgba(0,255,163,0.6)]'
-                          : 'text-gray-300 group-hover:text-white'
+                          : 'text-gray-100 group-hover:text-white'
                       }`}
                       fill="currentColor"
                       viewBox="0 0 24 24"

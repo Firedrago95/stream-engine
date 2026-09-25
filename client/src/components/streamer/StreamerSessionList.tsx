@@ -79,7 +79,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
         <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
           <span>📜</span> 방송 세션 히스토리
         </h3>
-        <span className="text-xs text-gray-300 font-mono font-semibold">
+        <span className="text-xs text-gray-100 font-mono font-semibold">
           총 {totalElements.toLocaleString()}개 방송
         </span>
       </div>
@@ -101,7 +101,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
           >
             <div className="space-y-1.5 flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono text-gray-300">
+                <span className="text-xs font-mono text-gray-100">
                   {formatDate(sess.startedAt)}
                 </span>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#1e1e24] text-[#67BFFF] border border-gray-800 truncate">
@@ -120,12 +120,12 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
 
             <div className="flex items-center gap-4 sm:gap-6 self-end sm:self-auto shrink-0 text-xs font-mono">
               <div className="text-right">
-                <p className="text-[10.5px] text-gray-300 font-medium">방송 시간</p>
+                <p className="text-[10.5px] text-gray-100 font-medium">방송 시간</p>
                 <p className="font-bold text-gray-100">{formatDuration(sess.durationSeconds)}</p>
               </div>
 
               <div className="text-right">
-                <p className="text-[10.5px] text-gray-300 font-medium">평균 / 최고</p>
+                <p className="text-[10.5px] text-gray-100 font-medium">평균 / 최고</p>
                 <p className="font-bold text-gray-100">
                   <span className="text-[#67BFFF]">{sess.avgViewers.toLocaleString()}</span> /{' '}
                   <span className="text-[#A78BFA]">{sess.peakViewers.toLocaleString()}</span>
@@ -134,7 +134,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
 
               {sess.followerGrowth !== null && sess.followerGrowth !== undefined && (
                 <div className="text-right">
-                  <p className="text-[10.5px] text-gray-300 font-medium">팔로워</p>
+                  <p className="text-[10.5px] text-gray-100 font-medium">팔로워</p>
                   <p className={`font-bold ${sess.followerGrowth >= 0 ? 'text-[#00FFA3]' : 'text-rose-400'}`}>
                     {sess.followerGrowth >= 0 ? `+${sess.followerGrowth}` : sess.followerGrowth}
                   </p>
@@ -143,7 +143,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
 
               {sess.subscriberChatRatio !== null && sess.subscriberChatRatio !== undefined && (
                 <div className="text-right">
-                  <p className="text-[10.5px] text-gray-300 font-medium">구독자 채팅</p>
+                  <p className="text-[10.5px] text-gray-100 font-medium">구독자 채팅</p>
                   <p className="font-bold text-[#00FFA3]">{sess.subscriberChatRatio.toFixed(1)}%</p>
                 </div>
               )}
@@ -157,7 +157,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
           <button
             onClick={() => onPageChange(page - 1)}
             disabled={page <= 0}
-            className="px-3 py-1.5 rounded-lg bg-[#1a1a1c] border border-gray-800 text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors font-bold"
+            className="px-3 py-1.5 rounded-lg bg-[#1a1a1c] border border-gray-800 text-gray-100 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors font-bold"
           >
             이전
           </button>
@@ -167,7 +167,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
           <button
             onClick={() => onPageChange(page + 1)}
             disabled={page >= totalPages - 1}
-            className="px-3 py-1.5 rounded-lg bg-[#1a1a1c] border border-gray-800 text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors font-bold"
+            className="px-3 py-1.5 rounded-lg bg-[#1a1a1c] border border-gray-800 text-gray-100 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors font-bold"
           >
             다음
           </button>

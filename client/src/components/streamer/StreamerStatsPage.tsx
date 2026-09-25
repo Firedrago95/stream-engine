@@ -43,10 +43,10 @@ export const StreamerStatsPage: React.FC = () => {
               placeholder="스트리머 검색 (오프라인 포함)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full p-4 pl-12 pr-10 bg-[#0e0e10] border border-gray-700 rounded-2xl text-white placeholder-gray-300 focus:outline-none focus:border-[#00FFA3] focus:ring-2 focus:ring-[#00FFA3]/20 shadow-xl text-sm"
+              className="w-full p-4 pl-12 pr-10 bg-[#0e0e10] border border-gray-700 rounded-2xl text-white placeholder-gray-200 focus:outline-none focus:border-[#00FFA3] focus:ring-2 focus:ring-[#00FFA3]/20 shadow-xl text-sm"
             />
             <svg
-              className="w-5 h-5 text-gray-300 absolute left-4 top-1/2 -translate-y-1/2 pt-1"
+              className="w-5 h-5 text-gray-100 absolute left-4 top-1/2 -translate-y-1/2 pt-1"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -56,7 +56,7 @@ export const StreamerStatsPage: React.FC = () => {
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-white text-sm font-bold pt-1"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-100 hover:text-white text-sm font-bold pt-1"
               >
                 ✕
               </button>
@@ -69,7 +69,7 @@ export const StreamerStatsPage: React.FC = () => {
               <button
                 key={tag}
                 onClick={() => setSearchTerm(tag)}
-                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-[#1a1a1c] border border-gray-800 text-gray-300 hover:border-[#00FFA3] hover:text-[#00FFA3] hover:shadow-[0_0_10px_rgba(0,255,163,0.2)] transition-all"
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-[#1a1a1c] border border-gray-800 text-gray-100 hover:border-[#00FFA3] hover:text-[#00FFA3] hover:shadow-[0_0_10px_rgba(0,255,163,0.2)] transition-all"
               >
                 {tag}
               </button>
@@ -91,7 +91,7 @@ export const StreamerStatsPage: React.FC = () => {
                 <h3 className="text-lg font-black text-white group-hover:text-[#00FFA3] transition-colors">
                   {topViewers.streamerName}
                 </h3>
-                <p className="text-xs text-gray-300 truncate max-w-xs">{topViewers.categoryName || '기타'}</p>
+                <p className="text-xs text-gray-100 truncate max-w-xs">{topViewers.categoryName || '기타'}</p>
               </div>
             </div>
             <div className="text-right font-mono">
@@ -107,11 +107,11 @@ export const StreamerStatsPage: React.FC = () => {
           <div className="flex items-center gap-4">
             <span className="text-2xl">📡</span>
             <div>
-              <p className="text-xs text-gray-300 font-bold uppercase tracking-wider">실시간 방송 현황</p>
+              <p className="text-xs text-gray-100 font-bold uppercase tracking-wider">실시간 방송 현황</p>
               <h3 className="text-lg font-black text-white">
-                {activeLiveCount}개 방송 중 <span className="text-xs text-gray-300 font-normal">/ Top {streams.length}</span>
+                {activeLiveCount}개 방송 중 <span className="text-xs text-gray-100 font-normal">/ Top {streams.length}</span>
               </h3>
-              <p className="text-xs text-gray-300 font-medium">매일 새벽 04:00 자동 정산</p>
+              <p className="text-xs text-gray-100 font-medium">매일 새벽 04:00 자동 정산</p>
             </div>
           </div>
           <div className="text-right font-mono">
@@ -130,7 +130,7 @@ export const StreamerStatsPage: React.FC = () => {
               <span>🏆</span> 스트리머 체급 랭킹 리더보드
             </h3>
           </div>
-          <span className="text-xs text-gray-300 font-mono font-semibold">
+          <span className="text-xs text-gray-100 font-mono font-semibold">
             {streams.length}명 랭크
           </span>
         </div>
@@ -142,7 +142,7 @@ export const StreamerStatsPage: React.FC = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-300">
+            <table className="w-full text-left text-sm text-gray-100">
               <thead>
                 <tr className="border-b border-gray-800 text-[11px] font-bold text-gray-200 uppercase tracking-wider">
                   <th className="py-3 px-3 w-12 text-center">순위</th>
@@ -151,7 +151,7 @@ export const StreamerStatsPage: React.FC = () => {
                   <th className="py-3 px-4 text-right">
                     <div className="inline-flex items-center gap-1 cursor-help group/tip relative">
                       <span>30일 평균 시청자</span>
-                      <svg className="w-3.5 h-3.5 text-gray-300 group-hover/tip:text-[#00FFA3] transition-colors fill-current" viewBox="0 0 20 20">
+                      <svg className="w-3.5 h-3.5 text-gray-100 group-hover/tip:text-[#00FFA3] transition-colors fill-current" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                       </svg>
                       <div className="absolute right-0 bottom-full mb-2 hidden group-hover/tip:block w-64 p-3 bg-[#18181c] border border-gray-700 text-[11px] text-gray-200 rounded-xl shadow-2xl z-50 font-normal leading-relaxed text-left backdrop-blur-md">
@@ -182,7 +182,7 @@ export const StreamerStatsPage: React.FC = () => {
                               ? 'bg-slate-300 text-black'
                               : idx === 2
                               ? 'bg-amber-600 text-white'
-                              : 'text-gray-300 font-bold'
+                              : 'text-gray-100 font-bold'
                           }`}
                         >
                           {idx + 1}
@@ -205,7 +205,7 @@ export const StreamerStatsPage: React.FC = () => {
                             <p className="font-extrabold text-white text-[15px] group-hover:text-[#00FFA3] transition-colors truncate">
                               {stream.streamerName}
                             </p>
-                            <p className="text-xs text-gray-300 group-hover:text-white transition-colors truncate max-w-xs sm:max-w-md">
+                            <p className="text-xs text-gray-100 group-hover:text-white transition-colors truncate max-w-xs sm:max-w-md">
                               {stream.liveTitle || '최근 방송 기록 없음'}
                             </p>
                           </div>
@@ -238,14 +238,14 @@ export const StreamerStatsPage: React.FC = () => {
                           </span>
                         )}
                         {!isStreaming && (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-gray-800/70 text-gray-300 border border-gray-700">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-gray-800/70 text-gray-100 border border-gray-700">
                             OFFLINE
                           </span>
                         )}
                       </td>
 
                       <td className="py-3.5 px-4 text-center">
-                        <span className="inline-block px-2.5 py-1 text-xs font-bold rounded-lg bg-[#1e1e24] group-hover:bg-[#00FFA3] group-hover:text-black transition-all text-gray-300">
+                        <span className="inline-block px-2.5 py-1 text-xs font-bold rounded-lg bg-[#1e1e24] group-hover:bg-[#00FFA3] group-hover:text-black transition-all text-gray-100">
                           전적 →
                         </span>
                       </td>

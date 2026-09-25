@@ -88,7 +88,7 @@ const MainPage = () => {
             {searchTerm && (
                 <button
                     onClick={() => setSearchTerm("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#a1a1aa] hover:text-white text-xs font-bold"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-200 hover:text-white text-xs font-bold"
                 >
                   ✕
                 </button>
@@ -107,7 +107,7 @@ const MainPage = () => {
 
         {/* 결과 없음 처리 */}
         {!isLoading && liveStreams.length === 0 && (
-            <div className="text-center py-20 text-[#a1a1aa] bg-[#1a1a1c] rounded-2xl border border-gray-800">
+            <div className="text-center py-20 text-gray-100 bg-[#1a1a1c] rounded-2xl border border-gray-800">
               {searchTerm ? `'${searchTerm}'에 대한 검색 결과가 없습니다.` : "현재 라이브 중인 방송이 없습니다."}
             </div>
         )}
@@ -134,14 +134,14 @@ const MainPage = () => {
               href="https://forms.gle/hUkZBr9KCTDyTXLW9"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-gray-300 hover:text-[#00FFA3] transition-all text-sm font-bold bg-[#1a1a1c] px-8 py-3.5 rounded-full border border-gray-700 hover:border-[#00FFA3]/50 shadow-xl group"
+              className="inline-flex items-center gap-2 text-gray-100 hover:text-[#00FFA3] transition-all text-sm font-bold bg-[#1a1a1c] px-8 py-3.5 rounded-full border border-gray-700 hover:border-[#00FFA3]/50 shadow-xl group"
           >
             💡 치즈픽 하이라이트 엔진 피드백 보내기
             <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>
           </a>
-          <p className="mt-8 text-[11px] text-gray-400 font-medium tracking-widest uppercase">
+          <p className="mt-8 text-[11px] text-gray-200 font-medium tracking-widest uppercase">
             © 2026 CheesePick. Advanced Stream Analytics Pipeline.
           </p>
         </footer>
@@ -165,7 +165,7 @@ export default function App() {
                 fallback={
                   <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
                     <div className="w-10 h-10 border-3 border-[#00FFA3] border-t-transparent rounded-full animate-spin"></div>
-                    <div className="text-gray-400 text-sm font-medium tracking-wide">대시보드를 불러오는 중...</div>
+                    <div className="text-gray-200 text-sm font-medium tracking-wide">대시보드를 불러오는 중...</div>
                   </div>
                 }
               >

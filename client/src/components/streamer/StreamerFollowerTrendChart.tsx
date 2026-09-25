@@ -90,7 +90,7 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
               일일 스냅샷
             </span>
           </div>
-          <p className="text-xs text-gray-300 mt-1">
+          <p className="text-xs text-gray-100 mt-1">
             매일 새벽 03:30 수집 기준 마감 팔로워 히스토리
           </p>
         </div>
@@ -102,7 +102,7 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
               className={`px-3 py-1 rounded-lg transition-colors ${
                 viewMode === 'TOTAL'
                   ? 'bg-gradient-to-r from-[#00FFA3] to-[#00D182] text-black shadow-lg shadow-[#00FFA3]/20'
-                  : 'text-gray-300 hover:text-white'
+                  : 'text-gray-100 hover:text-white'
               }`}
             >
               총 팔로워
@@ -112,7 +112,7 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
               className={`px-3 py-1 rounded-lg transition-colors ${
                 viewMode === 'GROWTH'
                   ? 'bg-gradient-to-r from-[#00FFA3] to-[#00D182] text-black shadow-lg shadow-[#00FFA3]/20'
-                  : 'text-gray-300 hover:text-white'
+                  : 'text-gray-100 hover:text-white'
               }`}
             >
               일일 순증
@@ -125,7 +125,7 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
               className={`px-3 py-1 rounded-lg transition-colors ${
                 days === 30
                   ? 'bg-gray-700 text-white shadow'
-                  : 'text-gray-300 hover:text-white'
+                  : 'text-gray-100 hover:text-white'
               }`}
             >
               30일
@@ -135,7 +135,7 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
               className={`px-3 py-1 rounded-lg transition-colors ${
                 days === 90
                   ? 'bg-gray-700 text-white shadow'
-                  : 'text-gray-300 hover:text-white'
+                  : 'text-gray-100 hover:text-white'
               }`}
             >
               90일
@@ -147,14 +147,14 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
       {summary && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 bg-[#1A1A1E] border border-gray-800/60 rounded-xl">
           <div>
-            <p className="text-[11px] text-gray-300 font-medium">최근 스냅샷 팔로워</p>
+            <p className="text-[11px] text-gray-100 font-medium">최근 스냅샷 팔로워</p>
             <p className="text-lg sm:text-xl font-black text-white font-mono mt-0.5">
               {formatNumber(summary.currentCount)}
-              <span className="text-xs text-gray-300 font-normal ml-1">명</span>
+              <span className="text-xs text-gray-100 font-normal ml-1">명</span>
             </p>
           </div>
           <div>
-            <p className="text-[11px] text-gray-300 font-medium">{days}일간 총 순증</p>
+            <p className="text-[11px] text-gray-100 font-medium">{days}일간 총 순증</p>
             <p
               className={`text-lg sm:text-xl font-black font-mono mt-0.5 ${
                 summary.totalGrowth >= 0 ? 'text-[#00FFA3]' : 'text-rose-400'
@@ -163,11 +163,11 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
               {summary.totalGrowth >= 0
                 ? `+${formatNumber(summary.totalGrowth)}`
                 : formatNumber(summary.totalGrowth)}
-              <span className="text-xs text-gray-300 font-normal ml-1">명</span>
+              <span className="text-xs text-gray-100 font-normal ml-1">명</span>
             </p>
           </div>
           <div className="col-span-2 sm:col-span-1">
-            <p className="text-[11px] text-gray-300 font-medium">하루 평균 성장</p>
+            <p className="text-[11px] text-gray-100 font-medium">하루 평균 성장</p>
             <p
               className={`text-lg sm:text-xl font-black font-mono mt-0.5 ${
                 summary.dailyAvg >= 0 ? 'text-[#67BFFF]' : 'text-rose-400'
@@ -176,7 +176,7 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
               {summary.dailyAvg >= 0
                 ? `+${formatNumber(summary.dailyAvg)}`
                 : formatNumber(summary.dailyAvg)}
-              <span className="text-xs text-gray-300 font-normal ml-1">명/일</span>
+              <span className="text-xs text-gray-100 font-normal ml-1">명/일</span>
             </p>
           </div>
         </div>
@@ -185,17 +185,17 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
       {loading ? (
         <div className="h-64 flex flex-col items-center justify-center gap-3">
           <div className="w-8 h-8 border-3 border-[#00FFA3] border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs text-gray-400">팔로워 데이터를 불러오는 중입니다...</p>
+          <p className="text-xs text-gray-100">팔로워 데이터를 불러오는 중입니다...</p>
         </div>
       ) : error ? (
         <div className="h-64 flex items-center justify-center text-xs text-rose-400 font-medium">
           {error}
         </div>
       ) : data.length === 0 ? (
-        <div className="h-64 flex flex-col items-center justify-center gap-2 text-center text-gray-400">
+        <div className="h-64 flex flex-col items-center justify-center gap-2 text-center text-gray-100">
           <span className="text-2xl">🌱</span>
-          <p className="text-sm font-bold text-gray-300">아직 수집된 팔로워 히스토리가 없습니다.</p>
-          <p className="text-xs text-gray-400">
+          <p className="text-sm font-bold text-gray-100">아직 수집된 팔로워 히스토리가 없습니다.</p>
+          <p className="text-xs text-gray-200">
             매일 새벽 03:30 정기 수집기를 통해 일일 스냅샷이 누적됩니다.
           </p>
         </div>
@@ -206,7 +206,7 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
               <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="followerGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00FFA3" stopOpacity={0.4} />
+                    <stop offset="5%" stopColor="#00FFA3" stopOpacity={0.35} />
                     <stop offset="95%" stopColor="#00FFA3" stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
@@ -215,7 +215,7 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
                   dataKey="date"
                   tickFormatter={formatDateLabel}
                   stroke="#52525B"
-                  tick={{ fill: '#A1A1AA', fontSize: 10 }}
+                  tick={{ fill: '#E4E4E7', fontSize: 10 }}
                   tickLine={false}
                   axisLine={{ stroke: '#27272A' }}
                   minTickGap={20}
@@ -223,7 +223,7 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
                 <YAxis
                   width={42}
                   stroke="#52525B"
-                  tick={{ fill: '#A1A1AA', fontSize: 10 }}
+                  tick={{ fill: '#E4E4E7', fontSize: 10 }}
                   tickLine={false}
                   axisLine={false}
                   domain={['auto', 'auto']}
@@ -235,7 +235,7 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
                       const item = payload[0].payload as FollowerTrendItem;
                       return (
                         <div className="p-3 bg-[#1A1A1E] border border-gray-700 rounded-xl shadow-2xl text-xs space-y-1">
-                          <p className="text-gray-400 font-mono">{item.date}</p>
+                          <p className="text-gray-200 font-mono">{item.date}</p>
                           <p className="text-white font-bold text-sm font-mono">
                             {formatNumber(item.followerCount)}명
                           </p>
@@ -268,7 +268,7 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
                   dataKey="date"
                   tickFormatter={formatDateLabel}
                   stroke="#52525B"
-                  tick={{ fill: '#A1A1AA', fontSize: 10 }}
+                  tick={{ fill: '#E4E4E7', fontSize: 10 }}
                   tickLine={false}
                   axisLine={{ stroke: '#27272A' }}
                   minTickGap={20}
@@ -276,7 +276,7 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
                 <YAxis
                   width={42}
                   stroke="#52525B"
-                  tick={{ fill: '#A1A1AA', fontSize: 10 }}
+                  tick={{ fill: '#E4E4E7', fontSize: 10 }}
                   tickLine={false}
                   axisLine={false}
                   domain={['auto', 'auto']}
@@ -288,7 +288,7 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
                       const item = payload[0].payload as FollowerTrendItem;
                       return (
                         <div className="p-3 bg-[#1A1A1E] border border-gray-700 rounded-xl shadow-2xl text-xs space-y-1">
-                          <p className="text-gray-400 font-mono">{item.date}</p>
+                          <p className="text-gray-200 font-mono">{item.date}</p>
                           <p
                             className={`font-mono font-bold text-sm ${
                               item.followerGrowth >= 0 ? 'text-[#00FFA3]' : 'text-rose-400'
@@ -296,7 +296,7 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
                           >
                             일일 증감 {item.followerGrowth >= 0 ? `+${formatNumber(item.followerGrowth)}` : formatNumber(item.followerGrowth)}명
                           </p>
-                          <p className="text-gray-400 font-mono">
+                          <p className="text-gray-200 font-mono">
                             누적 {formatNumber(item.followerCount)}명
                           </p>
                         </div>

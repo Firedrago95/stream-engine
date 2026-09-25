@@ -449,7 +449,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
           <span className="text-base sm:text-lg font-bold text-white flex items-center gap-1.5">
             <span>📅</span> 월간 방송 타임라인
           </span>
-          <span className="text-xs font-mono text-gray-300">
+          <span className="text-xs font-mono text-gray-100">
             {selectedYear}.{String(selectedMonth).padStart(2, '0')}
           </span>
         </div>
@@ -457,7 +457,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
         <div className="flex items-center gap-1.5 bg-[#1a1a1c] border border-[#2A2A2C] rounded-lg p-1">
           <button
             onClick={handlePrevMonth}
-            className="p-1 rounded hover:bg-[#2A2A2C] text-gray-300 hover:text-white transition-colors"
+            className="p-1 rounded hover:bg-[#2A2A2C] text-gray-100 hover:text-white transition-colors"
             title="이전 달"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -469,7 +469,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
           </span>
           <button
             onClick={handleNextMonth}
-            className="p-1 rounded hover:bg-[#2A2A2C] text-gray-300 hover:text-white transition-colors"
+            className="p-1 rounded hover:bg-[#2A2A2C] text-gray-100 hover:text-white transition-colors"
             title="다음 달"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -487,7 +487,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
 
       <div className="mt-3.5 overflow-x-auto">
         <div className="min-w-[640px] border border-[#2A2A2C] rounded-xl overflow-hidden bg-[#101012]">
-          <div className="grid grid-cols-7 text-center py-1.5 bg-[#18181b] border-b border-[#2A2A2C] text-[11px] font-semibold text-gray-300">
+          <div className="grid grid-cols-7 text-center py-1.5 bg-[#18181b] border-b border-[#2A2A2C] text-[11px] font-semibold text-gray-100">
             <div className="text-rose-500">일</div>
             <div>월</div>
             <div>화</div>
@@ -527,7 +527,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
                           key={day.dateKey}
                           className={`p-1.5 relative flex flex-col justify-start transition-colors ${
                             !day.isCurrentMonth
-                              ? 'bg-[#0d0d0f]/60 text-gray-500'
+                              ? 'bg-[#0d0d0f]/60 text-gray-200'
                               : 'bg-[#141416] text-gray-200 hover:bg-[#18181b]'
                           } ${day.isToday ? 'bg-[#1e293b]/25 ring-1 ring-inset ring-[#00FFA3]/30' : ''}`}
                         >
@@ -629,7 +629,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
           </div>
           <div className="space-y-1.5 border-t border-[#2A2A2C] pt-2 text-gray-200 text-[11px]">
             <div className="flex justify-between items-center gap-4">
-              <span className="text-gray-300 shrink-0">⏱️ 방송 시간</span>
+              <span className="text-gray-100 shrink-0">⏱️ 방송 시간</span>
               <span className="font-semibold text-white whitespace-nowrap text-right">
                 {formatKstTimeOnly(parseKstInstant(hoveredSession.session.startedAt))} ~{' '}
                 {hoveredSession.session.endedAt
@@ -639,7 +639,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
               </span>
             </div>
             <div className="flex justify-between items-center gap-4">
-              <span className="text-gray-300 shrink-0">👥 평균 / 피크</span>
+              <span className="text-gray-100 shrink-0">👥 평균 / 피크</span>
               <span className="font-semibold text-[#38bdf8] whitespace-nowrap text-right">
                 {hoveredSession.session.averageViewers.toLocaleString()}명 /{' '}
                 {hoveredSession.session.peakViewers.toLocaleString()}명
@@ -664,7 +664,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
             </span>
             <button
               onClick={() => setPopoverDate(null)}
-              className="text-gray-300 hover:text-white p-0.5 rounded hover:bg-[#2A2A2C]"
+              className="text-gray-100 hover:text-white p-0.5 rounded hover:bg-[#2A2A2C]"
             >
               ✕
             </button>
@@ -678,12 +678,12 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
                     <span className={`font-bold ${palette.textColor}`}>
                       {s.categoryName || '카테고리 없음'}
                     </span>
-                    <span className="text-gray-300 font-mono text-[10px]">
+                    <span className="text-gray-100 font-mono text-[10px]">
                       {formatDurationHours(s.durationSeconds)}
                     </span>
                   </div>
                   <div className="text-white font-medium line-clamp-1">{s.title || '제목 없음'}</div>
-                  <div className="text-gray-300 text-[10px] flex justify-between">
+                  <div className="text-gray-100 text-[10px] flex justify-between">
                     <span>
                       {formatKstTimeOnly(parseKstInstant(s.startedAt))} ~{' '}
                       {s.endedAt ? formatKstTimeOnly(parseKstInstant(s.endedAt)) : '진행 중'}

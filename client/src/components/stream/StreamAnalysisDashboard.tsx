@@ -444,7 +444,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
   const displayCategory = isLiveTabSelected ? streamerInfo?.categoryName : currentSessionInfo?.categoryName;
   const displayViewers = isLiveTabSelected ? streamerInfo?.concurrentUserCount : currentSessionInfo?.viewers;
 
-  if (!streamId) return <div className="p-10 text-center text-slate-400">잘못된 접근입니다.</div>;
+  if (!streamId) return <div className="p-10 text-center text-gray-100">잘못된 접근입니다.</div>;
 
   const isChartLoading = isLiveTabSelected
     ? (liveTimeframe === 'realtime' ? isLoading : isLiveCumulativeLoading)
@@ -524,14 +524,14 @@ export const StreamAnalysisDashboard: React.FC = () => {
           href="https://forms.gle/hUkZBr9KCTDyTXLW9"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-gray-400 hover:text-[#00FFA3] transition-all text-sm font-bold bg-[#1a1a1c] px-8 py-3.5 rounded-full border border-gray-800 hover:border-[#00FFA3]/50 shadow-xl group"
+          className="inline-flex items-center gap-2 text-gray-100 hover:text-[#00FFA3] transition-all text-sm font-bold bg-[#1a1a1c] px-8 py-3.5 rounded-full border border-gray-800 hover:border-[#00FFA3]/50 shadow-xl group"
         >
           💡 치즈픽 하이라이트 엔진 피드백 보내기
           <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
           </svg>
         </a>
-        <p className="mt-8 text-[11px] text-gray-600 font-medium tracking-widest uppercase">
+        <p className="mt-8 text-[11px] text-gray-200 font-medium tracking-widest uppercase">
           © 2026 CheesePick. Advanced Stream Analytics Pipeline.
         </p>
       </footer>

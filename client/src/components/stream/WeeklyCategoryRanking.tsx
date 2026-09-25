@@ -35,7 +35,7 @@ export const WeeklyCategoryRanking: React.FC = () => {
           </span>
         );
       default:
-        return <span className="text-[10px] font-bold text-gray-400">-</span>;
+        return <span className="text-[10px] font-bold text-gray-200">-</span>;
     }
   };
 
@@ -43,7 +43,7 @@ export const WeeklyCategoryRanking: React.FC = () => {
     if (rank === 1) return 'bg-[#00FFA3] text-black font-black shadow-sm';
     if (rank === 2) return 'bg-slate-300 text-black font-black';
     if (rank === 3) return 'bg-amber-600 text-white font-black';
-    return 'bg-gray-800 text-gray-300 font-bold';
+    return 'bg-gray-800 text-gray-100 font-bold';
   };
 
   return (
@@ -104,7 +104,7 @@ export const WeeklyCategoryRanking: React.FC = () => {
                 className="mt-2 pt-2 border-t border-gray-800/80 flex items-center justify-between text-[11px]"
                 title={item.exactHours ? `정밀 집계: 총 ${item.exactHours.toLocaleString()}시간` : undefined}
               >
-                <span className="text-gray-400">누적</span>
+                <span className="text-gray-100 font-medium">누적</span>
                 <span className="font-mono text-gray-200 font-semibold">{item.accumulatedViewHours}</span>
               </div>
             </div>

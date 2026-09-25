@@ -41,7 +41,7 @@ export const StreamProfileHeader: React.FC<Props> = ({
             LIVE 실시간 관제 중
           </span>
         ) : (
-          <span className="px-2 sm:px-2.5 py-0.5 text-[11px] sm:text-xs font-semibold bg-[#26262b] text-gray-300 border border-gray-700/60 rounded-md flex items-center gap-1.5">
+          <span className="px-2 sm:px-2.5 py-0.5 text-[11px] sm:text-xs font-semibold bg-[#26262b] text-gray-100 border border-gray-700/60 rounded-md flex items-center gap-1.5">
             📁 방송 아카이브
           </span>
         )}
