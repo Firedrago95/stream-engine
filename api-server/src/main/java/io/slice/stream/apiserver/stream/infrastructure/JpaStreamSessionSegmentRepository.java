@@ -4,6 +4,7 @@ import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegme
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -29,7 +30,7 @@ public interface JpaStreamSessionSegmentRepository extends JpaRepository<StreamS
 
     Optional<StreamSessionSegmentEntity> findFirstBySessionIdOrderByStartedAtDesc(String sessionId);
 
-    @org.springframework.data.jpa.repository.Modifying
+    @Modifying
     @Query("DELETE FROM StreamSessionSegmentEntity s WHERE s.sessionId IN :sessionIds")
     int deleteAllBySessionIds(@Param("sessionIds") List<String> sessionIds);
 }

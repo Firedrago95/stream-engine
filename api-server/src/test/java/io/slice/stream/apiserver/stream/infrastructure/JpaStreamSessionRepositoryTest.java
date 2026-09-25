@@ -17,6 +17,7 @@ import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.data.domain.PageRequest;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -113,7 +114,7 @@ class JpaStreamSessionRepositoryTest implements PostgresTestSupport {
         // when (최대 10개까지만 최신순으로 페이징 조회)
         List<StreamSessionEntity> recentSessions = sessionRepository.findRecentSessionsByStreamId(
             streamId,
-            org.springframework.data.domain.PageRequest.of(0, 10)
+            PageRequest.of(0, 10)
         );
 
         // then
@@ -134,8 +135,8 @@ class JpaStreamSessionRepositoryTest implements PostgresTestSupport {
 
         StreamSessionEntity session1 = new StreamSessionEntity(streamId1, "session-a", "방제1", "카테고리1", now);
         sessionRepository.save(session1);
-        StreamSessionEntity session2 = new StreamSessionEntity(streamId2, "session-b", "방제2", "카테고리2", now.minus(2, java.time.temporal.ChronoUnit.HOURS));
-        session2.finishSession(now.minus(1, java.time.temporal.ChronoUnit.HOURS), 100);
+        StreamSessionEntity session2 = new StreamSessionEntity(streamId2, "session-b", "방제2", "카테고리2", now.minus(2, ChronoUnit.HOURS));
+        session2.finishSession(now.minus(1, ChronoUnit.HOURS), 100);
         sessionRepository.save(session2);
         StreamSessionEntity session3 = new StreamSessionEntity(streamId3, "session-c", "방제3", "카테고리3", now);
         sessionRepository.save(session3);

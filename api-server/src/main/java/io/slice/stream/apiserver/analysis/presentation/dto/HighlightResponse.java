@@ -1,6 +1,7 @@
 package io.slice.stream.apiserver.analysis.presentation.dto;
 
 import io.slice.stream.apiserver.analysis.infrastructure.entity.HighlightEventEntity;
+import java.time.Duration;
 import java.time.Instant;
 
 public record HighlightResponse(
@@ -17,7 +18,7 @@ public record HighlightResponse(
     public static HighlightResponse from(HighlightEventEntity entity) {
         long duration = 0;
         if (entity.getStartTime() != null && entity.getEndTime() != null) {
-            duration = java.time.Duration.between(entity.getStartTime(), entity.getEndTime()).getSeconds();
+            duration = Duration.between(entity.getStartTime(), entity.getEndTime()).getSeconds();
         }
 
         return new HighlightResponse(

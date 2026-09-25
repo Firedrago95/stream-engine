@@ -1,5 +1,6 @@
 package io.slice.stream.apiserver.streamer.presentation;
 
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -71,7 +72,7 @@ class StreamerFollowerInternalControllerTest {
                 .content(objectMapper.writeValueAsString(dtos)))
             .andExpect(status().isOk());
 
-        verify(followerCommandService).recordFollowers(org.mockito.ArgumentMatchers.anyList());
+        verify(followerCommandService).recordFollowers(anyList());
     }
 
     @Test

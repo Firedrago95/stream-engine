@@ -2,6 +2,7 @@ package io.slice.stream.apiserver.analysis.application.scheduler;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -70,7 +71,7 @@ class HighlightCleanupSchedulerTest {
 
         scheduler.cleanupOldHighlights();
 
-        verify(sessionRepository, org.mockito.Mockito.atLeastOnce()).findFinishedSessionsOlderThan(any(Instant.class));
+        verify(sessionRepository, atLeastOnce()).findFinishedSessionsOlderThan(any(Instant.class));
         verify(highlightRepository).deleteExceptTop(sessionId, 10);
     }
 
