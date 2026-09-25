@@ -316,17 +316,19 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
 
         let barLabel = '';
         if (s.isLive) {
-          barLabel = widthPercent > 4 ? 'LIVE 🔴' : '🔴';
+          const cat = s.categoryName ? ` · ${s.categoryName}` : '';
+          barLabel = widthPercent > 5.0 ? `🔴 LIVE${cat}` : (widthPercent > 3.0 ? '🔴 LIVE' : '🔴');
         } else {
           const hoursStr = formatDurationHours(s.durationSeconds);
+          const cat = s.categoryName || '기타';
           if (widthPercent >= 8.5) {
             const startStr = formatKstTimeOnly(new Date(sStart));
             const endStr = formatKstTimeOnly(new Date(sEnd));
-            barLabel = `${startStr} ~ ${endStr} (${hoursStr})`;
-          } else if (widthPercent >= 5.0) {
-            barLabel = s.categoryName ? `${s.categoryName} (${hoursStr})` : hoursStr;
-          } else if (widthPercent >= 3.0) {
-            barLabel = hoursStr;
+            barLabel = `${cat} · ${hoursStr} (${startStr} ~ ${endStr})`;
+          } else if (widthPercent >= 4.5) {
+            barLabel = `${cat} · ${hoursStr}`;
+          } else if (widthPercent >= 2.5) {
+            barLabel = cat.length <= 6 ? cat : hoursStr;
           } else {
             barLabel = '';
           }
