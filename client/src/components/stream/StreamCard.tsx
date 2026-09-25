@@ -15,13 +15,20 @@ export const StreamCard: React.FC<{ stream: StreamItem }> = ({ stream }) => {
           /* 오프라인일 경우 투명도와 흑백(grayscale) 필터를 적용하여 시각적으로 구분 */
           className={`flex items-center p-3 sm:p-4 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-500 rounded-xl cursor-pointer hover:border-[#00FFA3] hover:ring-1 hover:ring-[#00FFA3] hover:shadow-lg transition-all duration-200 group ${isOffline ? 'opacity-50 grayscale' : ''}`}
       >
-        <div className={`relative w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden shrink-0 border-2 ${isOffline ? 'border-gray-600' : 'border-gray-600 group-hover:border-[#00FFA3]'} transition-colors`}>
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/streamers/${stream.streamId}`);
+          }}
+          title={`${stream.streamerName} 스트리머 리포트 보기`}
+          className={`relative w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden shrink-0 border-2 ${isOffline ? 'border-gray-600' : 'border-gray-600 group-hover:border-[#00FFA3]'} hover:ring-2 hover:ring-[#00FFA3] transition-all cursor-pointer`}
+        >
           <img
-              src={stream.profileImageUrl ?? undefined}
-              alt={stream.streamerName}
-              className="w-full h-full object-cover"
-              loading="lazy"
-              decoding="async"
+            src={stream.profileImageUrl ?? undefined}
+            alt={stream.streamerName}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
           />
         </div>
 
@@ -31,7 +38,14 @@ export const StreamCard: React.FC<{ stream: StreamItem }> = ({ stream }) => {
           </h3>
 
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-gray-100 text-xs sm:text-sm font-medium truncate max-w-[90px] sm:max-w-none">
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/streamers/${stream.streamId}`);
+              }}
+              title={`${stream.streamerName} 스트리머 리포트 보기`}
+              className="text-gray-100 hover:text-[#00FFA3] hover:underline text-xs sm:text-sm font-medium truncate max-w-[90px] sm:max-w-none transition-colors cursor-pointer"
+            >
               {stream.streamerName}
             </span>
 

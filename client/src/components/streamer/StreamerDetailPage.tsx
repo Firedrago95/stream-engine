@@ -125,7 +125,11 @@ export const StreamerDetailPage: React.FC = () => {
 
       <div className="p-6 sm:p-8 bg-[#141416] border border-[#2A2A2C] rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative overflow-hidden">
         <div className="flex items-center gap-5">
-          <div className="relative">
+          <div
+            onClick={() => header.isLive && navigate(`/streams/${channelId}`)}
+            title={header.isLive ? '실시간 방송 분석 대시보드로 이동' : undefined}
+            className={`relative ${header.isLive ? 'cursor-pointer hover:ring-2 hover:ring-red-500 rounded-full transition-all' : ''}`}
+          >
             <img
               src={header.profileImageUrl || '/cheese-pick-logo.png'}
               alt={header.streamerName}
@@ -144,10 +148,14 @@ export const StreamerDetailPage: React.FC = () => {
                 {header.streamerName}
               </h1>
               {header.isLive && (
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-500/15 text-red-400 border border-red-500/30">
+                <button
+                  onClick={() => navigate(`/streams/${channelId}`)}
+                  title="실시간 방송 분석 대시보드로 이동"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 transition-all cursor-pointer"
+                >
                   <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-                  방송 중
-                </span>
+                  방송 중 · 실시간 관제
+                </button>
               )}
             </div>
 
@@ -172,6 +180,20 @@ export const StreamerDetailPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {header.isLive && (
+          <button
+            onClick={() => navigate(`/streams/${channelId}`)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/40 text-xs sm:text-sm font-bold shadow-lg transition-all group shrink-0 cursor-pointer"
+            title="실시간 방송 분석 대시보드로 이동"
+          >
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+            <span>실시간 라이브 분석</span>
+            <svg className="w-4 h-4 transform group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
