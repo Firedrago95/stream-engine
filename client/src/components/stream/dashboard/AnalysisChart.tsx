@@ -76,7 +76,7 @@ const CustomTooltip = ({ active, payload, selectedTab, timeframe = 'realtime', f
           </div>
           {data.viewerCount !== undefined && data.viewerCount !== null && (
             <div className="text-[#67BFFF] font-bold text-sm font-mono">
-              👥 {Number(data.viewerCount).toLocaleString()} <span className="text-xs font-normal text-gray-300">명</span>
+              👥 {Number(data.viewerCount).toLocaleString()} <span className="text-xs font-normal text-gray-100">명</span>
             </div>
           )}
         </div>
@@ -177,7 +177,7 @@ export const AnalysisChart: React.FC<Props> = ({
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="text-center p-6 bg-[#1a1a1c] border border-red-500/30 rounded-2xl">
             <p className="text-red-400 font-bold mb-2">데이터 연결 오류</p>
-            <p className="text-gray-400 text-sm">{error}</p>
+            <p className="text-gray-100 text-sm">{error}</p>
           </div>
         </div>
       )}
@@ -192,7 +192,7 @@ export const AnalysisChart: React.FC<Props> = ({
       {!isLiveTab && historyEmpty && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
           <span className="text-4xl mb-4">🏜️</span>
-          <p className="text-gray-400 font-bold tracking-widest">해당 날짜의 분석 기록이 없습니다.</p>
+          <p className="text-gray-100 font-bold tracking-widest">해당 날짜의 분석 기록이 없습니다.</p>
         </div>
       )}
 
@@ -220,7 +220,7 @@ export const AnalysisChart: React.FC<Props> = ({
                 className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
                   timeframe === 'realtime'
                     ? 'bg-[#24262b] text-[#00FFA3] font-bold border border-[#00FFA3]/30 shadow-sm'
-                    : 'text-gray-400 hover:text-white'
+                    : 'text-gray-100 hover:text-white'
                 }`}
               >
                 <span>⏱️</span>
@@ -232,7 +232,7 @@ export const AnalysisChart: React.FC<Props> = ({
                 className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
                   timeframe === 'cumulative'
                     ? 'bg-[#24262b] text-[#00FFA3] font-bold border border-[#00FFA3]/30 shadow-sm'
-                    : 'text-gray-400 hover:text-white'
+                    : 'text-gray-100 hover:text-white'
                 }`}
               >
                 <span>📈</span>
@@ -245,17 +245,17 @@ export const AnalysisChart: React.FC<Props> = ({
         <div className="flex items-center gap-4 sm:gap-6 justify-between sm:justify-end w-full sm:w-auto border-t sm:border-t-0 border-gray-800/60 pt-3 sm:pt-0">
           {viewerMetric && (
             <div className="text-left sm:text-right">
-              <div className="block mb-1 text-[11px] sm:text-xs text-gray-400 font-medium">{viewerMetric.label}</div>
+              <div className="block mb-1 text-[11px] sm:text-xs text-gray-100 font-medium">{viewerMetric.label}</div>
               <span className="text-2xl sm:text-4xl font-black text-[#67BFFF] font-mono">
                 {typeof viewerMetric.value === 'number' ? viewerMetric.value.toLocaleString() : viewerMetric.value}
-                <span className="text-xs text-gray-300 ml-1.5 font-sans font-normal">명</span>
+                <span className="text-xs text-gray-100 ml-1.5 font-sans font-normal">명</span>
               </span>
             </div>
           )}
           <div className="text-right">
-            <div className="block mb-1 text-[11px] sm:text-xs text-gray-400 font-medium">{metric.label}</div>
+            <div className="block mb-1 text-[11px] sm:text-xs text-gray-100 font-medium">{metric.label}</div>
             <span className="text-2xl sm:text-4xl font-black text-[#00FFA3]">
-              {metric.value} <span className="text-xs text-gray-300 ml-1 italic font-sans font-normal">msg/s</span>
+              {metric.value} <span className="text-xs text-gray-100 ml-1 italic font-sans font-normal">msg/s</span>
             </span>
           </div>
         </div>

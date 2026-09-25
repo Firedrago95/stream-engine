@@ -39,7 +39,7 @@ export const StreamerCategories: React.FC<StreamerCategoriesProps> = ({ categori
           <div key={cat.categoryName} className="group">
             <div className="flex items-center justify-between text-xs mb-1.5 font-medium">
               <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded flex items-center justify-center bg-gray-800 text-gray-300 font-bold text-[10px]">
+                <span className="w-5 h-5 rounded flex items-center justify-center bg-gray-800 text-gray-100 font-bold text-[10px]">
                   {idx + 1}
                 </span>
                 <span className="text-gray-100 font-bold text-sm truncate max-w-[180px] sm:max-w-xs">
@@ -47,7 +47,7 @@ export const StreamerCategories: React.FC<StreamerCategoriesProps> = ({ categori
                 </span>
               </div>
               <div className="flex items-center gap-4 text-right">
-                <span className="text-gray-300 font-mono">
+                <span className="text-gray-100 font-mono">
                   평균 <span className="text-[#67BFFF] font-bold">{cat.averageViewers.toLocaleString()}명</span>
                 </span>
                 <span className="text-gray-200 font-mono font-bold w-16">

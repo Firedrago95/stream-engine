@@ -79,7 +79,7 @@ input[type="search"]::-webkit-search-results-decoration {
 
 .form-input,
 .form-textarea {
-    @apply placeholder-gray-400 dark:placeholder-gray-500;
+    @apply placeholder-gray-200 dark:placeholder-gray-300;
 }
 
 .form-select {

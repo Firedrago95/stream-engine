@@ -10,7 +10,7 @@ export default function Header({ sidebarOpen, setSidebarOpen, variant = 'default
             <div className="flex">
               {/* Hamburger button (모바일 및 태블릿에서 사이드바 토글) */}
               <button
-                  className="text-gray-400 hover:text-white lg:hidden p-2 -ml-2 rounded-xl hover:bg-gray-800 active:bg-gray-700 transition-colors"
+                  className="text-gray-100 hover:text-white lg:hidden p-2 -ml-2 rounded-xl hover:bg-gray-800 active:bg-gray-700 transition-colors"
                   onClick={(e) => { e.stopPropagation(); setSidebarOpen(!sidebarOpen); }}
                   aria-label="사이드바 메뉴 열기"
               >

@@ -122,7 +122,7 @@ export const SessionSummaryGrid: React.FC<SessionSummaryGridProps> = ({
           <div className="text-xl sm:text-2xl lg:text-3xl font-black text-white font-mono tracking-tight truncate">
             {durationText}
           </div>
-          <p className="text-[10px] sm:text-[11px] text-gray-300 mt-1 font-medium truncate">
+          <p className="text-[10px] sm:text-[11px] text-gray-100 mt-1 font-medium truncate">
             {isLive ? '시작 시각부터 누적' : '방송 세션 전체 지속 시간'}
           </p>
         </div>
@@ -137,9 +137,9 @@ export const SessionSummaryGrid: React.FC<SessionSummaryGridProps> = ({
         <div>
           <div className="text-xl sm:text-2xl lg:text-3xl font-black text-[#67BFFF] font-mono tracking-tight truncate">
             {avgViewers > 0 ? avgViewers.toLocaleString() : '--'}
-            <span className="text-xs text-gray-300 font-sans font-normal ml-1">명</span>
+            <span className="text-xs text-gray-100 font-sans font-normal ml-1">명</span>
           </div>
-          <p className="text-[10px] sm:text-[11px] text-gray-300 mt-1 font-medium truncate">
+          <p className="text-[10px] sm:text-[11px] text-gray-100 mt-1 font-medium truncate">
             {isLive ? '현재 세션 시청자 평균' : '세션 집계 평균'}
           </p>
         </div>
@@ -154,9 +154,9 @@ export const SessionSummaryGrid: React.FC<SessionSummaryGridProps> = ({
         <div>
           <div className="text-xl sm:text-2xl lg:text-3xl font-black text-[#A78BFA] font-mono tracking-tight truncate">
             {peakViewers > 0 ? peakViewers.toLocaleString() : '--'}
-            <span className="text-xs text-gray-300 font-sans font-normal ml-1">명</span>
+            <span className="text-xs text-gray-100 font-sans font-normal ml-1">명</span>
           </div>
-          <p className="text-[10px] sm:text-[11px] text-gray-300 mt-1 font-medium truncate">
+          <p className="text-[10px] sm:text-[11px] text-gray-100 mt-1 font-medium truncate">
             세션 피크 동시 접속자
           </p>
         </div>
@@ -175,7 +175,7 @@ export const SessionSummaryGrid: React.FC<SessionSummaryGridProps> = ({
           <div className="text-xl sm:text-2xl lg:text-3xl font-black text-white font-mono tracking-tight truncate">
             {subscriberChatRate !== null ? `${subscriberChatRate.toFixed(1)}%` : '준비 중'}
           </div>
-          <p className="text-[10px] sm:text-[11px] text-gray-300 mt-1 font-medium truncate">
+          <p className="text-[10px] sm:text-[11px] text-gray-100 mt-1 font-medium truncate">
             전체 채팅 중 팬덤 활성도
           </p>
         </div>

@@ -38,7 +38,7 @@ function Tooltip({
   const colorClasses = (b) => {
     switch (b) {
       case 'light':
-        return 'bg-white text-gray-600 border-gray-200 shadow-xl';
+        return 'bg-white text-gray-900 border-gray-200 shadow-xl';
       case 'dark':
         return 'bg-gray-800 text-gray-100 border-gray-700/80 shadow-2xl';
       default:
@@ -56,7 +56,7 @@ function Tooltip({
         className="cursor-pointer flex items-center justify-center p-0.5"
         aria-label="안내 툴팁"
       >
-        <svg className="fill-current text-gray-400 hover:text-gray-200 transition-colors" width="16" height="16" viewBox="0 0 16 16">
+        <svg className="fill-current text-gray-100 hover:text-white transition-colors" width="16" height="16" viewBox="0 0 16 16">
           <path d="M8 0C3.6 0 0 3.6 0 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm0 12c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1zm1-3H7V4h2v5z" />
         </svg>
       </div>

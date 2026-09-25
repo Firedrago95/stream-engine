@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.slice.stream.apiserver.stream.application.StreamSessionService;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamSessionSummaryRequest;
+import java.time.Instant;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
@@ -48,7 +49,7 @@ class StreamSessionSummaryControllerTest {
     void 요약_정보_전송_API_호출시_200_OK를_반환한다() throws Exception {
         // given
         String streamId = "test-stream-id";
-        StreamSessionSummaryRequest request = new StreamSessionSummaryRequest(35.5, "test-live-id", java.time.Instant.now());
+        StreamSessionSummaryRequest request = new StreamSessionSummaryRequest(35.5, "test-live-id", Instant.now());
         
         doNothing().when(streamSessionService).updateSessionSummary(eq(streamId), any(StreamSessionSummaryRequest.class));
 

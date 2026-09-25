@@ -39,7 +39,7 @@ export const AnalysisTabs: React.FC<AnalysisTabsProps> = ({ availableSessions, s
                   : 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.2)]')
                 : (isLive
                   ? 'bg-[#1a1a1c] text-[#00FFA3] border-[#00FFA3]/30 hover:border-[#00FFA3]'
-                  : 'bg-[#1a1a1c] text-gray-300 border-gray-800 hover:text-white hover:border-gray-600')
+                  : 'bg-[#1a1a1c] text-gray-100 border-gray-800 hover:text-white hover:border-gray-600')
               }
             `}
           >
