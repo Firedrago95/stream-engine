@@ -105,4 +105,36 @@ class RedisActiveStreamProviderTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).channelId()).isEqualTo("normal");
     }
+
+    @Test
+    void getActiveStreamTargets_paidPromotion_필드가_누락된_레거시_JSON도_정상_역직렬화된다() {
+        // given
+        JsonMapper realJsonMapper = JsonMapper.builder().build();
+        RedisActiveStreamProvider provider = new RedisActiveStreamProvider(redisTemplate, getActiveTargetsScript, realJsonMapper);
+
+        String legacyJson = """
+            {
+              "channelId": "ch123",
+              "channelName": "스트리머",
+              "chatChannelId": "chat123",
+              "liveId": 99999,
+              "liveTitle": "레거시 방송 제목",
+              "concurrentUserCount": 100,
+              "profileImageUrl": "https://example.com/p.jpg",
+              "categoryName": "소통",
+              "startedAt": "2026-09-26T03:00:00Z",
+              "adult": false
+            }
+            """;
+        when(redisTemplate.execute(eq(getActiveTargetsScript), anyList())).thenReturn(List.of(legacyJson));
+
+        // when
+        List<StreamTarget> result = provider.getActiveStreamTargets();
+
+        // then
+        assertThat(result).hasSize(1);
+        StreamTarget target = result.get(0);
+        assertThat(target.channelId()).isEqualTo("ch123");
+        assertThat(target.paidPromotion()).isFalse();
+    }
 }

@@ -16,6 +16,8 @@ import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.script.RedisScript;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 @Configuration
 public class RedisConfig {
@@ -80,5 +82,13 @@ public class RedisConfig {
     public RedisScript<List> getActiveTargetsScript() {
         ClassPathResource scriptSource = new ClassPathResource("lua/get_active_targets.lua");
         return RedisScript.of(scriptSource, List.class);
+    }
+
+    @Bean
+    public JsonMapper jsonMapper() {
+        return JsonMapper.builder()
+            .configure(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES, false)
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            .build();
     }
 }
