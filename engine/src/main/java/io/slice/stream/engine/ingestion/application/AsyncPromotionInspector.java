@@ -3,7 +3,9 @@ package io.slice.stream.engine.ingestion.application;
 import io.slice.stream.core.model.StreamTarget;
 import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
 import io.slice.stream.engine.ingestion.domain.model.ChangedStream;
+import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Component;
 public class AsyncPromotionInspector {
 
     private final StreamDiscoveryClient streamDiscoveryClient;
+    private final StreamRepository streamRepository;
     private final ApiServerClient apiServerClient;
     private final ExecutorService virtualThreadExecutor;
 
@@ -48,6 +51,8 @@ public class AsyncPromotionInspector {
             if (!Objects.equals(latestPaidPromotion, changed.paidPromotion())) {
                 log.info("[광고 상태 보정] 스트림: {}, 상태 변경: {} -> {}",
                     changed.streamId(), changed.paidPromotion(), latestPaidPromotion);
+
+                streamRepository.updatePaidPromotion(changed.streamId(), Boolean.TRUE.equals(latestPaidPromotion));
 
                 ChangedStream corrected = new ChangedStream(
                     changed.streamId(),

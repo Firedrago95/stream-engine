@@ -82,6 +82,10 @@ public class StreamSessionSegmentEntity {
         this.endOffsetMs = endOffsetMs;
     }
 
+    public void updatePaidPromotion(boolean paidPromotion) {
+        this.paidPromotion = paidPromotion;
+    }
+
     public void reopen() {
         this.endedAt = null;
         this.endOffsetMs = null;

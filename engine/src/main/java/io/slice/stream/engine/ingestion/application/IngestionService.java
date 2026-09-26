@@ -92,7 +92,7 @@ public class IngestionService {
         for (StreamTarget liveTarget : targetLiveStreams) {
             StreamTarget oldTarget = activeTargetMap.get(liveTarget.channelId());
             if (isSameLiveSession(oldTarget, liveTarget)) {
-                Boolean isPaid = Boolean.TRUE.equals(oldTarget.paidPromotion()) || Boolean.TRUE.equals(liveTarget.paidPromotion());
+                Boolean isPaid = Boolean.TRUE.equals(oldTarget.paidPromotion());
                 resolvedTargets.add(liveTarget.withChatChannelId(oldTarget.chatChannelId()).withPaidPromotion(isPaid));
             } else {
                 newChannelIds.add(liveTarget.channelId());

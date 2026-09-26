@@ -11,4 +11,6 @@ public interface StreamRepository {
     List<StreamTarget> getStreamTargets(List<String> channelIds);
 
     void sync(Set<StreamTarget> closedStreams, List<StreamTarget> activeTargets);
+
+    void updatePaidPromotion(String channelId, boolean paidPromotion);
 }
