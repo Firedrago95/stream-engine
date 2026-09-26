@@ -68,7 +68,8 @@ public class StreamUpdateAnalyzer {
 
     private boolean isMetadataChanged(StreamTarget oldTarget, StreamTarget newTarget) {
         return !Objects.equals(oldTarget.liveTitle(), newTarget.liveTitle()) ||
-            !Objects.equals(oldTarget.categoryName(), newTarget.categoryName());
+            !Objects.equals(oldTarget.categoryName(), newTarget.categoryName()) ||
+            !Objects.equals(oldTarget.paidPromotion(), newTarget.paidPromotion());
     }
 
     private ChangedStream createChangedStream(StreamTarget oldTarget, StreamTarget newTarget, Instant changedAt) {
@@ -83,7 +84,8 @@ public class StreamUpdateAnalyzer {
             oldTarget.categoryName(),
             newTarget.categoryName(),
             changedAt,
-            changedOffsetMs
+            changedOffsetMs,
+            newTarget.paidPromotion()
         );
     }
 }

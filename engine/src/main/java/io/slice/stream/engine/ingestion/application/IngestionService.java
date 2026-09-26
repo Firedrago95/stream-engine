@@ -35,6 +35,7 @@ public class IngestionService {
     private final ApiServerClient apiServerClient;
     private final StreamUpdateAnalyzer streamUpdateAnalyzer;
     private final TargetStreamPool targetStreamPool;
+    private final AsyncPromotionInspector asyncPromotionInspector;
 
     @Value("${chzzk.discovery.limit}")
     private int discoveryLimit;
@@ -91,7 +92,8 @@ public class IngestionService {
         for (StreamTarget liveTarget : targetLiveStreams) {
             StreamTarget oldTarget = activeTargetMap.get(liveTarget.channelId());
             if (isSameLiveSession(oldTarget, liveTarget)) {
-                resolvedTargets.add(liveTarget.withChatChannelId(oldTarget.chatChannelId()));
+                Boolean isPaid = Boolean.TRUE.equals(oldTarget.paidPromotion()) || Boolean.TRUE.equals(liveTarget.paidPromotion());
+                resolvedTargets.add(liveTarget.withChatChannelId(oldTarget.chatChannelId()).withPaidPromotion(isPaid));
             } else {
                 newChannelIds.add(liveTarget.channelId());
             }
@@ -124,6 +126,7 @@ public class IngestionService {
 
         if (!results.changedStreams().isEmpty()) {
             apiServerClient.recordNewSegments(new ArrayList<>(results.changedStreams()));
+            asyncPromotionInspector.inspectChangedStreamsAsync(results.changedStreams());
         }
     }
 

@@ -16,6 +16,7 @@ import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSyncR
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Executors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -41,6 +42,11 @@ class IngestionServiceTest {
         eventPublisher = new FakeApplicationEventPublisher();
         streamUpdateAnalyzer = new StreamUpdateAnalyzer();
         targetStreamPool = new FakeTargetStreamPool();
+        AsyncPromotionInspector asyncPromotionInspector = new AsyncPromotionInspector(
+            discoveryClient,
+            apiServerClient,
+            Executors.newSingleThreadExecutor()
+        );
 
         ingestionService = new IngestionService(
             discoveryClient,
@@ -48,7 +54,8 @@ class IngestionServiceTest {
             eventPublisher,
             apiServerClient,
             streamUpdateAnalyzer,
-            targetStreamPool
+            targetStreamPool,
+            asyncPromotionInspector
         );
     }
 

@@ -89,4 +89,23 @@ class StreamUpdateAnalyzerTest {
             () -> assertThat(results.newStreams()).containsExactly(newTarget)
         );
     }
+
+    @Test
+    void 방제나_카테고리가_같아도_paidPromotion이_변경되면_변경_내역을_추출한다() {
+        Instant startTime = Instant.now().minusSeconds(3600);
+        Instant changedAt = Instant.now();
+
+        StreamTarget oldTarget = new StreamTarget("channel1", "침착맨", "chat1", 100L, "동일방제", 1200, "thumb1.jpg", "게임", startTime, false, false);
+        StreamTarget newTarget = new StreamTarget("channel1", "침착맨", "chat1", 100L, "동일방제", 1200, "thumb1.jpg", "게임", startTime, false, true);
+
+        List<StreamTarget> currentTargets = List.of(newTarget);
+        Set<String> activeChannelIds = Set.of("channel1");
+        List<StreamTarget> oldTargets = List.of(oldTarget);
+
+        StreamUpdateResults results = analyzer.analyze(currentTargets, activeChannelIds, oldTargets, changedAt);
+
+        assertThat(results.changedStreams()).hasSize(1);
+        ChangedStream changed = results.changedStreams().iterator().next();
+        assertThat(changed.paidPromotion()).isTrue();
+    }
 }

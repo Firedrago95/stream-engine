@@ -45,6 +45,27 @@ public class StreamSessionSegmentEntity {
     @Column(name = "end_offset_ms")
     private Long endOffsetMs;
 
+    @Column(name = "paid_promotion", nullable = false)
+    private boolean paidPromotion;
+
+    public StreamSessionSegmentEntity(
+        String streamId,
+        String sessionId,
+        String title,
+        String categoryName,
+        Instant startedAt,
+        Long startOffsetMs,
+        boolean paidPromotion
+    ) {
+        this.streamId = streamId;
+        this.sessionId = sessionId;
+        this.title = title;
+        this.categoryName = categoryName;
+        this.startedAt = startedAt;
+        this.startOffsetMs = startOffsetMs;
+        this.paidPromotion = paidPromotion;
+    }
+
     public StreamSessionSegmentEntity(
         String streamId,
         String sessionId,
@@ -53,12 +74,7 @@ public class StreamSessionSegmentEntity {
         Instant startedAt,
         Long startOffsetMs
     ) {
-        this.streamId = streamId;
-        this.sessionId = sessionId;
-        this.title = title;
-        this.categoryName = categoryName;
-        this.startedAt = startedAt;
-        this.startOffsetMs = startOffsetMs;
+        this(streamId, sessionId, title, categoryName, startedAt, startOffsetMs, false);
     }
 
     public void endSegment(Instant endedAt, Long endOffsetMs) {

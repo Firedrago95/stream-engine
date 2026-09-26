@@ -10,7 +10,20 @@ public record ChangedStream(
     String oldCategory,
     String newCategory,
     Instant changedAt,
-    Long changeOffsetMs
+    Long changeOffsetMs,
+    Boolean paidPromotion
 ) {
 
+    public ChangedStream(
+        String streamId,
+        String liveId,
+        String oldTitle,
+        String newTitle,
+        String oldCategory,
+        String newCategory,
+        Instant changedAt,
+        Long changeOffsetMs
+    ) {
+        this(streamId, liveId, oldTitle, newTitle, oldCategory, newCategory, changedAt, changeOffsetMs, false);
+    }
 }

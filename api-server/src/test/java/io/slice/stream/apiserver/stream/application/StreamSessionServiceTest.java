@@ -3,6 +3,7 @@ package io.slice.stream.apiserver.stream.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -181,6 +182,31 @@ class StreamSessionServiceTest {
         assertThat(activeSession.getTitle()).isEqualTo("새로운방제");
         assertThat(activeSession.getCategoryName()).isEqualTo("새로운카테고리");
         verify(segmentRepository, times(1)).saveAll(any());
+    }
+
+    @Test
+    void 세그먼트_갱신_시_paidPromotion이_참이면_세션과_새_세그먼트에_유료_프로모션이_반영된다() {
+        String streamId = "stream-1";
+        String sessionId = "session-1";
+        Instant changedAt = Instant.now();
+        Long offsetMs = 1000L;
+
+        StreamSessionEntity activeSession = new StreamSessionEntity(streamId, sessionId, "이전방제", "이전카테고리", Instant.now().minusSeconds(60), false);
+        StreamSessionSegmentEntity activeSegment = new StreamSessionSegmentEntity(streamId, sessionId, "이전방제", "이전카테고리", Instant.now().minusSeconds(60), 0L, false);
+        ChangedStreamRequest request = new ChangedStreamRequest(streamId, sessionId, "이전방제", "숙제방송", "이전카테고리", "게임", changedAt, offsetMs, true);
+
+        when(sessionRepository.findAllActiveSessions(List.of(streamId)))
+            .thenReturn(List.of(activeSession));
+        when(segmentRepository.findAllActiveSegments(List.of(sessionId)))
+            .thenReturn(List.of(activeSegment));
+
+        streamSessionService.updateSessionSegment(List.of(request));
+
+        assertThat(activeSession.isPaidPromotion()).isTrue();
+        verify(segmentRepository, times(1)).saveAll(argThat(segments -> {
+            List<StreamSessionSegmentEntity> list = (List<StreamSessionSegmentEntity>) segments;
+            return list.size() == 1 && list.get(0).isPaidPromotion();
+        }));
     }
 
     @Test

@@ -104,6 +104,8 @@ public class StreamSessionService {
         StreamSessionEntity session,
         StreamSessionSegmentEntity activeSegment
     ) {
+        boolean paidPromotion = Boolean.TRUE.equals(req.paidPromotion());
+
         if (Objects.equals(req.newCategory(), session.getCategoryName()) &&
             Objects.equals(req.newTitle(), session.getTitle())) {
             return Optional.empty();
@@ -114,6 +116,12 @@ public class StreamSessionService {
         }
 
         session.updateMetadata(req.newTitle(), req.newCategory());
+        if (paidPromotion) {
+            session.markPaidPromotion();
+        }
+
+        log.info("[세그먼트 변경] 스트림: {}, 방제: {}, 카테고리: {}, 유료프로모션: {}",
+            req.streamId(), req.newTitle(), req.newCategory(), paidPromotion);
 
         return Optional.of(new StreamSessionSegmentEntity(
             req.streamId(),
@@ -121,7 +129,8 @@ public class StreamSessionService {
             req.newTitle(),
             req.newCategory(),
             req.changedAt(),
-            req.changeOffsetMs()
+            req.changeOffsetMs(),
+            paidPromotion
         ));
     }
 
