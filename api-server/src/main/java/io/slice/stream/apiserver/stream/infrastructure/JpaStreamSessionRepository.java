@@ -38,6 +38,8 @@ public interface JpaStreamSessionRepository extends JpaRepository<StreamSessionE
 
     Page<StreamSessionEntity> findByStreamIdOrderByStartedAtDesc(String streamId, Pageable pageable);
 
+    Page<StreamSessionEntity> findByStreamIdAndPaidPromotionTrueOrderByStartedAtDesc(String streamId, Pageable pageable);
+
     @Query("SELECT ss FROM StreamSessionEntity ss WHERE ss.streamId = :streamId AND ss.startedAt >= :since")
     List<StreamSessionEntity> findSessionsSince(@Param("streamId") String streamId, @Param("since") Instant since);
 

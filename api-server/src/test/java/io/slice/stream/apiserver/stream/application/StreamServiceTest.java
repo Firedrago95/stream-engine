@@ -255,4 +255,36 @@ class StreamServiceTest {
 
         then(activeSessionsCache).should().evict("ch1");
     }
+
+    @Test
+    void 신규_세션_생성_시_paidPromotion이_엔티티에_정상_반영된다() {
+        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
+        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "광고 방송", "thumb.jpg", 3500, "게임", startedAt, true);
+
+        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
+            .willReturn(List.of());
+        given(sessionRepository.findAllBySessionIdIn(List.of("live1")))
+            .willReturn(List.of());
+
+        streamService.syncAll(List.of(request));
+
+        then(sessionRepository).should().saveAll(sessionListCaptor.capture());
+        List<StreamSessionEntity> savedSessions = sessionListCaptor.getValue();
+        assertThat(savedSessions).hasSize(1);
+        assertThat(savedSessions.get(0).isPaidPromotion()).isTrue();
+    }
+
+    @Test
+    void 기존_활성_세션_동기화_시_paidPromotion이_true이면_세션이_유료_프로모션으로_표시된다() {
+        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
+        StreamSessionEntity activeSession = new StreamSessionEntity("ch1", "live1", "제목", "소통", startedAt, false);
+        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", startedAt, true);
+
+        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
+            .willReturn(List.of(activeSession));
+
+        streamService.syncAll(List.of(request));
+
+        assertThat(activeSession.isPaidPromotion()).isTrue();
+    }
 }

@@ -51,13 +51,25 @@ public class StreamSessionEntity {
     @Column(name = "subscriber_chat_ratio")
     private Double subscriberChatRatio;
 
-    public StreamSessionEntity(String streamId, String sessionId, String title, String categoryName, Instant startedAt) {
+    @Column(name = "paid_promotion", nullable = false)
+    private boolean paidPromotion;
+
+    public StreamSessionEntity(String streamId, String sessionId, String title, String categoryName, Instant startedAt, boolean paidPromotion) {
         this.streamId = streamId;
         this.sessionId = sessionId;
         this.title = title;
         this.categoryName = categoryName;
         this.startedAt = startedAt;
+        this.paidPromotion = paidPromotion;
         this.peakViewers = 0;
+    }
+
+    public StreamSessionEntity(String streamId, String sessionId, String title, String categoryName, Instant startedAt) {
+        this(streamId, sessionId, title, categoryName, startedAt, false);
+    }
+
+    public void markPaidPromotion() {
+        this.paidPromotion = true;
     }
 
     public void updateMetadata(String title, String categoryName) {

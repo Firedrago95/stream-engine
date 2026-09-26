@@ -76,5 +76,30 @@ class StreamerSessionQueryServiceTest {
         assertThat(item.followerGrowth()).isEqualTo(80);
         assertThat(item.subscriberChatRatio()).isEqualTo(42.5);
         assertThat(item.durationSeconds()).isEqualTo(10800L);
+        assertThat(item.paidPromotion()).isFalse();
+    }
+
+    @Test
+    void 유료_프로모션_필터_조회시_paidPromotion이_참인_세션만_조회한다() {
+        String channelId = "ch_sess_test";
+        Instant now = Instant.now();
+
+        StreamSessionEntity paidSession = new StreamSessionEntity(
+            channelId, "sess_paid", "광고 방송", "Game", now.minus(2, ChronoUnit.HOURS), true
+        );
+        PageImpl<StreamSessionEntity> page = new PageImpl<>(
+            List.of(paidSession),
+            PageRequest.of(0, 10),
+            1
+        );
+
+        given(sessionRepository.findByStreamIdAndPaidPromotionTrueOrderByStartedAtDesc(eq(channelId), any()))
+            .willReturn(page);
+
+        StreamerSessionHistoryResponse response = sessionQueryService.getSessionHistory(channelId, 0, 10, true);
+
+        assertThat(response.sessions()).hasSize(1);
+        assertThat(response.sessions().get(0).sessionId()).isEqualTo("sess_paid");
+        assertThat(response.sessions().get(0).paidPromotion()).isTrue();
     }
 }

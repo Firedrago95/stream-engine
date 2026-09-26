@@ -131,7 +131,7 @@ class StreamerQueryControllerTest {
             Collections.emptyList(), 0, 10, 0, 0, false
         );
 
-        given(sessionQueryService.getSessionHistory(channelId, 0, 10)).willReturn(response);
+        given(sessionQueryService.getSessionHistory(channelId, 0, 10, false)).willReturn(response);
 
         mockMvc.perform(get("/api/v1/streamers/{channelId}/sessions", channelId)
                 .param("page", "0")
@@ -139,5 +139,21 @@ class StreamerQueryControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.page").value(0))
             .andExpect(jsonPath("$.size").value(10));
+    }
+
+    @Test
+    void 세션_전적_조회_API_호출시_paidPromotionOnly_파라미터가_서비스로_전달된다() throws Exception {
+        String channelId = "ch_session_test";
+        StreamerSessionHistoryResponse response = new StreamerSessionHistoryResponse(
+            Collections.emptyList(), 0, 10, 0, 0, false
+        );
+
+        given(sessionQueryService.getSessionHistory(channelId, 0, 10, true)).willReturn(response);
+
+        mockMvc.perform(get("/api/v1/streamers/{channelId}/sessions", channelId)
+                .param("page", "0")
+                .param("size", "10")
+                .param("paidPromotionOnly", "true"))
+            .andExpect(status().isOk());
     }
 }

@@ -24,13 +24,17 @@ public class StreamerSessionQueryService {
     private final JpaStreamSessionRepository sessionRepository;
 
     public StreamerSessionHistoryResponse getSessionHistory(String channelId, int page, int size) {
+        return getSessionHistory(channelId, page, size, false);
+    }
+
+    public StreamerSessionHistoryResponse getSessionHistory(String channelId, int page, int size, boolean paidPromotionOnly) {
         int validPage = Math.max(0, page);
         int validSize = (size > 0 && size <= 50) ? size : 10;
         Pageable pageable = PageRequest.of(validPage, validSize);
 
-        Page<StreamSessionEntity> sessionPage = sessionRepository.findByStreamIdOrderByStartedAtDesc(
-            channelId, pageable
-        );
+        Page<StreamSessionEntity> sessionPage = paidPromotionOnly
+            ? sessionRepository.findByStreamIdAndPaidPromotionTrueOrderByStartedAtDesc(channelId, pageable)
+            : sessionRepository.findByStreamIdOrderByStartedAtDesc(channelId, pageable);
 
         Instant now = Instant.now();
 
@@ -38,8 +42,8 @@ public class StreamerSessionQueryService {
             .map(session -> toSessionItemDto(session, now))
             .toList();
 
-        log.debug("스트리머 세션 전적 히스토리 조회 완료: channelId={}, page={}, items={}",
-            channelId, validPage, items.size());
+        log.debug("스트리머 세션 전적 히스토리 조회 완료: channelId={}, page={}, items={}, paidPromotionOnly={}",
+            channelId, validPage, items.size(), paidPromotionOnly);
 
         return new StreamerSessionHistoryResponse(
             items,
@@ -70,7 +74,8 @@ public class StreamerSessionQueryService {
             avg,
             session.getSessionFollowerGrowth(),
             session.getSubscriberChatRatio(),
-            null
+            null,
+            session.isPaidPromotion()
         );
     }
 }
