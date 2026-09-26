@@ -12,7 +12,20 @@ public record ChangedStreamRequest(
     String oldCategory,
     String newCategory,
     @NotNull Instant changedAt,
-    @NotNull Long changeOffsetMs
+    @NotNull Long changeOffsetMs,
+    Boolean paidPromotion
 ) {
 
+    public ChangedStreamRequest(
+        String streamId,
+        String liveId,
+        String oldTitle,
+        String newTitle,
+        String oldCategory,
+        String newCategory,
+        Instant changedAt,
+        Long changeOffsetMs
+    ) {
+        this(streamId, liveId, oldTitle, newTitle, oldCategory, newCategory, changedAt, changeOffsetMs, false);
+    }
 }

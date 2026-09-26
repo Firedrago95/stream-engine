@@ -83,4 +83,20 @@ public record StreamTarget(
             paidPromotion
         );
     }
+
+    public StreamTarget withPaidPromotion(Boolean newPaidPromotion) {
+        return new StreamTarget(
+            channelId,
+            channelName,
+            chatChannelId,
+            liveId,
+            liveTitle,
+            concurrentUserCount,
+            profileImageUrl,
+            categoryName,
+            startedAt,
+            adult,
+            newPaidPromotion
+        );
+    }
 }

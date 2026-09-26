@@ -190,7 +190,8 @@ public class StreamService {
                         req.liveTitle(),
                         req.categoryName(),
                         sessionStartedAt,
-                        Math.max(0L, startOffset)
+                        Math.max(0L, startOffset),
+                        req.paidPromotion()
                     );
                     newSegments.add(segment);
                     activeSegmentSessionIds.add(existing.getSessionId());
@@ -231,7 +232,8 @@ public class StreamService {
                     req.liveTitle(),
                     req.categoryName(),
                     sessionStartedAt,
-                    0L
+                    0L,
+                    req.paidPromotion()
                 );
                 newSegments.add(segment);
             }
