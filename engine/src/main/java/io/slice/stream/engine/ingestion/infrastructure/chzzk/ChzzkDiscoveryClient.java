@@ -94,6 +94,7 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
 
     private StreamTarget convertToStreamTarget(Content detailContent) {
         Instant startedAt = detailContent.openDate().toInstant(ZoneOffset.of("+09:00"));
+        boolean paidPromotion = isPaidPromotion(detailContent.paidPromotion(), detailContent.liveTitle());
         return new StreamTarget(
             detailContent.channel().channelId(),
             detailContent.channel().channelName(),
@@ -104,7 +105,8 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             detailContent.channel().channelImageUrl(),
             detailContent.liveCategoryValue(),
             startedAt,
-            detailContent.adult()
+            detailContent.adult(),
+            paidPromotion
         );
     }
 
@@ -112,6 +114,7 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
         Instant startedAt = live.openDate() != null
             ? live.openDate().toInstant(ZoneOffset.of("+09:00"))
             : null;
+        boolean paidPromotion = isPaidPromotion(live.paidPromotion(), live.liveTitle());
         return new StreamTarget(
             live.channel().channelId(),
             live.channel().channelName(),
@@ -122,8 +125,19 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             live.channel().channelImageUrl(),
             live.liveCategoryValue(),
             startedAt,
-            live.adult()
+            live.adult(),
+            paidPromotion
         );
+    }
+
+    private boolean isPaidPromotion(boolean paidPromotionFlag, String title) {
+        if (paidPromotionFlag) {
+            return true;
+        }
+        if (title == null) {
+            return false;
+        }
+        return title.contains("광고") || title.contains("숙제");
     }
 
     private List<ChzzkLive> fetchTopLives() {

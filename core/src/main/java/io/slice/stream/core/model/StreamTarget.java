@@ -13,7 +13,8 @@ public record StreamTarget(
     String profileImageUrl,
     String categoryName,
     Instant startedAt,
-    boolean adult
+    boolean adult,
+    boolean paidPromotion
 ) {
 
     public StreamTarget(
@@ -27,7 +28,22 @@ public record StreamTarget(
         String categoryName,
         Instant startedAt
     ) {
-        this(channelId, channelName, chatChannelId, liveId, liveTitle, concurrentUserCount, profileImageUrl, categoryName, startedAt, false);
+        this(channelId, channelName, chatChannelId, liveId, liveTitle, concurrentUserCount, profileImageUrl, categoryName, startedAt, false, false);
+    }
+
+    public StreamTarget(
+        String channelId,
+        String channelName,
+        String chatChannelId,
+        long liveId,
+        String liveTitle,
+        int concurrentUserCount,
+        String profileImageUrl,
+        String categoryName,
+        Instant startedAt,
+        boolean adult
+    ) {
+        this(channelId, channelName, chatChannelId, liveId, liveTitle, concurrentUserCount, profileImageUrl, categoryName, startedAt, adult, false);
     }
 
     @Override
@@ -58,7 +74,8 @@ public record StreamTarget(
             profileImageUrl,
             categoryName,
             startedAt,
-            adult
+            adult,
+            paidPromotion
         );
     }
 }

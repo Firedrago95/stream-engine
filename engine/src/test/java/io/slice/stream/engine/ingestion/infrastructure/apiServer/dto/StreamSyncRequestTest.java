@@ -23,7 +23,9 @@ class StreamSyncRequestTest {
             500,
             "image.png",
             "종합게임",
-            startedAt
+            startedAt,
+            false,
+            true
         );
 
         StreamSyncRequest request = StreamSyncRequest.from(target);
@@ -36,5 +38,6 @@ class StreamSyncRequestTest {
         assertThat(request.concurrentUserCount()).isEqualTo(500);
         assertThat(request.categoryName()).isEqualTo("종합게임");
         assertThat(request.startedAt()).isEqualTo(startedAt);
+        assertThat(request.paidPromotion()).isTrue();
     }
 }

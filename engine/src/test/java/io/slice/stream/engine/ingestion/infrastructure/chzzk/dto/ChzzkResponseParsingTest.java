@@ -39,6 +39,7 @@ class ChzzkResponseParsingTest {
                 "openDate": "2026-09-17 17:05:38",
                 "closeDate": "2026-09-18 03:52:55",
                 "adult": false,
+                "paidPromotion": true,
                 "chatChannelId": "N2kWtN",
                 "categoryType": "GAME",
                 "liveCategory": "Grand_Theft_Auto_V",
@@ -62,6 +63,7 @@ class ChzzkResponseParsingTest {
         assertThat(response.content().accumulateCount()).isEqualTo(215970);
         assertThat(response.content().concurrentUserCount()).isEqualTo(4557);
         assertThat(response.content().liveTitle()).isEqualTo("종조이 우당탕탕 이야기");
+        assertThat(response.content().paidPromotion()).isTrue();
         assertThat(response.content().channel().channelId()).isEqualTo("a67b328bcc8eea4451ccfa754bc19ae1");
         assertThat(response.content().channel().channelName()).isEqualTo("종조이");
     }

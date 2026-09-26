@@ -34,6 +34,7 @@ public record ChzzkLiveResponse(
             String chatChannelId,
             int concurrentUserCount,
             boolean adult,
+            boolean paidPromotion,
             @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Seoul")
             LocalDateTime openDate,
             Channel channel
@@ -46,9 +47,23 @@ public record ChzzkLiveResponse(
                 String chatChannelId,
                 int concurrentUserCount,
                 boolean adult,
+                LocalDateTime openDate,
                 Channel channel
             ) {
-                this(liveId, liveTitle, liveImageUrl, liveCategoryValue, chatChannelId, concurrentUserCount, adult, null, channel);
+                this(liveId, liveTitle, liveImageUrl, liveCategoryValue, chatChannelId, concurrentUserCount, adult, false, openDate, channel);
+            }
+
+            public ChzzkLive(
+                long liveId,
+                String liveTitle,
+                String liveImageUrl,
+                String liveCategoryValue,
+                String chatChannelId,
+                int concurrentUserCount,
+                boolean adult,
+                Channel channel
+            ) {
+                this(liveId, liveTitle, liveImageUrl, liveCategoryValue, chatChannelId, concurrentUserCount, adult, false, null, channel);
             }
 
             public record Channel(
