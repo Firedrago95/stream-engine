@@ -12,6 +12,7 @@ export interface SessionItemData {
   followerGrowth: number | null;
   subscriberChatRatio: number | null;
   vodUrl: string | null;
+  paidPromotion?: boolean;
 }
 
 interface StreamerSessionListProps {
@@ -22,6 +23,8 @@ interface StreamerSessionListProps {
   onPageChange: (newPage: number) => void;
   onSessionClick?: (sessionId: string) => void;
   isLoading: boolean;
+  paidPromotionOnly?: boolean;
+  onTogglePaidPromotionOnly?: (paidOnly: boolean) => void;
 }
 
 const formatDuration = (seconds: number) => {
@@ -55,6 +58,8 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
   onPageChange,
   onSessionClick,
   isLoading,
+  paidPromotionOnly = false,
+  onTogglePaidPromotionOnly,
 }) => {
   if (isLoading) {
     return (
@@ -65,58 +70,89 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
     );
   }
 
-  if (!sessions || sessions.length === 0) {
-    return (
-      <div className="p-8 bg-[#141416] border border-[#2A2A2C] rounded-2xl text-center text-gray-200 font-medium text-sm">
-        과거 방송 세션 기록이 없습니다.
-      </div>
-    );
-  }
-
   return (
     <div className="p-5 sm:p-6 bg-[#141416] border border-[#2A2A2C] rounded-2xl">
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-          <span>📜</span> 방송 세션 히스토리
-        </h3>
-        <span className="text-xs text-gray-100 font-mono font-semibold">
-          총 {totalElements.toLocaleString()}개 방송
-        </span>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5">
+        <div className="flex items-center gap-3">
+          <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+            <span>📜</span> 방송 세션 히스토리
+          </h3>
+          <span className="text-xs text-gray-100 font-mono font-semibold">
+            총 {totalElements.toLocaleString()}개 방송
+          </span>
+        </div>
+
+        {onTogglePaidPromotionOnly && (
+          <div className="flex items-center bg-[#0e0e10] p-1 rounded-xl border border-gray-800 text-xs font-bold">
+            <button
+              onClick={() => onTogglePaidPromotionOnly(false)}
+              className={`px-3 py-1 rounded-lg transition-all ${
+                !paidPromotionOnly
+                  ? 'bg-[#1e1e24] text-white shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              전체 세션
+            </button>
+            <button
+              onClick={() => onTogglePaidPromotionOnly(true)}
+              className={`px-3 py-1 rounded-lg flex items-center gap-1.5 transition-all ${
+                paidPromotionOnly
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                  : 'text-gray-400 hover:text-amber-300'
+              }`}
+            >
+              <span>🏷️</span> 유료 프로모션만
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className="space-y-3">
-        {sessions.map((sess) => (
-          <div
-            key={sess.sessionId}
-            onClick={() => onSessionClick?.(sess.sessionId)}
-            onKeyDown={(event) => {
-              if (onSessionClick && (event.key === 'Enter' || event.key === ' ')) {
-                event.preventDefault();
-                onSessionClick(sess.sessionId);
-              }
-            }}
-            role={onSessionClick ? 'button' : undefined}
-            tabIndex={onSessionClick ? 0 : undefined}
-            className="p-4 bg-[#0e0e10] border border-gray-800/80 rounded-xl cursor-pointer group hover:bg-[#16231c]/70 hover:shadow-[inset_0_0_0_1px_rgba(0,255,163,0.5),0_0_16px_rgba(0,255,163,0.15)] transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-          >
-            <div className="space-y-1.5 flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-mono text-gray-100">
-                  {formatDate(sess.startedAt)}
-                </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#1e1e24] text-[#67BFFF] border border-gray-800 truncate">
-                  {sess.categoryName || '기타'}
-                </span>
-                {!sess.endedAt && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 animate-pulse">
-                    LIVE
+      {!sessions || sessions.length === 0 ? (
+        <div className="p-8 bg-[#0e0e10] border border-gray-800/80 rounded-xl text-center text-gray-200 font-medium text-sm">
+          {paidPromotionOnly
+            ? '유료 프로모션(광고/숙제) 방송 세션 기록이 없습니다.'
+            : '과거 방송 세션 기록이 없습니다.'}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {sessions.map((sess) => (
+            <div
+              key={sess.sessionId}
+              onClick={() => onSessionClick?.(sess.sessionId)}
+              onKeyDown={(event) => {
+                if (onSessionClick && (event.key === 'Enter' || event.key === ' ')) {
+                  event.preventDefault();
+                  onSessionClick(sess.sessionId);
+                }
+              }}
+              role={onSessionClick ? 'button' : undefined}
+              tabIndex={onSessionClick ? 0 : undefined}
+              className="p-4 bg-[#0e0e10] border border-gray-800/80 rounded-xl cursor-pointer group hover:bg-[#16231c]/70 hover:shadow-[inset_0_0_0_1px_rgba(0,255,163,0.5),0_0_16px_rgba(0,255,163,0.15)] transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+            >
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-gray-100">
+                    {formatDate(sess.startedAt)}
                   </span>
-                )}
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#1e1e24] text-[#67BFFF] border border-gray-800 truncate">
+                    {sess.categoryName || '기타'}
+                  </span>
+                  {sess.paidPromotion && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                      <span>🏷️</span> 유료 광고
+                    </span>
+                  )}
+                  {!sess.endedAt && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 animate-pulse">
+                      LIVE
+                    </span>
+                  )}
+                </div>
+                <h4 className="text-sm font-bold text-white truncate group-hover:text-[#00FFA3] transition-colors">
+                  {sess.title || '제목 없음'}
+                </h4>
               </div>
-              <h4 className="text-sm font-bold text-white truncate group-hover:text-[#00FFA3] transition-colors">
-                {sess.title || '제목 없음'}
-              </h4>
-            </div>
 
             <div className="flex items-center gap-4 sm:gap-6 self-end sm:self-auto shrink-0 text-xs font-mono">
               <div className="text-right">
@@ -151,6 +187,7 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
           </div>
         ))}
       </div>
+    )}
 
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-3 mt-6 pt-4 border-t border-gray-800/60 text-xs">
