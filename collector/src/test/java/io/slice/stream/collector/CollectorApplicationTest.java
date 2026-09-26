@@ -9,7 +9,8 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest(properties = {
-    "collector.polling.interval-ms=60000"
+    "collector.polling.interval-ms=60000",
+    "spring.kafka.admin.auto-create=false"
 })
 class CollectorApplicationTest {
 
