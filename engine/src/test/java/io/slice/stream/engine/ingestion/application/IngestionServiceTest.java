@@ -2,118 +2,99 @@ package io.slice.stream.engine.ingestion.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anySet;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
-import io.slice.stream.engine.core.event.StreamChangedEvent;
 import io.slice.stream.core.model.StreamTarget;
-import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
+import io.slice.stream.engine.core.event.StreamChangedEvent;
 import io.slice.stream.engine.ingestion.domain.model.ChangedStream;
-import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
-import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
 import io.slice.stream.engine.ingestion.domain.service.StreamUpdateAnalyzer;
-import io.slice.stream.engine.ingestion.domain.targeting.TargetStreamPool;
-import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient;
+import io.slice.stream.engine.ingestion.fake.FakeApiServerClient;
+import io.slice.stream.engine.ingestion.fake.FakeApplicationEventPublisher;
+import io.slice.stream.engine.ingestion.fake.FakeStreamDiscoveryClient;
+import io.slice.stream.engine.ingestion.fake.FakeStreamRepository;
+import io.slice.stream.engine.ingestion.fake.FakeTargetStreamPool;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSyncRequest;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
-@ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class IngestionServiceTest {
 
-    @Mock
-    StreamDiscoveryClient discoveryClient;
+    private FakeStreamDiscoveryClient discoveryClient;
+    private FakeStreamRepository streamRepository;
+    private FakeApiServerClient apiServerClient;
+    private FakeApplicationEventPublisher eventPublisher;
+    private StreamUpdateAnalyzer streamUpdateAnalyzer;
+    private FakeTargetStreamPool targetStreamPool;
 
-    @Mock
-    StreamRepository streamRepository;
+    private IngestionService ingestionService;
 
-    @Mock
-    ApiServerClient apiServerClient;
+    @BeforeEach
+    void setUp() {
+        discoveryClient = new FakeStreamDiscoveryClient();
+        streamRepository = new FakeStreamRepository();
+        apiServerClient = new FakeApiServerClient();
+        eventPublisher = new FakeApplicationEventPublisher();
+        streamUpdateAnalyzer = new StreamUpdateAnalyzer();
+        targetStreamPool = new FakeTargetStreamPool();
 
-    @Mock
-    ApplicationEventPublisher eventPublisher;
-
-    @Mock
-    StreamUpdateAnalyzer streamUpdateAnalyzer;
-
-    @Mock
-    TargetStreamPool targetStreamPool;
-
-    @InjectMocks
-    IngestionService ingestionService;
+        ingestionService = new IngestionService(
+            discoveryClient,
+            streamRepository,
+            eventPublisher,
+            apiServerClient,
+            streamUpdateAnalyzer,
+            targetStreamPool
+        );
+    }
 
     @Test
     void 새로운_스트림과_종료된_스트림이_있을때_StreamChangedEvent를_한번만_발행해야_한다() {
         StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 123L, "title1", 10, "https://thumb.com/ch1.jpg", "GAME", Instant.EPOCH);
         StreamTarget streamTarget2 = new StreamTarget("ch2", "chName2", "chatCh2", 124L, "title2", 20, "https://thumb.com/ch2.jpg", "GAME", Instant.EPOCH);
-        List<StreamTarget> topLiveStreams = List.of(streamTarget1);
-        StreamUpdateResults results = new StreamUpdateResults(Set.of(streamTarget1), Set.of(streamTarget2), Set.of(), Instant.now());
 
-        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(topLiveStreams);
-        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
-        when(discoveryClient.fetchLiveStreams(Set.of("ch1"))).thenReturn(List.of(streamTarget1));
-        when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1", "ch2"));
-        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of());
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
+        discoveryClient.setTopLiveStreams(List.of(streamTarget1));
+        discoveryClient.addDetailedStream(streamTarget1);
+        targetStreamPool.setTargetChannels(Set.of("ch1"));
+        streamRepository.setActiveTargets(List.of(streamTarget2));
 
         ingestionService.ingest();
 
-        ArgumentCaptor<StreamChangedEvent> captor = ArgumentCaptor.forClass(StreamChangedEvent.class);
-        verify(eventPublisher).publishEvent(captor.capture());
-
-        StreamChangedEvent event = captor.getValue();
-        assertThat(event.newStreams()).containsExactly(streamTarget1);
-        assertThat(event.closedStreams()).containsExactly(streamTarget2);
-        verify(apiServerClient).syncStreams(anyList());
-        verify(streamRepository).sync(results.closedStreamIds(), List.of(streamTarget1));
+        List<StreamChangedEvent> events = eventPublisher.getEventsOfType(StreamChangedEvent.class);
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).newStreams()).containsExactly(streamTarget1);
+        assertThat(events.get(0).closedStreams()).containsExactly(streamTarget2);
+        assertThat(apiServerClient.getSyncStreamsCallCount()).isEqualTo(1);
+        assertThat(streamRepository.getLastSyncedTargets()).containsExactly(streamTarget1);
     }
 
     @Test
     void 변경되지_않은_스트림에_대해서는_이벤트를_발행하지_않아야_한다() {
         StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 1L, "title1", 10, "https://thumb.com/ch1.jpg", "TALK", Instant.EPOCH);
-        List<StreamTarget> liveStreams = List.of(streamTarget1);
-        StreamUpdateResults results = new StreamUpdateResults(Collections.emptySet(), Collections.emptySet(), Collections.emptySet(), Instant.now());
 
-        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(liveStreams);
-        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
-        when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1"));
-        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(streamTarget1));
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
+        discoveryClient.setTopLiveStreams(List.of(streamTarget1));
+        targetStreamPool.setTargetChannels(Set.of("ch1"));
+        streamRepository.setActiveTargets(List.of(streamTarget1));
 
         ingestionService.ingest();
 
-        verify(discoveryClient, never()).fetchLiveStreams(anySet());
-        verify(eventPublisher, never()).publishEvent(any());
-        verify(apiServerClient).syncStreams(anyList());
-        verify(streamRepository).sync(results.closedStreamIds(), liveStreams);
+        assertThat(discoveryClient.getFetchLiveStreamsCallCount()).isZero();
+        assertThat(eventPublisher.getEventsOfType(StreamChangedEvent.class)).isEmpty();
+        assertThat(apiServerClient.getSyncStreamsCallCount()).isEqualTo(1);
+        assertThat(streamRepository.getLastSyncedTargets()).containsExactly(streamTarget1);
     }
 
     @Test
     void 스트림_탐색_중_오류를_정상적으로_처리해야_한다() {
-        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenThrow(new RuntimeException("API Error"));
+        discoveryClient.setThrowOnFetch(true);
 
         assertDoesNotThrow(() -> ingestionService.ingest());
-        verify(apiServerClient, never()).syncStreams(anyList());
-        verify(streamRepository, never()).sync(any(), any());
+        assertThat(apiServerClient.getSyncStreamsCallCount()).isZero();
+        assertThat(streamRepository.getLastSyncedTargets()).isEmpty();
     }
 
     @Test
@@ -121,161 +102,131 @@ class IngestionServiceTest {
         StreamTarget streamTarget1 = new StreamTarget("ch1", "chName1", "chatCh1", 1L, "title1", 10, "https://thumb.com/ch1.jpg", "GAME", Instant.EPOCH);
         StreamTarget streamTarget2 = new StreamTarget("ch2", "chName2", "chatCh2", 2L, "title2", 20, "https://thumb.com/ch2.jpg", "GAME", Instant.EPOCH);
         List<StreamTarget> liveStreams = List.of(streamTarget1, streamTarget2);
-        StreamUpdateResults results = new StreamUpdateResults(Collections.emptySet(), Collections.emptySet(), Collections.emptySet(), Instant.now());
 
-        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(liveStreams);
-        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1", "ch2"));
-        when(discoveryClient.fetchLiveStreams(Set.of("ch1", "ch2"))).thenReturn(liveStreams);
-        when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1", "ch2"));
-        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of());
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
+        discoveryClient.setTopLiveStreams(liveStreams);
+        discoveryClient.addDetailedStream(streamTarget1);
+        discoveryClient.addDetailedStream(streamTarget2);
+        targetStreamPool.setTargetChannels(Set.of("ch1", "ch2"));
 
         ingestionService.ingest();
 
-        verify(streamRepository).sync(results.closedStreamIds(), liveStreams);
-        verify(apiServerClient).syncStreams(anyList());
+        assertThat(streamRepository.getLastSyncedTargets()).containsExactlyInAnyOrder(streamTarget1, streamTarget2);
+        assertThat(apiServerClient.getSyncStreamsCallCount()).isEqualTo(1);
     }
 
     @Test
     void 방송_상태_변화가_없더라도_API_서버_동기화는_항상_호출되어야_한다() {
         StreamTarget target = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 100, "url", "cat", Instant.EPOCH);
-        List<StreamTarget> targets = List.of(target);
-        StreamUpdateResults results = new StreamUpdateResults(Set.of(), Set.of(), Set.of(), Instant.now());
 
-        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(targets);
-        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
-        when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1"));
-        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(target));
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
+        discoveryClient.setTopLiveStreams(List.of(target));
+        targetStreamPool.setTargetChannels(Set.of("ch1"));
+        streamRepository.setActiveTargets(List.of(target));
 
         ingestionService.ingest();
 
-        verify(discoveryClient, never()).fetchLiveStreams(anySet());
-        verify(apiServerClient, times(1)).syncStreams(anyList());
-        verify(eventPublisher, never()).publishEvent(any());
-        verify(streamRepository).sync(results.closedStreamIds(), targets);
+        assertThat(discoveryClient.getFetchLiveStreamsCallCount()).isZero();
+        assertThat(apiServerClient.getSyncStreamsCallCount()).isEqualTo(1);
+        assertThat(eventPublisher.getEventsOfType(StreamChangedEvent.class)).isEmpty();
+        assertThat(streamRepository.getLastSyncedTargets()).containsExactly(target);
     }
 
     @Test
     void 방송_상태_변화가_있으면_동기화와_이벤트_발행_둘_다_수행한다() {
         StreamTarget target = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 100, "url", "cat", Instant.EPOCH);
-        List<StreamTarget> targets = List.of(target);
-        StreamUpdateResults results = new StreamUpdateResults(Set.of(target), Set.of(), Set.of(), Instant.now());
 
-        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(targets);
-        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
-        when(discoveryClient.fetchLiveStreams(Set.of("ch1"))).thenReturn(targets);
-        when(streamRepository.getActiveChannelIds()).thenReturn(Set.of());
-        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of());
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
+        discoveryClient.setTopLiveStreams(List.of(target));
+        discoveryClient.addDetailedStream(target);
+        targetStreamPool.setTargetChannels(Set.of("ch1"));
 
         ingestionService.ingest();
 
-        verify(apiServerClient).syncStreams(anyList());
-        verify(eventPublisher).publishEvent(any(StreamChangedEvent.class));
-        verify(streamRepository).sync(results.closedStreamIds(), targets);
+        assertThat(apiServerClient.getSyncStreamsCallCount()).isEqualTo(1);
+        List<StreamChangedEvent> events = eventPublisher.getEventsOfType(StreamChangedEvent.class);
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).newStreams()).containsExactly(target);
+        assertThat(streamRepository.getLastSyncedTargets()).containsExactly(target);
     }
 
     @Test
     void 메타데이터_변경이_감지되면_API_서버에_세그먼트_기록을_전송해야_한다() {
         StreamTarget cachedTarget = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 100, "url", "cat", Instant.EPOCH);
         StreamTarget changedLiveTarget = new StreamTarget("ch1", "이름", null, 1L, "변경된 제목", 150, "url", "cat", Instant.EPOCH);
-        ChangedStream changed = new ChangedStream("ch1", "1", "제목", "변경된 제목", "cat", "cat", Instant.EPOCH, 0L);
-        Set<ChangedStream> changedStreams = Set.of(changed);
-        StreamUpdateResults results = new StreamUpdateResults(Set.of(), Set.of(), changedStreams, Instant.now());
 
-        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(List.of(changedLiveTarget));
-        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
-        when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1"));
-        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(cachedTarget));
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
+        discoveryClient.setTopLiveStreams(List.of(changedLiveTarget));
+        targetStreamPool.setTargetChannels(Set.of("ch1"));
+        streamRepository.setActiveTargets(List.of(cachedTarget));
 
         ingestionService.ingest();
 
-        verify(discoveryClient, never()).fetchLiveStreams(anySet());
-        verify(apiServerClient).recordNewSegments(anyList());
-        verify(streamRepository).sync(results.closedStreamIds(), List.of(changedLiveTarget.withChatChannelId("chat1")));
+        assertThat(discoveryClient.getFetchLiveStreamsCallCount()).isZero();
+        assertThat(apiServerClient.getRecordSegmentsCallCount()).isEqualTo(1);
+        List<ChangedStream> recorded = apiServerClient.getLastRecordedSegments();
+        assertThat(recorded).hasSize(1);
+        assertThat(recorded.get(0).streamId()).isEqualTo("ch1");
+        assertThat(recorded.get(0).newTitle()).isEqualTo("변경된 제목");
+        assertThat(streamRepository.getLastSyncedTargets()).containsExactly(changedLiveTarget.withChatChannelId("chat1"));
     }
 
     @Test
     void 메타데이터_변경이_없으면_API_서버에_세그먼트_기록을_전송하지_않아야_한다() {
         StreamTarget dummyTarget = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 100, "url", "cat", Instant.EPOCH);
-        StreamUpdateResults results = new StreamUpdateResults(Set.of(), Set.of(), Set.of(), Instant.now());
 
-        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(List.of(dummyTarget));
-        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
-        when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1"));
-        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(dummyTarget));
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
+        discoveryClient.setTopLiveStreams(List.of(dummyTarget));
+        targetStreamPool.setTargetChannels(Set.of("ch1"));
+        streamRepository.setActiveTargets(List.of(dummyTarget));
 
         ingestionService.ingest();
 
-        verify(discoveryClient, never()).fetchLiveStreams(anySet());
-        verify(apiServerClient, never()).recordNewSegments(anyList());
-        verify(streamRepository).sync(results.closedStreamIds(), List.of(dummyTarget));
+        assertThat(discoveryClient.getFetchLiveStreamsCallCount()).isZero();
+        assertThat(apiServerClient.getRecordSegmentsCallCount()).isZero();
+        assertThat(streamRepository.getLastSyncedTargets()).containsExactly(dummyTarget);
     }
 
     @Test
     void 전체_방송_중_타겟_명단에_포함된_채널만_상세_조회하여_저장소에_동기화한다() {
         StreamTarget targetStream = new StreamTarget("target1", "타겟스트리머", null, 1L, "타겟제목", 100, "url1", "GAME", null);
         StreamTarget nonTargetStream = new StreamTarget("normal1", "일반스트리머", null, 2L, "일반제목", 10, "url2", "TALK", null);
-        List<StreamTarget> allLiveStreams = List.of(targetStream, nonTargetStream);
-
         StreamTarget detailedTarget = new StreamTarget("target1", "타겟스트리머", "chat1", 1L, "타겟제목", 100, "url1", "GAME", Instant.EPOCH);
-        StreamUpdateResults results = new StreamUpdateResults(Set.of(detailedTarget), Set.of(), Set.of(), Instant.now());
 
-        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(allLiveStreams);
-        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("target1"));
-        when(discoveryClient.fetchLiveStreams(Set.of("target1"))).thenReturn(List.of(detailedTarget));
-        when(streamRepository.getActiveChannelIds()).thenReturn(Set.of());
-        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of());
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
+        discoveryClient.setTopLiveStreams(List.of(targetStream, nonTargetStream));
+        discoveryClient.addDetailedStream(detailedTarget);
+        targetStreamPool.setTargetChannels(Set.of("target1"));
 
         ingestionService.ingest();
 
-        verify(discoveryClient).fetchLiveStreams(Set.of("target1"));
-        verify(discoveryClient, never()).fetchLiveStreams(Set.of("normal1"));
-        verify(streamRepository).sync(results.closedStreamIds(), List.of(detailedTarget));
-        verify(apiServerClient).syncStreams(anyList());
+        assertThat(discoveryClient.getRequestedDetailChannelIds()).containsExactly("target1");
+        assertThat(streamRepository.getLastSyncedTargets()).containsExactly(detailedTarget);
+        assertThat(apiServerClient.getSyncStreamsCallCount()).isEqualTo(1);
     }
 
     @Test
     void 타겟_명단에_포함된_방송이_없으면_상세_조회를_호출하지_않아야_한다() {
         StreamTarget nonTargetStream = new StreamTarget("normal1", "일반스트리머", null, 2L, "일반제목", 10, "url2", "TALK", null);
-        List<StreamTarget> allLiveStreams = List.of(nonTargetStream);
-        StreamUpdateResults results = new StreamUpdateResults(Set.of(), Set.of(), Set.of(), Instant.now());
 
-        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(allLiveStreams);
-        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("target1"));
-        when(streamRepository.getActiveChannelIds()).thenReturn(Set.of());
-        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of());
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
+        discoveryClient.setTopLiveStreams(List.of(nonTargetStream));
+        targetStreamPool.setTargetChannels(Set.of("target1"));
 
         ingestionService.ingest();
 
-        verify(discoveryClient, never()).fetchLiveStreams(anySet());
-        verify(streamRepository).sync(results.closedStreamIds(), Collections.emptyList());
-        verify(apiServerClient).syncStreams(anyList());
+        assertThat(discoveryClient.getFetchLiveStreamsCallCount()).isZero();
+        assertThat(streamRepository.getLastSyncedTargets()).isEmpty();
+        assertThat(apiServerClient.getSyncStreamsCallCount()).isEqualTo(1);
     }
 
     @Test
     void 과거_활성_채널_목록을_기반으로_이전_스트림_상세_정보를_조회해야_한다() {
         StreamTarget target = new StreamTarget("ch1", "이름", "chat1", 1L, "제목", 10, "url", "GAME", Instant.EPOCH);
-        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(List.of(target));
-        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
-        when(discoveryClient.fetchLiveStreams(Set.of("ch1"))).thenReturn(List.of(target));
-        when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1", "ch_closed"));
-        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of());
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class)))
-            .thenReturn(new StreamUpdateResults(Set.of(), Set.of(), Set.of(), Instant.now()));
+        StreamTarget closedTarget = new StreamTarget("ch_closed", "종료스트리머", "chatClosed", 99L, "종료제목", 0, "url", "GAME", Instant.EPOCH);
+
+        discoveryClient.setTopLiveStreams(List.of(target));
+        discoveryClient.addDetailedStream(target);
+        targetStreamPool.setTargetChannels(Set.of("ch1"));
+        streamRepository.setActiveTargets(List.of(target, closedTarget));
 
         ingestionService.ingest();
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
-        verify(streamRepository).getStreamTargets(captor.capture());
-
-        assertThat(captor.getValue()).containsExactlyInAnyOrder("ch1", "ch_closed");
+        assertThat(streamRepository.getLastClosedStreams()).containsExactly(closedTarget);
+        assertThat(streamRepository.getLastSyncedTargets()).containsExactly(target);
     }
 
     @Test
@@ -285,21 +236,13 @@ class IngestionServiceTest {
         StreamTarget nonTarget = new StreamTarget("ch2", "비타겟", null, 1002L, "일반 방송", 500, "url2", "게임", null);
         StreamTarget targetDetailed = new StreamTarget("ch1", "침착맨", "chatCh1", 1001L, "침착맨 방송", 3500, "url1", "소통", detailedStartedAt);
 
-        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(List.of(targetCached, nonTarget));
-        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
-        when(discoveryClient.fetchLiveStreams(Set.of("ch1"))).thenReturn(List.of(targetDetailed));
-        when(streamRepository.getActiveChannelIds()).thenReturn(Collections.emptySet());
-        when(streamRepository.getStreamTargets(anyList())).thenReturn(Collections.emptyList());
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class)))
-            .thenReturn(new StreamUpdateResults(Set.of(targetDetailed), Collections.emptySet(), Collections.emptySet(), Instant.now()));
+        discoveryClient.setTopLiveStreams(List.of(targetCached, nonTarget));
+        discoveryClient.addDetailedStream(targetDetailed);
+        targetStreamPool.setTargetChannels(Set.of("ch1"));
 
         ingestionService.ingest();
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<List<StreamSyncRequest>> captor = ArgumentCaptor.forClass(List.class);
-        verify(apiServerClient).syncStreams(captor.capture());
-
-        List<StreamSyncRequest> syncedRequests = captor.getValue();
+        List<StreamSyncRequest> syncedRequests = apiServerClient.getLastSyncedRequests();
         assertThat(syncedRequests).hasSize(2);
 
         StreamSyncRequest ch1Request = syncedRequests.stream()
@@ -321,18 +264,15 @@ class IngestionServiceTest {
     void 이미_추적_중인_동일_세션_스트림은_상세_API를_호출하지_않고_캐시된_chatChannelId를_재사용한다() {
         StreamTarget cachedTarget = new StreamTarget("ch1", "침착맨", "chatCh1", 1001L, "과거제목", 1000, "url1", "소통", Instant.EPOCH);
         StreamTarget liveTarget = new StreamTarget("ch1", "침착맨", null, 1001L, "최신제목", 2500, "url1", "소통", Instant.EPOCH);
-        StreamUpdateResults results = new StreamUpdateResults(Collections.emptySet(), Collections.emptySet(), Collections.emptySet(), Instant.now());
 
-        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(List.of(liveTarget));
-        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
-        when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1"));
-        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(cachedTarget));
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
+        discoveryClient.setTopLiveStreams(List.of(liveTarget));
+        targetStreamPool.setTargetChannels(Set.of("ch1"));
+        streamRepository.setActiveTargets(List.of(cachedTarget));
 
         ingestionService.ingest();
 
-        verify(discoveryClient, never()).fetchLiveStreams(anySet());
-        verify(streamRepository).sync(results.closedStreamIds(), List.of(liveTarget.withChatChannelId("chatCh1")));
+        assertThat(discoveryClient.getFetchLiveStreamsCallCount()).isZero();
+        assertThat(streamRepository.getLastSyncedTargets()).containsExactly(liveTarget.withChatChannelId("chatCh1"));
     }
 
     @Test
@@ -340,18 +280,35 @@ class IngestionServiceTest {
         StreamTarget cachedTarget = new StreamTarget("ch1", "침착맨", "chatCh1_old", 1001L, "과거방송", 1000, "url1", "소통", Instant.EPOCH);
         StreamTarget newLiveTarget = new StreamTarget("ch1", "침착맨", null, 1002L, "새로운방송", 3000, "url1", "게임", Instant.EPOCH);
         StreamTarget detailedNewTarget = new StreamTarget("ch1", "침착맨", "chatCh1_new", 1002L, "새로운방송", 3000, "url1", "게임", Instant.EPOCH);
-        StreamUpdateResults results = new StreamUpdateResults(Set.of(detailedNewTarget), Collections.emptySet(), Collections.emptySet(), Instant.now());
 
-        when(discoveryClient.fetchTopLiveStreams(anyInt())).thenReturn(List.of(newLiveTarget));
-        when(targetStreamPool.getAllActiveTargetChannels()).thenReturn(Set.of("ch1"));
-        when(discoveryClient.fetchLiveStreams(Set.of("ch1"))).thenReturn(List.of(detailedNewTarget));
-        when(streamRepository.getActiveChannelIds()).thenReturn(Set.of("ch1"));
-        when(streamRepository.getStreamTargets(anyList())).thenReturn(List.of(cachedTarget));
-        when(streamUpdateAnalyzer.analyze(anyList(), anySet(), anyList(), any(Instant.class))).thenReturn(results);
+        discoveryClient.setTopLiveStreams(List.of(newLiveTarget));
+        discoveryClient.addDetailedStream(detailedNewTarget);
+        targetStreamPool.setTargetChannels(Set.of("ch1"));
+        streamRepository.setActiveTargets(List.of(cachedTarget));
 
         ingestionService.ingest();
 
-        verify(discoveryClient).fetchLiveStreams(Set.of("ch1"));
-        verify(streamRepository).sync(results.closedStreamIds(), List.of(detailedNewTarget));
+        assertThat(discoveryClient.getFetchLiveStreamsCallCount()).isEqualTo(1);
+        assertThat(discoveryClient.getRequestedDetailChannelIds()).containsExactly("ch1");
+        assertThat(streamRepository.getLastSyncedTargets()).containsExactly(detailedNewTarget);
+    }
+
+    @Test
+    void 성인_방송은_웹소켓_수집_대상에서_제외되지만_API_서버_동기화_대상에는_포함된다() {
+        StreamTarget normalTarget = new StreamTarget("ch1", "일반스트리머", "chatCh1", 101L, "일반방송", 1000, "https://thumb.com/ch1.jpg", "GAME", Instant.EPOCH, false);
+        StreamTarget adultTarget = new StreamTarget("ch2", "성인스트리머", "chatCh2", 102L, "19금방송", 2000, "https://thumb.com/ch2.jpg", "GAME", Instant.EPOCH, true);
+
+        discoveryClient.setTopLiveStreams(List.of(normalTarget, adultTarget));
+        discoveryClient.addDetailedStream(normalTarget);
+        targetStreamPool.setTargetChannels(Set.of("ch1", "ch2"));
+
+        ingestionService.ingest();
+
+        List<StreamSyncRequest> syncedRequests = apiServerClient.getLastSyncedRequests();
+        assertThat(syncedRequests).hasSize(2);
+        assertThat(syncedRequests.stream().map(StreamSyncRequest::streamId).toList())
+            .containsExactlyInAnyOrder("ch1", "ch2");
+
+        assertThat(streamRepository.getLastSyncedTargets()).containsExactly(normalTarget);
     }
 }

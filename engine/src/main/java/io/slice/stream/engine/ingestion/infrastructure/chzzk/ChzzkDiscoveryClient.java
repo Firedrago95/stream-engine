@@ -103,7 +103,8 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             detailContent.concurrentUserCount(),
             detailContent.channel().channelImageUrl(),
             detailContent.liveCategoryValue(),
-            startedAt
+            startedAt,
+            detailContent.adult()
         );
     }
 
@@ -120,7 +121,8 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             live.concurrentUserCount(),
             live.channel().channelImageUrl(),
             live.liveCategoryValue(),
-            startedAt
+            startedAt,
+            live.adult()
         );
     }
 
@@ -147,7 +149,7 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             List<ChzzkLive> data = topLiveResponse.content().data();
 
             List<ChzzkLive> validLives = data.stream()
-                .filter(live -> !live.adult() && live.concurrentUserCount() >= MIN_CONCURRENT_USERS)
+                .filter(live -> live.concurrentUserCount() >= MIN_CONCURRENT_USERS)
                 .toList();
 
             collectedLives.addAll(validLives);

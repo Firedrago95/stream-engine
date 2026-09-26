@@ -130,7 +130,7 @@ class ChzzkDiscoveryClientTest {
     }
 
     @Test
-    void 성인방송은_필터링되어_결과에_포함되지_않는다() throws Exception {
+    void 성인_방송도_기본_통계_수집을_위해_결과에_포함되며_adult_플래그가_정상_설정된다() throws Exception {
         ChzzkLive live1 = new ChzzkLive(1001L, "일반 방송", "url", "게임", "chatCh1", 5000, false, new Channel("ch1", "스트리머A", "imageUrl"));
         ChzzkLive live2 = new ChzzkLive(1002L, "성인 방송", "url", "게임", "chatCh2", 3000, true, new Channel("ch2", "스트리머B", "imageUrl"));
 
@@ -141,8 +141,11 @@ class ChzzkDiscoveryClientTest {
         List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(200);
 
         mockServer.verify();
-        assertThat(result).hasSize(1);
+        assertThat(result).hasSize(2);
         assertThat(result.get(0).channelName()).isEqualTo("스트리머A");
+        assertThat(result.get(0).adult()).isFalse();
+        assertThat(result.get(1).channelName()).isEqualTo("스트리머B");
+        assertThat(result.get(1).adult()).isTrue();
     }
 
     @Test
