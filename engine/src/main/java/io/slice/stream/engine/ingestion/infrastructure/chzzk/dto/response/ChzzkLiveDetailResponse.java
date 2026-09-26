@@ -21,8 +21,39 @@ public record ChzzkLiveDetailResponse(
         int concurrentUserCount,
         int accumulateCount,
         long liveId,
+        boolean adult,
+        boolean paidPromotion,
         Channel channel
     ) {
+
+        public Content(
+            String status,
+            String chatChannelId,
+            LocalDateTime openDate,
+            String liveTitle,
+            String liveCategoryValue,
+            int concurrentUserCount,
+            int accumulateCount,
+            long liveId,
+            boolean adult,
+            Channel channel
+        ) {
+            this(status, chatChannelId, openDate, liveTitle, liveCategoryValue, concurrentUserCount, accumulateCount, liveId, adult, false, channel);
+        }
+
+        public Content(
+            String status,
+            String chatChannelId,
+            LocalDateTime openDate,
+            String liveTitle,
+            String liveCategoryValue,
+            int concurrentUserCount,
+            int accumulateCount,
+            long liveId,
+            Channel channel
+        ) {
+            this(status, chatChannelId, openDate, liveTitle, liveCategoryValue, concurrentUserCount, accumulateCount, liveId, false, false, channel);
+        }
 
         public Content(
             String status,
@@ -34,7 +65,7 @@ public record ChzzkLiveDetailResponse(
             long liveId,
             Channel channel
         ) {
-            this(status, chatChannelId, openDate, liveTitle, liveCategoryValue, concurrentUserCount, 0, liveId, channel);
+            this(status, chatChannelId, openDate, liveTitle, liveCategoryValue, concurrentUserCount, 0, liveId, false, false, channel);
         }
     }
 }

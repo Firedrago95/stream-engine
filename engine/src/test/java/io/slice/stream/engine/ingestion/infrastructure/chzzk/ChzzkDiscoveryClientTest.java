@@ -2,7 +2,6 @@ package io.slice.stream.engine.ingestion.infrastructure.chzzk;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -24,14 +23,12 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.client.UnorderedRequestExpectationManager;
@@ -40,7 +37,6 @@ import org.springframework.web.client.RestClient.Builder;
 import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.ObjectMapper;
 
-@ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class ChzzkDiscoveryClientTest {
 
@@ -48,8 +44,6 @@ class ChzzkDiscoveryClientTest {
 
     private MockRestServiceServer mockServer;
     private ChzzkDiscoveryClient chzzkDiscoveryClient;
-
-    @Mock
     private ExecutorService virtualExecutorService;
 
     private String baseUrl = "https://api.chzzk.naver.com";
@@ -63,14 +57,11 @@ class ChzzkDiscoveryClientTest {
         liveDetailFetchUrl = "/service/v3/channels/{channelId}/live-detail";
         liveStatusPollingUrl = "/polling/v2/channels/{channelId}/live-status";
 
+        virtualExecutorService = Executors.newVirtualThreadPerTaskExecutor();
+
         Builder builder = RestClient.builder().baseUrl(baseUrl);
         mockServer = MockRestServiceServer.bindTo(builder)
             .build(new UnorderedRequestExpectationManager());
-        Mockito.lenient().doAnswer(invocation -> {
-            Runnable runnable = invocation.getArgument(0);
-            runnable.run();
-            return null;
-        }).when(virtualExecutorService).execute(any(Runnable.class));
 
         chzzkDiscoveryClient = new ChzzkDiscoveryClient(
             builder.build(),
@@ -79,6 +70,13 @@ class ChzzkDiscoveryClientTest {
             liveDetailFetchUrl,
             liveStatusPollingUrl
         );
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (virtualExecutorService != null) {
+            virtualExecutorService.shutdown();
+        }
     }
 
     @Test
@@ -130,7 +128,7 @@ class ChzzkDiscoveryClientTest {
     }
 
     @Test
-    void 성인방송은_필터링되어_결과에_포함되지_않는다() throws Exception {
+    void 성인_방송도_기본_통계_수집을_위해_결과에_포함되며_adult_플래그가_정상_설정된다() throws Exception {
         ChzzkLive live1 = new ChzzkLive(1001L, "일반 방송", "url", "게임", "chatCh1", 5000, false, new Channel("ch1", "스트리머A", "imageUrl"));
         ChzzkLive live2 = new ChzzkLive(1002L, "성인 방송", "url", "게임", "chatCh2", 3000, true, new Channel("ch2", "스트리머B", "imageUrl"));
 
@@ -141,8 +139,32 @@ class ChzzkDiscoveryClientTest {
         List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(200);
 
         mockServer.verify();
-        assertThat(result).hasSize(1);
+        assertThat(result).hasSize(2);
         assertThat(result.get(0).channelName()).isEqualTo("스트리머A");
+        assertThat(result.get(0).adult()).isFalse();
+        assertThat(result.get(1).channelName()).isEqualTo("스트리머B");
+        assertThat(result.get(1).adult()).isTrue();
+    }
+
+    @Test
+    void 유료_프로모션_플래그가_true이거나_제목에_광고_또는_숙제가_포함되면_paidPromotion이_true로_설정된다() throws Exception {
+        ChzzkLive live1 = new ChzzkLive(1001L, "일반 방송", "url", "게임", "chatCh1", 5000, false, true, null, new Channel("ch1", "스트리머A", "imageUrl"));
+        ChzzkLive live2 = new ChzzkLive(1002L, "신작 게임 광고 방송", "url", "게임", "chatCh2", 4000, false, false, null, new Channel("ch2", "스트리머B", "imageUrl"));
+        ChzzkLive live3 = new ChzzkLive(1003L, "오늘의 숙제 진행합니다", "url", "게임", "chatCh3", 3000, false, false, null, new Channel("ch3", "스트리머C", "imageUrl"));
+        ChzzkLive live4 = new ChzzkLive(1004L, "순수 소통 방송", "url", "소통", "chatCh4", 2000, false, false, null, new Channel("ch4", "스트리머D", "imageUrl"));
+
+        ChzzkLiveResponse topLiveResponse = createMockResponse(List.of(live1, live2, live3, live4), null, null);
+        mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
+            .andRespond(withSuccess(objectMapper.writeValueAsString(topLiveResponse), MediaType.APPLICATION_JSON));
+
+        List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(200);
+
+        mockServer.verify();
+        assertThat(result).hasSize(4);
+        assertThat(result.get(0).paidPromotion()).isTrue();
+        assertThat(result.get(1).paidPromotion()).isTrue();
+        assertThat(result.get(2).paidPromotion()).isTrue();
+        assertThat(result.get(3).paidPromotion()).isFalse();
     }
 
     @Test

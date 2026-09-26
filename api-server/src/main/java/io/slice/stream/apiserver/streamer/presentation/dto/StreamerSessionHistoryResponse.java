@@ -22,6 +22,23 @@ public record StreamerSessionHistoryResponse(
         int avgViewers,
         Integer followerGrowth,
         Double subscriberChatRatio,
-        String vodUrl
-    ) {}
+        String vodUrl,
+        boolean paidPromotion
+    ) {
+        public StreamerSessionItemDto(
+            String sessionId,
+            String title,
+            String categoryName,
+            Instant startedAt,
+            Instant endedAt,
+            long durationSeconds,
+            int peakViewers,
+            int avgViewers,
+            Integer followerGrowth,
+            Double subscriberChatRatio,
+            String vodUrl
+        ) {
+            this(sessionId, title, categoryName, startedAt, endedAt, durationSeconds, peakViewers, avgViewers, followerGrowth, subscriberChatRatio, vodUrl, false);
+        }
+    }
 }

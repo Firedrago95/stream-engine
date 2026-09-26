@@ -63,8 +63,9 @@ public class StreamerQueryController {
     public ResponseEntity<StreamerSessionHistoryResponse> getSessions(
         @PathVariable String channelId,
         @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "10") int size
+        @RequestParam(defaultValue = "10") int size,
+        @RequestParam(required = false, defaultValue = "false") boolean paidPromotionOnly
     ) {
-        return ResponseEntity.ok(sessionQueryService.getSessionHistory(channelId, page, size));
+        return ResponseEntity.ok(sessionQueryService.getSessionHistory(channelId, page, size, paidPromotionOnly));
     }
 }

@@ -11,8 +11,22 @@ public record StreamSyncRequest(
     String profileImageUrl,
     int concurrentUserCount,
     String categoryName,
-    Instant startedAt
+    Instant startedAt,
+    boolean paidPromotion
 ) {
+    public StreamSyncRequest(
+        String streamId,
+        String liveId,
+        String streamerName,
+        String liveTitle,
+        String profileImageUrl,
+        int concurrentUserCount,
+        String categoryName,
+        Instant startedAt
+    ) {
+        this(streamId, liveId, streamerName, liveTitle, profileImageUrl, concurrentUserCount, categoryName, startedAt, false);
+    }
+
     public static StreamSyncRequest from(StreamTarget target) {
         return new StreamSyncRequest(
             target.channelId(),
@@ -22,7 +36,8 @@ public record StreamSyncRequest(
             target.profileImageUrl(),
             target.concurrentUserCount(),
             target.categoryName(),
-            target.startedAt()
+            target.startedAt(),
+            target.paidPromotion()
         );
     }
 }

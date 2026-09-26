@@ -109,6 +109,9 @@ public class StreamService {
             StreamSessionEntity activeSession = activeSessionMap.get(req.streamId());
             if (activeSession != null) {
                 if (Objects.equals(activeSession.getSessionId(), req.liveId())) {
+                    if (req.paidPromotion()) {
+                        activeSession.markPaidPromotion();
+                    }
                     sessionMap.put(req.streamId(), activeSession);
                 } else {
                     closePreviousSession(activeSession, currentTime, req.liveId());
@@ -173,6 +176,9 @@ public class StreamService {
                         existing.getStreamId(), existing.getSessionId());
                     evictActiveSessionAfterCommit(existing.getStreamId());
                 }
+                if (req.paidPromotion()) {
+                    existing.markPaidPromotion();
+                }
                 sessionMap.put(req.streamId(), existing);
 
                 if (!activeSegmentSessionIds.contains(existing.getSessionId())) {
@@ -213,7 +219,8 @@ public class StreamService {
                     req.liveId(),
                     req.liveTitle(),
                     req.categoryName(),
-                    sessionStartedAt
+                    sessionStartedAt,
+                    req.paidPromotion()
                 );
                 newSessions.add(session);
                 sessionMap.put(req.streamId(), session);

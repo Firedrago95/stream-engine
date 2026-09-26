@@ -12,8 +12,39 @@ public record StreamTarget(
     int concurrentUserCount,
     String profileImageUrl,
     String categoryName,
-    Instant startedAt
+    Instant startedAt,
+    boolean adult,
+    boolean paidPromotion
 ) {
+
+    public StreamTarget(
+        String channelId,
+        String channelName,
+        String chatChannelId,
+        long liveId,
+        String liveTitle,
+        int concurrentUserCount,
+        String profileImageUrl,
+        String categoryName,
+        Instant startedAt
+    ) {
+        this(channelId, channelName, chatChannelId, liveId, liveTitle, concurrentUserCount, profileImageUrl, categoryName, startedAt, false, false);
+    }
+
+    public StreamTarget(
+        String channelId,
+        String channelName,
+        String chatChannelId,
+        long liveId,
+        String liveTitle,
+        int concurrentUserCount,
+        String profileImageUrl,
+        String categoryName,
+        Instant startedAt,
+        boolean adult
+    ) {
+        this(channelId, channelName, chatChannelId, liveId, liveTitle, concurrentUserCount, profileImageUrl, categoryName, startedAt, adult, false);
+    }
 
     @Override
     public boolean equals(Object o) {
@@ -42,7 +73,9 @@ public record StreamTarget(
             concurrentUserCount,
             profileImageUrl,
             categoryName,
-            startedAt
+            startedAt,
+            adult,
+            paidPromotion
         );
     }
 }

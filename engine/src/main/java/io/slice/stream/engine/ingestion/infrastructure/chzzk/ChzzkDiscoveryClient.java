@@ -94,6 +94,7 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
 
     private StreamTarget convertToStreamTarget(Content detailContent) {
         Instant startedAt = detailContent.openDate().toInstant(ZoneOffset.of("+09:00"));
+        boolean paidPromotion = isPaidPromotion(detailContent.paidPromotion(), detailContent.liveTitle());
         return new StreamTarget(
             detailContent.channel().channelId(),
             detailContent.channel().channelName(),
@@ -103,7 +104,9 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             detailContent.concurrentUserCount(),
             detailContent.channel().channelImageUrl(),
             detailContent.liveCategoryValue(),
-            startedAt
+            startedAt,
+            detailContent.adult(),
+            paidPromotion
         );
     }
 
@@ -111,6 +114,7 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
         Instant startedAt = live.openDate() != null
             ? live.openDate().toInstant(ZoneOffset.of("+09:00"))
             : null;
+        boolean paidPromotion = isPaidPromotion(live.paidPromotion(), live.liveTitle());
         return new StreamTarget(
             live.channel().channelId(),
             live.channel().channelName(),
@@ -120,8 +124,20 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             live.concurrentUserCount(),
             live.channel().channelImageUrl(),
             live.liveCategoryValue(),
-            startedAt
+            startedAt,
+            live.adult(),
+            paidPromotion
         );
+    }
+
+    private boolean isPaidPromotion(boolean paidPromotionFlag, String title) {
+        if (paidPromotionFlag) {
+            return true;
+        }
+        if (title == null) {
+            return false;
+        }
+        return title.contains("광고") || title.contains("숙제");
     }
 
     private List<ChzzkLive> fetchTopLives() {
@@ -147,7 +163,7 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
             List<ChzzkLive> data = topLiveResponse.content().data();
 
             List<ChzzkLive> validLives = data.stream()
-                .filter(live -> !live.adult() && live.concurrentUserCount() >= MIN_CONCURRENT_USERS)
+                .filter(live -> live.concurrentUserCount() >= MIN_CONCURRENT_USERS)
                 .toList();
 
             collectedLives.addAll(validLives);

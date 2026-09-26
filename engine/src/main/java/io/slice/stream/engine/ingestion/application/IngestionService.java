@@ -56,6 +56,7 @@ public class IngestionService {
 
             Set<String> activeTargetChannels = targetStreamPool.getAllActiveTargetChannels();
             List<StreamTarget> targetLiveStreams = topLiveStreams.stream()
+                .filter(stream -> !stream.adult())
                 .filter(stream -> activeTargetChannels.contains(stream.channelId()))
                 .toList();
 
