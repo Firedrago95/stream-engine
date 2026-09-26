@@ -233,6 +233,61 @@ class StreamSessionServiceTest {
     }
 
     @Test
+    void 방제_변경_직후_10초_이내에_유료프로모션_보정_요청이_오면_기존_세그먼트의_광고상태가_보정된다() {
+        String streamId = "stream-1";
+        String sessionId = "session-1";
+        Instant startedAt = Instant.now().minusSeconds(3);
+        Instant changedAt = Instant.now();
+        Long offsetMs = 3000L;
+
+        StreamSessionEntity activeSession = new StreamSessionEntity(streamId, sessionId, "동일방제", "동일카테고리", startedAt, false);
+        StreamSessionSegmentEntity activeSegment = new StreamSessionSegmentEntity(streamId, sessionId, "동일방제", "동일카테고리", startedAt, 0L, false);
+        ChangedStreamRequest request = new ChangedStreamRequest(streamId, sessionId, "동일방제", "동일방제", "동일카테고리", "동일카테고리", changedAt, offsetMs, true);
+
+        when(sessionRepository.findAllActiveSessions(List.of(streamId)))
+            .thenReturn(List.of(activeSession));
+        when(segmentRepository.findAllActiveSegments(List.of(sessionId)))
+            .thenReturn(List.of(activeSegment));
+
+        streamSessionService.updateSessionSegment(List.of(request));
+
+        assertThat(activeSegment.isPaidPromotion()).isTrue();
+        assertThat(activeSegment.getEndedAt()).isNull();
+        assertThat(activeSession.isPaidPromotion()).isTrue();
+        verify(segmentRepository, times(1)).saveAll(argThat(segments -> {
+            List<StreamSessionSegmentEntity> list = (List<StreamSessionSegmentEntity>) segments;
+            return list.size() == 1 && list.get(0) == activeSegment && list.get(0).isPaidPromotion();
+        }));
+    }
+
+    @Test
+    void 방제와_카테고리는_동일하지만_10초_초과_후_유료프로모션_상태만_바뀌면_새_세그먼트가_분리된다() {
+        String streamId = "stream-1";
+        String sessionId = "session-1";
+        Instant startedAt = Instant.now().minusSeconds(60);
+        Instant changedAt = Instant.now();
+        Long offsetMs = 60000L;
+
+        StreamSessionEntity activeSession = new StreamSessionEntity(streamId, sessionId, "동일방제", "동일카테고리", startedAt, false);
+        StreamSessionSegmentEntity activeSegment = new StreamSessionSegmentEntity(streamId, sessionId, "동일방제", "동일카테고리", startedAt, 0L, false);
+        ChangedStreamRequest request = new ChangedStreamRequest(streamId, sessionId, "동일방제", "동일방제", "동일카테고리", "동일카테고리", changedAt, offsetMs, true);
+
+        when(sessionRepository.findAllActiveSessions(List.of(streamId)))
+            .thenReturn(List.of(activeSession));
+        when(segmentRepository.findAllActiveSegments(List.of(sessionId)))
+            .thenReturn(List.of(activeSegment));
+
+        streamSessionService.updateSessionSegment(List.of(request));
+
+        assertThat(activeSegment.getEndedAt()).isEqualTo(changedAt);
+        assertThat(activeSegment.getEndOffsetMs()).isEqualTo(offsetMs);
+        verify(segmentRepository, times(1)).saveAll(argThat(segments -> {
+            List<StreamSessionSegmentEntity> list = (List<StreamSessionSegmentEntity>) segments;
+            return list.size() == 1 && list.get(0) != activeSegment && list.get(0).isPaidPromotion();
+        }));
+    }
+
+    @Test
     void 방송_세션_요약정보가_수신되면_정상적으로_구독자_비율과_피크_평균시청자가_업데이트되고_활성_세그먼트도_마감된다() {
         String streamId = "stream-summary";
         Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");

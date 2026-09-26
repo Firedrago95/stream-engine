@@ -105,16 +105,51 @@ public class StreamSessionService {
         StreamSessionSegmentEntity activeSegment
     ) {
         boolean paidPromotion = Boolean.TRUE.equals(req.paidPromotion());
+        boolean isMetadataSame = Objects.equals(req.newTitle(), session.getTitle()) &&
+            Objects.equals(req.newCategory(), session.getCategoryName());
 
-        if (Objects.equals(req.newCategory(), session.getCategoryName()) &&
-            Objects.equals(req.newTitle(), session.getTitle())) {
+        if (activeSegment != null) {
+            boolean isPromotionSame = activeSegment.isPaidPromotion() == paidPromotion;
+            if (isMetadataSame && isPromotionSame) {
+                return Optional.empty();
+            }
+
+            if (isMetadataSame) {
+                long elapsedSeconds = Duration.between(activeSegment.getStartedAt(), req.changedAt()).abs().toSeconds();
+                if (elapsedSeconds <= 10) {
+                    return correctActiveSegmentPromotion(session, activeSegment, paidPromotion, req, elapsedSeconds);
+                }
+            }
+
+            activeSegment.endSegment(req.changedAt(), req.changeOffsetMs());
+        } else if (isMetadataSame) {
             return Optional.empty();
         }
 
-        if (activeSegment != null) {
-            activeSegment.endSegment(req.changedAt(), req.changeOffsetMs());
-        }
+        return createNewSegment(req, session, paidPromotion);
+    }
 
+    private Optional<StreamSessionSegmentEntity> correctActiveSegmentPromotion(
+        StreamSessionEntity session,
+        StreamSessionSegmentEntity activeSegment,
+        boolean paidPromotion,
+        ChangedStreamRequest req,
+        long elapsedSeconds
+    ) {
+        activeSegment.updatePaidPromotion(paidPromotion);
+        if (paidPromotion) {
+            session.markPaidPromotion();
+        }
+        log.info("[세그먼트 광고 보정] 스트림: {}, 방제: {}, 카테고리: {}, 유료프로모션: {} (경과: {}초)",
+            req.streamId(), req.newTitle(), req.newCategory(), paidPromotion, elapsedSeconds);
+        return Optional.of(activeSegment);
+    }
+
+    private Optional<StreamSessionSegmentEntity> createNewSegment(
+        ChangedStreamRequest req,
+        StreamSessionEntity session,
+        boolean paidPromotion
+    ) {
         session.updateMetadata(req.newTitle(), req.newCategory());
         if (paidPromotion) {
             session.markPaidPromotion();

@@ -64,6 +64,16 @@ public class RedisStreamRepository implements StreamRepository {
         );
     }
 
+    @Override
+    public void updatePaidPromotion(String channelId, boolean paidPromotion) {
+        Object rawJson = redisTemplate.opsForHash().get(Rediskeys.STREAM_LIVE_HASH, channelId);
+        if (rawJson != null) {
+            StreamTarget target = deserialize((String) rawJson);
+            StreamTarget updated = target.withPaidPromotion(paidPromotion);
+            redisTemplate.opsForHash().put(Rediskeys.STREAM_LIVE_HASH, channelId, serialize(updated));
+        }
+    }
+
     private List<String> makeArguments(Set<StreamTarget> closedStreams, List<StreamTarget> streamTargets) {
         List<String> args = new ArrayList<>();
         args.add(String.valueOf(closedStreams.size()));

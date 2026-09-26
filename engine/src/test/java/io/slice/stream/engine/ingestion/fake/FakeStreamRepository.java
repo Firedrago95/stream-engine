@@ -72,4 +72,12 @@ public class FakeStreamRepository implements StreamRepository {
     public Set<StreamTarget> getLastClosedStreams() {
         return Collections.unmodifiableSet(lastClosedStreams);
     }
+
+    @Override
+    public void updatePaidPromotion(String channelId, boolean paidPromotion) {
+        StreamTarget existing = targets.get(channelId);
+        if (existing != null) {
+            targets.put(channelId, existing.withPaidPromotion(paidPromotion));
+        }
+    }
 }

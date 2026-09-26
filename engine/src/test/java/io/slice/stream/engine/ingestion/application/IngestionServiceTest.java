@@ -44,6 +44,7 @@ class IngestionServiceTest {
         targetStreamPool = new FakeTargetStreamPool();
         AsyncPromotionInspector asyncPromotionInspector = new AsyncPromotionInspector(
             discoveryClient,
+            streamRepository,
             apiServerClient,
             Executors.newSingleThreadExecutor()
         );
