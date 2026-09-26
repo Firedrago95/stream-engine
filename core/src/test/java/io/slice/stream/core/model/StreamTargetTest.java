@@ -40,4 +40,15 @@ class StreamTargetTest {
 
         assertThat(target1).isNotEqualTo(target2);
     }
+
+    @Test
+    @DisplayName("adult와 paidPromotion에 null이 전달되어도 false 기본값으로 안전하게 초기화된다")
+    void shouldInitializeWithDefaultFalseWhenAdultOrPaidPromotionIsNull() {
+        StreamTarget target = new StreamTarget(
+            "channel1", "스트리머1", "chat1", 100L, "방송", 100, null, "소통", Instant.EPOCH, null, null
+        );
+
+        assertThat(target.adult()).isFalse();
+        assertThat(target.paidPromotion()).isFalse();
+    }
 }

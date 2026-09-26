@@ -13,9 +13,14 @@ public record StreamTarget(
     String profileImageUrl,
     String categoryName,
     Instant startedAt,
-    boolean adult,
-    boolean paidPromotion
+    Boolean adult,
+    Boolean paidPromotion
 ) {
+
+    public StreamTarget {
+        adult = adult != null && adult;
+        paidPromotion = paidPromotion != null && paidPromotion;
+    }
 
     public StreamTarget(
         String channelId,
@@ -41,7 +46,7 @@ public record StreamTarget(
         String profileImageUrl,
         String categoryName,
         Instant startedAt,
-        boolean adult
+        Boolean adult
     ) {
         this(channelId, channelName, chatChannelId, liveId, liveTitle, concurrentUserCount, profileImageUrl, categoryName, startedAt, adult, false);
     }
