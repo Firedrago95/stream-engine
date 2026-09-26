@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkChannelResponse;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveDetailResponse;
+import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveResponse;
 import io.slice.stream.engine.ingestion.infrastructure.chzzk.dto.response.ChzzkLiveStatusResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -141,5 +142,73 @@ class ChzzkResponseParsingTest {
         assertThat(response.content().channelName()).isEqualTo("사키하네 후야");
         assertThat(response.content().followerCount()).isEqualTo(165484);
         assertThat(response.content().verifiedMark()).isTrue();
+    }
+
+    @Test
+    @DisplayName("치지직 TopLive 응답 JSON에 paidPromotion 필드가 누락되어도 기본값 false로 안전하게 역직렬화된다")
+    void deserializeTopLiveResponseWithoutPaidPromotion() throws Exception {
+        String json = """
+            {
+              "code": 200,
+              "message": null,
+              "content": {
+                "size": 1,
+                "page": { "next": null },
+                "data": [
+                  {
+                    "liveId": 12345,
+                    "liveTitle": "일반 방송",
+                    "liveImageUrl": "https://thumb.com/img.jpg",
+                    "liveCategoryValue": "talk",
+                    "chatChannelId": "chat123",
+                    "concurrentUserCount": 500,
+                    "adult": false,
+                    "openDate": "2026-09-26 12:00:00",
+                    "channel": {
+                      "channelId": "ch_1",
+                      "channelName": "스트리머1",
+                      "channelImageUrl": "https://thumb.com/ch.png"
+                    }
+                  }
+                ]
+              }
+            }
+            """;
+
+        ChzzkLiveResponse response = objectMapper.readValue(json, ChzzkLiveResponse.class);
+
+        assertThat(response).isNotNull();
+        assertThat(response.content().data()).hasSize(1);
+        assertThat(response.content().data().get(0).paidPromotion()).isFalse();
+    }
+
+    @Test
+    @DisplayName("치지직 LiveDetail 응답 JSON에 paidPromotion 필드가 누락되어도 기본값 false로 안전하게 역직렬화된다")
+    void deserializeLiveDetailResponseWithoutPaidPromotion() throws Exception {
+        String json = """
+            {
+              "code": 200,
+              "message": null,
+              "content": {
+                "liveId": 12345,
+                "liveTitle": "일반 방송 상세",
+                "status": "OPEN",
+                "concurrentUserCount": 500,
+                "accumulateCount": 1000,
+                "openDate": "2026-09-26 12:00:00",
+                "adult": false,
+                "channel": {
+                  "channelId": "ch_1",
+                  "channelName": "스트리머1",
+                  "channelImageUrl": "https://thumb.com/ch.png"
+                }
+              }
+            }
+            """;
+
+        ChzzkLiveDetailResponse response = objectMapper.readValue(json, ChzzkLiveDetailResponse.class);
+
+        assertThat(response).isNotNull();
+        assertThat(response.content().paidPromotion()).isFalse();
     }
 }

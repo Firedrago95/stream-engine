@@ -34,11 +34,14 @@ public record ChzzkLiveResponse(
             String chatChannelId,
             int concurrentUserCount,
             boolean adult,
-            boolean paidPromotion,
+            Boolean paidPromotion,
             @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Seoul")
             LocalDateTime openDate,
             Channel channel
         ) {
+            public ChzzkLive {
+                paidPromotion = paidPromotion != null && paidPromotion;
+            }
             public ChzzkLive(
                 long liveId,
                 String liveTitle,

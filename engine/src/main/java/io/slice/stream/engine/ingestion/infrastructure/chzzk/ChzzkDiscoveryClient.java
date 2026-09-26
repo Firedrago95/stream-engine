@@ -130,8 +130,8 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
         );
     }
 
-    private boolean isPaidPromotion(boolean paidPromotionFlag, String title) {
-        if (paidPromotionFlag) {
+    private boolean isPaidPromotion(Boolean paidPromotionFlag, String title) {
+        if (Boolean.TRUE.equals(paidPromotionFlag)) {
             return true;
         }
         if (title == null) {

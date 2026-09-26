@@ -22,9 +22,12 @@ public record ChzzkLiveDetailResponse(
         int accumulateCount,
         long liveId,
         boolean adult,
-        boolean paidPromotion,
+        Boolean paidPromotion,
         Channel channel
     ) {
+        public Content {
+            paidPromotion = paidPromotion != null && paidPromotion;
+        }
 
         public Content(
             String status,
