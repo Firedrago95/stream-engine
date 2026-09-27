@@ -27,39 +27,21 @@ interface SessionPalette {
   badgeBg: string;
 }
 
-const SESSION_PALETTES: SessionPalette[] = [
-  {
-    name: '녹색',
-    gradient: 'from-[#10b981] to-[#047857]',
-    borderColor: 'border-[#10b981]/70',
-    glow: 'rgba(16, 185, 129, 0.35)',
-    textColor: 'text-[#10b981]',
-    badgeBg: 'bg-[#10b981]',
-  },
-  {
-    name: '노란색',
-    gradient: 'from-[#eab308] to-[#a16207]',
-    borderColor: 'border-[#eab308]/70',
-    glow: 'rgba(234, 179, 8, 0.35)',
-    textColor: 'text-[#eab308]',
-    badgeBg: 'bg-[#eab308]',
-  },
-  {
-    name: '주황색',
-    gradient: 'from-[#f97316] to-[#c2410c]',
-    borderColor: 'border-[#f97316]/70',
-    glow: 'rgba(249, 115, 22, 0.35)',
-    textColor: 'text-[#f97316]',
-    badgeBg: 'bg-[#f97316]',
-  },
-];
+const DEFAULT_PALETTE: SessionPalette = {
+  name: '에메랄드',
+  gradient: 'from-[#143226] to-[#0c1f18]',
+  borderColor: 'border-[#00FFA3]/40',
+  glow: 'rgba(0, 255, 163, 0.08)',
+  textColor: 'text-[#00FFA3]',
+  badgeBg: 'bg-[#00FFA3]',
+};
 
 const LIVE_PALETTE: SessionPalette = {
   name: '라이브',
-  gradient: 'from-[#ef4444] to-[#b91c1c]',
+  gradient: 'from-[#7f1d1d] to-[#450a0a]',
   borderColor: 'border-[#ef4444]',
-  glow: 'rgba(239, 68, 68, 0.5)',
-  textColor: 'text-[#ef4444]',
+  glow: 'rgba(239, 68, 68, 0.4)',
+  textColor: 'text-white',
   badgeBg: 'bg-[#ef4444]',
 };
 
@@ -87,7 +69,7 @@ function formatDurationHours(durationSeconds: number): string {
     const mins = Math.max(1, Math.round(durationSeconds / 60));
     return `${mins}분`;
   }
-  return `${hours.toFixed(1)}h`;
+  return `${hours.toFixed(1)}시간`;
 }
 
 function formatKstTimeOnly(date: Date): string {
@@ -95,6 +77,25 @@ function formatKstTimeOnly(date: Date): string {
   const hh = String(kst.hours).padStart(2, '0');
   const mm = String(kst.minutes).padStart(2, '0');
   return `${hh}:${mm}`;
+}
+
+function formatKstDateTime(date: Date): string {
+  const kst = getKstDate(date);
+  const mm = String(kst.month).padStart(2, '0');
+  const dd = String(kst.date).padStart(2, '0');
+  const hh = String(kst.hours).padStart(2, '0');
+  const min = String(kst.minutes).padStart(2, '0');
+  return `${mm}.${dd} ${hh}:${min}`;
+}
+
+function formatSessionTimeRange(startDate: Date, endDate: Date | null): string {
+  const startStr = formatKstDateTime(startDate);
+  if (!endDate) return `${startStr} ~ 진행 중`;
+  const kstStart = getKstDate(startDate);
+  const kstEnd = getKstDate(endDate);
+  const isSameDay = kstStart.year === kstEnd.year && kstStart.month === kstEnd.month && kstStart.date === kstEnd.date;
+  const endStr = isSameDay ? formatKstTimeOnly(endDate) : formatKstDateTime(endDate);
+  return `${startStr} ~ ${endStr}`;
 }
 
 interface CalendarDay {
@@ -263,12 +264,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
     const result: WeekSegment[][] = [];
 
     calendarWeeks.forEach((weekDays) => {
-      const firstDay = weekDays[0];
-      const weekStartDate = new Date(Date.UTC(firstDay.year, firstDay.month - 1, firstDay.day, -9, 0, 0));
-      const weekStartMs = weekStartDate.getTime();
-      const weekDurationMs = 7 * 24 * 3600 * 1000;
-      const weekEndMs = weekStartMs + weekDurationMs;
-
+      const DAY_WIDTH_PERCENT = 100 / 7;
       const unassigned: {
         session: CalendarSessionDto;
         palette: SessionPalette;
@@ -280,73 +276,66 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
         barLabel: string;
       }[] = [];
 
-      sessions.forEach((s, idx) => {
+      sessions.forEach((s) => {
         const sStart = parseKstInstant(s.startedAt).getTime();
         const sEnd = s.endedAt ? parseKstInstant(s.endedAt).getTime() : now.getTime();
+        const effectiveEnd = Math.max(sStart + 60000, sEnd);
 
-        if (sEnd <= weekStartMs || sStart >= weekEndMs) {
-          return;
-        }
+        weekDays.forEach((day, dIdx) => {
+          const dayStartKst = new Date(Date.UTC(day.year, day.month - 1, day.day, -9, 0, 0));
+          const dayStartMs = dayStartKst.getTime();
+          const dayEndMs = dayStartMs + 24 * 3600 * 1000;
 
-        const effectiveStart = Math.max(sStart, weekStartMs);
-        const effectiveEnd = Math.min(sEnd, weekEndMs);
-
-        const DAY_PERCENT = 100 / 7;
-        const rawLeft = ((effectiveStart - weekStartMs) / weekDurationMs) * 100;
-        const rawRight = ((effectiveEnd - weekStartMs) / weekDurationMs) * 100;
-        const rawWidth = rawRight - rawLeft;
-
-        const durationHours = (effectiveEnd - effectiveStart) / 3600000;
-
-        let boostedWidth = rawWidth;
-        if (durationHours < 24) {
-          const fillRatio = Math.min(0.92, Math.max(0.55, 0.45 + (durationHours / 14) * 0.47));
-          const targetVisualWidth = DAY_PERCENT * fillRatio;
-          boostedWidth = Math.max(rawWidth, targetVisualWidth);
-        }
-
-        const leftPercent = Math.max(0, Math.min(99.5, rawLeft));
-        const widthPercent = Math.max(3.0, Math.min(100 - leftPercent, boostedWidth));
-        const rightPercent = leftPercent + widthPercent;
-
-        const isStartOfSession = sStart >= weekStartMs;
-        const isEndOfSession = sEnd <= weekEndMs;
-
-        const palette = s.isLive ? LIVE_PALETTE : SESSION_PALETTES[idx % SESSION_PALETTES.length];
-
-        let barLabel = '';
-        if (s.isLive) {
-          const cat = s.categoryName ? ` · ${s.categoryName}` : '';
-          barLabel = widthPercent > 5.0 ? `🔴 LIVE${cat}` : (widthPercent > 3.0 ? '🔴 LIVE' : '🔴');
-        } else {
-          const hoursStr = formatDurationHours(s.durationSeconds);
-          const cat = s.categoryName || '기타';
-          if (widthPercent >= 8.5) {
-            const startStr = formatKstTimeOnly(new Date(sStart));
-            const endStr = formatKstTimeOnly(new Date(sEnd));
-            barLabel = `${cat} · ${hoursStr} (${startStr} ~ ${endStr})`;
-          } else if (widthPercent >= 4.5) {
-            barLabel = `${cat} · ${hoursStr}`;
-          } else if (widthPercent >= 2.5) {
-            barLabel = cat.length <= 6 ? cat : hoursStr;
-          } else {
-            barLabel = '';
+          if (effectiveEnd <= dayStartMs || sStart >= dayEndMs) {
+            return;
           }
-        }
 
-        unassigned.push({
-          session: s,
-          palette,
-          leftPercent,
-          rightPercent,
-          widthPercent,
-          isStartOfSession,
-          isEndOfSession,
-          barLabel,
+          const segStart = Math.max(sStart, dayStartMs);
+          const segEnd = Math.min(effectiveEnd, dayEndMs);
+
+          if (segEnd <= segStart) return;
+
+          const dayOffsetPercent = dIdx * DAY_WIDTH_PERCENT;
+          const rawLeftInDay = ((segStart - dayStartMs) / (24 * 3600 * 1000)) * DAY_WIDTH_PERCENT;
+          const rawWidthInDay = ((segEnd - segStart) / (24 * 3600 * 1000)) * DAY_WIDTH_PERCENT;
+
+          const minTouchWidth = 1.0;
+          const widthPercent = Math.max(minTouchWidth, Math.min(DAY_WIDTH_PERCENT - rawLeftInDay, rawWidthInDay));
+          const leftPercent = Math.max(0, Math.min(99.5, dayOffsetPercent + rawLeftInDay));
+          const rightPercent = leftPercent + widthPercent;
+
+          const isStartOfSession = Math.abs(segStart - sStart) < 1000;
+          const isEndOfSession = Math.abs(segEnd - effectiveEnd) < 1000;
+
+          const palette = s.isLive ? LIVE_PALETTE : DEFAULT_PALETTE;
+
+          let barLabel = '';
+          if (s.isLive) {
+            const cat = s.categoryName ? ` · ${s.categoryName}` : '';
+            barLabel = widthPercent > 4.5 ? `🔴 LIVE${cat}` : (widthPercent > 2.5 ? '🔴 LIVE' : '🔴');
+          } else {
+            const cat = s.categoryName || '기타';
+            if (widthPercent >= 3.0) {
+              barLabel = cat;
+            } else {
+              barLabel = '';
+            }
+          }
+
+          unassigned.push({
+            session: s,
+            palette,
+            leftPercent,
+            rightPercent,
+            widthPercent,
+            isStartOfSession,
+            isEndOfSession,
+            barLabel,
+          });
         });
       });
 
-      unassigned.sort((a, b) => a.leftPercent - b.leftPercent);
+      unassigned.sort((a, b) => a.leftPercent - b.leftPercent || b.widthPercent - a.widthPercent);
 
       const lanes: number[] = [];
       const segments: WeekSegment[] = [];
@@ -354,7 +343,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
       unassigned.forEach((seg) => {
         let placedLane = -1;
         for (let l = 0; l < lanes.length; l++) {
-          if (lanes[l] + 0.15 <= seg.leftPercent) {
+          if (lanes[l] + 0.1 <= seg.leftPercent) {
             placedLane = l;
             lanes[l] = seg.rightPercent;
             break;
@@ -424,6 +413,16 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
     setHoveredSession(null);
   };
 
+  const handleBarClick = (e: React.MouseEvent, session: CalendarSessionDto, palette: SessionPalette) => {
+    e.stopPropagation();
+    setHoveredSession({
+      session,
+      palette,
+      x: e.clientX,
+      y: e.clientY,
+    });
+  };
+
   const handleExtraBadgeClick = (e: React.MouseEvent, dateKey: string, dayNum: number, daySessions: CalendarSessionDto[]) => {
     e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -439,10 +438,11 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
   useEffect(() => {
     const handleClickOutside = () => {
       if (popoverDate) setPopoverDate(null);
+      if (hoveredSession) setHoveredSession(null);
     };
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
-  }, [popoverDate]);
+  }, [popoverDate, hoveredSession]);
 
   return (
     <div className="w-full bg-[#141416] border border-[#2A2A2C] rounded-2xl p-4 sm:p-5 shadow-xl transition-all" ref={containerRef}>
@@ -588,11 +588,16 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
                               }}
                               onMouseMove={(e) => handleMouseMove(e, seg.session, seg.palette)}
                               onMouseLeave={handleMouseLeave}
+                              onClick={(e) => handleBarClick(e, seg.session, seg.palette)}
                             >
                               {seg.barLabel && (
                                 <span className="font-bold text-white text-[10.5px] leading-none tracking-tight drop-shadow-sm flex items-center justify-center gap-1 whitespace-nowrap overflow-hidden text-ellipsis">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-white/90 shrink-0" />
-                                  {seg.barLabel}
+                                  {seg.session.isLive ? (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0 animate-ping" />
+                                  ) : (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#00FFA3] shrink-0" />
+                                  )}
+                                  <span className="truncate">{seg.barLabel}</span>
                                 </span>
                               )}
                             </div>
@@ -633,10 +638,10 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
             <div className="flex justify-between items-center gap-4">
               <span className="text-gray-100 shrink-0">⏱️ 방송 시간</span>
               <span className="font-semibold text-white whitespace-nowrap text-right">
-                {formatKstTimeOnly(parseKstInstant(hoveredSession.session.startedAt))} ~{' '}
-                {hoveredSession.session.endedAt
-                  ? formatKstTimeOnly(parseKstInstant(hoveredSession.session.endedAt))
-                  : '진행 중'}{' '}
+                {formatSessionTimeRange(
+                  parseKstInstant(hoveredSession.session.startedAt),
+                  hoveredSession.session.endedAt ? parseKstInstant(hoveredSession.session.endedAt) : null
+                )}{' '}
                 ({formatDurationHours(hoveredSession.session.durationSeconds)})
               </span>
             </div>
@@ -672,8 +677,8 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
             </button>
           </div>
           <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-            {popoverDate.sessions.map((s, idx) => {
-              const palette = s.isLive ? LIVE_PALETTE : SESSION_PALETTES[idx % SESSION_PALETTES.length];
+            {popoverDate.sessions.map((s) => {
+              const palette = s.isLive ? LIVE_PALETTE : DEFAULT_PALETTE;
               return (
                 <div key={s.sessionId} className="p-2 rounded-lg bg-[#202024] border border-[#2e2e32] text-[11px] space-y-1">
                   <div className="flex items-center justify-between">
@@ -687,8 +692,10 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
                   <div className="text-white font-medium line-clamp-1">{s.title || '제목 없음'}</div>
                   <div className="text-gray-100 text-[10px] flex justify-between">
                     <span>
-                      {formatKstTimeOnly(parseKstInstant(s.startedAt))} ~{' '}
-                      {s.endedAt ? formatKstTimeOnly(parseKstInstant(s.endedAt)) : '진행 중'}
+                      {formatSessionTimeRange(
+                        parseKstInstant(s.startedAt),
+                        s.endedAt ? parseKstInstant(s.endedAt) : null
+                      )}
                     </span>
                     <span className="text-[#38bdf8]">
                       평균 {s.averageViewers.toLocaleString()}명
