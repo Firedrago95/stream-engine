@@ -259,120 +259,6 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
     return weeks;
   }, [selectedYear, selectedMonth, todayKst]);
 
-  const weekSegmentsList = useMemo(() => {
-    const now = new Date();
-    const result: WeekSegment[][] = [];
-
-    calendarWeeks.forEach((weekDays) => {
-      const DAY_WIDTH_PERCENT = 100 / 7;
-      const unassigned: {
-        session: CalendarSessionDto;
-        palette: SessionPalette;
-        leftPercent: number;
-        rightPercent: number;
-        widthPercent: number;
-        isStartOfSession: boolean;
-        isEndOfSession: boolean;
-        barLabel: string;
-      }[] = [];
-
-      sessions.forEach((s) => {
-        const sStart = parseKstInstant(s.startedAt).getTime();
-        const sEnd = s.endedAt ? parseKstInstant(s.endedAt).getTime() : now.getTime();
-        const effectiveEnd = Math.max(sStart + 60000, sEnd);
-
-        weekDays.forEach((day, dIdx) => {
-          const dayStartKst = new Date(Date.UTC(day.year, day.month - 1, day.day, -9, 0, 0));
-          const dayStartMs = dayStartKst.getTime();
-          const dayEndMs = dayStartMs + 24 * 3600 * 1000;
-
-          if (effectiveEnd <= dayStartMs || sStart >= dayEndMs) {
-            return;
-          }
-
-          const segStart = Math.max(sStart, dayStartMs);
-          const segEnd = Math.min(effectiveEnd, dayEndMs);
-
-          if (segEnd <= segStart) return;
-
-          const dayOffsetPercent = dIdx * DAY_WIDTH_PERCENT;
-          const rawLeftInDay = ((segStart - dayStartMs) / (24 * 3600 * 1000)) * DAY_WIDTH_PERCENT;
-          const rawWidthInDay = ((segEnd - segStart) / (24 * 3600 * 1000)) * DAY_WIDTH_PERCENT;
-
-          const minTouchWidth = 1.0;
-          const widthPercent = Math.max(minTouchWidth, Math.min(DAY_WIDTH_PERCENT - rawLeftInDay, rawWidthInDay));
-          const leftPercent = Math.max(0, Math.min(99.5, dayOffsetPercent + rawLeftInDay));
-          const rightPercent = leftPercent + widthPercent;
-
-          const isStartOfSession = Math.abs(segStart - sStart) < 1000;
-          const isEndOfSession = Math.abs(segEnd - effectiveEnd) < 1000;
-
-          const palette = s.isLive ? LIVE_PALETTE : DEFAULT_PALETTE;
-
-          let barLabel = '';
-          if (s.isLive) {
-            const cat = s.categoryName ? ` · ${s.categoryName}` : '';
-            barLabel = widthPercent > 4.5 ? `🔴 LIVE${cat}` : (widthPercent > 2.5 ? '🔴 LIVE' : '🔴');
-          } else {
-            const cat = s.categoryName || '기타';
-            if (widthPercent >= 3.0) {
-              barLabel = cat;
-            } else {
-              barLabel = '';
-            }
-          }
-
-          unassigned.push({
-            session: s,
-            palette,
-            leftPercent,
-            rightPercent,
-            widthPercent,
-            isStartOfSession,
-            isEndOfSession,
-            barLabel,
-          });
-        });
-      });
-
-      unassigned.sort((a, b) => a.leftPercent - b.leftPercent || b.widthPercent - a.widthPercent);
-
-      const lanes: number[] = [];
-      const segments: WeekSegment[] = [];
-
-      unassigned.forEach((seg) => {
-        let placedLane = -1;
-        for (let l = 0; l < lanes.length; l++) {
-          if (lanes[l] + 0.1 <= seg.leftPercent) {
-            placedLane = l;
-            lanes[l] = seg.rightPercent;
-            break;
-          }
-        }
-
-        if (placedLane === -1) {
-          placedLane = lanes.length;
-          lanes.push(seg.rightPercent);
-        }
-
-        segments.push({
-          session: seg.session,
-          palette: seg.palette,
-          leftPercent: seg.leftPercent,
-          widthPercent: seg.widthPercent,
-          isStartOfSession: seg.isStartOfSession,
-          isEndOfSession: seg.isEndOfSession,
-          laneIndex: placedLane,
-          barLabel: seg.barLabel,
-        });
-      });
-
-      result.push(segments);
-    });
-
-    return result;
-  }, [calendarWeeks, sessions]);
-
   const daySessionsMap = useMemo(() => {
     const map = new Map<string, CalendarSessionDto[]>();
     const now = new Date();
@@ -380,9 +266,14 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
     sessions.forEach((s) => {
       const sStart = parseKstInstant(s.startedAt);
       const sEnd = s.endedAt ? parseKstInstant(s.endedAt) : now;
+      const startKst = getKstDate(sStart);
+      const endKst = getKstDate(sEnd);
 
-      const cur = new Date(sStart);
-      while (cur <= sEnd || cur.toDateString() === sEnd.toDateString()) {
+      const startDateOnly = new Date(Date.UTC(startKst.year, startKst.month - 1, startKst.date));
+      const endDateOnly = new Date(Date.UTC(endKst.year, endKst.month - 1, endKst.date));
+
+      const cur = new Date(startDateOnly);
+      while (cur <= endDateOnly) {
         const kst = getKstDate(cur);
         const key = `${kst.year}-${String(kst.month).padStart(2, '0')}-${String(kst.date).padStart(2, '0')}`;
         if (!map.has(key)) {
@@ -392,13 +283,103 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
         if (!list.some((existing) => existing.sessionId === s.sessionId)) {
           list.push(s);
         }
-        cur.setDate(cur.getDate() + 1);
-        if (cur.getTime() > sEnd.getTime() + 86400000) break;
+        cur.setUTCDate(cur.getUTCDate() + 1);
       }
     });
 
     return map;
   }, [sessions]);
+
+  const weekSegmentsList = useMemo(() => {
+    const result: WeekSegment[][] = [];
+
+    calendarWeeks.forEach((weekDays) => {
+      const repSessions: (CalendarSessionDto | null)[] = weekDays.map((day) => {
+        const daySessions = daySessionsMap.get(day.dateKey) || [];
+        if (daySessions.length === 0) return null;
+        const liveSession = daySessions.find((s) => s.isLive);
+        if (liveSession) return liveSession;
+        return [...daySessions].sort((a, b) => b.durationSeconds - a.durationSeconds)[0];
+      });
+
+      const segments: WeekSegment[] = [];
+      const DAY_WIDTH_PERCENT = 100 / 7;
+
+      let segStartIdx = -1;
+      let currentSession: CalendarSessionDto | null = null;
+
+      const flushSegment = (startIdx: number, endIdx: number, session: CalendarSessionDto) => {
+        const leftPercent = startIdx * DAY_WIDTH_PERCENT + 0.4;
+        const spanDays = endIdx - startIdx + 1;
+        const widthPercent = spanDays * DAY_WIDTH_PERCENT - 0.8;
+
+        const sStart = parseKstInstant(session.startedAt);
+        const sEnd = session.endedAt ? parseKstInstant(session.endedAt) : new Date();
+        const startKst = getKstDate(sStart);
+        const endKst = getKstDate(sEnd);
+
+        const startDayObj = weekDays[startIdx];
+        const endDayObj = weekDays[endIdx];
+
+        const isStartOfSession =
+          startKst.year === startDayObj.year &&
+          startKst.month === startDayObj.month &&
+          startKst.date === startDayObj.day;
+
+        const isEndOfSession =
+          !session.isLive &&
+          endKst.year === endDayObj.year &&
+          endKst.month === endDayObj.month &&
+          endKst.date === endDayObj.day;
+
+        const palette = session.isLive ? LIVE_PALETTE : DEFAULT_PALETTE;
+
+        let barLabel = '';
+        if (session.isLive) {
+          const cat = session.categoryName ? ` · ${session.categoryName}` : '';
+          barLabel = widthPercent > 4.5 ? `🔴 LIVE${cat}` : '🔴 LIVE';
+        } else {
+          barLabel = session.categoryName || '기타';
+        }
+
+        segments.push({
+          session,
+          palette,
+          leftPercent,
+          widthPercent,
+          isStartOfSession,
+          isEndOfSession,
+          laneIndex: 0,
+          barLabel,
+        });
+      };
+
+      for (let i = 0; i < 7; i++) {
+        const s = repSessions[i];
+        if (!currentSession && s) {
+          segStartIdx = i;
+          currentSession = s;
+        } else if (currentSession && (!s || s.sessionId !== currentSession.sessionId)) {
+          flushSegment(segStartIdx, i - 1, currentSession);
+          if (s) {
+            segStartIdx = i;
+            currentSession = s;
+          } else {
+            segStartIdx = -1;
+            currentSession = null;
+          }
+        }
+      }
+
+      if (currentSession && segStartIdx !== -1) {
+        flushSegment(segStartIdx, 6, currentSession);
+      }
+
+      result.push(segments);
+    });
+
+    return result;
+  }, [calendarWeeks, daySessionsMap]);
 
   const handleMouseMove = (e: React.MouseEvent, session: CalendarSessionDto, palette: SessionPalette) => {
     setHoveredSession({
@@ -510,9 +491,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
             <div className="divide-y divide-[#2A2A2C]">
               {calendarWeeks.map((week, wIdx) => {
                 const weekSegments = weekSegmentsList[wIdx] || [];
-                const maxLane = weekSegments.reduce((m, s) => Math.max(m, s.laneIndex), -1);
-                const displayLanes = Math.min(2, Math.max(1, maxLane + 1));
-                const rowHeightPx = 28 + displayLanes * 22;
+                const rowHeightPx = 54;
 
                 return (
                   <div
@@ -522,7 +501,7 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
                   >
                     {week.map((day, dIdx) => {
                       const allDaySessions = daySessionsMap.get(day.dateKey) || [];
-                      const extraCount = allDaySessions.length > 2 ? allDaySessions.length - 2 : 0;
+                      const extraCount = allDaySessions.length > 1 ? allDaySessions.length - 1 : 0;
 
                       return (
                         <div
@@ -564,32 +543,30 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
                     })}
 
                     <div className="absolute inset-0 pointer-events-none">
-                      {weekSegments
-                        .filter((seg) => seg.laneIndex < 2)
-                        .map((seg, sIdx) => {
-                          const topPx = 24 + seg.laneIndex * 23;
-                          const roundedClass = `${seg.isStartOfSession ? 'rounded-l-[5px]' : 'rounded-l-none'} ${
-                            seg.isEndOfSession ? 'rounded-r-[5px]' : 'rounded-r-none'
-                          }`;
+                      {weekSegments.map((seg, sIdx) => {
+                        const topPx = 25;
+                        const roundedClass = `${seg.isStartOfSession ? 'rounded-l-[5px]' : 'rounded-l-none'} ${
+                          seg.isEndOfSession ? 'rounded-r-[5px]' : 'rounded-r-none'
+                        }`;
 
-                          return (
-                            <div
-                              key={`seg-${wIdx}-${sIdx}`}
-                              className={`track-bar pointer-events-auto absolute h-[20px] cursor-pointer flex items-center justify-center px-1.5 shadow-sm border overflow-hidden transition-all ${
-                                seg.palette.borderColor
-                              } bg-gradient-to-r ${seg.palette.gradient} ${roundedClass} ${
-                                seg.session.isLive ? 'animate-pulse' : ''
-                              }`}
-                              style={{
-                                left: `${seg.leftPercent}%`,
-                                width: `${seg.widthPercent}%`,
-                                top: `${topPx}px`,
-                                boxShadow: `0 0 8px ${seg.palette.glow}`,
-                              }}
-                              onMouseMove={(e) => handleMouseMove(e, seg.session, seg.palette)}
-                              onMouseLeave={handleMouseLeave}
-                              onClick={(e) => handleBarClick(e, seg.session, seg.palette)}
-                            >
+                        return (
+                          <div
+                            key={`seg-${wIdx}-${sIdx}`}
+                            className={`track-bar pointer-events-auto absolute h-[22px] cursor-pointer flex items-center justify-center px-2 shadow-sm border overflow-hidden transition-all ${
+                              seg.palette.borderColor
+                            } bg-gradient-to-r ${seg.palette.gradient} ${roundedClass} ${
+                              seg.session.isLive ? 'animate-pulse' : ''
+                            }`}
+                            style={{
+                              left: `${seg.leftPercent}%`,
+                              width: `${seg.widthPercent}%`,
+                              top: `${topPx}px`,
+                              boxShadow: `0 0 8px ${seg.palette.glow}`,
+                            }}
+                            onMouseMove={(e) => handleMouseMove(e, seg.session, seg.palette)}
+                            onMouseLeave={handleMouseLeave}
+                            onClick={(e) => handleBarClick(e, seg.session, seg.palette)}
+                          >
                               {seg.barLabel && (
                                 <span className="font-bold text-white text-[10.5px] leading-none tracking-tight drop-shadow-sm flex items-center justify-center gap-1 whitespace-nowrap overflow-hidden text-ellipsis">
                                   {seg.session.isLive ? (
