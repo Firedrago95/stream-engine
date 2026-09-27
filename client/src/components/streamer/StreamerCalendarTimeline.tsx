@@ -102,14 +102,14 @@ function getStartOffsetInDay(hours: number): number {
   if (hours < 12) {
     return 0.04;
   }
-  return 0.35 + ((hours - 12) / 12) * 0.18;
+  return 0.25 + ((hours - 12) / 12) * 0.15;
 }
 
 function getEndOffsetInDay(hours: number): number {
   if (hours < 12) {
-    return 0.40 + (hours / 12) * 0.15;
+    return 0.55 + (hours / 12) * 0.15;
   }
-  return 0.65 + ((hours - 12) / 12) * 0.31;
+  return 0.75 + ((hours - 12) / 12) * 0.21;
 }
 
 interface CalendarDay {
@@ -378,9 +378,9 @@ export const StreamerCalendarTimeline: React.FC<StreamerCalendarTimelineProps> =
 
         if (startDayIdx === endDayIdx && isStartOfSessionInWeek && isEndOfSessionInWeek) {
           const span = endOffset - startOffset;
-          const minSpan = 0.55;
+          const minSpan = 0.65;
           if (span < minSpan) {
-            if (startOffset > 0.3) {
+            if (startOffset > 0.2) {
               startOffset = Math.max(0.04, endOffset - minSpan);
             } else {
               endOffset = Math.min(0.96, startOffset + minSpan);
