@@ -2,17 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStreamers } from '../../hooks/useStreamers';
 
-const POPULAR_TAGS = ['침착맨', '풍월량', '랄로', '녹두로', '우왁굳', '옥냥이', '따효니', '한동숙'];
-
 export const StreamerStatsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const { streamers: streams, isLoading } = useStreamers(searchTerm, 30000);
-
-  const topViewers = useMemo(() => {
-    if (!streams || streams.length === 0) return null;
-    return [...streams].sort((a, b) => (b.concurrentUserCount ?? 0) - (a.concurrentUserCount ?? 0))[0];
-  }, [streams]);
 
   const activeLiveCount = useMemo(() => {
     if (!streams) return 0;
@@ -62,64 +55,28 @@ export const StreamerStatsPage: React.FC = () => {
               </button>
             )}
           </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-            <span className="text-xs text-gray-200 font-bold">추천 검색:</span>
-            {POPULAR_TAGS.map((tag) => (
-              <button
-                key={tag}
-                onClick={() => setSearchTerm(tag)}
-                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-[#1a1a1c] border border-gray-800 text-gray-100 hover:border-[#00FFA3] hover:text-[#00FFA3] hover:shadow-[0_0_10px_rgba(0,255,163,0.2)] transition-all"
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {topViewers && (
-          <div
-            onClick={() => handleRowClick(topViewers.streamId)}
-            className="p-5 bg-[#141416] border border-[#2A2A2C] rounded-2xl hover:border-[#00FFA3]/50 hover:shadow-[0_0_20px_rgba(0,255,163,0.15)] transition-all cursor-pointer group flex items-center justify-between"
-          >
-            <div className="flex items-center gap-4">
-              <span className="text-2xl">👑</span>
-              <div>
-                <p className="text-xs text-[#00FFA3] font-bold uppercase tracking-wider">30일 체급 1위</p>
-                <h3 className="text-lg font-black text-white group-hover:text-[#00FFA3] transition-colors">
-                  {topViewers.streamerName}
-                </h3>
-                <p className="text-xs text-gray-100 truncate max-w-xs">{topViewers.categoryName || '기타'}</p>
-              </div>
-            </div>
-            <div className="text-right font-mono">
-              <p className="text-xl font-black text-white">
-                {(topViewers.averageViewers ?? topViewers.concurrentUserCount ?? 0).toLocaleString()}명
-              </p>
-              <span className="text-[11px] text-[#00FFA3] font-semibold">30일 평균 시청자</span>
-            </div>
+      <div className="p-5 bg-[#141416] border border-[#2A2A2C] rounded-2xl flex items-center justify-between hover:border-[#00FFA3]/30 hover:shadow-[0_0_15px_rgba(0,255,163,0.1)] transition-all">
+        <div className="flex items-center gap-4">
+          <span className="text-2xl">📡</span>
+          <div>
+            <p className="text-xs text-gray-100 font-bold uppercase tracking-wider">실시간 방송 현황</p>
+            <h3 className="text-lg font-black text-white">
+              {activeLiveCount}개 방송 중{' '}
+              <span className="text-xs text-gray-100 font-normal">
+                / {searchTerm ? `검색 결과 ${streams.length}명` : `Top ${streams.length}`}
+              </span>
+            </h3>
+            <p className="text-xs text-gray-100 font-medium">매일 새벽 04:00 자동 정산</p>
           </div>
-        )}
-
-        <div className="p-5 bg-[#141416] border border-[#2A2A2C] rounded-2xl flex items-center justify-between hover:border-[#00FFA3]/30 hover:shadow-[0_0_15px_rgba(0,255,163,0.1)] transition-all">
-          <div className="flex items-center gap-4">
-            <span className="text-2xl">📡</span>
-            <div>
-              <p className="text-xs text-gray-100 font-bold uppercase tracking-wider">실시간 방송 현황</p>
-              <h3 className="text-lg font-black text-white">
-                {activeLiveCount}개 방송 중 <span className="text-xs text-gray-100 font-normal">/ Top {streams.length}</span>
-              </h3>
-              <p className="text-xs text-gray-100 font-medium">매일 새벽 04:00 자동 정산</p>
-            </div>
-          </div>
-          <div className="text-right font-mono">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#00FFA3]/15 text-[#00FFA3] border border-[#00FFA3]/30">
-              <span className="w-2 h-2 rounded-full bg-[#00FFA3] animate-pulse" />
-              정상 가동
-            </span>
-          </div>
+        </div>
+        <div className="text-right font-mono">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#00FFA3]/15 text-[#00FFA3] border border-[#00FFA3]/30">
+            <span className="w-2 h-2 rounded-full bg-[#00FFA3] animate-pulse" />
+            정상 가동
+          </span>
         </div>
       </div>
 
