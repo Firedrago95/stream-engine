@@ -27,7 +27,7 @@ public class StreamerCalendarQueryService {
     private static final int MAX_YEAR = 2100;
     private static final int MIN_MONTH = 1;
     private static final int MAX_MONTH = 12;
-    private static final long NOISE_THRESHOLD_SECONDS = 180L;
+    private static final long NOISE_THRESHOLD_SECONDS = 300L;
 
     private final JpaStreamSessionRepository sessionRepository;
     private final Clock clock;

@@ -183,7 +183,7 @@ class AnalysisQueryServiceTest {
         sessionEntity.finishSession(startedAt.plusSeconds(3600), 3500, 2100);
         sessionEntity.updateSubscriberChatRatio(35.5);
 
-        given(sessionRepository.findRecentSessionsByStreamId(eq(streamId), any(Pageable.class)))
+        given(sessionRepository.findRecentValidSessionsByStreamId(eq(streamId), eq(300L), any(Pageable.class)))
             .willReturn(List.of(sessionEntity));
 
         List<SessionResponse> sessions = analysisQueryService.getAvailableSessions(streamId, limit);
@@ -198,7 +198,7 @@ class AnalysisQueryServiceTest {
         assertThat(session.averageViewerCount()).isEqualTo(2100);
         assertThat(session.subscriberChatRatio()).isEqualTo(35.5);
 
-        verify(sessionRepository).findRecentSessionsByStreamId(eq(streamId), any(Pageable.class));
+        verify(sessionRepository).findRecentValidSessionsByStreamId(eq(streamId), eq(300L), any(Pageable.class));
     }
 
     @Test

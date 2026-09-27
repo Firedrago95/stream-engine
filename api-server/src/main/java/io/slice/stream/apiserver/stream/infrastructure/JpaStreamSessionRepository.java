@@ -40,11 +40,77 @@ public interface JpaStreamSessionRepository extends JpaRepository<StreamSessionE
 
     Page<StreamSessionEntity> findByStreamIdAndPaidPromotionTrueOrderByStartedAtDesc(String streamId, Pageable pageable);
 
+    @Query(value = """
+        SELECT * FROM stream_sessions ss
+        WHERE ss.stream_id = :streamId
+          AND (
+            ss.ended_at IS NULL
+            OR EXTRACT(EPOCH FROM (ss.ended_at - ss.started_at)) >= :minDurationSeconds
+          )
+        ORDER BY ss.started_at DESC
+        """,
+        countQuery = """
+        SELECT count(*) FROM stream_sessions ss
+        WHERE ss.stream_id = :streamId
+          AND (
+            ss.ended_at IS NULL
+            OR EXTRACT(EPOCH FROM (ss.ended_at - ss.started_at)) >= :minDurationSeconds
+          )
+        """,
+        nativeQuery = true)
+    Page<StreamSessionEntity> findValidSessionsByStreamId(
+        @Param("streamId") String streamId,
+        @Param("minDurationSeconds") long minDurationSeconds,
+        Pageable pageable
+    );
+
+    @Query(value = """
+        SELECT * FROM stream_sessions ss
+        WHERE ss.stream_id = :streamId
+          AND ss.paid_promotion = true
+          AND (
+            ss.ended_at IS NULL
+            OR EXTRACT(EPOCH FROM (ss.ended_at - ss.started_at)) >= :minDurationSeconds
+          )
+        ORDER BY ss.started_at DESC
+        """,
+        countQuery = """
+        SELECT count(*) FROM stream_sessions ss
+        WHERE ss.stream_id = :streamId
+          AND ss.paid_promotion = true
+          AND (
+            ss.ended_at IS NULL
+            OR EXTRACT(EPOCH FROM (ss.ended_at - ss.started_at)) >= :minDurationSeconds
+          )
+        """,
+        nativeQuery = true)
+    Page<StreamSessionEntity> findValidSessionsByStreamIdAndPaidPromotionTrue(
+        @Param("streamId") String streamId,
+        @Param("minDurationSeconds") long minDurationSeconds,
+        Pageable pageable
+    );
+
     @Query("SELECT ss FROM StreamSessionEntity ss WHERE ss.streamId = :streamId AND ss.startedAt >= :since")
     List<StreamSessionEntity> findSessionsSince(@Param("streamId") String streamId, @Param("since") Instant since);
 
     @Query("SELECT ss FROM StreamSessionEntity ss WHERE ss.streamId = :streamId ORDER BY ss.startedAt DESC")
     List<StreamSessionEntity> findRecentSessionsByStreamId(@Param("streamId") String streamId, Pageable pageable);
+
+    @Query(value = """
+        SELECT * FROM stream_sessions ss
+        WHERE ss.stream_id = :streamId
+          AND (
+            ss.ended_at IS NULL
+            OR EXTRACT(EPOCH FROM (ss.ended_at - ss.started_at)) >= :minDurationSeconds
+          )
+        ORDER BY ss.started_at DESC
+        """,
+        nativeQuery = true)
+    List<StreamSessionEntity> findRecentValidSessionsByStreamId(
+        @Param("streamId") String streamId,
+        @Param("minDurationSeconds") long minDurationSeconds,
+        Pageable pageable
+    );
 
     @Query("""
         SELECT ss

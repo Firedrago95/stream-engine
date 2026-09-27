@@ -21,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class StreamerSessionQueryService {
 
+    public static final long NOISE_THRESHOLD_SECONDS = 300L;
+
     private final JpaStreamSessionRepository sessionRepository;
 
     public StreamerSessionHistoryResponse getSessionHistory(String channelId, int page, int size) {
@@ -33,8 +35,8 @@ public class StreamerSessionQueryService {
         Pageable pageable = PageRequest.of(validPage, validSize);
 
         Page<StreamSessionEntity> sessionPage = paidPromotionOnly
-            ? sessionRepository.findByStreamIdAndPaidPromotionTrueOrderByStartedAtDesc(channelId, pageable)
-            : sessionRepository.findByStreamIdOrderByStartedAtDesc(channelId, pageable);
+            ? sessionRepository.findValidSessionsByStreamIdAndPaidPromotionTrue(channelId, NOISE_THRESHOLD_SECONDS, pageable)
+            : sessionRepository.findValidSessionsByStreamId(channelId, NOISE_THRESHOLD_SECONDS, pageable);
 
         Instant now = Instant.now();
 
