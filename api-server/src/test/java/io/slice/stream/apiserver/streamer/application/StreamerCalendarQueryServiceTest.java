@@ -77,7 +77,7 @@ class StreamerCalendarQueryServiceTest {
     }
 
     @Test
-    void 삼분_미만의_종료된_세션은_노이즈로_판단하여_결과에서_제외한다() {
+    void 오분_미만의_종료된_세션은_노이즈로_판단하여_결과에서_제외한다() {
         String channelId = "ch-noise";
         int year = 2026;
         int month = 9;
@@ -85,19 +85,19 @@ class StreamerCalendarQueryServiceTest {
         Instant rangeStart = Instant.parse("2026-08-31T15:00:00Z");
         Instant rangeEnd = Instant.parse("2026-09-30T15:00:00Z");
 
-        // 170초 (2분 50초) 방송 후 종료된 노이즈 세션
+        // 290초 (4분 50초) 방송 후 종료된 노이즈 세션
         StreamSessionEntity noiseSession = new StreamSessionEntity(
             channelId, "noise-sess", "잠깐 킴", "Just Chatting",
             Instant.parse("2026-09-11T05:00:00Z")
         );
-        noiseSession.finishSession(Instant.parse("2026-09-11T05:02:50Z"), 100, 50.0);
+        noiseSession.finishSession(Instant.parse("2026-09-11T05:04:50Z"), 100, 50.0);
 
-        // 180초 (3분 정각) 정상 세션
+        // 300초 (5분 정각) 정상 세션
         StreamSessionEntity validSession = new StreamSessionEntity(
-            channelId, "valid-sess", "3분 방송", "Just Chatting",
+            channelId, "valid-sess", "5분 방송", "Just Chatting",
             Instant.parse("2026-09-11T06:00:00Z")
         );
-        validSession.finishSession(Instant.parse("2026-09-11T06:03:00Z"), 200, 100.0);
+        validSession.finishSession(Instant.parse("2026-09-11T06:05:00Z"), 200, 100.0);
 
         when(sessionRepository.findSessionsOverlapping(eq(channelId), eq(rangeStart), eq(rangeEnd)))
             .thenReturn(List.of(noiseSession, validSession));
@@ -109,7 +109,7 @@ class StreamerCalendarQueryServiceTest {
     }
 
     @Test
-    void 삼분_미만이어도_진행중인_라이브_세션은_제외하지_않고_포함한다() {
+    void 오분_미만이어도_진행중인_라이브_세션은_제외하지_않고_포함한다() {
         String channelId = "ch-live";
         int year = 2026;
         int month = 9;

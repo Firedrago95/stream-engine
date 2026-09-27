@@ -149,4 +149,74 @@ class JpaStreamSessionRepositoryTest implements PostgresTestSupport {
         List<String> activeSessionIds = activeSessions.stream().map(StreamSessionEntity::getSessionId).toList();
         assertThat(activeSessionIds).containsExactlyInAnyOrder("session-a", "session-c");
     }
+
+    @Test
+    void 종료된_세션_중_최소_시간_미만인_노이즈_세션은_제외하고_유효한_세션과_라이브_세션만_조회한다() {
+        // given
+        String streamId = "stream-noise-test";
+        Instant now = Instant.now();
+
+        // 1. 92초(1분대) 노이즈 세션 (제외되어야 함)
+        StreamSessionEntity noiseSession = new StreamSessionEntity(streamId, "sess-noise", "1분 방송", "Talk", now.minus(5, ChronoUnit.HOURS));
+        noiseSession.finishSession(now.minus(5, ChronoUnit.HOURS).plusSeconds(92), 100);
+        sessionRepository.save(noiseSession);
+
+        // 2. 정확히 300초(5분) 정상 세션 (포함되어야 함)
+        StreamSessionEntity valid5mSession = new StreamSessionEntity(streamId, "sess-5m", "5분 방송", "Game", now.minus(3, ChronoUnit.HOURS));
+        valid5mSession.finishSession(now.minus(3, ChronoUnit.HOURS).plusSeconds(300), 200);
+        sessionRepository.save(valid5mSession);
+
+        // 3. 2시간 본방송 (포함되어야 함)
+        StreamSessionEntity longSession = new StreamSessionEntity(streamId, "sess-long", "본방송", "Game", now.minus(2, ChronoUnit.HOURS));
+        longSession.finishSession(now.minus(1, ChronoUnit.HOURS), 1000);
+        sessionRepository.save(longSession);
+
+        // 4. 현재 진행중인 라이브 세션 (포함되어야 함)
+        StreamSessionEntity liveSession = new StreamSessionEntity(streamId, "sess-live", "라이브 방송", "Talk", now.minusSeconds(30));
+        sessionRepository.save(liveSession);
+
+        em.flush();
+        em.clear();
+
+        // when
+        var pageResult = sessionRepository.findValidSessionsByStreamId(streamId, 300L, PageRequest.of(0, 10));
+
+        // then
+        assertThat(pageResult.getTotalElements()).isEqualTo(3);
+        List<String> sessionIds = pageResult.getContent().stream().map(StreamSessionEntity::getSessionId).toList();
+        assertThat(sessionIds).containsExactly("sess-live", "sess-long", "sess-5m");
+        assertThat(sessionIds).doesNotContain("sess-noise");
+    }
+
+    @Test
+    void 유료_프로모션_조회_시_광고_방송이면서_최소_시간_이상인_세션만_조회한다() {
+        // given
+        String streamId = "stream-paid-test";
+        Instant now = Instant.now();
+
+        // 1. 광고 방송이지만 1분 노이즈 세션 (제외)
+        StreamSessionEntity paidNoise = new StreamSessionEntity(streamId, "sess-paid-noise", "광고 1분", "Game", now.minus(4, ChronoUnit.HOURS), true);
+        paidNoise.finishSession(now.minus(4, ChronoUnit.HOURS).plusSeconds(60), 50);
+        sessionRepository.save(paidNoise);
+
+        // 2. 일반 방송 2시간 (광고 아니므로 제외)
+        StreamSessionEntity normalLong = new StreamSessionEntity(streamId, "sess-normal", "일반 본방", "Talk", now.minus(3, ChronoUnit.HOURS), false);
+        normalLong.finishSession(now.minus(1, ChronoUnit.HOURS), 1000);
+        sessionRepository.save(normalLong);
+
+        // 3. 광고 방송 1시간 (포함)
+        StreamSessionEntity paidValid = new StreamSessionEntity(streamId, "sess-paid-valid", "광고 본방", "Game", now.minus(1, ChronoUnit.HOURS), true);
+        paidValid.finishSession(now, 500);
+        sessionRepository.save(paidValid);
+
+        em.flush();
+        em.clear();
+
+        // when
+        var pageResult = sessionRepository.findValidSessionsByStreamIdAndPaidPromotionTrue(streamId, 300L, PageRequest.of(0, 10));
+
+        // then
+        assertThat(pageResult.getTotalElements()).isEqualTo(1);
+        assertThat(pageResult.getContent().get(0).getSessionId()).isEqualTo("sess-paid-valid");
+    }
 }

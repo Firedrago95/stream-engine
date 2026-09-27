@@ -38,6 +38,7 @@ public class AnalysisQueryService {
     private static final int FIND_LIMIT = 100;
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final long ONE_MINUTE_MS = 60_000L;
+    private static final long NOISE_THRESHOLD_SECONDS = 300L;
 
     private final AnalysisRepository analysisRepository;
     private final JpaStreamSessionRepository sessionRepository;
@@ -79,7 +80,7 @@ public class AnalysisQueryService {
     }
 
     public List<SessionResponse> getAvailableSessions(String streamId, int limit) {
-        return sessionRepository.findRecentSessionsByStreamId(streamId, PageRequest.of(0, limit))
+        return sessionRepository.findRecentValidSessionsByStreamId(streamId, NOISE_THRESHOLD_SECONDS, PageRequest.of(0, limit))
             .stream()
             .map(session -> new SessionResponse(
                 session.getSessionId(),

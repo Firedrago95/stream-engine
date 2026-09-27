@@ -37,7 +37,7 @@ public class StreamerProfileQueryService {
     private static final int DAYS_30 = 30;
     private static final int DAYS_7 = 7;
     private static final int TOP_CATEGORIES_LIMIT = 5;
-    private static final long NOISE_THRESHOLD_SECONDS = 180L;
+    private static final long NOISE_THRESHOLD_SECONDS = 300L;
 
     private final JpaStreamRepository streamRepository;
     private final JpaStreamSessionRepository sessionRepository;

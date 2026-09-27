@@ -2,6 +2,7 @@ package io.slice.stream.apiserver.stream.fake;
 
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -49,6 +50,40 @@ public class FakeStreamSessionRepository implements JpaStreamSessionRepository {
             .toList();
 
         return paginate(filtered, pageable);
+    }
+
+    @Override
+    public Page<StreamSessionEntity> findValidSessionsByStreamId(String streamId, long minDurationSeconds, Pageable pageable) {
+        List<StreamSessionEntity> filtered = storage.values().stream()
+            .filter(s -> Objects.equals(s.getStreamId(), streamId))
+            .filter(s -> isValidSession(s, minDurationSeconds))
+            .sorted(Comparator.comparing(StreamSessionEntity::getStartedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+            .toList();
+
+        return paginate(filtered, pageable);
+    }
+
+    @Override
+    public Page<StreamSessionEntity> findValidSessionsByStreamIdAndPaidPromotionTrue(String streamId, long minDurationSeconds, Pageable pageable) {
+        List<StreamSessionEntity> filtered = storage.values().stream()
+            .filter(s -> Objects.equals(s.getStreamId(), streamId) && s.isPaidPromotion())
+            .filter(s -> isValidSession(s, minDurationSeconds))
+            .sorted(Comparator.comparing(StreamSessionEntity::getStartedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+            .toList();
+
+        return paginate(filtered, pageable);
+    }
+
+    @Override
+    public List<StreamSessionEntity> findRecentValidSessionsByStreamId(String streamId, long minDurationSeconds, Pageable pageable) {
+        return findValidSessionsByStreamId(streamId, minDurationSeconds, pageable).getContent();
+    }
+
+    private boolean isValidSession(StreamSessionEntity s, long minDurationSeconds) {
+        if (s.getEndedAt() == null) {
+            return true;
+        }
+        return Duration.between(s.getStartedAt(), s.getEndedAt()).getSeconds() >= minDurationSeconds;
     }
 
     private Page<StreamSessionEntity> paginate(List<StreamSessionEntity> items, Pageable pageable) {
