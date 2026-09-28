@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,7 @@ public class StreamerSimilarityBatchService {
     private final TransactionTemplate transactionTemplate;
     private final CacheManager cacheManager;
 
+    @Autowired
     public StreamerSimilarityBatchService(
         TargetStreamerRepository targetStreamerRepository,
         JpaStreamRepository streamRepository,
