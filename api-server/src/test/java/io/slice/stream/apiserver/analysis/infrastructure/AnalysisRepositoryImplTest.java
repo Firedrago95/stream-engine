@@ -54,6 +54,23 @@ class AnalysisRepositoryImplTest implements PostgresTestSupport {
     }
 
     @Test
+    void 도메인_모델_리스트를_일괄_저장하면_모두_DB_엔티티로_변환되어_저장된다() {
+        // given
+        Instant now = Instant.now();
+        List<AnalysisSignal> signals = List.of(
+            AnalysisSignal.of("stream-1", "session-1", "NORMAL", now, 100L, 1000L),
+            AnalysisSignal.of("stream-2", "session-2", "PEAK", now, 500L, 2000L)
+        );
+
+        // when
+        analysisRepository.saveAll(signals);
+
+        // then
+        List<AnalysisSignalEntity> entities = jpaRepository.findAll();
+        assertThat(entities).hasSize(2);
+    }
+
+    @Test
     void 특정_스트림의_최신_데이터를_도메인_객체_리스트로_반환한다() {
         // given
         String streamId = "stream-1";

@@ -14,6 +14,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
+import static org.mockito.Mockito.times;
+
+import io.slice.stream.apiserver.analysis.domain.event.SignalsReceivedEvent;
+import java.util.List;
+
 @ExtendWith(MockitoExtension.class)
 class AnalysisStorageHandlerTest {
 
@@ -37,5 +42,22 @@ class AnalysisStorageHandlerTest {
         // then
         verify(analysisRepository).save(signal);
         verify(eventPublisher).publishEvent(any(SignalSavedEvent.class));
+    }
+
+    @Test
+    void 일괄_신호_수신_이벤트가_발생하면_일괄_저장소_메서드가_호출되고_각_신호의_저장_완료_이벤트가_발행된다() {
+        // given
+        List<AnalysisSignal> signals = List.of(
+            AnalysisSignal.of("stream1", "sessionId1", "NORMAL", Instant.now(), 100L, 1000L),
+            AnalysisSignal.of("stream2", "sessionId2", "PEAK", Instant.now(), 500L, 2000L)
+        );
+        SignalsReceivedEvent event = new SignalsReceivedEvent(signals);
+
+        // when
+        analysisStorageHandler.handleSignalsReceived(event);
+
+        // then
+        verify(analysisRepository).saveAll(signals);
+        verify(eventPublisher, times(2)).publishEvent(any(SignalSavedEvent.class));
     }
 }

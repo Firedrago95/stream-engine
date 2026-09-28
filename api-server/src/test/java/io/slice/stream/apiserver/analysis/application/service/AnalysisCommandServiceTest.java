@@ -16,6 +16,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
+import io.slice.stream.apiserver.analysis.domain.event.SignalsReceivedEvent;
+
 @ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class AnalysisCommandServiceTest {
@@ -27,7 +29,7 @@ class AnalysisCommandServiceTest {
     private AnalysisCommandService analysisCommandService;
 
     @Test
-    void 신호_리스트를_받으면_각_신호를_내부_이벤트로_발행한다() {
+    void 신호_리스트를_받으면_단일_배치_이벤트를_발행한다() {
         List<AnalysisSignal> signals = List.of(
             new AnalysisSignal("stream1", "sessionId1", "PEAK", Instant.now(), 20L, 1000L),
             new AnalysisSignal("stream2", "sessionId2", "NORMAL", Instant.now(), 5L, 2000L)
@@ -35,7 +37,7 @@ class AnalysisCommandServiceTest {
 
         analysisCommandService.processSignals(signals);
 
-        verify(eventPublisher, times(2)).publishEvent(any(AnalysisSignal.class));
+        verify(eventPublisher, times(1)).publishEvent(any(SignalsReceivedEvent.class));
     }
 
     @Test

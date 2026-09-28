@@ -82,7 +82,7 @@ public class HighlightService {
                 .toList();
 
             if (!signals.isEmpty()) {
-                signalClient.send(signals);
+                virtualThreadExecutor.execute(() -> signalClient.send(signals));
             }
         });
     }

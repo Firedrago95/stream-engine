@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 @Slf4j
 @Configuration
@@ -18,6 +19,7 @@ public class ThreadPoolConfig {
     @Value("${app.thread.pool-size:200}")
     private int poolSize;
 
+    @Primary
     @Bean
     public ExecutorService virtualThreadExecutor() {
         if ("platform".equalsIgnoreCase(threadMode)) {
@@ -27,6 +29,13 @@ public class ThreadPoolConfig {
             log.info("[가상 스레드 모드] 실행");
             return Executors.newVirtualThreadPerTaskExecutor();
         }
+    }
+
+    @Bean
+    public ExecutorService ingestionSyncExecutor() {
+        return Executors.newSingleThreadExecutor(
+            Thread.ofVirtual().name("ingestion-sync-", 0).factory()
+        );
     }
 
     @Bean
