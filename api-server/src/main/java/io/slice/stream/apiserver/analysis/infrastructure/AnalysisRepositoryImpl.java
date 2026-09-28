@@ -31,19 +31,44 @@ public class AnalysisRepositoryImpl implements AnalysisRepository {
     )
     public void save(AnalysisSignal signal) {
         try {
-            AnalysisSignalEntity entity = new AnalysisSignalEntity(
-                signal.streamId(),
-                signal.sessionId(),
-                signal.status(),
-                signal.timestamp(),
-                signal.firepower(),
-                signal.offsetMs()
-            );
-            jpaRepository.save(entity);
+            jpaRepository.save(toEntity(signal));
         } catch (DataAccessException e) {
             log.error("[DB Error] 분석 신호 저장 실패 - StreamId: {}, Error: {}", signal.streamId(), e.getMessage());
             throw e;
         }
+    }
+
+    @Override
+    @Retryable(
+        includes = DataAccessException.class,
+        maxRetries = 2,
+        delay = 1000
+    )
+    public void saveAll(List<AnalysisSignal> signals) {
+        if (signals == null || signals.isEmpty()) {
+            return;
+        }
+
+        try {
+            List<AnalysisSignalEntity> entities = signals.stream()
+                .map(this::toEntity)
+                .toList();
+            jpaRepository.saveAll(entities);
+        } catch (DataAccessException e) {
+            log.error("[DB Error] 분석 신호 목록 일괄 저장 실패 - 건수: {}, Error: {}", signals.size(), e.getMessage());
+            throw e;
+        }
+    }
+
+    private AnalysisSignalEntity toEntity(AnalysisSignal signal) {
+        return new AnalysisSignalEntity(
+            signal.streamId(),
+            signal.sessionId(),
+            signal.status(),
+            signal.timestamp(),
+            signal.firepower(),
+            signal.offsetMs()
+        );
     }
 
     @Override

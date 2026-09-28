@@ -1,6 +1,7 @@
 package io.slice.stream.apiserver.analysis.application.service;
 
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
+import io.slice.stream.apiserver.analysis.domain.event.SignalsReceivedEvent;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,9 +21,6 @@ public class AnalysisCommandService {
         }
 
         log.info("[Analysis] 신호 수신 - {}건의 방송 화력 신호 수신 완료", signals.size());
-
-        for (AnalysisSignal signal : signals) {
-            eventPublisher.publishEvent(signal);
-        }
+        eventPublisher.publishEvent(new SignalsReceivedEvent(signals));
     }
 }

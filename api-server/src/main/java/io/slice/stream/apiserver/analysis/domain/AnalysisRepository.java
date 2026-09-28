@@ -10,6 +10,8 @@ public interface AnalysisRepository {
 
     void save(AnalysisSignal signal);
 
+    void saveAll(List<AnalysisSignal> signals);
+
     List<AnalysisSignal> findRecentSignals(String streamId, int limit);
 
     Set<String> findChannelsWithRecentSignals(Collection<String> streamIds, Instant threshold);
