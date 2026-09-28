@@ -143,5 +143,25 @@ class HighlightServiceTest {
 
         verify(signalClient, never()).send(anyList());
     }
+
+    @Test
+    void 신호가_존재할때_가상_스레드로_전송이_비동기_위임된다() {
+        when(clock.instant()).thenReturn(FIXED_NOW);
+        when(props.fetchBufferSeconds()).thenReturn(15);
+
+        StreamTarget target = new StreamTarget("stream1", "침착맨", "chat1", 1L, "title", 1000, "url", "게임", Instant.EPOCH);
+        when(streamProvider.getActiveStreamTargets()).thenReturn(List.of(target));
+
+        StreamTierInfo mockTierInfo = StreamTierInfo.builder().tier(StreamTier.GROUP_A).windowSeconds(60).build();
+        when(tierManager.getTierInfo("stream1", 1000)).thenReturn(mockTierInfo);
+        when(repository.getFirepowerDeltas(eq("stream1"), any(), eq(FIXED_NOW))).thenReturn(List.of(1L, 2L, 50L));
+        when(detector.detect("stream1", List.of(1L, 2L, 50L), mockTierInfo))
+            .thenReturn(new DetectionResult(ChatFirepowerStatus.PEAK, 50L));
+
+        highlightService.monitorHighlights();
+
+        verify(virtualThreadExecutor, times(2)).execute(any(Runnable.class));
+        verify(signalClient, times(1)).send(anyList());
+    }
 }
 
