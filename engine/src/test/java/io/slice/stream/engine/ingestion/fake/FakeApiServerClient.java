@@ -11,6 +11,7 @@ public class FakeApiServerClient extends ApiServerClient {
 
     private final List<StreamSyncRequest> lastSyncedRequests = new ArrayList<>();
     private final List<ChangedStream> lastRecordedSegments = new ArrayList<>();
+    private final List<String> callOrder = new ArrayList<>();
     private int syncStreamsCallCount = 0;
     private int recordSegmentsCallCount = 0;
 
@@ -20,6 +21,7 @@ public class FakeApiServerClient extends ApiServerClient {
 
     @Override
     public void syncStreams(List<StreamSyncRequest> requests) {
+        callOrder.add("syncStreams");
         syncStreamsCallCount++;
         lastSyncedRequests.clear();
         if (requests != null) {
@@ -29,11 +31,16 @@ public class FakeApiServerClient extends ApiServerClient {
 
     @Override
     public void recordNewSegments(List<ChangedStream> changedStreams) {
+        callOrder.add("recordNewSegments");
         recordSegmentsCallCount++;
         lastRecordedSegments.clear();
         if (changedStreams != null) {
             lastRecordedSegments.addAll(changedStreams);
         }
+    }
+
+    public List<String> getCallOrder() {
+        return Collections.unmodifiableList(callOrder);
     }
 
     public List<StreamSyncRequest> getLastSyncedRequests() {

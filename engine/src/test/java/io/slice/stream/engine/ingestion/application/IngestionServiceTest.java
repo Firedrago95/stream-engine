@@ -2,6 +2,9 @@ package io.slice.stream.engine.ingestion.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 
 import io.slice.stream.core.model.StreamTarget;
 import io.slice.stream.engine.core.event.StreamChangedEvent;
@@ -17,6 +20,7 @@ import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSyncR
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -32,6 +36,7 @@ class IngestionServiceTest {
     private StreamUpdateAnalyzer streamUpdateAnalyzer;
     private FakeTargetStreamPool targetStreamPool;
     private FakeAsyncPromotionInspector asyncPromotionInspector;
+    private ExecutorService virtualThreadExecutor;
 
     private IngestionService ingestionService;
 
@@ -44,6 +49,12 @@ class IngestionServiceTest {
         streamUpdateAnalyzer = new StreamUpdateAnalyzer();
         targetStreamPool = new FakeTargetStreamPool();
         asyncPromotionInspector = new FakeAsyncPromotionInspector();
+        virtualThreadExecutor = mock(ExecutorService.class);
+        doAnswer(invocation -> {
+            Runnable task = invocation.getArgument(0);
+            task.run();
+            return null;
+        }).when(virtualThreadExecutor).execute(any(Runnable.class));
 
         ingestionService = new IngestionService(
             discoveryClient,
@@ -52,7 +63,8 @@ class IngestionServiceTest {
             apiServerClient,
             streamUpdateAnalyzer,
             targetStreamPool,
-            asyncPromotionInspector
+            asyncPromotionInspector,
+            virtualThreadExecutor
         );
     }
 
@@ -316,5 +328,24 @@ class IngestionServiceTest {
             .containsExactlyInAnyOrder("ch1", "ch2");
 
         assertThat(streamRepository.getLastSyncedTargets()).containsExactly(normalTarget);
+    }
+
+    @Test
+    void 외부_동기화_시_syncStreams가_recordNewSegments보다_먼저_호출되어_순서가_보장되어야_한다() {
+        // given
+        Instant now = Instant.now();
+        StreamTarget oldTarget = new StreamTarget("ch1", "침착맨", "chat1", 100L, "이전방제", 50, "thumb.jpg", "소통", now.minusSeconds(3600));
+        StreamTarget updatedTarget = new StreamTarget("ch1", "침착맨", "chat1", 100L, "새방제", 60, "thumb.jpg", "게임", now.minusSeconds(3600));
+
+        discoveryClient.setTopLiveStreams(List.of(updatedTarget));
+        targetStreamPool.setTargetChannels(Set.of("ch1"));
+        streamRepository.setActiveTargets(List.of(oldTarget));
+
+        // when
+        ingestionService.ingest();
+
+        // then
+        assertThat(apiServerClient.getCallOrder())
+            .containsExactly("syncStreams", "recordNewSegments");
     }
 }

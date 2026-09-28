@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.resilience.annotation.Retryable;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -80,7 +79,6 @@ public class ApiServerClient {
         }
     }
 
-    @Async
     public void syncStreams(List<StreamSyncRequest> requests) {
         if (requests.isEmpty()) return;
 
@@ -100,7 +98,6 @@ public class ApiServerClient {
         }
     }
 
-    @Async
     public void recordNewSegments(List<ChangedStream> requests) {
         if (requests.isEmpty()) return;
 
@@ -120,7 +117,6 @@ public class ApiServerClient {
         }
     }
 
-    @Async
     public void sendSessionSummaryAsync(StreamSessionSummary summary) {
         try {
             restClient.post()

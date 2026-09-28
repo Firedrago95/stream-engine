@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.concurrent.ExecutorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +37,7 @@ public class IngestionService {
     private final StreamUpdateAnalyzer streamUpdateAnalyzer;
     private final TargetStreamPool targetStreamPool;
     private final AsyncPromotionInspector asyncPromotionInspector;
+    private final ExecutorService virtualThreadExecutor;
 
     @Value("${chzzk.discovery.limit}")
     private int discoveryLimit;
@@ -115,19 +117,25 @@ public class IngestionService {
     }
 
     private void handleExternalSync(List<StreamTarget> allLiveTargets, List<StreamTarget> detailedTargets, StreamUpdateResults results) {
-        Map<String, StreamTarget> detailedMap = detailedTargets.stream()
-            .collect(Collectors.toMap(StreamTarget::channelId, t -> t, (a, b) -> a));
+        virtualThreadExecutor.execute(() -> {
+            try {
+                Map<String, StreamTarget> detailedMap = detailedTargets.stream()
+                    .collect(Collectors.toMap(StreamTarget::channelId, t -> t, (a, b) -> a));
 
-        List<StreamTarget> mergedTargets = allLiveTargets.stream()
-            .map(live -> detailedMap.getOrDefault(live.channelId(), live))
-            .toList();
+                List<StreamTarget> mergedTargets = allLiveTargets.stream()
+                    .map(live -> detailedMap.getOrDefault(live.channelId(), live))
+                    .toList();
 
-        apiServerClient.syncStreams(mergedTargets.stream().map(StreamSyncRequest::from).toList());
+                apiServerClient.syncStreams(mergedTargets.stream().map(StreamSyncRequest::from).toList());
 
-        if (!results.changedStreams().isEmpty()) {
-            apiServerClient.recordNewSegments(new ArrayList<>(results.changedStreams()));
-            asyncPromotionInspector.inspectChangedStreamsAsync(results.changedStreams());
-        }
+                if (!results.changedStreams().isEmpty()) {
+                    apiServerClient.recordNewSegments(new ArrayList<>(results.changedStreams()));
+                    asyncPromotionInspector.inspectChangedStreamsAsync(results.changedStreams());
+                }
+            } catch (Exception e) {
+                log.error("[Sync Error] 외부 API 서버 동기화 작업 실패: {}", e.getMessage(), e);
+            }
+        });
     }
 
     private void handleEvents(StreamUpdateResults results) {
