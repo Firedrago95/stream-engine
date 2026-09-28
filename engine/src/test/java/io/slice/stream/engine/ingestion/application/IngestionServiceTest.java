@@ -9,6 +9,7 @@ import io.slice.stream.engine.ingestion.domain.model.ChangedStream;
 import io.slice.stream.engine.ingestion.domain.service.StreamUpdateAnalyzer;
 import io.slice.stream.engine.ingestion.fake.FakeApiServerClient;
 import io.slice.stream.engine.ingestion.fake.FakeApplicationEventPublisher;
+import io.slice.stream.engine.ingestion.fake.FakeAsyncPromotionInspector;
 import io.slice.stream.engine.ingestion.fake.FakeStreamDiscoveryClient;
 import io.slice.stream.engine.ingestion.fake.FakeStreamRepository;
 import io.slice.stream.engine.ingestion.fake.FakeTargetStreamPool;
@@ -16,7 +17,6 @@ import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSyncR
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.Executors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
@@ -31,6 +31,7 @@ class IngestionServiceTest {
     private FakeApplicationEventPublisher eventPublisher;
     private StreamUpdateAnalyzer streamUpdateAnalyzer;
     private FakeTargetStreamPool targetStreamPool;
+    private FakeAsyncPromotionInspector asyncPromotionInspector;
 
     private IngestionService ingestionService;
 
@@ -42,12 +43,7 @@ class IngestionServiceTest {
         eventPublisher = new FakeApplicationEventPublisher();
         streamUpdateAnalyzer = new StreamUpdateAnalyzer();
         targetStreamPool = new FakeTargetStreamPool();
-        AsyncPromotionInspector asyncPromotionInspector = new AsyncPromotionInspector(
-            discoveryClient,
-            streamRepository,
-            apiServerClient,
-            Executors.newSingleThreadExecutor()
-        );
+        asyncPromotionInspector = new FakeAsyncPromotionInspector();
 
         ingestionService = new IngestionService(
             discoveryClient,
@@ -173,6 +169,7 @@ class IngestionServiceTest {
         assertThat(recorded.get(0).streamId()).isEqualTo("ch1");
         assertThat(recorded.get(0).newTitle()).isEqualTo("변경된 제목");
         assertThat(streamRepository.getLastSyncedTargets()).containsExactly(changedLiveTarget.withChatChannelId("chat1"));
+        assertThat(asyncPromotionInspector.getInspectCallCount()).isEqualTo(1);
     }
 
     @Test
@@ -187,6 +184,7 @@ class IngestionServiceTest {
 
         assertThat(discoveryClient.getFetchLiveStreamsCallCount()).isZero();
         assertThat(apiServerClient.getRecordSegmentsCallCount()).isZero();
+        assertThat(asyncPromotionInspector.getInspectCallCount()).isZero();
         assertThat(streamRepository.getLastSyncedTargets()).containsExactly(dummyTarget);
     }
 
