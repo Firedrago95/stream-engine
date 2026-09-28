@@ -27,6 +27,12 @@ public class CacheConfig {
                 .expireAfterWrite(25, TimeUnit.HOURS)
                 .build());
 
+        cacheManager.registerCustomCache("streamerSimilarities",
+            Caffeine.newBuilder()
+                .maximumSize(1_000)
+                .expireAfterWrite(12, TimeUnit.HOURS)
+                .build());
+
         return cacheManager;
     }
 }

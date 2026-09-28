@@ -1,5 +1,6 @@
 package io.slice.stream.apiserver.streamer.domain.service;
 
+import io.slice.stream.apiserver.global.config.StreamerSimilarityProperties;
 import io.slice.stream.apiserver.streamer.domain.model.SimilarityStatus;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -7,12 +8,20 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.stereotype.Component;
 
+@Component
 public class StreamerSimilarityCalculator {
 
-    public static final int MIN_SAMPLE_SIZE = 100;
-    public static final double MIN_SIMILARITY_THRESHOLD = 3.0;
-    public static final int TOP_RANK_LIMIT = 3;
+    private final StreamerSimilarityProperties properties;
+
+    public StreamerSimilarityCalculator() {
+        this(StreamerSimilarityProperties.defaultProperties());
+    }
+
+    public StreamerSimilarityCalculator(StreamerSimilarityProperties properties) {
+        this.properties = (properties != null) ? properties : StreamerSimilarityProperties.defaultProperties();
+    }
 
     public record SimilarityMatch(
         String targetStreamId,
@@ -33,7 +42,7 @@ public class StreamerSimilarityCalculator {
         Map<String, Set<Long>> allStreamerChatters
     ) {
         Set<Long> baseChatters = allStreamerChatters.get(baseStreamId);
-        if (baseChatters == null || baseChatters.size() < MIN_SAMPLE_SIZE) {
+        if (baseChatters == null || baseChatters.size() < properties.minSampleSize()) {
             return new CalculationResult(SimilarityStatus.INSUFFICIENT_DATA, Collections.emptyList());
         }
 
@@ -57,13 +66,13 @@ public class StreamerSimilarityCalculator {
         candidates.sort(Comparator.comparingDouble(SimilarityMatch::similarityPercent).reversed());
 
         SimilarityMatch bestMatch = candidates.getFirst();
-        if (bestMatch.similarityPercent() < MIN_SIMILARITY_THRESHOLD) {
+        if (bestMatch.similarityPercent() < properties.minSimilarityThreshold()) {
             return new CalculationResult(SimilarityStatus.INDEPENDENT_FANDOM, Collections.emptyList());
         }
 
         List<SimilarityMatch> topMatches = candidates.stream()
-            .filter(match -> match.similarityPercent() >= MIN_SIMILARITY_THRESHOLD)
-            .limit(TOP_RANK_LIMIT)
+            .filter(match -> match.similarityPercent() >= properties.minSimilarityThreshold())
+            .limit(properties.topRankLimit())
             .toList();
 
         return new CalculationResult(SimilarityStatus.NORMAL, topMatches);

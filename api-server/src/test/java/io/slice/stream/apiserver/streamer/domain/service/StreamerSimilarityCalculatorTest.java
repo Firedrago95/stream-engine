@@ -3,6 +3,7 @@ package io.slice.stream.apiserver.streamer.domain.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
+import io.slice.stream.apiserver.global.config.StreamerSimilarityProperties;
 import io.slice.stream.apiserver.streamer.domain.model.SimilarityStatus;
 import io.slice.stream.apiserver.streamer.domain.service.StreamerSimilarityCalculator.CalculationResult;
 import io.slice.stream.apiserver.streamer.domain.service.StreamerSimilarityCalculator.SimilarityMatch;
@@ -107,5 +108,30 @@ class StreamerSimilarityCalculatorTest {
 
         assertThat(result.matches())
             .noneMatch(match -> match.targetStreamId().equals("streamerA"));
+    }
+
+    @Test
+    void 커스텀_설정_프로퍼티가_주입되면_해당_임계값과_추출_개수로_동작한다() {
+        StreamerSimilarityProperties customProps = new StreamerSimilarityProperties(50, 10.0, 1);
+        StreamerSimilarityCalculator customCalculator = new StreamerSimilarityCalculator(customProps);
+
+        Map<String, Set<Long>> allChatters = new HashMap<>();
+        allChatters.put("streamerA", generateChatters(1L, 60)); // 표본 60명 (> 50)
+
+        // streamerB: 60명 중 15명 공통 (유사도 약 14.3%) -> 10% 이상이므로 통과
+        allChatters.put("streamerB", generateChatters(1L, 15));
+        allChatters.get("streamerB").addAll(generateChatters(100L, 45));
+
+        // streamerC: 60명 중 8명 공통 (유사도 약 7.1%) -> 10% 미만이므로 탈락
+        allChatters.put("streamerC", generateChatters(1L, 8));
+        allChatters.get("streamerC").addAll(generateChatters(200L, 52));
+
+        CalculationResult result = customCalculator.calculate("streamerA", allChatters);
+
+        assertAll(
+            () -> assertThat(result.status()).isEqualTo(SimilarityStatus.NORMAL),
+            () -> assertThat(result.matches()).hasSize(1), // topRankLimit = 1
+            () -> assertThat(result.matches().get(0).targetStreamId()).isEqualTo("streamerB")
+        );
     }
 }
