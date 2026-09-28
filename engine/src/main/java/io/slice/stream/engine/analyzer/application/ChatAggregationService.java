@@ -6,17 +6,24 @@ import com.github.benmanes.caffeine.cache.RemovalCause;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.slice.stream.core.model.Author;
 import io.slice.stream.core.model.ChatMessage;
 import io.slice.stream.core.model.StreamTarget;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatDelta;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregation;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregationRepository;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatSummary;
+import io.slice.stream.engine.analyzer.domain.similarity.ChatterHashUtils;
+import io.slice.stream.engine.analyzer.domain.similarity.StreamerChatterRepository;
 import io.slice.stream.engine.core.event.StreamChangedEvent;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSessionSummary;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.WeekFields;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -27,17 +34,22 @@ import org.springframework.stereotype.Service;
 @Service
 public class ChatAggregationService {
 
+    private static final ZoneId KST_ZONE = ZoneId.of("Asia/Seoul");
+
     private final Cache<String, ChatRoomAggregation> chatRoomAggregations;
     private final ChatRoomAggregationRepository chatRoomAggregationRepository;
+    private final StreamerChatterRepository streamerChatterRepository;
     private final ApiServerClient apiServerClient;
     private final Counter redisSaveErrorCounter;
 
     public ChatAggregationService(
         ChatRoomAggregationRepository chatRoomAggregationRepository,
+        StreamerChatterRepository streamerChatterRepository,
         ApiServerClient apiServerClient,
         MeterRegistry registry
     ) {
         this.chatRoomAggregationRepository = chatRoomAggregationRepository;
+        this.streamerChatterRepository = streamerChatterRepository;
         this.apiServerClient = apiServerClient;
         this.redisSaveErrorCounter = Counter.builder("engine.redis.save.errors")
             .description("Redis TimeSeries 화력 저장 실패 누적 수")
@@ -47,6 +59,7 @@ public class ChatAggregationService {
             .removalListener((String key, ChatRoomAggregation value, RemovalCause cause) -> {
                 if (cause != RemovalCause.REPLACED) {
                     saveToRepository(key, value);
+                    saveChattersToRepository(key, value);
                 }
             })
             .build();
@@ -61,13 +74,17 @@ public class ChatAggregationService {
 
         ChatRoomAggregation chatRoomAggregation = chatRoomAggregations.get(
             streamId,
-            // 모든 실제 메시지는 EPOCH 이후이므로 null guard 없이 갱신되도록 보초값 설정
             k -> new ChatRoomAggregation(streamId, Instant.EPOCH)
         );
 
+        Author author = chatMessage.author();
+        boolean isSubscriber = (author != null) && author.isSubscriber();
+        Long userHash = (author != null) ? ChatterHashUtils.to64BitHash(author.id()) : null;
+
         chatRoomAggregation.increaseCount(
             chatMessage.time(),
-            chatMessage.author().isSubscriber()
+            isSubscriber,
+            userHash
         );
     }
 
@@ -77,6 +94,14 @@ public class ChatAggregationService {
             log.debug("[Scheduler] Redis 저장 작업 수행 중... (대상 스트림: {}개)", chatRoomAggregations.asMap().size());
         }
         chatRoomAggregations.asMap().forEach(this::saveToRepository);
+    }
+
+    @Scheduled(fixedRate = 60_000)
+    public void saveChatterHashes() {
+        if (log.isDebugEnabled()) {
+            log.debug("[Scheduler] 유저 해시 1분 주기 저장 수행 중... (대상 스트림: {}개)", chatRoomAggregations.asMap().size());
+        }
+        chatRoomAggregations.asMap().forEach(this::saveChattersToRepository);
     }
 
     private void saveToRepository(String streamId, ChatRoomAggregation aggregation) {
@@ -109,6 +134,28 @@ public class ChatAggregationService {
         }
     }
 
+    private void saveChattersToRepository(String streamId, ChatRoomAggregation aggregation) {
+        Set<Long> userHashes = aggregation.drainUserHashes();
+        if (userHashes.isEmpty()) {
+            return;
+        }
+
+        String yearWeek = calculateCurrentYearWeek();
+        try {
+            streamerChatterRepository.saveChatters(streamId, userHashes, yearWeek);
+        } catch (Exception e) {
+            aggregation.restoreUserHashes(userHashes);
+            log.error("[Redis-Chatters] 유저 해시 저장 실패 (복구 완료) - Stream: {}", streamId, e);
+        }
+    }
+
+    public String calculateCurrentYearWeek() {
+        LocalDate now = LocalDate.now(KST_ZONE);
+        int year = now.get(WeekFields.ISO.weekBasedYear());
+        int week = now.get(WeekFields.ISO.weekOfWeekBasedYear());
+        return String.format("%d-W%02d", year, week);
+    }
+
     public ChatRoomAggregation getAggregationFor(String streamId) {
         return chatRoomAggregations.getIfPresent(streamId);
     }
@@ -134,6 +181,7 @@ public class ChatAggregationService {
         ChatRoomAggregation aggregation = chatRoomAggregations.getIfPresent(closedStreamId);
         if (aggregation != null) {
             saveToRepository(closedStreamId, aggregation);
+            saveChattersToRepository(closedStreamId, aggregation);
             chatRoomAggregations.invalidate(closedStreamId);
         }
 

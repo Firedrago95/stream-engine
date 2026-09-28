@@ -84,3 +84,10 @@ category:
   ranking:
     timeline-interval-seconds: ${TIMELINE_INTERVAL_SECONDS:30}
 
+streamer:
+  similarity:
+    min-sample-size: 100
+    min-similarity-threshold: 3.0
+    top-rank-limit: 3
+
+

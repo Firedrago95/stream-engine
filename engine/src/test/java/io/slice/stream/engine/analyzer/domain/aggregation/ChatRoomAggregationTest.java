@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
 import java.time.Instant;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -142,5 +143,59 @@ class ChatRoomAggregationTest {
 
         assertThat(totalSum).isEqualTo(threadCount * messagesPerThread);
         assertThat(subSum).isEqualTo(threadCount * messagesPerThread);
+    }
+
+    @Test
+    void 채팅_인입_시_유저_해시가_중복_없이_누적된다() {
+        ChatRoomAggregation aggregation = new ChatRoomAggregation("stream1", Instant.EPOCH);
+        Instant now = Instant.now();
+
+        aggregation.increaseCount(now, false, 12345L);
+        aggregation.increaseCount(now, true, 12345L);
+        aggregation.increaseCount(now, false, 67890L);
+
+        Set<Long> userHashes = aggregation.drainUserHashes();
+
+        assertThat(userHashes).containsExactlyInAnyOrder(12345L, 67890L);
+    }
+
+    @Test
+    void drainUserHashes_호출_시_누적된_해시를_반환하고_로컬_Set을_비운다() {
+        ChatRoomAggregation aggregation = new ChatRoomAggregation("stream1", Instant.EPOCH);
+        Instant now = Instant.now();
+        aggregation.increaseCount(now, false, 12345L);
+
+        Set<Long> firstDrain = aggregation.drainUserHashes();
+        Set<Long> secondDrain = aggregation.drainUserHashes();
+
+        assertAll(
+            () -> assertThat(firstDrain).containsExactly(12345L),
+            () -> assertThat(secondDrain).isEmpty()
+        );
+    }
+
+    @Test
+    void restoreUserHashes_호출_시_드레인된_해시_Set이_복구된다() {
+        ChatRoomAggregation aggregation = new ChatRoomAggregation("stream1", Instant.EPOCH);
+        Instant now = Instant.now();
+        aggregation.increaseCount(now, false, 12345L);
+
+        Set<Long> drained = aggregation.drainUserHashes();
+        aggregation.increaseCount(now, false, 67890L);
+        aggregation.restoreUserHashes(drained);
+
+        Set<Long> finalDrained = aggregation.drainUserHashes();
+        assertThat(finalDrained).containsExactlyInAnyOrder(12345L, 67890L);
+    }
+
+    @Test
+    void 유저_해시가_null이면_해시_Set에_추가되지_않는다() {
+        ChatRoomAggregation aggregation = new ChatRoomAggregation("stream1", Instant.EPOCH);
+        Instant now = Instant.now();
+
+        aggregation.increaseCount(now, false, null);
+
+        Set<Long> drained = aggregation.drainUserHashes();
+        assertThat(drained).isEmpty();
     }
 }

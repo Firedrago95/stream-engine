@@ -5,9 +5,11 @@ import io.slice.stream.apiserver.streamer.application.StreamerCalendarQueryServi
 import io.slice.stream.apiserver.streamer.application.StreamerLeaderboardQueryService;
 import io.slice.stream.apiserver.streamer.application.StreamerProfileQueryService;
 import io.slice.stream.apiserver.streamer.application.StreamerSessionQueryService;
+import io.slice.stream.apiserver.streamer.application.StreamerSimilarityQueryService;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerCalendarResponse;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerProfileResponse;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerSessionHistoryResponse;
+import io.slice.stream.apiserver.streamer.presentation.dto.StreamerSimilarityResponse;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -32,6 +34,7 @@ public class StreamerQueryController {
     private final StreamerProfileQueryService profileQueryService;
     private final StreamerCalendarQueryService calendarQueryService;
     private final StreamerSessionQueryService sessionQueryService;
+    private final StreamerSimilarityQueryService similarityQueryService;
 
     @GetMapping
     public ResponseEntity<List<StreamResponse>> getLeaderboard(
@@ -67,5 +70,12 @@ public class StreamerQueryController {
         @RequestParam(required = false, defaultValue = "false") boolean paidPromotionOnly
     ) {
         return ResponseEntity.ok(sessionQueryService.getSessionHistory(channelId, page, size, paidPromotionOnly));
+    }
+
+    @GetMapping("/{channelId}/similarities")
+    public ResponseEntity<StreamerSimilarityResponse> getSimilarities(
+        @PathVariable String channelId
+    ) {
+        return ResponseEntity.ok(similarityQueryService.getSimilarities(channelId));
     }
 }

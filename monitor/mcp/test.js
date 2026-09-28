@@ -42,4 +42,16 @@ async function runHealthCheck() {
   console.log("==================================================");
 }
 
-runHealthCheck().catch(console.error);
+const targetArg = process.argv[2];
+if (targetArg) {
+  inspectChannelFirepower({ channelIdOrName: targetArg }).then(res => {
+    console.log(`[채널 화력 점검: ${res.streamerName} (${res.channelId})]`);
+    console.log(`- 상태: ${res.status}`);
+    console.log(`- 요약: ${res.summary}`);
+    if (res.recentLogs && res.recentLogs.length > 0) {
+      console.log(`- 최근 로그:\n  ${res.recentLogs.join("\n  ")}`);
+    }
+  }).catch(console.error);
+} else {
+  runHealthCheck().catch(console.error);
+}
