@@ -36,7 +36,7 @@ class IngestionServiceTest {
     private StreamUpdateAnalyzer streamUpdateAnalyzer;
     private FakeTargetStreamPool targetStreamPool;
     private FakeAsyncPromotionInspector asyncPromotionInspector;
-    private ExecutorService virtualThreadExecutor;
+    private ExecutorService ingestionSyncExecutor;
 
     private IngestionService ingestionService;
 
@@ -49,12 +49,12 @@ class IngestionServiceTest {
         streamUpdateAnalyzer = new StreamUpdateAnalyzer();
         targetStreamPool = new FakeTargetStreamPool();
         asyncPromotionInspector = new FakeAsyncPromotionInspector();
-        virtualThreadExecutor = mock(ExecutorService.class);
+        ingestionSyncExecutor = mock(ExecutorService.class);
         doAnswer(invocation -> {
             Runnable task = invocation.getArgument(0);
             task.run();
             return null;
-        }).when(virtualThreadExecutor).execute(any(Runnable.class));
+        }).when(ingestionSyncExecutor).execute(any(Runnable.class));
 
         ingestionService = new IngestionService(
             discoveryClient,
@@ -64,7 +64,7 @@ class IngestionServiceTest {
             streamUpdateAnalyzer,
             targetStreamPool,
             asyncPromotionInspector,
-            virtualThreadExecutor
+            ingestionSyncExecutor
         );
     }
 

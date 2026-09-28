@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 import java.util.concurrent.ExecutorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -37,7 +38,8 @@ public class IngestionService {
     private final StreamUpdateAnalyzer streamUpdateAnalyzer;
     private final TargetStreamPool targetStreamPool;
     private final AsyncPromotionInspector asyncPromotionInspector;
-    private final ExecutorService virtualThreadExecutor;
+    @Qualifier("ingestionSyncExecutor")
+    private final ExecutorService ingestionSyncExecutor;
 
     @Value("${chzzk.discovery.limit}")
     private int discoveryLimit;
@@ -117,7 +119,7 @@ public class IngestionService {
     }
 
     private void handleExternalSync(List<StreamTarget> allLiveTargets, List<StreamTarget> detailedTargets, StreamUpdateResults results) {
-        virtualThreadExecutor.execute(() -> {
+        ingestionSyncExecutor.execute(() -> {
             try {
                 Map<String, StreamTarget> detailedMap = detailedTargets.stream()
                     .collect(Collectors.toMap(StreamTarget::channelId, t -> t, (a, b) -> a));
