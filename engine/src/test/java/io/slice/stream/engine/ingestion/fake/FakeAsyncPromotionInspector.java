@@ -9,6 +9,7 @@ import java.util.List;
 public class FakeAsyncPromotionInspector extends AsyncPromotionInspector {
 
     private final List<ChangedStream> inspectedStreams = new ArrayList<>();
+    private int inspectCallCount = 0;
 
     public FakeAsyncPromotionInspector() {
         super(null, null, null, null);
@@ -16,6 +17,7 @@ public class FakeAsyncPromotionInspector extends AsyncPromotionInspector {
 
     @Override
     public void inspectChangedStreamsAsync(Collection<ChangedStream> changedStreams) {
+        inspectCallCount++;
         if (changedStreams != null) {
             inspectedStreams.addAll(changedStreams);
         }
@@ -26,6 +28,6 @@ public class FakeAsyncPromotionInspector extends AsyncPromotionInspector {
     }
 
     public int getInspectCallCount() {
-        return inspectedStreams.size();
+        return inspectCallCount;
     }
 }

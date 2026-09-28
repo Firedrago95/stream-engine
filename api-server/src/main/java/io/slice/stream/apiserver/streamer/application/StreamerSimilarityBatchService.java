@@ -20,25 +20,63 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class StreamerSimilarityBatchService {
 
     private static final int WEEKS_TO_ANALYZE = 4;
+    private static final String SIMILARITY_CACHE_NAME = "streamerSimilarities";
 
     private final TargetStreamerRepository targetStreamerRepository;
     private final JpaStreamRepository streamRepository;
     private final StreamerChatterProvider streamerChatterProvider;
     private final StreamerSimilarityCalculator similarityCalculator;
     private final JpaStreamerSimilarityRepository similarityRepository;
+    private final TransactionTemplate transactionTemplate;
+    private final CacheManager cacheManager;
 
-    @Transactional
+    public StreamerSimilarityBatchService(
+        TargetStreamerRepository targetStreamerRepository,
+        JpaStreamRepository streamRepository,
+        StreamerChatterProvider streamerChatterProvider,
+        StreamerSimilarityCalculator similarityCalculator,
+        JpaStreamerSimilarityRepository similarityRepository,
+        TransactionTemplate transactionTemplate,
+        CacheManager cacheManager
+    ) {
+        this.targetStreamerRepository = targetStreamerRepository;
+        this.streamRepository = streamRepository;
+        this.streamerChatterProvider = streamerChatterProvider;
+        this.similarityCalculator = similarityCalculator;
+        this.similarityRepository = similarityRepository;
+        this.transactionTemplate = transactionTemplate;
+        this.cacheManager = cacheManager;
+    }
+
+    public StreamerSimilarityBatchService(
+        TargetStreamerRepository targetStreamerRepository,
+        JpaStreamRepository streamRepository,
+        StreamerChatterProvider streamerChatterProvider,
+        StreamerSimilarityCalculator similarityCalculator,
+        JpaStreamerSimilarityRepository similarityRepository
+    ) {
+        this(
+            targetStreamerRepository,
+            streamRepository,
+            streamerChatterProvider,
+            similarityCalculator,
+            similarityRepository,
+            null,
+            null
+        );
+    }
+
     public void executeBatch(LocalDate targetDate) {
         List<TargetStreamerEntity> activeTargets = targetStreamerRepository.findAllByIsActiveTrue();
         if (activeTargets.isEmpty()) {
@@ -74,13 +112,37 @@ public class StreamerSimilarityBatchService {
             entitiesToSave.addAll(entities);
         }
 
+        saveSimilaritiesInTransaction(targetDate, entitiesToSave);
+        evictSimilarityCache();
+
+        log.info("[Similarity-Batch] 스트리머 시청자 유사도 배치 완료 - 일자: {}, 대상: {}명, 저장: {}건",
+            targetDate, streamIds.size(), entitiesToSave.size());
+    }
+
+    private void saveSimilaritiesInTransaction(LocalDate targetDate, List<StreamerSimilarityEntity> entitiesToSave) {
+        if (transactionTemplate != null) {
+            transactionTemplate.executeWithoutResult(status -> executeSave(targetDate, entitiesToSave));
+        } else {
+            executeSave(targetDate, entitiesToSave);
+        }
+    }
+
+    private void executeSave(LocalDate targetDate, List<StreamerSimilarityEntity> entitiesToSave) {
         similarityRepository.deleteByCalculatedDate(targetDate);
         if (!entitiesToSave.isEmpty()) {
             similarityRepository.saveAll(entitiesToSave);
         }
+    }
 
-        log.info("[Similarity-Batch] 스트리머 시청자 유사도 배치 완료 - 일자: {}, 대상: {}명, 저장: {}건",
-            targetDate, streamIds.size(), entitiesToSave.size());
+    private void evictSimilarityCache() {
+        if (cacheManager == null) {
+            return;
+        }
+        Cache cache = cacheManager.getCache(SIMILARITY_CACHE_NAME);
+        if (cache != null) {
+            cache.clear();
+            log.info("[Similarity-Batch] 스트리머 유사도 로컬 캐시 초기화 완료");
+        }
     }
 
     private Map<String, StreamEntity> loadStreamMetadata(List<String> streamIds) {

@@ -33,20 +33,15 @@ public class RedisStreamerChatterRepository implements StreamerChatterRepository
             .map(String::valueOf)
             .toArray(String[]::new);
 
-        try {
-            redisTemplate.executePipelined(new SessionCallback<Object>() {
-                @Override
-                @SuppressWarnings("unchecked")
-                public Object execute(RedisOperations operations) throws DataAccessException {
-                    operations.opsForSet().add(key, (Object[]) values);
-                    operations.expire(key, Duration.ofSeconds(Rediskeys.STREAMER_CHATTERS_TTL_SECONDS));
-                    return null;
-                }
-            });
-        } catch (Exception e) {
-            log.error("[Redis-Chatters] 스트리머 유저 해시 저장 실패 - Stream: {}, Key: {}, 건수: {}",
-                streamId, key, userHashes.size(), e);
-        }
+        redisTemplate.executePipelined(new SessionCallback<Object>() {
+            @Override
+            @SuppressWarnings("unchecked")
+            public Object execute(RedisOperations operations) throws DataAccessException {
+                operations.opsForSet().add(key, (Object[]) values);
+                operations.expire(key, Duration.ofSeconds(Rediskeys.STREAMER_CHATTERS_TTL_SECONDS));
+                return null;
+            }
+        });
     }
 
     @Override

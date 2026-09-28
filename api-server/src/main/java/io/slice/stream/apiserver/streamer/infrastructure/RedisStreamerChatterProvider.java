@@ -56,13 +56,8 @@ public class RedisStreamerChatterProvider implements StreamerChatterProvider {
         String firstKey = keys.getFirst();
         List<String> otherKeys = keys.subList(1, keys.size());
 
-        try {
-            Set<String> unionMembers = redisTemplate.opsForSet().union(firstKey, otherKeys);
-            return convertToLongSet(unionMembers);
-        } catch (Exception e) {
-            log.error("[Redis-Chatters] 주간 유저 풀 Union 조회 실패 - Stream: {}", streamId, e);
-            return Collections.emptySet();
-        }
+        Set<String> unionMembers = redisTemplate.opsForSet().union(firstKey, otherKeys);
+        return convertToLongSet(unionMembers);
     }
 
     private Set<Long> convertToLongSet(Set<String> stringSet) {

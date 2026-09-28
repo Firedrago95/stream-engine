@@ -29,6 +29,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.Cache;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
@@ -45,18 +47,22 @@ class StreamerSimilarityBatchServiceTest {
 
     private FakeStreamerChatterProvider chatterProvider;
     private StreamerSimilarityCalculator similarityCalculator;
+    private ConcurrentMapCacheManager cacheManager;
     private StreamerSimilarityBatchService batchService;
 
     @BeforeEach
     void setUp() {
         chatterProvider = new FakeStreamerChatterProvider();
         similarityCalculator = new StreamerSimilarityCalculator();
+        cacheManager = new ConcurrentMapCacheManager("streamerSimilarities");
         batchService = new StreamerSimilarityBatchService(
             targetStreamerRepository,
             streamRepository,
             chatterProvider,
             similarityCalculator,
-            similarityRepository
+            similarityRepository,
+            null,
+            cacheManager
         );
     }
 
@@ -146,5 +152,22 @@ class StreamerSimilarityBatchServiceTest {
             .orElseThrow();
 
         assertThat(entityA.getStatus()).isEqualTo(SimilarityStatus.INDEPENDENT_FANDOM);
+    }
+
+    @Test
+    void 배치가_정상_완료되면_기존_유사도_로컬_캐시가_초기화된다() {
+        LocalDate targetDate = LocalDate.of(2026, 9, 28);
+        TargetStreamerEntity streamerA = new TargetStreamerEntity("streamA", "테스트스트리머", TargetType.STATIC, true);
+
+        when(targetStreamerRepository.findAllByIsActiveTrue()).thenReturn(List.of(streamerA));
+        chatterProvider.setChatters("streamA", generateChatters(1L, 200));
+
+        Cache cache = cacheManager.getCache("streamerSimilarities");
+        assertThat(cache).isNotNull();
+        cache.put("streamA", "old-cached-value");
+
+        batchService.executeBatch(targetDate);
+
+        assertThat(cache.get("streamA")).isNull();
     }
 }
