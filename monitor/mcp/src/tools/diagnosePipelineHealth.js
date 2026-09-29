@@ -14,10 +14,10 @@ export async function diagnosePipelineHealth() {
     { key: "redisTps", query: 'sum(rate(lettuce_command_completion_seconds_count{job="engine-home"}[5m]))', required: false },
     { key: "liveThreads", query: 'jvm_threads_live_threads{application="engine"}', required: false },
     { key: "engineSchedulerFailures", query: 'sum(increase(scheduler_execution_total{application="engine",status="failure"}[1h]))', required: false },
-    { key: "schedulerIngestionSec", query: 'max(scheduler_last_duration_seconds{job="engine-home", scheduler="IngestionService"}) or max(scheduler_execution_duration_seconds_max{job="engine-home", scheduler="IngestionService"})', required: false },
-    { key: "schedulerHighlightSec", query: 'max(scheduler_last_duration_seconds{job="engine-home", scheduler="HighlightService"}) or max(scheduler_execution_duration_seconds_max{job="engine-home", scheduler="HighlightService"})', required: false },
-    { key: "schedulerChatAggregationSec", query: 'max(scheduler_last_duration_seconds{job="engine-home", scheduler="ChatAggregationService"}) or max(scheduler_execution_duration_seconds_max{job="engine-home", scheduler="ChatAggregationService"})', required: false },
-    { key: "schedulerStreamTierSec", query: 'max(scheduler_last_duration_seconds{job="engine-home", scheduler="StreamTierManager"}) or max(scheduler_execution_duration_seconds_max{job="engine-home", scheduler="StreamTierManager"})', required: false },
+    { key: "schedulerIngestionSec", query: 'max(scheduler_last_duration_seconds{job="engine-home", scheduler="IngestionService"})', required: false },
+    { key: "schedulerHighlightSec", query: 'max(scheduler_last_duration_seconds{job="engine-home", scheduler="HighlightService"})', required: false },
+    { key: "schedulerChatAggregationSec", query: 'max(scheduler_last_duration_seconds{job="engine-home", scheduler="ChatAggregationService"})', required: false },
+    { key: "schedulerStreamTierSec", query: 'max(scheduler_last_duration_seconds{job="engine-home", scheduler="StreamTierManager"})', required: false },
   ];
 
   const results = await Promise.allSettled(

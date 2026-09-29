@@ -1591,7 +1591,7 @@
             "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
-          "expr": "max by (scheduler) (scheduler_last_duration_seconds{job=\"engine-home\"} or scheduler_execution_duration_seconds_max{job=\"engine-home\"})",
+          "expr": "max by (scheduler) (scheduler_last_duration_seconds{job=\"engine-home\"})",
           "legendFormat": "{{scheduler}}",
           "range": true,
           "refId": "A"
@@ -1662,7 +1662,7 @@
             "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
-          "expr": "((max(scheduler_last_duration_seconds{job=\"engine-home\", scheduler=\"IngestionService\"}) or max(scheduler_execution_duration_seconds_max{job=\"engine-home\", scheduler=\"IngestionService\"})) / 30) * 100",
+          "expr": "(max(scheduler_last_duration_seconds{job=\"engine-home\", scheduler=\"IngestionService\"}) / 30) * 100",
           "legendFormat": "IngestionService (주기 30s, 경고 60% / 위험 83%)",
           "range": true,
           "refId": "A"
@@ -1673,7 +1673,7 @@
             "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
-          "expr": "((max(scheduler_last_duration_seconds{job=\"engine-home\", scheduler=\"HighlightService\"}) or max(scheduler_execution_duration_seconds_max{job=\"engine-home\", scheduler=\"HighlightService\"})) / 3) * 100",
+          "expr": "(max(scheduler_last_duration_seconds{job=\"engine-home\", scheduler=\"HighlightService\"}) / 3) * 100",
           "legendFormat": "HighlightService (주기 3s, 경고 50% / 위험 80%)",
           "range": true,
           "refId": "B"
@@ -1684,7 +1684,7 @@
             "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
-          "expr": "((max(scheduler_last_duration_seconds{job=\"engine-home\", scheduler=\"ChatAggregationService\"}) or max(scheduler_execution_duration_seconds_max{job=\"engine-home\", scheduler=\"ChatAggregationService\"})) / 3) * 100",
+          "expr": "(max(scheduler_last_duration_seconds{job=\"engine-home\", scheduler=\"ChatAggregationService\"}) / 3) * 100",
           "legendFormat": "ChatAggregationService (주기 3s, 경고 33% / 위험 67%)",
           "range": true,
           "refId": "C"
@@ -1695,7 +1695,7 @@
             "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
-          "expr": "((max(scheduler_last_duration_seconds{job=\"engine-home\", scheduler=\"StreamTierManager\"}) or max(scheduler_execution_duration_seconds_max{job=\"engine-home\", scheduler=\"StreamTierManager\"})) / 60) * 100",
+          "expr": "(max(scheduler_last_duration_seconds{job=\"engine-home\", scheduler=\"StreamTierManager\"}) / 60) * 100",
           "legendFormat": "StreamTierManager (주기 60s, 경고 33% / 위험 67%)",
           "range": true,
           "refId": "D"

@@ -3,13 +3,10 @@ package io.slice.stream.apiserver.global.metrics;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.Timer;
-import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,10 +24,8 @@ public class SchedulerMonitoringAspect {
     private static final String METRIC_NAME_EXECUTION = "scheduler.execution";
     private static final String METRIC_NAME_DURATION = "scheduler.execution.duration";
     private static final String METRIC_NAME_LAST_DURATION = "scheduler.last.duration";
-    private static final String METRIC_NAME_LAST_SUCCESS = "scheduler.last.success.timestamp";
 
     private final MeterRegistry meterRegistry;
-    private final ConcurrentMap<String, AtomicLong> lastSuccessTimestamps = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, AtomicReference<Double>> lastDurations = new ConcurrentHashMap<>();
 
     @Around("@annotation(org.springframework.scheduling.annotation.Scheduled)")
@@ -58,7 +53,6 @@ public class SchedulerMonitoringAspect {
     private void recordSuccess(String schedulerName, long durationNanos) {
         recordDuration(schedulerName, durationNanos);
         recordExecutionCounter(schedulerName, "success");
-        recordLastSuccessTimestamp(schedulerName);
     }
 
     private void recordFailure(String schedulerName, long durationNanos, Throwable throwable) {
@@ -94,14 +88,5 @@ public class SchedulerMonitoringAspect {
             .tag("status", status)
             .register(meterRegistry)
             .increment();
-    }
-
-    private void recordLastSuccessTimestamp(String schedulerName) {
-        AtomicLong lastSuccess = lastSuccessTimestamps.computeIfAbsent(schedulerName, key -> {
-            AtomicLong holder = new AtomicLong(Instant.now().getEpochSecond());
-            meterRegistry.gauge(METRIC_NAME_LAST_SUCCESS, Tags.of("scheduler", key), holder);
-            return holder;
-        });
-        lastSuccess.set(Instant.now().getEpochSecond());
     }
 }

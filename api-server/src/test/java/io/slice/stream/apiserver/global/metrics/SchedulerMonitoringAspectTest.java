@@ -55,10 +55,6 @@ class SchedulerMonitoringAspectTest {
             .gauge();
         assertThat(lastDurationGauge).isNotNull();
         assertThat(lastDurationGauge.value()).isGreaterThanOrEqualTo(0.0);
-
-        assertThat(meterRegistry.find("scheduler.last.success.timestamp")
-            .tag("scheduler", "SampleScheduler")
-            .gauge()).isNotNull();
     }
 
     @Test
