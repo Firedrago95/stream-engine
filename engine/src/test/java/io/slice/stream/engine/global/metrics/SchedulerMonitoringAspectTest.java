@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -49,9 +50,11 @@ class SchedulerMonitoringAspectTest {
             .tag("scheduler", "SampleScheduler")
             .timer()).isNotNull();
 
-        assertThat(meterRegistry.find("scheduler.last.success.timestamp")
+        Gauge lastDurationGauge = meterRegistry.find("scheduler.last.duration")
             .tag("scheduler", "SampleScheduler")
-            .gauge()).isNotNull();
+            .gauge();
+        assertThat(lastDurationGauge).isNotNull();
+        assertThat(lastDurationGauge.value()).isGreaterThanOrEqualTo(0.0);
     }
 
     @Test
@@ -74,6 +77,10 @@ class SchedulerMonitoringAspectTest {
 
         assertThat(failureCounter).isNotNull();
         assertThat(failureCounter.count()).isEqualTo(1.0);
+
+        assertThat(meterRegistry.find("scheduler.last.duration")
+            .tag("scheduler", "SampleScheduler")
+            .gauge()).isNotNull();
     }
 
     static class SampleScheduler {

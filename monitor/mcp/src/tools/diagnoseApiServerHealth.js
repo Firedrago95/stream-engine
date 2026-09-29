@@ -17,11 +17,11 @@ export async function diagnoseApiServerHealth() {
     { key: "http5xxRate", query: `sum(rate(http_server_requests_seconds_count{job="${jobLabel}",status=~"5.."}[5m]))`, required: false },
     { key: "securityBlockedWebhookCount", query: `sum(increase(http_server_requests_seconds_count{job="${jobLabel}",status="403",uri=~".*signals.*"}[1h]))`, required: false },
     { key: "schedulerFailures", query: `sum(increase(scheduler_execution_total{job="${jobLabel}",status="failure"}[1h]))`, required: false },
-    { key: "schedulerZombieSec", query: `max(scheduler_execution_duration_seconds_max{job="${jobLabel}", scheduler="HighlightZombieSessionScheduler"})`, required: false },
-    { key: "schedulerCleanupSec", query: `max(scheduler_execution_duration_seconds_max{job="${jobLabel}", scheduler="StreamSessionCleanupScheduler"})`, required: false },
-    { key: "schedulerLeaderboardSec", query: `max(scheduler_execution_duration_seconds_max{job="${jobLabel}", scheduler="StreamerLeaderboardScheduler"})`, required: false },
-    { key: "schedulerHighlightCleanupSec", query: `max(scheduler_execution_duration_seconds_max{job="${jobLabel}", scheduler="HighlightCleanupScheduler"})`, required: false },
-    { key: "schedulerAnalysisCleanupSec", query: `max(scheduler_execution_duration_seconds_max{job="${jobLabel}", scheduler="AnalysisDataCleanupScheduler"})`, required: false },
+    { key: "schedulerZombieSec", query: `max(scheduler_last_duration_seconds{job="${jobLabel}", scheduler="HighlightZombieSessionScheduler"})`, required: false },
+    { key: "schedulerCleanupSec", query: `max(scheduler_last_duration_seconds{job="${jobLabel}", scheduler="StreamSessionCleanupScheduler"})`, required: false },
+    { key: "schedulerLeaderboardSec", query: `max(scheduler_last_duration_seconds{job="${jobLabel}", scheduler="StreamerLeaderboardScheduler"})`, required: false },
+    { key: "schedulerHighlightCleanupSec", query: `max(scheduler_last_duration_seconds{job="${jobLabel}", scheduler="HighlightCleanupScheduler"})`, required: false },
+    { key: "schedulerAnalysisCleanupSec", query: `max(scheduler_last_duration_seconds{job="${jobLabel}", scheduler="AnalysisDataCleanupScheduler"})`, required: false },
   ];
 
   const results = await Promise.allSettled(
