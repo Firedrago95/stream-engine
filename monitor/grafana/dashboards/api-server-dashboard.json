@@ -372,6 +372,7 @@
               "type": "special"
             }
           ],
+          "noDataText": "0",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -384,8 +385,7 @@
                 "value": 80
               }
             ]
-          },
-          "noDataText": "0"
+          }
         },
         "overrides": []
       },
@@ -640,61 +640,275 @@
         "type": "prometheus",
         "uid": "grafanacloud-prom"
       },
+      "description": "최근 24시간 동안 인입된 모든 API 요청(새벽 일배치 포함)의 상위 5%(p95) 처리 지연 시간입니다. 1초 이하 정상(녹색), 1~3초 주의(노랑), 3초 초과 위험(빨강).",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "mode": "thresholds"
           },
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
                 "color": "green",
-                "value": 0
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
               },
               {
                 "color": "red",
-                "value": 80
+                "value": 3
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*signals.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[수집] 화력 신호 인입 (signals)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*sync.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[수집] 방송 목록 동기화 (sync)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*segments.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[수집] 세그먼트 메타 기록 (segments)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*summaries.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[수집] 세션 요약 저장 (summaries)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*follower-snapshots.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[수집] 팔로워 스냅샷 기록 (follower-snapshots)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*follower-targets.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[수집] 팔로워 수집 대상 (follower-targets)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*/targets.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[수집] 수집 대상 채널 풀 (targets)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*highlights.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[조회] 하이라이트 구간 (highlights)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*available-sessions.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[조회] 분석 가능 세션 (available-sessions)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*history.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[조회] 세션 화력 히스토리 (analysis-history)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*/analysis/.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[조회] 실시간 화력 분석 (analysis)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*/streams/\\{streamId\\}.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[조회] 단일 방송 상세 (stream-detail)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*/streams$"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[조회] 실시간 방송 목록 (streams)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*profile.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[조회] 스트리머 프로필 (profile)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*calendar.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[조회] 방송 캘린더 (calendar)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*sessions.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[조회] 과거 방송 세션 (sessions)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*similarities.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[조회] 유사 스트리머 추천 (similarities)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*follower-trend.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[조회] 팔로워 증감 트렌드 (follower-trend)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*/streamers$"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[조회] 스트리머 목록/랭킹 (streamers)"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*categories.*"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "[조회] 카테고리 랭킹 (categories)"
               }
             ]
           }
-        },
-        "overrides": []
+        ]
       },
       "gridPos": {
         "h": 7,
@@ -704,33 +918,33 @@
       },
       "id": 2,
       "options": {
-        "annotations": {
-          "multiLane": false
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
+        "showUnfilled": true
       },
       "pluginVersion": "13.0.0-22843068776.patch2",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "grafanacloud-prom"
+          },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=\"api-server-oci\"}[5m])) by (le, uri))",
-          "legendFormat": "__auto",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=\"api-server-oci\", uri!~\"/\\\\*\\\\*\"}[24h])) by (le, uri)) > 0",
+          "legendFormat": "{{uri}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "[API] 엔드포인트별 상위 5% 지연 시간 (p95 Latency)",
-      "type": "timeseries"
+      "title": "[API] 엔드포인트별 24시간 p95 지연 시간 (경고: 1s / 위험: 3s)",
+      "type": "bargauge"
     },
     {
       "datasource": {
@@ -897,8 +1111,8 @@
             "lineInterpolation": "smooth",
             "lineWidth": 2
           },
-          "unit": "reqps",
-          "noDataText": "0"
+          "noDataText": "0",
+          "unit": "reqps"
         },
         "overrides": [
           {
@@ -972,11 +1186,14 @@
         "type": "prometheus",
         "uid": "grafanacloud-prom"
       },
+      "description": "작업별 병목 임계 기준(Max SLA) 대비 실측 소요 시간. 24시간/주간 대용량 배치는 30~60초, 60초 주기 작업은 10초 초과 시 병목으로 판정합니다.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
           },
+          "max": 30,
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -994,9 +1211,7 @@
               }
             ]
           },
-          "unit": "s",
-          "min": 0,
-          "max": 30
+          "unit": "s"
         },
         "overrides": [
           {
@@ -1286,8 +1501,7 @@
         }
       ],
       "title": "[스케줄러] 작업별 최대 소요 시간 및 병목 상한 기준",
-      "type": "bargauge",
-      "description": "작업별 병목 임계 기준(Max SLA) 대비 실측 소요 시간. 24시간/주간 대용량 배치는 30~60초, 60초 주기 작업은 10초 초과 시 병목으로 판정합니다."
+      "type": "bargauge"
     },
     {
       "datasource": {
@@ -1430,6 +1644,6 @@
   "timezone": "browser",
   "title": "api-server",
   "uid": "ek899fv",
-  "version": 19,
+  "version": 25,
   "weekStart": ""
 }
