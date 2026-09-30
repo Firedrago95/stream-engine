@@ -1,6 +1,7 @@
 package io.slice.stream.engine.sampler.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.slice.stream.engine.sampler.application.dto.SamplingStatusResponse;
 import io.slice.stream.engine.sampler.application.dto.StartSamplingRequest;
 import io.slice.stream.engine.sampler.domain.ChatSampleMessage;
@@ -25,6 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -48,11 +50,11 @@ public class ChatSamplerService {
 
     public ChatSamplerService(
             ChatSampleUploader uploader,
-            ObjectMapper objectMapper,
+            @Autowired(required = false) ObjectMapper objectMapper,
             @Value("${chat.sampler.temp-dir:data/chat-samples}") String tempDir
     ) {
         this.uploader = uploader;
-        this.objectMapper = objectMapper;
+        this.objectMapper = (objectMapper != null) ? objectMapper : createDefaultObjectMapper();
         this.tempDir = tempDir;
         this.activeSessions = new ConcurrentHashMap<>();
         this.messageQueue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
@@ -215,6 +217,10 @@ public class ChatSamplerService {
                 droppedMessages.get(),
                 sessionDetails
         );
+    }
+
+    private static ObjectMapper createDefaultObjectMapper() {
+        return new ObjectMapper().registerModule(new JavaTimeModule());
     }
 
     private record SamplerSession(

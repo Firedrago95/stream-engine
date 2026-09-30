@@ -1,8 +1,11 @@
 package io.slice.stream.engine.sampler.infrastructure;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.slice.stream.engine.sampler.domain.ChatSampleUploader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +15,12 @@ import org.springframework.context.annotation.Configuration;
 public class ChatSamplerConfig {
 
     private static final Logger log = LoggerFactory.getLogger(ChatSamplerConfig.class);
+
+    @Bean
+    @ConditionalOnMissingBean(ObjectMapper.class)
+    public ObjectMapper chatSamplerObjectMapper() {
+        return new ObjectMapper().registerModule(new JavaTimeModule());
+    }
 
     @Bean
     public ChatSampleUploader chatSampleUploader(GoogleDriveProperties properties) {
