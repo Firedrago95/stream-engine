@@ -24,6 +24,7 @@ import io.slice.stream.engine.analyzer.domain.aggregation.ChatSummary;
 import io.slice.stream.engine.core.event.StreamChangedEvent;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSessionSummary;
+import io.slice.stream.engine.sampler.application.ChatSamplerService;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -52,12 +53,20 @@ class ChatAggregationServiceTest {
     @Mock
     private ApiServerClient apiServerClient;
 
+    @Mock
+    private ChatSamplerService chatSamplerService;
+
     private ChatAggregationService chatAggregationService;
 
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
-        chatAggregationService = new ChatAggregationService(chatRoomAggregationRepository, apiServerClient, meterRegistry);
+        chatAggregationService = new ChatAggregationService(
+                chatRoomAggregationRepository,
+                apiServerClient,
+                chatSamplerService,
+                meterRegistry
+        );
     }
 
     private ChatMessage createChatMessage(String streamId, Instant time) {

@@ -15,6 +15,8 @@ import io.slice.stream.engine.analyzer.domain.aggregation.ChatSummary;
 import io.slice.stream.engine.core.event.StreamChangedEvent;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.ApiServerClient;
 import io.slice.stream.engine.ingestion.infrastructure.apiServer.dto.StreamSessionSummary;
+import io.slice.stream.engine.sampler.application.ChatSamplerService;
+import io.slice.stream.engine.sampler.domain.ChatSampleMessage;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -30,15 +32,18 @@ public class ChatAggregationService {
     private final Cache<String, ChatRoomAggregation> chatRoomAggregations;
     private final ChatRoomAggregationRepository chatRoomAggregationRepository;
     private final ApiServerClient apiServerClient;
+    private final ChatSamplerService chatSamplerService;
     private final Counter redisSaveErrorCounter;
 
     public ChatAggregationService(
         ChatRoomAggregationRepository chatRoomAggregationRepository,
         ApiServerClient apiServerClient,
+        ChatSamplerService chatSamplerService,
         MeterRegistry registry
     ) {
         this.chatRoomAggregationRepository = chatRoomAggregationRepository;
         this.apiServerClient = apiServerClient;
+        this.chatSamplerService = chatSamplerService;
         this.redisSaveErrorCounter = Counter.builder("engine.redis.save.errors")
             .description("Redis TimeSeries 화력 저장 실패 누적 수")
             .register(registry);
@@ -68,6 +73,16 @@ public class ChatAggregationService {
             chatMessage.time(),
             chatMessage.author() != null && chatMessage.author().isSubscriber()
         );
+
+        if (chatSamplerService.isSampling(streamId)) {
+            chatSamplerService.record(new ChatSampleMessage(
+                chatMessage.time(),
+                streamId,
+                "",
+                chatMessage.message(),
+                chatMessage.author() != null && chatMessage.author().isSubscriber()
+            ));
+        }
     }
 
     @Scheduled(fixedRate = 3_000)
@@ -135,6 +150,8 @@ public class ChatAggregationService {
             saveToRepository(closedStreamId, aggregation);
             chatRoomAggregations.invalidate(closedStreamId);
         }
+
+        chatSamplerService.finishSession(closedStreamId, "STREAM_CLOSED");
 
         Optional<ChatSummary> summaryOpt = chatRoomAggregationRepository.findSummaryByStreamId(closedStreamId);
         if (summaryOpt.isPresent()) {
