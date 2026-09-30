@@ -37,7 +37,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import io.slice.stream.engine.analyzer.fake.FakeStreamerChatterRepository;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -47,8 +46,6 @@ class ChatAggregationServiceTest {
 
     @Mock
     private ChatRoomAggregationRepository chatRoomAggregationRepository;
-
-    private FakeStreamerChatterRepository streamerChatterRepository;
 
     private MeterRegistry meterRegistry;
 
@@ -60,13 +57,7 @@ class ChatAggregationServiceTest {
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
-        streamerChatterRepository = new FakeStreamerChatterRepository();
-        chatAggregationService = new ChatAggregationService(
-            chatRoomAggregationRepository,
-            streamerChatterRepository,
-            apiServerClient,
-            meterRegistry
-        );
+        chatAggregationService = new ChatAggregationService(chatRoomAggregationRepository, apiServerClient, meterRegistry);
     }
 
     private ChatMessage createChatMessage(String streamId, Instant time) {
@@ -355,66 +346,5 @@ class ChatAggregationServiceTest {
         verify(apiServerClient, times(1)).sendSessionSummaryAsync(captor.capture());
         assertThat(captor.getValue().streamId()).isEqualTo(successStreamId);
         verify(chatRoomAggregationRepository, times(1)).deleteSummary(successStreamId);
-    }
-
-    @Test
-    void saveChatterHashes_호출_시_누적된_고유_유저_해시가_레포지토리에_저장되고_로컬은_초기화된다() {
-        String streamId = "streamUserTest";
-        Instant now = Instant.now();
-        String hash1 = "fa8c6805239ef5373686740f5afb2036";
-        String hash2 = "19e3b97ca1bca954d1ac84cf6862e0dc";
-
-        ChatMessage msg1 = new ChatMessage(null, new Author(hash1, "유저1", null, false), "안녕", now, streamId, 0L, null);
-        ChatMessage msg2 = new ChatMessage(null, new Author(hash2, "유저2", null, false), "반가워", now, streamId, 0L, null);
-        chatAggregationService.aggregate(msg1);
-        chatAggregationService.aggregate(msg2);
-
-        chatAggregationService.saveChatterHashes();
-
-        String currentYearWeek = chatAggregationService.calculateCurrentYearWeek();
-        Set<Long> saved = streamerChatterRepository.findChatters(streamId, currentYearWeek);
-        assertThat(saved).hasSize(2);
-
-        ChatRoomAggregation aggregation = chatAggregationService.getAggregationFor(streamId);
-        assertThat(aggregation.drainUserHashes()).isEmpty();
-    }
-
-    @Test
-    void 방종_이벤트_발생_시_남아있는_유저_해시_델타도_함께_레포지토리에_저장된다() {
-        String streamId = "streamCloseTest";
-        Instant now = Instant.now();
-        String hash = "fa8c6805239ef5373686740f5afb2036";
-
-        ChatMessage msg = new ChatMessage(null, new Author(hash, "유저", null, false), "마지막 채팅", now, streamId, 0L, null);
-        chatAggregationService.aggregate(msg);
-
-        when(chatRoomAggregationRepository.findSummaryByStreamId(streamId))
-            .thenReturn(Optional.of(new ChatSummary(10L, 2L)));
-
-        StreamTarget closedTarget = new StreamTarget(streamId, "스트리머", "chat1", 999L, "방종", 50, "url", "cat", Instant.EPOCH);
-        StreamChangedEvent event = new StreamChangedEvent(Collections.emptySet(), Set.of(closedTarget), now);
-
-        chatAggregationService.handleStreamChangedEvent(event);
-
-        String currentYearWeek = chatAggregationService.calculateCurrentYearWeek();
-        Set<Long> saved = streamerChatterRepository.findChatters(streamId, currentYearWeek);
-        assertThat(saved).hasSize(1);
-    }
-
-    @Test
-    void 익명_유저나_null_해시의_채팅은_유저_해시_Set에_추가되지_않는다() {
-        String streamId = "anonymousStream";
-        Instant now = Instant.now();
-
-        ChatMessage anonMsg = new ChatMessage(null, new Author("anonymous", "익명", null, false), "익명채팅", now, streamId, 0L, null);
-        ChatMessage nullMsg = new ChatMessage(null, new Author(null, "익명2", null, false), "null채팅", now, streamId, 0L, null);
-        chatAggregationService.aggregate(anonMsg);
-        chatAggregationService.aggregate(nullMsg);
-
-        chatAggregationService.saveChatterHashes();
-
-        String currentYearWeek = chatAggregationService.calculateCurrentYearWeek();
-        Set<Long> saved = streamerChatterRepository.findChatters(streamId, currentYearWeek);
-        assertThat(saved).isEmpty();
     }
 }

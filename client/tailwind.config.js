@@ -9,6 +9,10 @@ export default {
           dark: '#0C0D0E',
           card: '#1B1C1E',
           hover: '#252629'
+        },
+        gray: {
+          400: '#e5e7eb',
+          500: '#d1d5db',
         }
       },
       boxShadow: {
