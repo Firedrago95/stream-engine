@@ -11,8 +11,6 @@ public final class Rediskeys {
     public static final long CHAT_SUMMARY_TTL_SECONDS = 86400L;
     public static final String CHAT_SUMMARY_FIELD_TOTAL = "totalChatCount";
     public static final String CHAT_SUMMARY_FIELD_SUBSCRIBER = "subscriberChatCount";
-    public static final String STREAMER_CHATTERS_PREFIX = "streamer:chatters:%s:%s";
-    public static final long STREAMER_CHATTERS_TTL_SECONDS = 35 * 86400L;
 
     private Rediskeys() {
     }
