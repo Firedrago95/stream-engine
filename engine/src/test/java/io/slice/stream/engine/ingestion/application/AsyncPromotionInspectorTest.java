@@ -14,6 +14,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class AsyncPromotionInspectorTest {
 
@@ -87,5 +89,51 @@ class AsyncPromotionInspectorTest {
 
         assertThat(finished).isTrue();
         assertThat(apiServerClient.getLastRecordedSegments()).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "#광고 신작 게임 플레이",
+        "[숙제] 모바일 신작 찍먹",
+        "오늘의 게임 광고방송",
+        "[AD] 대규모 업데이트 기념",
+        "숙제 진행합니다",
+        "신작 오픈 (ad 포함)"
+    })
+    @DisplayName("방제에 광고, 숙제, AD 키워드가 포함되어 있으면 치지직 API가 false를 반환해도 유료 프로모션 true로 보정된다")
+    void shouldCorrectToPaidPromotionTrueWhenTitleHasAdKeywordsEvenIfChzzkApiReturnsFalse(String adTitle) throws Exception {
+        FakeStreamDiscoveryClient discoveryClient = new FakeStreamDiscoveryClient();
+        FakeStreamRepository streamRepository = new FakeStreamRepository();
+        FakeApiServerClient apiServerClient = new FakeApiServerClient();
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+        StreamTarget detailedTarget = new StreamTarget(
+            "ch1", "스트리머1", "chat1", 100L, adTitle, 500, null, "게임", Instant.EPOCH, false, false
+        );
+        discoveryClient.addDetailedStream(detailedTarget);
+        streamRepository.addActiveTarget(detailedTarget);
+
+        AsyncPromotionInspector inspector = new AsyncPromotionInspector(
+            discoveryClient,
+            streamRepository,
+            apiServerClient,
+            executorService
+        );
+
+        ChangedStream changedStream = new ChangedStream(
+            "ch1", "100", "이전 일반 방제", adTitle, "소통", "게임", Instant.now(), 5000L, false
+        );
+
+        inspector.inspectChangedStreamsAsync(List.of(changedStream));
+
+        executorService.shutdown();
+        boolean finished = executorService.awaitTermination(3, TimeUnit.SECONDS);
+
+        assertThat(finished).isTrue();
+        assertThat(apiServerClient.getLastRecordedSegments()).hasSize(1);
+        ChangedStream recorded = apiServerClient.getLastRecordedSegments().get(0);
+        assertThat(recorded.streamId()).isEqualTo("ch1");
+        assertThat(recorded.paidPromotion()).isTrue();
+        assertThat(streamRepository.getStreamTargets(List.of("ch1")).get(0).paidPromotion()).isTrue();
     }
 }

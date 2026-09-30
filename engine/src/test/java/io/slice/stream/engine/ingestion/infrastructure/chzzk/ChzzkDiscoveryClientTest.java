@@ -151,20 +151,22 @@ class ChzzkDiscoveryClientTest {
         ChzzkLive live1 = new ChzzkLive(1001L, "일반 방송", "url", "게임", "chatCh1", 5000, false, true, null, new Channel("ch1", "스트리머A", "imageUrl"));
         ChzzkLive live2 = new ChzzkLive(1002L, "신작 게임 광고 방송", "url", "게임", "chatCh2", 4000, false, false, null, new Channel("ch2", "스트리머B", "imageUrl"));
         ChzzkLive live3 = new ChzzkLive(1003L, "오늘의 숙제 진행합니다", "url", "게임", "chatCh3", 3000, false, false, null, new Channel("ch3", "스트리머C", "imageUrl"));
-        ChzzkLive live4 = new ChzzkLive(1004L, "순수 소통 방송", "url", "소통", "chatCh4", 2000, false, false, null, new Channel("ch4", "스트리머D", "imageUrl"));
+        ChzzkLive live4 = new ChzzkLive(1004L, "[AD] 신작 오픈", "url", "게임", "chatCh4", 2500, false, false, null, new Channel("ch4", "스트리머D", "imageUrl"));
+        ChzzkLive live5 = new ChzzkLive(1005L, "순수 소통 방송", "url", "소통", "chatCh5", 2000, false, false, null, new Channel("ch5", "스트리머E", "imageUrl"));
 
-        ChzzkLiveResponse topLiveResponse = createMockResponse(List.of(live1, live2, live3, live4), null, null);
+        ChzzkLiveResponse topLiveResponse = createMockResponse(List.of(live1, live2, live3, live4, live5), null, null);
         mockServer.expect(requestTo(buildTopLiveApiUri(50, null, null)))
             .andRespond(withSuccess(objectMapper.writeValueAsString(topLiveResponse), MediaType.APPLICATION_JSON));
 
         List<StreamTarget> result = chzzkDiscoveryClient.fetchTopLiveStreams(200);
 
         mockServer.verify();
-        assertThat(result).hasSize(4);
+        assertThat(result).hasSize(5);
         assertThat(result.get(0).paidPromotion()).isTrue();
         assertThat(result.get(1).paidPromotion()).isTrue();
         assertThat(result.get(2).paidPromotion()).isTrue();
-        assertThat(result.get(3).paidPromotion()).isFalse();
+        assertThat(result.get(3).paidPromotion()).isTrue();
+        assertThat(result.get(4).paidPromotion()).isFalse();
     }
 
     @Test

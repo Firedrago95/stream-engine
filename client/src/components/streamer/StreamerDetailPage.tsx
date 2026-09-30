@@ -46,7 +46,6 @@ export const StreamerDetailPage: React.FC = () => {
   const [sessionTotalPages, setSessionTotalPages] = useState(0);
   const [sessionTotalElements, setSessionTotalElements] = useState(0);
   const [sessionsLoading, setSessionsLoading] = useState(true);
-  const [paidPromotionOnly, setPaidPromotionOnly] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -73,7 +72,7 @@ export const StreamerDetailPage: React.FC = () => {
     if (!channelId) return;
 
     setSessionsLoading(true);
-    const url = `${API_BASE_URL}/api/v1/streamers/${channelId}/sessions?page=${sessionPage}&size=10${paidPromotionOnly ? '&paidPromotionOnly=true' : ''}`;
+    const url = `${API_BASE_URL}/api/v1/streamers/${channelId}/sessions?page=${sessionPage}&size=10`;
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
@@ -86,7 +85,7 @@ export const StreamerDetailPage: React.FC = () => {
         console.error('세션 전적 조회 실패', err);
         setSessionsLoading(false);
       });
-  }, [channelId, sessionPage, paidPromotionOnly]);
+  }, [channelId, sessionPage]);
 
   if (error) {
     return (
@@ -269,11 +268,6 @@ export const StreamerDetailPage: React.FC = () => {
         onPageChange={setSessionPage}
         onSessionClick={(sessionId) => navigate(`/streams/${channelId}?sessionId=${encodeURIComponent(sessionId)}`)}
         isLoading={sessionsLoading}
-        paidPromotionOnly={paidPromotionOnly}
-        onTogglePaidPromotionOnly={(val) => {
-          setPaidPromotionOnly(val);
-          setSessionPage(0);
-        }}
       />
     </div>
   );
