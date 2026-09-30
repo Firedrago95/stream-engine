@@ -19,16 +19,11 @@ class CacheConfigTest {
 
         Cache activeSessionsCache = cacheManager.getCache("activeSessions");
         Cache targetChannelsCache = cacheManager.getCache("targetChannels");
-        Cache similarityCache = cacheManager.getCache("streamerSimilarities");
 
         assertThat(activeSessionsCache).isNotNull();
         assertThat(targetChannelsCache).isNotNull();
-        assertThat(similarityCache).isNotNull();
 
         targetChannelsCache.put("key", "test-value");
         assertThat(targetChannelsCache.get("key", String.class)).isEqualTo("test-value");
-
-        similarityCache.put("streamer_1", "test-similarity");
-        assertThat(similarityCache.get("streamer_1", String.class)).isEqualTo("test-similarity");
     }
 }
