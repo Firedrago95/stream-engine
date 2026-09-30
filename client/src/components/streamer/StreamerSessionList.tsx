@@ -23,8 +23,6 @@ interface StreamerSessionListProps {
   onPageChange: (newPage: number) => void;
   onSessionClick?: (sessionId: string) => void;
   isLoading: boolean;
-  paidPromotionOnly?: boolean;
-  onTogglePaidPromotionOnly?: (paidOnly: boolean) => void;
 }
 
 const formatDuration = (seconds: number) => {
@@ -58,8 +56,6 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
   onPageChange,
   onSessionClick,
   isLoading,
-  paidPromotionOnly = false,
-  onTogglePaidPromotionOnly,
 }) => {
   if (isLoading) {
     return (
@@ -81,38 +77,11 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
             총 {totalElements.toLocaleString()}개 방송
           </span>
         </div>
-
-        {onTogglePaidPromotionOnly && (
-          <div className="flex items-center bg-[#0e0e10] p-1 rounded-xl border border-gray-800 text-xs font-bold">
-            <button
-              onClick={() => onTogglePaidPromotionOnly(false)}
-              className={`px-3 py-1 rounded-lg transition-all ${
-                !paidPromotionOnly
-                  ? 'bg-[#1e1e24] text-white shadow-sm'
-                  : 'text-gray-400 hover:text-gray-200'
-              }`}
-            >
-              전체 세션
-            </button>
-            <button
-              onClick={() => onTogglePaidPromotionOnly(true)}
-              className={`px-3 py-1 rounded-lg flex items-center gap-1.5 transition-all ${
-                paidPromotionOnly
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
-                  : 'text-gray-400 hover:text-amber-300'
-              }`}
-            >
-              <span>🏷️</span> 유료 프로모션만
-            </button>
-          </div>
-        )}
       </div>
 
       {!sessions || sessions.length === 0 ? (
         <div className="p-8 bg-[#0e0e10] border border-gray-800/80 rounded-xl text-center text-gray-200 font-medium text-sm">
-          {paidPromotionOnly
-            ? '유료 프로모션(광고/숙제) 방송 세션 기록이 없습니다.'
-            : '과거 방송 세션 기록이 없습니다.'}
+          과거 방송 세션 기록이 없습니다.
         </div>
       ) : (
         <div className="space-y-3">
@@ -138,11 +107,6 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
                   <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#1e1e24] text-[#67BFFF] border border-gray-800 truncate">
                     {sess.categoryName || '기타'}
                   </span>
-                  {sess.paidPromotion && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                      <span>🏷️</span> 유료 광고
-                    </span>
-                  )}
                   {!sess.endedAt && (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 animate-pulse">
                       LIVE
