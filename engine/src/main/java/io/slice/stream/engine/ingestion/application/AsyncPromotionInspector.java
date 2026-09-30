@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -19,6 +20,8 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class AsyncPromotionInspector {
+
+    private static final Pattern AD_KEYWORD_PATTERN = Pattern.compile("(?i).*(광고|숙제|\\bAD\\b).*", Pattern.DOTALL);
 
     private final StreamDiscoveryClient streamDiscoveryClient;
     private final StreamRepository streamRepository;
@@ -43,16 +46,16 @@ public class AsyncPromotionInspector {
             }
 
             StreamTarget target = detailedTargets.get(0);
-            Boolean latestPaidPromotion = target.paidPromotion();
+            boolean latestPaidPromotion = isPromotionTarget(target.paidPromotion(), changed.newTitle());
 
-            log.info("[비동기 광고 확인] 스트림: {}, 방제: '{}', 카테고리: '{}', 치지직 최신광고상태: {}, 이전감지상태: {}",
-                changed.streamId(), changed.newTitle(), changed.newCategory(), latestPaidPromotion, changed.paidPromotion());
+            log.info("[비동기 광고 확인] 스트림: {}, 방제: '{}', 카테고리: '{}', 치지직 최신광고상태: {}, 최종광고상태: {}, 이전감지상태: {}",
+                changed.streamId(), changed.newTitle(), changed.newCategory(), target.paidPromotion(), latestPaidPromotion, changed.paidPromotion());
 
             if (!Objects.equals(latestPaidPromotion, changed.paidPromotion())) {
                 log.info("[광고 상태 보정] 스트림: {}, 상태 변경: {} -> {}",
                     changed.streamId(), changed.paidPromotion(), latestPaidPromotion);
 
-                streamRepository.updatePaidPromotion(changed.streamId(), Boolean.TRUE.equals(latestPaidPromotion));
+                streamRepository.updatePaidPromotion(changed.streamId(), latestPaidPromotion);
 
                 ChangedStream corrected = new ChangedStream(
                     changed.streamId(),
@@ -71,5 +74,16 @@ public class AsyncPromotionInspector {
         } catch (Exception e) {
             log.warn("[비동기 광고 확인 실패] 스트림: {}, 사유: {}", changed.streamId(), e.getMessage());
         }
+    }
+
+    private boolean isPromotionTarget(Boolean chzzkPaidPromotion, String title) {
+        return Boolean.TRUE.equals(chzzkPaidPromotion) || hasAdKeyword(title);
+    }
+
+    private boolean hasAdKeyword(String title) {
+        if (title == null || title.isBlank()) {
+            return false;
+        }
+        return AD_KEYWORD_PATTERN.matcher(title).matches();
     }
 }

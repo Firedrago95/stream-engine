@@ -13,11 +13,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 @Component
 public class StreamUpdateAnalyzer {
+
+    private static final Pattern AD_KEYWORD_PATTERN = Pattern.compile("(?i).*(광고|숙제|\\bAD\\b).*", Pattern.DOTALL);
 
     public StreamUpdateResults analyze(
         List<StreamTarget> currentTargets,
@@ -67,15 +69,18 @@ public class StreamUpdateAnalyzer {
     }
 
     private boolean isMetadataChanged(StreamTarget oldTarget, StreamTarget newTarget) {
+        boolean oldPaid = isPaidPromotion(oldTarget);
+        boolean newPaid = isPaidPromotion(newTarget);
         return !Objects.equals(oldTarget.liveTitle(), newTarget.liveTitle()) ||
             !Objects.equals(oldTarget.categoryName(), newTarget.categoryName()) ||
-            !Objects.equals(oldTarget.paidPromotion(), newTarget.paidPromotion());
+            !Objects.equals(oldPaid, newPaid);
     }
 
     private ChangedStream createChangedStream(StreamTarget oldTarget, StreamTarget newTarget, Instant changedAt) {
         Long changedOffsetMs = newTarget.startedAt() != null
             ? Duration.between(newTarget.startedAt(), changedAt).toMillis()
             : null;
+        boolean paidPromotion = isPaidPromotion(newTarget);
         return new ChangedStream(
             newTarget.channelId(),
             String.valueOf(newTarget.liveId()),
@@ -85,7 +90,21 @@ public class StreamUpdateAnalyzer {
             newTarget.categoryName(),
             changedAt,
             changedOffsetMs,
-            newTarget.paidPromotion()
+            paidPromotion
         );
+    }
+
+    private boolean isPaidPromotion(StreamTarget target) {
+        if (target == null) {
+            return false;
+        }
+        return Boolean.TRUE.equals(target.paidPromotion()) || hasAdKeyword(target.liveTitle());
+    }
+
+    private boolean hasAdKeyword(String title) {
+        if (title == null || title.isBlank()) {
+            return false;
+        }
+        return AD_KEYWORD_PATTERN.matcher(title).matches();
     }
 }

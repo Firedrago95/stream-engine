@@ -21,6 +21,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,6 +39,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 @RequiredArgsConstructor
 public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
 
+    private static final Pattern AD_KEYWORD_PATTERN = Pattern.compile("(?i).*(광고|숙제|\\bAD\\b).*", Pattern.DOTALL);
     private static final int MIN_CONCURRENT_USERS = 10;
 
     private final RestClient restClient;
@@ -131,13 +133,14 @@ public class ChzzkDiscoveryClient implements StreamDiscoveryClient {
     }
 
     private boolean isPaidPromotion(Boolean paidPromotionFlag, String title) {
-        if (Boolean.TRUE.equals(paidPromotionFlag)) {
-            return true;
-        }
-        if (title == null) {
+        return Boolean.TRUE.equals(paidPromotionFlag) || hasAdKeyword(title);
+    }
+
+    private boolean hasAdKeyword(String title) {
+        if (title == null || title.isBlank()) {
             return false;
         }
-        return title.contains("광고") || title.contains("숙제");
+        return AD_KEYWORD_PATTERN.matcher(title).matches();
     }
 
     private List<ChzzkLive> fetchTopLives() {

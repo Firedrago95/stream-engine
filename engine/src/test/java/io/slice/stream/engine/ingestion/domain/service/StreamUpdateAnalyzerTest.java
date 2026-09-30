@@ -108,4 +108,42 @@ class StreamUpdateAnalyzerTest {
         ChangedStream changed = results.changedStreams().iterator().next();
         assertThat(changed.paidPromotion()).isTrue();
     }
+
+    @Test
+    void 치지직_paidPromotion이_false여도_새_방제에_광고_키워드가_포함되면_paidPromotion_true로_변경_감지된다() {
+        Instant startTime = Instant.now().minusSeconds(3600);
+        Instant changedAt = Instant.now();
+
+        StreamTarget oldTarget = new StreamTarget("channel1", "침착맨", "chat1", 100L, "일반 방송", 1200, "thumb1.jpg", "게임", startTime, false, false);
+        StreamTarget newTarget = new StreamTarget("channel1", "침착맨", "chat1", 100L, "[AD] 신작 게임 플레이", 1200, "thumb1.jpg", "게임", startTime, false, false);
+
+        List<StreamTarget> currentTargets = List.of(newTarget);
+        Set<String> activeChannelIds = Set.of("channel1");
+        List<StreamTarget> oldTargets = List.of(oldTarget);
+
+        StreamUpdateResults results = analyzer.analyze(currentTargets, activeChannelIds, oldTargets, changedAt);
+
+        assertThat(results.changedStreams()).hasSize(1);
+        ChangedStream changed = results.changedStreams().iterator().next();
+        assertThat(changed.paidPromotion()).isTrue();
+    }
+
+    @Test
+    void 방제나_카테고리_문자열이_동일해도_방제에_광고_키워드가_있으면_paidPromotion은_true로_생성된다() {
+        Instant startTime = Instant.now().minusSeconds(3600);
+        Instant changedAt = Instant.now();
+
+        StreamTarget oldTarget = new StreamTarget("channel1", "침착맨", "chat1", 100L, "숙제 방송", 1200, "thumb1.jpg", "소통", startTime, false, true);
+        StreamTarget newTarget = new StreamTarget("channel1", "침착맨", "chat1", 100L, "숙제 방송", 1200, "thumb1.jpg", "게임", startTime, false, false);
+
+        List<StreamTarget> currentTargets = List.of(newTarget);
+        Set<String> activeChannelIds = Set.of("channel1");
+        List<StreamTarget> oldTargets = List.of(oldTarget);
+
+        StreamUpdateResults results = analyzer.analyze(currentTargets, activeChannelIds, oldTargets, changedAt);
+
+        assertThat(results.changedStreams()).hasSize(1);
+        ChangedStream changed = results.changedStreams().iterator().next();
+        assertThat(changed.paidPromotion()).isTrue();
+    }
 }
