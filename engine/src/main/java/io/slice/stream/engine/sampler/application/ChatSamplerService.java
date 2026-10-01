@@ -51,6 +51,7 @@ public class ChatSamplerService {
     private final AtomicBoolean running;
     private final Thread workerThread;
 
+    @Autowired
     public ChatSamplerService(
             ChatSampleUploader uploader,
             @Autowired(required = false) ObjectMapper objectMapper,
@@ -69,14 +70,6 @@ public class ChatSamplerService {
         this.workerThread = Thread.ofVirtual()
                 .name("chat-sampler-worker")
                 .start(this::consumeQueue);
-    }
-
-    public ChatSamplerService(
-            ChatSampleUploader uploader,
-            ObjectMapper objectMapper,
-            String tempDir
-    ) {
-        this(uploader, objectMapper, null, tempDir);
     }
 
     public boolean isSampling(String channelId) {
