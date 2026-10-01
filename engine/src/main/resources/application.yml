@@ -131,9 +131,3 @@ chat:
   sampler:
     temp-dir: "data/chat-samples"
 
-google:
-  drive:
-    enabled: ${GOOGLE_DRIVE_ENABLED:false}
-    folder-id: ${GOOGLE_DRIVE_FOLDER_ID:1EHrPLDWtyp7QknE81P1obF1dpJQS1GiD}
-    credentials-path: ${GOOGLE_DRIVE_CREDENTIALS_PATH:gdrive-key.json}
-    credentials-json: ${GOOGLE_DRIVE_CREDENTIALS_JSON:}

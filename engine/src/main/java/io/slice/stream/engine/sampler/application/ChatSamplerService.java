@@ -2,6 +2,8 @@ package io.slice.stream.engine.sampler.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import io.slice.stream.core.model.StreamTarget;
+import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
 import io.slice.stream.engine.sampler.application.dto.SamplingStatusResponse;
 import io.slice.stream.engine.sampler.application.dto.StartSamplingRequest;
 import io.slice.stream.engine.sampler.domain.ChatSampleMessage;
@@ -42,6 +44,7 @@ public class ChatSamplerService {
     private final ChatSampleUploader uploader;
     private final ObjectMapper objectMapper;
     private final String tempDir;
+    private final StreamRepository streamRepository;
     private final Map<String, SamplerSession> activeSessions;
     private final BlockingQueue<ChatSampleMessage> messageQueue;
     private final AtomicLong droppedMessages;
@@ -51,10 +54,12 @@ public class ChatSamplerService {
     public ChatSamplerService(
             ChatSampleUploader uploader,
             @Autowired(required = false) ObjectMapper objectMapper,
+            @Autowired(required = false) StreamRepository streamRepository,
             @Value("${chat.sampler.temp-dir:data/chat-samples}") String tempDir
     ) {
         this.uploader = uploader;
         this.objectMapper = (objectMapper != null) ? objectMapper : createDefaultObjectMapper();
+        this.streamRepository = streamRepository;
         this.tempDir = tempDir;
         this.activeSessions = new ConcurrentHashMap<>();
         this.messageQueue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
@@ -64,6 +69,14 @@ public class ChatSamplerService {
         this.workerThread = Thread.ofVirtual()
                 .name("chat-sampler-worker")
                 .start(this::consumeQueue);
+    }
+
+    public ChatSamplerService(
+            ChatSampleUploader uploader,
+            ObjectMapper objectMapper,
+            String tempDir
+    ) {
+        this(uploader, objectMapper, null, tempDir);
     }
 
     public boolean isSampling(String channelId) {
@@ -97,21 +110,48 @@ public class ChatSamplerService {
                 log.info("이미 샘플링 중인 채널입니다: {}", channelId);
                 continue;
             }
-            createSession(channelId, request.tag(), now, expiresAt);
+            String streamerName = resolveStreamerName(channelId, request.streamerNames());
+            createSession(channelId, streamerName, request.tag(), now, expiresAt);
         }
     }
 
-    private void createSession(String channelId, String tag, Instant startedAt, Instant expiresAt) {
+    private String resolveStreamerName(String channelId, Map<String, String> customNames) {
+        if (customNames != null && customNames.containsKey(channelId) && !customNames.get(channelId).isBlank()) {
+            return customNames.get(channelId);
+        }
+        if (streamRepository != null) {
+            try {
+                List<StreamTarget> targets = streamRepository.getStreamTargets(List.of(channelId));
+                if (targets != null && !targets.isEmpty() && targets.get(0).channelName() != null && !targets.get(0).channelName().isBlank()) {
+                    return targets.get(0).channelName();
+                }
+            } catch (Exception e) {
+                log.warn("스트리머 이름 조회 실패 (채널: {}): {}", channelId, e.getMessage());
+            }
+        }
+        return channelId;
+    }
+
+    private String sanitizeFileName(String name) {
+        if (name == null || name.isBlank()) {
+            return "unknown";
+        }
+        return name.replaceAll("[\\\\/:*?\"<>|\\s]", "_");
+    }
+
+    private void createSession(String channelId, String streamerName, String tag, Instant startedAt, Instant expiresAt) {
         String safeTag = (tag != null && !tag.isBlank()) ? tag : "sample";
+        String safeStreamerName = sanitizeFileName(streamerName);
         String fileName = String.format("%s_%s_%s.jsonl.gz",
-                safeTag, channelId, FILE_DATE_FORMAT.format(startedAt));
+                safeTag, safeStreamerName, FILE_DATE_FORMAT.format(startedAt));
         File targetFile = new File(tempDir, fileName);
 
         try {
             LocalChatSampleWriter writer = new LocalChatSampleWriter(targetFile, objectMapper);
-            SamplerSession session = new SamplerSession(channelId, safeTag, startedAt, expiresAt, writer, fileName);
+            SamplerSession session = new SamplerSession(channelId, streamerName, safeTag, startedAt, expiresAt, writer, fileName);
             activeSessions.put(channelId, session);
-            log.info("채팅 샘플링 세션 시작: 채널={}, 파일={}, 만료={}", channelId, fileName, expiresAt);
+            log.info("채팅 샘플링 세션 시작: 채널={}, 스트리머={}, 파일={}, 만료={}",
+                    channelId, streamerName, fileName, expiresAt);
         } catch (IOException e) {
             log.error("채팅 샘플링 세션 생성 실패 (채널: {}): {}", channelId, e.getMessage(), e);
         }
@@ -202,7 +242,7 @@ public class ChatSamplerService {
         List<SamplingStatusResponse.SessionDetail> sessionDetails = activeSessions.values().stream()
                 .map(s -> new SamplingStatusResponse.SessionDetail(
                         s.channelId(),
-                        "",
+                        s.streamerName(),
                         s.tag(),
                         s.startedAt(),
                         s.expiresAt(),
@@ -225,6 +265,7 @@ public class ChatSamplerService {
 
     private record SamplerSession(
             String channelId,
+            String streamerName,
             String tag,
             Instant startedAt,
             Instant expiresAt,

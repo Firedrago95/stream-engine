@@ -75,10 +75,13 @@ public class ChatAggregationService {
         );
 
         if (chatSamplerService.isSampling(streamId)) {
+            String authorId = (chatMessage.author() != null && chatMessage.author().id() != null)
+                    ? chatMessage.author().id()
+                    : "";
             chatSamplerService.record(new ChatSampleMessage(
                 chatMessage.time(),
                 streamId,
-                "",
+                authorId,
                 chatMessage.message(),
                 chatMessage.author() != null && chatMessage.author().isSubscriber()
             ));

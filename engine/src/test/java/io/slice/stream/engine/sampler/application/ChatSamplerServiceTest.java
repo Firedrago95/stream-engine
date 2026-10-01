@@ -1,6 +1,8 @@
 package io.slice.stream.engine.sampler.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.slice.stream.core.model.StreamTarget;
+import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
 import io.slice.stream.engine.sampler.application.dto.SamplingStatusResponse;
 import io.slice.stream.engine.sampler.application.dto.StartSamplingRequest;
 import io.slice.stream.engine.sampler.domain.ChatSampleMessage;
@@ -10,6 +12,7 @@ import java.io.File;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -34,13 +37,16 @@ class ChatSamplerServiceTest {
     @Mock
     private ChatSampleUploader uploader;
 
+    @Mock
+    private StreamRepository streamRepository;
+
     private ChatSamplerService service;
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp(@TempDir Path tempDir) {
         objectMapper = new ObjectMapper();
-        service = new ChatSamplerService(uploader, objectMapper, tempDir.toString());
+        service = new ChatSamplerService(uploader, objectMapper, streamRepository, tempDir.toString());
     }
 
     @AfterEach
@@ -53,6 +59,7 @@ class ChatSamplerServiceTest {
         StartSamplingRequest request = new StartSamplingRequest(
                 "test_tag",
                 List.of("channel_1"),
+                Map.of("channel_1", "한동숙"),
                 null,
                 null,
                 30
@@ -66,6 +73,37 @@ class ChatSamplerServiceTest {
         SamplingStatusResponse status = service.getStatus();
         assertThat(status.active()).isTrue();
         assertThat(status.activeSessionCount()).isEqualTo(1);
+        assertThat(status.sessions().get(0).streamerName()).isEqualTo("한동숙");
+    }
+
+    @Test
+    void StreamRepository에서_스트리머_이름을_자동으로_조회하여_세션을_생성한다() {
+        StreamTarget mockTarget = new StreamTarget(
+                "channel_2",
+                "괴물쥐",
+                "chat_ch_2",
+                12345L,
+                "생방송",
+                5000,
+                "profile.png",
+                "롤",
+                Instant.now()
+        );
+        given(streamRepository.getStreamTargets(List.of("channel_2"))).willReturn(List.of(mockTarget));
+
+        StartSamplingRequest request = new StartSamplingRequest(
+                "test_tag",
+                List.of("channel_2"),
+                null,
+                null,
+                null,
+                null
+        );
+
+        service.startSampling(request);
+
+        SamplingStatusResponse status = service.getStatus();
+        assertThat(status.sessions().get(0).streamerName()).isEqualTo("괴물쥐");
     }
 
     @Test
@@ -78,13 +116,14 @@ class ChatSamplerServiceTest {
                 List.of("channel_1"),
                 null,
                 null,
+                null,
                 null
         );
         service.startSampling(request);
 
         Instant now = Instant.now();
-        service.record(new ChatSampleMessage(now, "channel_1", "한동숙", "ㅋㅋㅋㅋ 대박", true));
-        service.record(new ChatSampleMessage(now.plusMillis(100), "channel_1", "한동숙", "아니 저게", false));
+        service.record(new ChatSampleMessage(now, "channel_1", "user_1", "ㅋㅋㅋㅋ 대박", true));
+        service.record(new ChatSampleMessage(now.plusMillis(100), "channel_1", "user_2", "아니 저게", false));
 
         service.finishSession("channel_1", "STREAM_CLOSED");
 
@@ -92,3 +131,4 @@ class ChatSamplerServiceTest {
         assertThat(service.isSampling("channel_1")).isFalse();
     }
 }
+

@@ -32,8 +32,8 @@ class LocalChatSampleWriterTest {
         LocalChatSampleWriter writer = new LocalChatSampleWriter(tempFile.toFile(), objectMapper);
 
         Instant now = Instant.parse("2026-09-30T12:00:00Z");
-        ChatSampleMessage msg1 = new ChatSampleMessage(now, "ch1", "한동숙", "ㅋㅋㅋㅋ 대박이네", true);
-        ChatSampleMessage msg2 = new ChatSampleMessage(now.plusSeconds(1), "ch1", "한동숙", "아니 저게 왜 죽어", false);
+        ChatSampleMessage msg1 = new ChatSampleMessage(now, "ch1", "author_1", "ㅋㅋㅋㅋ 대박이네", true);
+        ChatSampleMessage msg2 = new ChatSampleMessage(now.plusSeconds(1), "ch1", "author_2", "아니 저게 왜 죽어", false);
 
         writer.write(msg1);
         writer.write(msg2);
@@ -45,6 +45,9 @@ class LocalChatSampleWriterTest {
         List<String> lines = readGzipLines(resultFile);
         assertThat(lines).hasSize(2);
         assertThat(lines.get(0)).contains("ㅋㅋㅋㅋ 대박이네");
+        assertThat(lines.get(0)).contains("author_1");
+        assertThat(lines.get(0)).doesNotContain("channelId");
+        assertThat(lines.get(0)).doesNotContain("streamerName");
         assertThat(lines.get(1)).contains("아니 저게 왜 죽어");
     }
 
