@@ -84,7 +84,7 @@ export const StreamerStatsPage: React.FC = () => {
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
             <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
-              <span>🏆</span> 스트리머 체급 랭킹 리더보드
+              <span>📊</span> 30일 평균 시청자 순위
             </h3>
           </div>
           <span className="text-xs text-gray-100 font-mono font-semibold">
@@ -99,26 +99,26 @@ export const StreamerStatsPage: React.FC = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-100">
+            <table className="w-full text-left text-sm text-gray-100 min-w-[760px]">
               <thead>
                 <tr className="border-b border-gray-800 text-[11px] font-bold text-gray-200 uppercase tracking-wider">
-                  <th className="py-3 px-3 w-12 text-center">순위</th>
-                  <th className="py-3 px-4">스트리머</th>
-                  <th className="py-3 px-4">주력 카테고리</th>
-                  <th className="py-3 px-4 text-right">
+                  <th className="py-3 px-3 w-12 text-center whitespace-nowrap">순위</th>
+                  <th className="py-3 px-4 min-w-[200px]">스트리머</th>
+                  <th className="py-3 px-4 whitespace-nowrap min-w-[120px]">주력 카테고리</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap min-w-[130px]">
                     <div className="inline-flex items-center gap-1 cursor-help group/tip relative">
-                      <span>30일 평균 시청자</span>
-                      <svg className="w-3.5 h-3.5 text-gray-100 group-hover/tip:text-[#00FFA3] transition-colors fill-current" viewBox="0 0 20 20">
+                      <span className="whitespace-nowrap">30일 평균 시청자</span>
+                      <svg className="w-3.5 h-3.5 text-gray-100 group-hover/tip:text-[#00FFA3] transition-colors fill-current shrink-0" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                       </svg>
                       <div className="absolute right-0 bottom-full mb-2 hidden group-hover/tip:block w-64 p-3 bg-[#18181c] border border-gray-700 text-[11px] text-gray-200 rounded-xl shadow-2xl z-50 font-normal leading-relaxed text-left backdrop-blur-md">
-                        💡 최근 30일간의 방송 세션 데이터를 바탕으로 산출된 순수 체급 지표입니다. (매일 새벽 04:00 정기 갱신)
+                        💡 최근 30일간의 방송 세션 데이터를 바탕으로 산출된 평균 시청자 지표입니다. (매일 새벽 04:00 정기 갱신)
                       </div>
                     </div>
                   </th>
-                  <th className="py-3 px-4 text-right">실시간 시청자</th>
-                  <th className="py-3 px-4 text-center">방송 상태</th>
-                  <th className="py-3 px-4 text-center w-24">전적 분석</th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap min-w-[110px]">실시간 시청자</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap min-w-[90px]">방송 상태</th>
+                  <th className="py-3 px-4 text-center whitespace-nowrap w-24">전적 분석</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800/60 font-mono">
@@ -130,7 +130,7 @@ export const StreamerStatsPage: React.FC = () => {
                       onClick={() => handleRowClick(stream.streamId)}
                       className="transition-all duration-200 cursor-pointer group hover:bg-[#16231c]/70 hover:shadow-[inset_0_0_0_1px_rgba(0,255,163,0.5),0_0_16px_rgba(0,255,163,0.15)]"
                     >
-                      <td className="py-3.5 px-3 text-center">
+                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
                         <span
                           className={`inline-block w-6 h-6 rounded-md leading-6 text-xs font-black ${
                             idx === 0
@@ -169,25 +169,28 @@ export const StreamerStatsPage: React.FC = () => {
                         </div>
                       </td>
 
-                      <td className="py-3.5 px-4 font-sans">
-                        <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-[#13221a] text-[#00FFA3]/90 border border-[#00FFA3]/30 tracking-wide shadow-xs">
+                      <td className="py-3.5 px-4 font-sans whitespace-nowrap">
+                        <span
+                          className="inline-block max-w-[130px] sm:max-w-[180px] truncate whitespace-nowrap align-middle px-2.5 py-1 rounded-md text-xs font-bold bg-[#13221a] text-[#00FFA3]/90 border border-[#00FFA3]/30 tracking-wide shadow-xs"
+                          title={stream.categoryName || '기타'}
+                        >
                           {stream.categoryName || '기타'}
                         </span>
                       </td>
 
-                      <td className="py-3.5 px-4 text-right font-bold text-gray-100">
+                      <td className="py-3.5 px-4 text-right font-bold text-gray-100 whitespace-nowrap">
                         {(stream.averageViewers ?? 0) > 0
                           ? `${(stream.averageViewers ?? 0).toLocaleString()}명`
                           : '-'}
                       </td>
 
-                      <td className="py-3.5 px-4 text-right font-bold text-[#00FFA3]">
+                      <td className="py-3.5 px-4 text-right font-bold text-[#00FFA3] whitespace-nowrap">
                         {isStreaming && (stream.concurrentUserCount ?? 0) > 0
                           ? `${(stream.concurrentUserCount ?? 0).toLocaleString()}명`
                           : '-'}
                       </td>
 
-                      <td className="py-3.5 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         {isStreaming && (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-red-500/15 text-red-400 border border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.25)]">
                             <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
@@ -201,7 +204,7 @@ export const StreamerStatsPage: React.FC = () => {
                         )}
                       </td>
 
-                      <td className="py-3.5 px-4 text-center">
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <span className="inline-block px-2.5 py-1 text-xs font-bold rounded-lg bg-[#1e1e24] group-hover:bg-[#00FFA3] group-hover:text-black transition-all text-gray-100">
                           전적 →
                         </span>
