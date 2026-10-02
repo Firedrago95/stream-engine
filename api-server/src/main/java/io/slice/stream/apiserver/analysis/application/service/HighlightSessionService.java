@@ -43,11 +43,12 @@ public class HighlightSessionService {
     )
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleSignal(AnalysisSignal signal) {
-        if (signal.firepower() < properties.minimum()) return;
-
         String streamId = signal.streamId();
 
         if ("PEAK".equals(signal.status())) {
+            if (signal.firepower() < properties.minimum()) {
+                return;
+            }
             processPeakSignal(signal, streamId);
         } else {
             processNormalSignal(signal, streamId);
