@@ -1,6 +1,7 @@
 package io.slice.stream.engine.sampler.infrastructure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.slice.stream.engine.sampler.domain.ChatSampleHeader;
 import io.slice.stream.engine.sampler.domain.ChatSampleMessage;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -40,6 +41,15 @@ public class LocalChatSampleWriter {
         if (parent != null && !parent.exists()) {
             parent.mkdirs();
         }
+    }
+
+    public synchronized void writeHeader(ChatSampleHeader header) throws IOException {
+        if (finished || header == null) {
+            return;
+        }
+        String jsonLine = objectMapper.writeValueAsString(header);
+        writer.write(jsonLine);
+        writer.newLine();
     }
 
     public synchronized void write(ChatSampleMessage message) throws IOException {

@@ -6,6 +6,7 @@ import io.slice.stream.core.model.StreamTarget;
 import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
 import io.slice.stream.engine.sampler.application.dto.SamplingStatusResponse;
 import io.slice.stream.engine.sampler.application.dto.StartSamplingRequest;
+import io.slice.stream.engine.sampler.domain.ChatSampleHeader;
 import io.slice.stream.engine.sampler.domain.ChatSampleMessage;
 import io.slice.stream.engine.sampler.domain.ChatSampleUploader;
 import io.slice.stream.engine.sampler.domain.UploadResult;
@@ -17,6 +18,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -59,7 +61,7 @@ public class ChatSamplerService {
             @Value("${chat.sampler.temp-dir:data/chat-samples}") String tempDir
     ) {
         this.uploader = uploader;
-        this.objectMapper = (objectMapper != null) ? objectMapper : createDefaultObjectMapper();
+        this.objectMapper = (objectMapper != null) ? registerJavaTimeModule(objectMapper) : createDefaultObjectMapper();
         this.streamRepository = streamRepository;
         this.tempDir = tempDir;
         this.activeSessions = new ConcurrentHashMap<>();
@@ -70,6 +72,11 @@ public class ChatSamplerService {
         this.workerThread = Thread.ofVirtual()
                 .name("chat-sampler-worker")
                 .start(this::consumeQueue);
+    }
+
+    private static ObjectMapper registerJavaTimeModule(ObjectMapper mapper) {
+        mapper.registerModule(new JavaTimeModule());
+        return mapper;
     }
 
     public boolean isSampling(String channelId) {
@@ -98,31 +105,57 @@ public class ChatSamplerService {
                 ? now.plus(Duration.ofMinutes(request.durationMinutes()))
                 : null;
 
+        Map<String, StreamTarget> streamTargets = fetchStreamTargets(request.channelIds());
+
         for (String channelId : request.channelIds()) {
             if (activeSessions.containsKey(channelId)) {
                 log.info("이미 샘플링 중인 채널입니다: {}", channelId);
                 continue;
             }
-            String streamerName = resolveStreamerName(channelId, request.streamerNames());
-            createSession(channelId, streamerName, request.tag(), now, expiresAt);
+            StreamTarget target = streamTargets.get(channelId);
+            String streamerName = resolveStreamerName(channelId, request.streamerNames(), target);
+            Instant openDate = resolveOpenDate(target, now);
+            createSession(channelId, streamerName, request.tag(), openDate, now, expiresAt);
         }
     }
 
-    private String resolveStreamerName(String channelId, Map<String, String> customNames) {
+    private Map<String, StreamTarget> fetchStreamTargets(List<String> channelIds) {
+        if (streamRepository == null || channelIds == null || channelIds.isEmpty()) {
+            return Map.of();
+        }
+        try {
+            List<StreamTarget> targets = streamRepository.getStreamTargets(channelIds);
+            if (targets == null || targets.isEmpty()) {
+                return Map.of();
+            }
+            Map<String, StreamTarget> map = new HashMap<>();
+            for (StreamTarget target : targets) {
+                if (target != null && target.channelId() != null) {
+                    map.put(target.channelId(), target);
+                }
+            }
+            return map;
+        } catch (Exception e) {
+            log.warn("스트림 정보 일괄 조회 실패: {}", e.getMessage());
+            return Map.of();
+        }
+    }
+
+    private String resolveStreamerName(String channelId, Map<String, String> customNames, StreamTarget target) {
         if (customNames != null && customNames.containsKey(channelId) && !customNames.get(channelId).isBlank()) {
             return customNames.get(channelId);
         }
-        if (streamRepository != null) {
-            try {
-                List<StreamTarget> targets = streamRepository.getStreamTargets(List.of(channelId));
-                if (targets != null && !targets.isEmpty() && targets.get(0).channelName() != null && !targets.get(0).channelName().isBlank()) {
-                    return targets.get(0).channelName();
-                }
-            } catch (Exception e) {
-                log.warn("스트리머 이름 조회 실패 (채널: {}): {}", channelId, e.getMessage());
-            }
+        if (target != null && target.channelName() != null && !target.channelName().isBlank()) {
+            return target.channelName();
         }
         return channelId;
+    }
+
+    private Instant resolveOpenDate(StreamTarget target, Instant fallback) {
+        if (target != null && target.startedAt() != null) {
+            return target.startedAt();
+        }
+        return fallback;
     }
 
     private String sanitizeFileName(String name) {
@@ -132,19 +165,29 @@ public class ChatSamplerService {
         return name.replaceAll("[\\\\/:*?\"<>|\\s]", "_");
     }
 
-    private void createSession(String channelId, String streamerName, String tag, Instant startedAt, Instant expiresAt) {
+    private void createSession(
+            String channelId,
+            String streamerName,
+            String tag,
+            Instant openDate,
+            Instant samplingStartedAt,
+            Instant expiresAt
+    ) {
         String safeTag = (tag != null && !tag.isBlank()) ? tag : "sample";
         String safeStreamerName = sanitizeFileName(streamerName);
         String fileName = String.format("%s_%s_%s.jsonl.gz",
-                safeTag, safeStreamerName, FILE_DATE_FORMAT.format(startedAt));
+                safeTag, safeStreamerName, FILE_DATE_FORMAT.format(openDate));
         File targetFile = new File(tempDir, fileName);
 
         try {
             LocalChatSampleWriter writer = new LocalChatSampleWriter(targetFile, objectMapper);
-            SamplerSession session = new SamplerSession(channelId, streamerName, safeTag, startedAt, expiresAt, writer, fileName);
+            ChatSampleHeader header = ChatSampleHeader.of(openDate, samplingStartedAt, channelId, streamerName);
+            writer.writeHeader(header);
+
+            SamplerSession session = new SamplerSession(channelId, streamerName, safeTag, openDate, expiresAt, writer, fileName);
             activeSessions.put(channelId, session);
-            log.info("채팅 샘플링 세션 시작: 채널={}, 스트리머={}, 파일={}, 만료={}",
-                    channelId, streamerName, fileName, expiresAt);
+            log.info("채팅 샘플링 세션 시작: 채널={}, 스트리머={}, 파일={}, 방송시작(openDate)={}, 수집시작={}, 만료={}",
+                    channelId, streamerName, fileName, openDate, samplingStartedAt, expiresAt);
         } catch (IOException e) {
             log.error("채팅 샘플링 세션 생성 실패 (채널: {}): {}", channelId, e.getMessage(), e);
         }
