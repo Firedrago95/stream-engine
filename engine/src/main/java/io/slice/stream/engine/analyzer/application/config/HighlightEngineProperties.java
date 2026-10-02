@@ -12,13 +12,18 @@ public record HighlightEngineProperties(
     double coldStartWeight,
     TierProperties tier
 ) {
-    public record TierProperties(GroupProperties groupA, GroupProperties groupB) {}
+    public record TierProperties(
+        GroupProperties mega,
+        GroupProperties regular,
+        GroupProperties micro
+    ) {}
 
     public record GroupProperties(
         int windowSeconds,
         double zScore,
         double conditionMinAvg,
-        int conditionMinPeak
+        int conditionMinPeak,
+        long noiseFloor
     ) {}
 
     // YAML의 마스킹 시간(12s)을 스케줄러 주기(3s)로 나눠서 배제할 '틱(Tick)' 수를 스스로 계산

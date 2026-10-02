@@ -6,8 +6,7 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum StreamTier {
-    // 대형 화력 방송
-    GROUP_A,
-    // 중,소형 화력 방송
-    GROUP_B
+    MEGA,
+    REGULAR,
+    MICRO
 }

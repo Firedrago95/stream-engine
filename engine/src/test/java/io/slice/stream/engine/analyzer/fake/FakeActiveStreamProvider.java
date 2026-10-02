@@ -16,6 +16,15 @@ public class FakeActiveStreamProvider implements ActiveStreamProvider {
         }
     }
 
+    public void setActiveStreamIds(List<String> streamIds) {
+        this.targets.clear();
+        if (streamIds != null) {
+            for (String id : streamIds) {
+                this.targets.add(new StreamTarget(id, id, id, 1L, id, 100, "", "", null));
+            }
+        }
+    }
+
     @Override
     public List<String> getActiveStreamIds() {
         return targets.stream().map(StreamTarget::channelId).toList();
