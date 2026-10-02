@@ -112,14 +112,22 @@ highlight:
 
     # 3. 체급별 세부 파라미터
     tier:
-      group-a:
-        window-seconds: 60            # 대형방 과거 윈도우 (1분)
-        z-score: 3.5                  # 대형방 허들
-        condition-min-avg: 4.0        # 대형방 승급 조건 (30분 평균 화력)
-        condition-min-peak: 30        # 대형방 승급 조건 (30분 내 최고 화력)
-      group-b:
-        window-seconds: 120           # 성장형 과거 윈도우 (2분)
-        z-score: 4.5                  # 성장형 허들
+      mega:
+        window-seconds: 180           # 대형방 과거 윈도우 (3분, 60틱)
+        z-score: 3.0                  # 대형방 허들 (MAD 적용으로 3.0 하향 최적화)
+        condition-min-avg: 3.0        # 대형방 승급 조건 (30분 평균 3.0건/3초)
+        condition-min-peak: 30        # 대형방 승급 조건 (30분 최고 피크 30건/3초)
+        noise-floor: 12               # 최소 화력 바닥값 (12건/3초)
+      regular:
+        window-seconds: 180           # 중형방 과거 윈도우 (3분, 60틱)
+        z-score: 3.5                  # 중형방 허들
+        condition-min-avg: 0.8        # 중형방 승급 조건 (30분 평균 0.8건/3초)
+        condition-min-peak: 10        # 중형방 승급 조건 (30분 최고 피크 10건/3초)
+        noise-floor: 6                # 최소 화력 바닥값 (6건/3초)
+      micro:
+        window-seconds: 180           # 소형방/신규 과거 윈도우 (3분, 60틱)
+        z-score: 4.0                  # 소형방 허들 (도서관 헛기침 방어)
+        noise-floor: 5                # 최소 화력 바닥값 (5건/3초)
 
 # 커스텀 스레드 풀 스위칭 설정
 app:

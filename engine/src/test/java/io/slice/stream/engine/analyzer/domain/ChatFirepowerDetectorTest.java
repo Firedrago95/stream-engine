@@ -8,6 +8,7 @@ import io.slice.stream.engine.analyzer.domain.detection.DetectionResult;
 import io.slice.stream.engine.analyzer.domain.tier.StreamTier;
 import io.slice.stream.engine.analyzer.domain.tier.StreamTierInfo;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -18,93 +19,146 @@ import org.junit.jupiter.api.Test;
 class ChatFirepowerDetectorTest {
 
     private ChatFirepowerDetector detector;
-    private StreamTierInfo groupATier;
-    private StreamTierInfo groupBTier;
+    private StreamTierInfo megaTier;
+    private StreamTierInfo regularTier;
+    private StreamTierInfo microTier;
 
     @BeforeEach
     void setUp() {
         detector = new ChatFirepowerDetector();
 
-        // 테스트용 체급 파라미터 세팅 (대기업)
-        groupATier = StreamTierInfo.builder()
-            .streamId("stream-A")
-            .tier(StreamTier.GROUP_A)
-            .minFirepowerCutoff(30L)      // 1% 컷 30개
-            .maskingExclusionTicks(4)     // 마스킹 4틱
-            .zScoreThreshold(3.5)
+        // Tier 1: MEGA (대형방) - 180초 윈도우, Z 허들 3.0, noiseFloor 12, 1% 컷 30
+        megaTier = StreamTierInfo.builder()
+            .streamId("stream-mega")
+            .tier(StreamTier.MEGA)
+            .minFirepowerCutoff(30L)
+            .noiseFloor(12L)
+            .windowSeconds(180)
+            .zScoreThreshold(3.0)
+            .maskingExclusionTicks(4)
             .build();
 
-        // 테스트용 체급 파라미터 세팅 (성장형)
-        groupBTier = StreamTierInfo.builder()
-            .streamId("stream-B")
-            .tier(StreamTier.GROUP_B)
-            .minFirepowerCutoff(10L)      // 1% 컷 10개
+        // Tier 2: REGULAR (중형방) - 180초 윈도우, Z 허들 3.5, noiseFloor 6, 1% 컷 10
+        regularTier = StreamTierInfo.builder()
+            .streamId("stream-regular")
+            .tier(StreamTier.REGULAR)
+            .minFirepowerCutoff(10L)
+            .noiseFloor(6L)
+            .windowSeconds(180)
+            .zScoreThreshold(3.5)
             .maskingExclusionTicks(4)
-            .zScoreThreshold(4.5)
+            .build();
+
+        // Tier 3: MICRO (소형/신규) - 180초 윈도우, Z 허들 4.0, noiseFloor 5, 1% 컷 5
+        microTier = StreamTierInfo.builder()
+            .streamId("stream-micro")
+            .tier(StreamTier.MICRO)
+            .minFirepowerCutoff(5L)
+            .noiseFloor(5L)
+            .windowSeconds(180)
+            .zScoreThreshold(4.0)
+            .maskingExclusionTicks(4)
             .build();
     }
 
     @Test
-    void 최소_데이터_모수가_부족하면_WAITING을_반환한다() {
-        // given (9개 데이터만 제공)
-        List<Long> deltas = List.of(1L, 2L, 1L, 2L, 1L, 2L, 1L, 2L, 1L);
+    void 최소_분석_데이터_모수_30틱_미만이_부족하면_WAITING을_반환한다() {
+        // given (29개 데이터만 제공)
+        List<Long> deltas = new ArrayList<>(Collections.nCopies(29, 20L));
 
         // when
-        DetectionResult result = detector.detect("stream-B", deltas, groupBTier);
+        DetectionResult result = detector.detect("stream-regular", deltas, regularTier);
 
         // then
         assertThat(result.status()).isEqualTo(ChatFirepowerStatus.WAITING);
     }
 
     @Test
-    void 최소_화력_임계치보다_낮으면_상대적_폭발이어도_NORMAL을_반환한다() {
-        // given (평소 1개, 마지막에 5개가 터졌으나 Group B의 1%컷인 10개에 미달)
-        List<Long> deltas = generateDeltas(1L, 15);
-        deltas.add(5L);
+    void 노이즈_바닥값_미만이면_상대적_폭발이어도_가짜_알람을_방어하고_NORMAL을_반환한다() {
+        // given (평소 0개이다가 8개가 터짐. 상대적 폭발이나 MEGA 바닥값인 12에 미달)
+        List<Long> deltas = new ArrayList<>(Collections.nCopies(60, 0L));
+        deltas.add(8L);
 
         // when
-        DetectionResult result = detector.detect("quiet_room", deltas, groupBTier);
+        DetectionResult result = detector.detect("quiet_room", deltas, megaTier);
 
         // then
         assertThat(result.status()).isEqualTo(ChatFirepowerStatus.NORMAL);
-        assertThat(result.firepower()).isEqualTo(5L);
+        assertThat(result.firepower()).isEqualTo(8L);
     }
 
     @Test
-    void 마스킹_배제_적용시_최근_화력이_과거_평균을_오염시키지_않고_PEAK를_잡아낸다() {
-        // given
-        List<Long> deltas = generateDeltas(2L, 20); // 잔잔한 평소 채팅
-
-        // 최근 4틱 동안 서서히 화력이 증가하는 마스킹 유발 상황 (10 -> 15 -> 20 -> 대폭발 50)
-        deltas.add(10L);
-        deltas.add(15L);
-        deltas.add(20L);
-        deltas.add(50L); // 현재 Delta (Group A 1%컷인 30 넘음)
+    void 동적_1퍼센트_임계치_미만인_경우_NORMAL을_반환한다() {
+        // given (바닥값 12는 넘지만 1% 컷인 30에 미달하는 25)
+        List<Long> deltas = new ArrayList<>(Collections.nCopies(60, 2L));
+        deltas.add(25L);
 
         // when
-        DetectionResult result = detector.detect("burst_room", deltas, groupATier);
+        DetectionResult result = detector.detect("stream-mega", deltas, megaTier);
 
-        // then (앞선 10, 15, 20이 배제되었으므로 Z-Score가 높게 나와 PEAK 판정 성공)
-        assertThat(result.status()).isEqualTo(ChatFirepowerStatus.PEAK);
-        assertThat(result.firepower()).isEqualTo(50L);
+        // then
+        assertThat(result.status()).isEqualTo(ChatFirepowerStatus.NORMAL);
+        assertThat(result.firepower()).isEqualTo(25L);
     }
 
     @Test
-    void 완벽한_정적_상태에서도_DivideByZero_에러없이_안전하게_처리한다() {
-        // given (계속 0개만 나오다가 1% 컷을 넘는 15개 등장)
-        List<Long> deltas = generateDeltas(0L, 20);
-        deltas.add(15L);
+    void 메가_체급에서_연쇄_피크가_발생해도_Robust_MAD_기반으로_2차_3차_피크를_모두_감지한다() {
+        // given: 80초간 지속되는 3연속 대형 화력 시계열 재현
+        // 평소 베이스라인: 12 ~ 15건
+        List<Long> deltas = new ArrayList<>();
+        for (int i = 0; i < 60; i++) {
+            deltas.add((long) (12 + (i % 4))); // 12, 13, 14, 15 반복 (중앙값 약 13.5, MAD 약 1.5)
+        }
+
+        // 1차 절정 발생: 45 -> 65
+        deltas.add(45L);
+        deltas.add(65L);
+        DetectionResult peak1 = detector.detect("stream-mega", deltas, megaTier);
+        assertThat(peak1.status()).isEqualTo(ChatFirepowerStatus.PEAK);
+
+        // 2차 폭소 발생 (직후 6초 뒤): 62 (현행 산술평균 엔진에서는 2.22로 탈락했던 지점)
+        deltas.add(62L);
+        DetectionResult peak2 = detector.detect("stream-mega", deltas, megaTier);
+        assertThat(peak2.status()).isEqualTo(ChatFirepowerStatus.PEAK);
+        assertThat(peak2.firepower()).isEqualTo(62L);
+
+        // 지속적 폭소 및 80초 뒤 3차 클라이맥스 (화력 66)
+        // 현행 엔진에서는 윈도우 절반이 오염되어 Z-Score 1.43으로 완전 탈락했던 구간!
+        for (int i = 0; i < 10; i++) {
+            deltas.add(35L); // 연쇄 폭소 지속
+        }
+        deltas.add(66L); // 최고 클라이맥스
+        DetectionResult peak3 = detector.detect("stream-mega", deltas, megaTier);
+
+        // then: Robust MAD는 중앙값 저항력으로 인해 여전히 PEAK를 정확히 포착해야 한다!
+        assertThat(peak3.status()).isEqualTo(ChatFirepowerStatus.PEAK);
+        assertThat(peak3.firepower()).isEqualTo(66L);
+    }
+
+    @Test
+    void 완벽한_정적_상태에서도_MIN_MAD_FLOOR에_의해_DivideByZero_에러_없이_안전하게_처리한다() {
+        // given (계속 0개만 나오다가 1% 컷과 바닥값을 넘는 35개 등장)
+        List<Long> deltas = new ArrayList<>(Collections.nCopies(60, 0L));
+        deltas.add(35L);
 
         // when
-        DetectionResult result = detector.detect("empty_room", deltas, groupBTier);
+        DetectionResult result = detector.detect("empty_room", deltas, megaTier);
 
         // then
         assertThat(result.status()).isEqualTo(ChatFirepowerStatus.PEAK);
     }
 
-    private List<Long> generateDeltas(long value, int count) {
-        List<Long> list = new ArrayList<>();
-        for (int i = 0; i < count; i++) list.add(value);
-        return list;
+    @Test
+    void 체급별_허들에_따라_정확한_PEAK_판정을_내린다() {
+        // given: REGULAR 체급 (허들 3.5, 바닥값 6, 1%컷 10)
+        List<Long> deltas = new ArrayList<>(Collections.nCopies(60, 2L));
+        deltas.add(15L);
+
+        // when
+        DetectionResult result = detector.detect("regular_room", deltas, regularTier);
+
+        // then
+        assertThat(result.status()).isEqualTo(ChatFirepowerStatus.PEAK);
+        assertThat(result.firepower()).isEqualTo(15L);
     }
 }

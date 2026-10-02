@@ -66,25 +66,37 @@ public class StreamTierManager {
     }
 
     private StreamTier determineTier(List<Long> deltas) {
-        // 최근 30분간의 평균 및 피크 화력을 승급 조건과 비교
+        if (deltas.size() < 100) {
+            return StreamTier.MICRO;
+        }
+
         List<Long> last30MinDeltas = extractRecentHalf(deltas);
         double avg30Min = last30MinDeltas.stream().mapToLong(Long::longValue).average().orElse(0.0);
         long max30Min = last30MinDeltas.stream().mapToLong(Long::longValue).max().orElse(0L);
 
-        if (avg30Min >= props.tier().groupA().conditionMinAvg() ||
-            max30Min >= props.tier().groupA().conditionMinPeak()) {
-            return StreamTier.GROUP_A;
+        if (avg30Min >= props.tier().mega().conditionMinAvg() &&
+            max30Min >= props.tier().mega().conditionMinPeak()) {
+            return StreamTier.MEGA;
         }
-        return StreamTier.GROUP_B;
+        if (avg30Min >= props.tier().regular().conditionMinAvg() &&
+            max30Min >= props.tier().regular().conditionMinPeak()) {
+            return StreamTier.REGULAR;
+        }
+        return StreamTier.MICRO;
     }
 
     private StreamTierInfo buildTierInfo(String streamId, StreamTier tier, long cutoff) {
-        GroupProperties groupProps = (tier == StreamTier.GROUP_A) ? props.tier().groupA() : props.tier().groupB();
+        GroupProperties groupProps = switch (tier) {
+            case MEGA -> props.tier().mega();
+            case REGULAR -> props.tier().regular();
+            case MICRO -> props.tier().micro();
+        };
 
         return StreamTierInfo.builder()
             .streamId(streamId)
             .tier(tier)
             .minFirepowerCutoff(cutoff)
+            .noiseFloor(groupProps.noiseFloor())
             .windowSeconds(groupProps.windowSeconds())
             .zScoreThreshold(groupProps.zScore())
             .maskingExclusionTicks(props.getMaskingTickCount())
@@ -92,11 +104,10 @@ public class StreamTierManager {
     }
 
     private StreamTierInfo createColdStartTier(String streamId, int currentViewers) {
-        // 방송 초기 데이터 부족 시 시청자 수 기반 임시 임계치 생성
         long calculatedCutoff = (long) (currentViewers * props.coldStartWeight());
-        long hardFloorCutoff = Math.max(10L, calculatedCutoff);
+        long hardFloorCutoff = Math.max(props.tier().micro().noiseFloor(), calculatedCutoff);
 
-        return buildTierInfo(streamId, StreamTier.GROUP_B, hardFloorCutoff);
+        return buildTierInfo(streamId, StreamTier.MICRO, hardFloorCutoff);
     }
 
     private long calculatePercentile(List<Long> values, double percentile) {

@@ -7,12 +7,13 @@ public record StreamTierInfo(
     String streamId,
     StreamTier tier,
     long minFirepowerCutoff,
+    long noiseFloor,
     int windowSeconds,
     double zScoreThreshold,
     int maskingExclusionTicks
 ) {
 
-    public boolean isGroupA() {
-        return this.tier == StreamTier.GROUP_A;
+    public boolean isMega() {
+        return this.tier == StreamTier.MEGA;
     }
 }
