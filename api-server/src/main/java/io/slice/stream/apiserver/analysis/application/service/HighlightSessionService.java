@@ -73,24 +73,21 @@ public class HighlightSessionService {
     }
 
     private void processPeakSignal(AnalysisSignal signal, String streamId) {
-        Long cachedMaxFirepower = nmsCache.get(streamId, k -> {
-            // 캐시에 없으면 새 피크로 DB업데이트 후 값 반환
+        Long cachedMaxFirepower = nmsCache.getIfPresent(streamId);
+        if (cachedMaxFirepower == null) {
             updateDbSessionForPeak(signal, streamId);
-            return signal.firepower();
-        });
+            nmsCache.put(streamId, signal.firepower());
+            return;
+        }
 
-        if (cachedMaxFirepower != null && !cachedMaxFirepower.equals(signal.firepower())) {
-            long threshold = (long) (cachedMaxFirepower * properties.extensionRatio());
-
-            if (signal.firepower() > threshold) {
-                // 임계치 통과시 캐시 갱신 및 세션 연장
-                long newMax = Math.max(signal.firepower(), cachedMaxFirepower);
-                nmsCache.put(streamId, newMax);
-                updateDbSessionForPeak(signal, streamId);
-            } else {
-                log.debug("[Session-NMS] 피크 억제됨 (쿨다운 진행중) - Stream: {}, Firepower: {} <= Threshold: {}",
-                    streamId, signal.firepower(), threshold);
-            }
+        long threshold = (long) (cachedMaxFirepower * properties.extensionRatio());
+        if (signal.firepower() >= threshold) {
+            long newMax = Math.max(signal.firepower(), cachedMaxFirepower);
+            nmsCache.put(streamId, newMax);
+            updateDbSessionForPeak(signal, streamId);
+        } else {
+            log.debug("[Session-NMS] 피크 억제됨 (쿨다운 진행중) - Stream: {}, Firepower: {} < Threshold: {}",
+                streamId, signal.firepower(), threshold);
         }
     }
 

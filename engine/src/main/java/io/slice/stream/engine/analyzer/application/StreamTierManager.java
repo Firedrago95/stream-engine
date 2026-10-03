@@ -23,6 +23,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class StreamTierManager {
 
+    private static final int RECENT_WINDOW_TICKS = 600;
+
     private final ActiveStreamProvider activeStreamProvider;
     private final ChatRoomAggregationRepository chatRepository;
     private final HighlightEngineProperties props;
@@ -59,7 +61,7 @@ public class StreamTierManager {
         List<Long> lastHourDeltas = chatRepository.getFirepowerDeltas(streamId, from, to);
         if (lastHourDeltas.size() < 100) return;
 
-        List<Long> recentDeltas = extractRecentHalf(lastHourDeltas);
+        List<Long> recentDeltas = extractRecentDeltas(lastHourDeltas);
         double avgFirepower = calculateAverageFirepower(recentDeltas);
         long dynamicNoiseFloor = calculateDynamicNoiseFloor(avgFirepower);
 
@@ -139,8 +141,8 @@ public class StreamTierManager {
         return sorted.get(Math.max(0, index));
     }
 
-    private List<Long> extractRecentHalf(List<Long> allDeltas) {
-        int half = allDeltas.size() / 2;
-        return allDeltas.subList(half, allDeltas.size());
+    private List<Long> extractRecentDeltas(List<Long> allDeltas) {
+        int startIndex = Math.max(0, allDeltas.size() - RECENT_WINDOW_TICKS);
+        return allDeltas.subList(startIndex, allDeltas.size());
     }
 }

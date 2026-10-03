@@ -92,8 +92,10 @@ class StreamTierManagerTest {
         String streamId = "stream-mega";
         streamProvider.setActiveStreamIds(List.of(streamId));
 
-        List<Long> deltas = new ArrayList<>(Collections.nCopies(110, 4L));
-        deltas.addAll(Collections.nCopies(10, 35L));
+        // 1시간(1200틱) 중 앞쪽 600틱은 1L, 최근 30분(뒤쪽 600틱)은 500틱 4L + 100틱 35L
+        List<Long> deltas = new ArrayList<>(Collections.nCopies(600, 1L));
+        deltas.addAll(Collections.nCopies(500, 4L));
+        deltas.addAll(Collections.nCopies(100, 35L));
         repository.setFirepowerDeltas(streamId, deltas);
 
         // when
@@ -113,8 +115,10 @@ class StreamTierManagerTest {
         String streamId = "stream-regular";
         streamProvider.setActiveStreamIds(List.of(streamId));
 
-        List<Long> deltas = new ArrayList<>(Collections.nCopies(115, 1L));
-        deltas.addAll(Collections.nCopies(5, 12L));
+        // 1시간(1200틱) 중 앞쪽 600틱은 0L, 최근 30분(뒤쪽 600틱)은 550틱 1L + 50틱 12L
+        List<Long> deltas = new ArrayList<>(Collections.nCopies(600, 0L));
+        deltas.addAll(Collections.nCopies(550, 1L));
+        deltas.addAll(Collections.nCopies(50, 12L));
         repository.setFirepowerDeltas(streamId, deltas);
 
         // when
@@ -139,13 +143,31 @@ class StreamTierManagerTest {
     }
 
     @Test
+    void 방송_초반_30분_미만의_데이터는_절반으로_자르지_않고_가용_전체_데이터를_반영한다() {
+        // given: 방송 20분 경과(400틱), 앞 200틱 화력 1L, 뒤 200틱 화력 10L (전체 평균 5.5)
+        String streamId = "stream-early";
+        streamProvider.setActiveStreamIds(List.of(streamId));
+
+        List<Long> deltas = new ArrayList<>(Collections.nCopies(200, 1L));
+        deltas.addAll(Collections.nCopies(200, 10L));
+        repository.setFirepowerDeltas(streamId, deltas);
+
+        // when
+        streamTierManager.refreshAllTiers();
+        StreamTierInfo tierInfo = streamTierManager.getTierInfo(streamId, 500);
+
+        // then: round(4.0 * 5.5 + 4.0) = 26L (뒤쪽 절반만 자르면 44L가 되지만, 가용 400틱 전체 반영으로 26L)
+        assertThat(tierInfo.noiseFloor()).isEqualTo(26L);
+    }
+
+    @Test
     void 화력_비례_동적_바닥값이_평균_화력에_따라_연속적으로_산출된다() {
         // given
         String streamId = "stream-dynamic-floor";
         streamProvider.setActiveStreamIds(List.of(streamId));
 
-        // 평균 화력 10.0 건/3초 세팅 (60틱 모두 10L)
-        List<Long> deltas = new ArrayList<>(Collections.nCopies(120, 10L));
+        // 평균 화력 10.0 건/3초 세팅 (600틱 모두 10L)
+        List<Long> deltas = new ArrayList<>(Collections.nCopies(600, 10L));
         repository.setFirepowerDeltas(streamId, deltas);
 
         // when
