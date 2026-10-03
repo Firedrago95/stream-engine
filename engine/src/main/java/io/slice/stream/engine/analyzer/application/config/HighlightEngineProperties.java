@@ -10,8 +10,29 @@ public record HighlightEngineProperties(
     int fetchBufferSeconds,
     double percentileCut,
     double coldStartWeight,
-    TierProperties tier
+    TierProperties tier,
+    DynamicFloorProperties dynamicFloor
 ) {
+
+    public HighlightEngineProperties(
+        long schedulerIntervalMs,
+        long managerRefreshMs,
+        long maskingTimeMs,
+        int fetchBufferSeconds,
+        double percentileCut,
+        double coldStartWeight,
+        TierProperties tier
+    ) {
+        this(schedulerIntervalMs, managerRefreshMs, maskingTimeMs, fetchBufferSeconds, percentileCut, coldStartWeight, tier,
+            new DynamicFloorProperties(5L, 4.0, 4.0));
+    }
+
+    public HighlightEngineProperties {
+        if (dynamicFloor == null) {
+            dynamicFloor = new DynamicFloorProperties(5L, 4.0, 4.0);
+        }
+    }
+
     public record TierProperties(
         GroupProperties mega,
         GroupProperties regular,
@@ -26,7 +47,12 @@ public record HighlightEngineProperties(
         long noiseFloor
     ) {}
 
-    // YAML의 마스킹 시간(12s)을 스케줄러 주기(3s)로 나눠서 배제할 '틱(Tick)' 수를 스스로 계산
+    public record DynamicFloorProperties(
+        long minFloor,
+        double slope,
+        double intercept
+    ) {}
+
     public int getMaskingTickCount() {
         return (int) (maskingTimeMs / schedulerIntervalMs);
     }

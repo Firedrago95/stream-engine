@@ -3,6 +3,7 @@ package io.slice.stream.engine.analyzer.application;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties;
+import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.DynamicFloorProperties;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.GroupProperties;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.TierProperties;
 import io.slice.stream.engine.analyzer.domain.tier.StreamTier;
@@ -42,7 +43,8 @@ class StreamTierManagerTest {
                 new GroupProperties(180, 3.0, 3.0, 30, 12L),
                 new GroupProperties(180, 3.5, 0.8, 10, 6L),
                 new GroupProperties(180, 4.0, 0.0, 0, 5L)
-            )
+            ),
+            new DynamicFloorProperties(5L, 4.0, 4.0)
         );
 
         streamTierManager = new StreamTierManager(streamProvider, repository, props);
@@ -101,7 +103,7 @@ class StreamTierManagerTest {
         // then
         assertThat(tierInfo.tier()).isEqualTo(StreamTier.MEGA);
         assertThat(tierInfo.isMega()).isTrue();
-        assertThat(tierInfo.noiseFloor()).isEqualTo(12L);
+        assertThat(tierInfo.noiseFloor()).isEqualTo(41L);
         assertThat(tierInfo.zScoreThreshold()).isEqualTo(3.0);
     }
 
@@ -121,7 +123,7 @@ class StreamTierManagerTest {
 
         // then
         assertThat(tierInfo.tier()).isEqualTo(StreamTier.REGULAR);
-        assertThat(tierInfo.noiseFloor()).isEqualTo(6L);
+        assertThat(tierInfo.noiseFloor()).isEqualTo(12L);
         assertThat(tierInfo.zScoreThreshold()).isEqualTo(3.5);
     }
 
@@ -134,5 +136,23 @@ class StreamTierManagerTest {
         assertThat(tierInfo.tier()).isEqualTo(StreamTier.MICRO);
         assertThat(tierInfo.noiseFloor()).isEqualTo(5L);
         assertThat(tierInfo.minFirepowerCutoff()).isGreaterThanOrEqualTo(5L);
+    }
+
+    @Test
+    void 화력_비례_동적_바닥값이_평균_화력에_따라_연속적으로_산출된다() {
+        // given
+        String streamId = "stream-dynamic-floor";
+        streamProvider.setActiveStreamIds(List.of(streamId));
+
+        // 평균 화력 10.0 건/3초 세팅 (60틱 모두 10L)
+        List<Long> deltas = new ArrayList<>(Collections.nCopies(120, 10L));
+        repository.setFirepowerDeltas(streamId, deltas);
+
+        // when
+        streamTierManager.refreshAllTiers();
+        StreamTierInfo tierInfo = streamTierManager.getTierInfo(streamId, 3000);
+
+        // then: round(4.0 * 10.0 + 4.0) = 44L
+        assertThat(tierInfo.noiseFloor()).isEqualTo(44L);
     }
 }

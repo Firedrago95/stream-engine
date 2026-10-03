@@ -3,6 +3,7 @@ package io.slice.stream.engine.analyzer.application;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties;
+import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.DynamicFloorProperties;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.GroupProperties;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregationRepository;
 import io.slice.stream.engine.analyzer.domain.stream.ActiveStreamProvider;
@@ -58,34 +59,36 @@ public class StreamTierManager {
         List<Long> lastHourDeltas = chatRepository.getFirepowerDeltas(streamId, from, to);
         if (lastHourDeltas.size() < 100) return;
 
-        // 최근 60분 데이터를 기반으로 동적 임계치 및 체급 산출
-        long percentile1Cutoff = calculatePercentile(lastHourDeltas, props.percentileCut());
-        StreamTier tier = determineTier(lastHourDeltas);
+        List<Long> recentDeltas = extractRecentHalf(lastHourDeltas);
+        double avgFirepower = calculateAverageFirepower(recentDeltas);
+        long dynamicNoiseFloor = calculateDynamicNoiseFloor(avgFirepower);
 
-        tierCache.put(streamId, buildTierInfo(streamId, tier, percentile1Cutoff));
+        long percentile1Cutoff = calculatePercentile(lastHourDeltas, props.percentileCut());
+        StreamTier tier = determineTier(recentDeltas);
+
+        tierCache.put(streamId, buildTierInfo(streamId, tier, percentile1Cutoff, dynamicNoiseFloor));
     }
 
-    private StreamTier determineTier(List<Long> deltas) {
-        if (deltas.size() < 100) {
+    private StreamTier determineTier(List<Long> recentDeltas) {
+        if (recentDeltas.isEmpty()) {
             return StreamTier.MICRO;
         }
 
-        List<Long> last30MinDeltas = extractRecentHalf(deltas);
-        double avg30Min = last30MinDeltas.stream().mapToLong(Long::longValue).average().orElse(0.0);
-        long max30Min = last30MinDeltas.stream().mapToLong(Long::longValue).max().orElse(0L);
+        double avgFirepower = calculateAverageFirepower(recentDeltas);
+        long maxFirepower = calculateMaxFirepower(recentDeltas);
 
-        if (avg30Min >= props.tier().mega().conditionMinAvg() &&
-            max30Min >= props.tier().mega().conditionMinPeak()) {
+        if (avgFirepower >= props.tier().mega().conditionMinAvg() &&
+            maxFirepower >= props.tier().mega().conditionMinPeak()) {
             return StreamTier.MEGA;
         }
-        if (avg30Min >= props.tier().regular().conditionMinAvg() &&
-            max30Min >= props.tier().regular().conditionMinPeak()) {
+        if (avgFirepower >= props.tier().regular().conditionMinAvg() &&
+            maxFirepower >= props.tier().regular().conditionMinPeak()) {
             return StreamTier.REGULAR;
         }
         return StreamTier.MICRO;
     }
 
-    private StreamTierInfo buildTierInfo(String streamId, StreamTier tier, long cutoff) {
+    private StreamTierInfo buildTierInfo(String streamId, StreamTier tier, long cutoff, long noiseFloor) {
         GroupProperties groupProps = switch (tier) {
             case MEGA -> props.tier().mega();
             case REGULAR -> props.tier().regular();
@@ -96,7 +99,7 @@ public class StreamTierManager {
             .streamId(streamId)
             .tier(tier)
             .minFirepowerCutoff(cutoff)
-            .noiseFloor(groupProps.noiseFloor())
+            .noiseFloor(noiseFloor)
             .windowSeconds(groupProps.windowSeconds())
             .zScoreThreshold(groupProps.zScore())
             .maskingExclusionTicks(props.getMaskingTickCount())
@@ -105,9 +108,29 @@ public class StreamTierManager {
 
     private StreamTierInfo createColdStartTier(String streamId, int currentViewers) {
         long calculatedCutoff = (long) (currentViewers * props.coldStartWeight());
-        long hardFloorCutoff = Math.max(props.tier().micro().noiseFloor(), calculatedCutoff);
+        long hardFloorCutoff = Math.max(props.dynamicFloor().minFloor(), calculatedCutoff);
 
-        return buildTierInfo(streamId, StreamTier.MICRO, hardFloorCutoff);
+        return buildTierInfo(streamId, StreamTier.MICRO, hardFloorCutoff, hardFloorCutoff);
+    }
+
+    private long calculateDynamicNoiseFloor(double avgFirepower) {
+        DynamicFloorProperties config = props.dynamicFloor();
+        long calculated = Math.round(config.slope() * avgFirepower + config.intercept());
+        return Math.max(config.minFloor(), calculated);
+    }
+
+    private double calculateAverageFirepower(List<Long> deltas) {
+        return deltas.stream()
+            .mapToLong(Long::longValue)
+            .average()
+            .orElse(0.0);
+    }
+
+    private long calculateMaxFirepower(List<Long> deltas) {
+        return deltas.stream()
+            .mapToLong(Long::longValue)
+            .max()
+            .orElse(0L);
     }
 
     private long calculatePercentile(List<Long> values, double percentile) {
