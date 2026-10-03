@@ -37,9 +37,9 @@ class HighlightSessionServiceTest {
 
     @Spy
     private HighlightProperties properties = new HighlightProperties(
-        Duration.ofSeconds(20),
+        Duration.ofSeconds(40),
         Duration.ofSeconds(10),
-        Duration.ofSeconds(15),
+        Duration.ofSeconds(60),
         0.7,
         6,
         6,
@@ -76,10 +76,10 @@ class HighlightSessionServiceTest {
 
         HighlightEventEntity saved = captor.getValue();
         assertThat(saved.getPeakFirepower()).isEqualTo(100L);
-        assertThat(saved.getStartTimeOffset()).isEqualTo(3580000L);
+        assertThat(saved.getStartTimeOffset()).isEqualTo(3560000L);
 
         Instant streamStartedAt = now.minusMillis(offsetMs);
-        assertThat(saved.getStartTime()).isEqualTo(streamStartedAt.plusMillis(3580000L));
+        assertThat(saved.getStartTime()).isEqualTo(streamStartedAt.plusMillis(3560000L));
     }
 
     @Test
@@ -194,12 +194,39 @@ class HighlightSessionServiceTest {
     }
 
     @Test
-    void 쿨다운_15초_경과_후_NORMAL_신호가_오면_진행중인_세션이_정상적으로_마감된다() {
+    void 쿨다운_기간_내에_최초_피크와_동일한_화력의_PEAK가_오더라도_세션_버퍼를_정상적으로_연장한다() {
+        // given
+        Instant now = Instant.now();
+        long initialOffset = 3600000L;
+
+        HighlightEventEntity ongoingSession = new HighlightEventEntity(
+            STREAM_ID, "sessionId", now, initialOffset - 40000L, now, initialOffset, 100L
+        );
+
+        when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING"))
+            .thenReturn(Optional.of(ongoingSession));
+
+        // 최초 피크 (100)
+        highlightSessionService.handleSignal(AnalysisSignal.of(STREAM_ID, "sessionId", "PEAK", now, 100L, initialOffset));
+
+        // when (30초 뒤 동일한 화력 100의 후속 피크 발생)
+        long after30SecOffset = initialOffset + 30000L;
+        AnalysisSignal equalSignal = AnalysisSignal.of(STREAM_ID, "sessionId", "PEAK", now.plusSeconds(30), 100L, after30SecOffset);
+        highlightSessionService.handleSignal(equalSignal);
+
+        // then
+        assertThat(ongoingSession.getPeakFirepower()).isEqualTo(100L);
+        assertThat(ongoingSession.getLastPeakOffset()).isEqualTo(after30SecOffset);
+        verify(repository, times(2)).findFirstByStreamIdAndStatusOrderByStartTimeDesc(any(), any());
+    }
+
+    @Test
+    void 쿨다운_60초_경과_후_NORMAL_신호가_오면_진행중인_세션이_정상적으로_마감된다() {
         // given
         Instant peakTime = Instant.now();
         long peakOffset = 3600000L;
         HighlightEventEntity ongoingSession = new HighlightEventEntity(
-            STREAM_ID, "sessionId", peakTime, peakOffset - 20000L, peakTime, peakOffset, 100L
+            STREAM_ID, "sessionId", peakTime, peakOffset - 40000L, peakTime, peakOffset, 100L
         );
 
         when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING"))
@@ -208,16 +235,16 @@ class HighlightSessionServiceTest {
         // 최초 피크 수신으로 캐시 등록
         highlightSessionService.handleSignal(AnalysisSignal.of(STREAM_ID, "sessionId", "PEAK", peakTime, 100L, peakOffset));
 
-        // 15초 쿨다운 만료 시뮬레이션 (캐시 무효화)
+        // 60초 쿨다운 만료 시뮬레이션 (캐시 무효화)
         @SuppressWarnings("unchecked")
         Cache<String, Long> cache = (Cache<String, Long>) ReflectionTestUtils.getField(highlightSessionService, "nmsCache");
         if (cache != null) {
             cache.invalidateAll();
         }
 
-        // when (16초 뒤 평시 화력 2의 NORMAL 신호 수신)
-        Instant normalTime = peakTime.plusSeconds(16);
-        long normalOffset = peakOffset + 16000L;
+        // when (61초 뒤 평시 화력 2의 NORMAL 신호 수신)
+        Instant normalTime = peakTime.plusSeconds(61);
+        long normalOffset = peakOffset + 61000L;
         AnalysisSignal normalSignal = AnalysisSignal.of(STREAM_ID, "sessionId", "NORMAL", normalTime, 2L, normalOffset);
         highlightSessionService.handleSignal(normalSignal);
 
@@ -230,12 +257,12 @@ class HighlightSessionServiceTest {
     }
 
     @Test
-    void 쿨다운_15초_미경과시_NORMAL_신호가_오더라도_세션이_마감되지_않는다() {
+    void 쿨다운_60초_미경과시_NORMAL_신호가_오더라도_세션이_마감되지_않는다() {
         // given
         Instant peakTime = Instant.now();
         long peakOffset = 3600000L;
         HighlightEventEntity ongoingSession = new HighlightEventEntity(
-            STREAM_ID, "sessionId", peakTime, peakOffset - 20000L, peakTime, peakOffset, 100L
+            STREAM_ID, "sessionId", peakTime, peakOffset - 40000L, peakTime, peakOffset, 100L
         );
 
         when(repository.findFirstByStreamIdAndStatusOrderByStartTimeDesc(STREAM_ID, "ONGOING"))
@@ -244,16 +271,16 @@ class HighlightSessionServiceTest {
         // 최초 피크 수신으로 캐시 등록
         highlightSessionService.handleSignal(AnalysisSignal.of(STREAM_ID, "sessionId", "PEAK", peakTime, 100L, peakOffset));
 
-        // 15초 쿨다운 만료 전 시뮬레이션: 캐시는 무효화되었으나 시간 임계치(15초) 미도달 (10초 경과)
+        // 60초 쿨다운 만료 전 시뮬레이션: 캐시는 무효화되었으나 시간 임계치(60초) 미도달 (30초 경과)
         @SuppressWarnings("unchecked")
         Cache<String, Long> cache = (Cache<String, Long>) ReflectionTestUtils.getField(highlightSessionService, "nmsCache");
         if (cache != null) {
             cache.invalidateAll();
         }
 
-        // when (10초 뒤 NORMAL 신호 수신 - threshold 15초 미도달)
-        Instant normalTime = peakTime.plusSeconds(10);
-        long normalOffset = peakOffset + 10000L;
+        // when (30초 뒤 NORMAL 신호 수신 - threshold 60초 미도달)
+        Instant normalTime = peakTime.plusSeconds(30);
+        long normalOffset = peakOffset + 30000L;
         AnalysisSignal normalSignal = AnalysisSignal.of(STREAM_ID, "sessionId", "NORMAL", normalTime, 2L, normalOffset);
         highlightSessionService.handleSignal(normalSignal);
 

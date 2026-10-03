@@ -6,6 +6,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.slice.stream.core.model.StreamTarget;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties;
+import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.DynamicFloorProperties;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.GroupProperties;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.TierProperties;
 import io.slice.stream.engine.analyzer.domain.detection.ChatFirepowerStatus;
@@ -59,6 +60,7 @@ class HighlightServiceTest {
         props = new HighlightEngineProperties(
             3000L,
             60000L,
+            3000L,
             12000L,
             15,
             0.01,
@@ -67,7 +69,8 @@ class HighlightServiceTest {
                 new GroupProperties(180, 3.0, 3.0, 30, 12L),
                 new GroupProperties(180, 3.5, 0.8, 10, 6L),
                 new GroupProperties(180, 4.0, 0.0, 0, 5L)
-            )
+            ),
+            new DynamicFloorProperties(5L, 4.0, 4.0)
         );
 
         highlightService = new HighlightService(
@@ -89,7 +92,12 @@ class HighlightServiceTest {
         StreamTarget target = new StreamTarget("stream1", "침착맨", "chat1", 1L, "title", 1000, "url", "게임", Instant.EPOCH);
         streamProvider.setTargets(List.of(target));
 
-        StreamTierInfo mockTierInfo = StreamTierInfo.builder().tier(StreamTier.MEGA).windowSeconds(180).build();
+        StreamTierInfo mockTierInfo = StreamTierInfo.builder()
+            .tier(StreamTier.MEGA)
+            .windowSeconds(180)
+            .windowTicks(60)
+            .maskingExclusionTicks(4)
+            .build();
         tierManager.setTierInfo("stream1", mockTierInfo);
 
         repository.setFirepowerDeltas("stream1", List.of(1L, 2L, 50L));
@@ -112,7 +120,12 @@ class HighlightServiceTest {
         StreamTarget target = new StreamTarget("stream-wait", "하꼬방", "chat1", 1L, "title", 10, "url", "소통", Instant.EPOCH);
         streamProvider.setTargets(List.of(target));
 
-        StreamTierInfo mockTierInfo = StreamTierInfo.builder().tier(StreamTier.REGULAR).windowSeconds(180).build();
+        StreamTierInfo mockTierInfo = StreamTierInfo.builder()
+            .tier(StreamTier.REGULAR)
+            .windowSeconds(180)
+            .windowTicks(60)
+            .maskingExclusionTicks(4)
+            .build();
         tierManager.setTierInfo("stream-wait", mockTierInfo);
 
         repository.setFirepowerDeltas("stream-wait", List.of(1L, 2L));
@@ -133,7 +146,12 @@ class HighlightServiceTest {
         StreamTarget targetWithoutStartedAt = new StreamTarget("stream-no-start", "방", "chat1", 1L, "title", 10, "url", "소통", null);
         streamProvider.setTargets(List.of(targetWithoutStartedAt));
 
-        StreamTierInfo mockTierInfo = StreamTierInfo.builder().tier(StreamTier.REGULAR).windowSeconds(180).build();
+        StreamTierInfo mockTierInfo = StreamTierInfo.builder()
+            .tier(StreamTier.REGULAR)
+            .windowSeconds(180)
+            .windowTicks(60)
+            .maskingExclusionTicks(4)
+            .build();
         tierManager.setTierInfo("stream-no-start", mockTierInfo);
 
         repository.setFirepowerDeltas("stream-no-start", List.of(1L, 2L));
@@ -152,7 +170,12 @@ class HighlightServiceTest {
         StreamTarget target = new StreamTarget("stream1", "침착맨", "chat1", 1L, "title", 1000, "url", "게임", Instant.EPOCH);
         streamProvider.setTargets(List.of(target));
 
-        StreamTierInfo mockTierInfo = StreamTierInfo.builder().tier(StreamTier.MEGA).windowSeconds(180).build();
+        StreamTierInfo mockTierInfo = StreamTierInfo.builder()
+            .tier(StreamTier.MEGA)
+            .windowSeconds(180)
+            .windowTicks(60)
+            .maskingExclusionTicks(4)
+            .build();
         tierManager.setTierInfo("stream1", mockTierInfo);
 
         repository.setFirepowerDeltas("stream1", List.of(1L, 2L, 50L));

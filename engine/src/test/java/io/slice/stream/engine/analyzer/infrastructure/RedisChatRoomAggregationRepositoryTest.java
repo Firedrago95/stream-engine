@@ -1,6 +1,7 @@
 package io.slice.stream.engine.analyzer.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
 import io.slice.stream.core.redis.Rediskeys;
@@ -36,6 +37,12 @@ class RedisChatRoomAggregationRepositoryTest implements RedisTestSupport {
 
     @Autowired
     private RedisScript<List> tsGetScript;
+
+    @Autowired
+    private RedisScript<Long> tsAddScript;
+
+    @Autowired
+    private RedisScript<List> tsRangeScript;
 
     private static final String CHAT_AGGREGATION_KEY = "chat:aggregation:%s";
 
@@ -138,6 +145,32 @@ class RedisChatRoomAggregationRepositoryTest implements RedisTestSupport {
     }
 
     @Test
+    void 집계_간격이_6초로_설정된_경우_6초_기준으로_공백_패딩을_수행한다() {
+        Instant now = Instant.now();
+        String streamId = "sparse_room_6s";
+
+        RedisChatRoomAggregationRepository repo6s = new RedisChatRoomAggregationRepository(
+            redisTemplate,
+            tsAddScript,
+            tsRangeScript,
+            6000L
+        );
+
+        ChatRoomAggregation agg = new ChatRoomAggregation(streamId, now);
+        agg.increaseCount(now, false);
+        repo6s.save(agg, now);
+
+        Instant t1 = now.plusSeconds(18);
+        agg.increaseCount(t1, false);
+        agg.increaseCount(t1, false);
+        repo6s.save(agg, t1);
+
+        List<Long> deltas = repo6s.getFirepowerDeltas(streamId, now.minusSeconds(1), now.plusSeconds(20));
+
+        assertThat(deltas).containsExactly(0L, 0L, 2L);
+    }
+
+    @Test
     void incrementSummary_증분값을_누적하고_누적된_요약_정보를_반환한다() {
         String streamId = "summary_test_stream";
 
@@ -188,5 +221,15 @@ class RedisChatRoomAggregationRepositoryTest implements RedisTestSupport {
 
         Optional<ChatSummary> result = repository.findSummaryByStreamId(streamId);
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void 집계_간격이_0_이하이면_예외가_발생한다() {
+        assertThatThrownBy(() -> new RedisChatRoomAggregationRepository(
+            redisTemplate,
+            tsAddScript,
+            tsRangeScript,
+            0L
+        )).isInstanceOf(IllegalArgumentException.class);
     }
 }

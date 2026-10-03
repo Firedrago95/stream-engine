@@ -88,7 +88,7 @@ public class ChatAggregationService {
         }
     }
 
-    @Scheduled(fixedRate = 3_000)
+    @Scheduled(fixedRateString = "${highlight.engine.aggregation-interval-ms:3000}")
     public void saveAggregations() {
         if (log.isDebugEnabled()) {
             log.debug("[Scheduler] Redis 저장 작업 수행 중... (대상 스트림: {}개)", chatRoomAggregations.asMap().size());

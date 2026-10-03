@@ -34,28 +34,29 @@ class ChatFirepowerDetectorTest {
             .minFirepowerCutoff(30L)
             .noiseFloor(12L)
             .windowSeconds(180)
+            .windowTicks(60)
             .zScoreThreshold(3.0)
             .maskingExclusionTicks(4)
             .build();
 
-        // Tier 2: REGULAR (중형방) - 180초 윈도우, Z 허들 3.5, noiseFloor 6, 1% 컷 10
         regularTier = StreamTierInfo.builder()
             .streamId("stream-regular")
             .tier(StreamTier.REGULAR)
             .minFirepowerCutoff(10L)
             .noiseFloor(6L)
             .windowSeconds(180)
+            .windowTicks(60)
             .zScoreThreshold(3.5)
             .maskingExclusionTicks(4)
             .build();
 
-        // Tier 3: MICRO (소형/신규) - 180초 윈도우, Z 허들 4.0, noiseFloor 5, 1% 컷 5
         microTier = StreamTierInfo.builder()
             .streamId("stream-micro")
             .tier(StreamTier.MICRO)
             .minFirepowerCutoff(5L)
             .noiseFloor(5L)
             .windowSeconds(180)
+            .windowTicks(60)
             .zScoreThreshold(4.0)
             .maskingExclusionTicks(4)
             .build();
@@ -150,14 +151,54 @@ class ChatFirepowerDetectorTest {
 
     @Test
     void 체급별_허들에_따라_정확한_PEAK_판정을_내린다() {
-        // given: REGULAR 체급 (허들 3.5, 바닥값 6, 1%컷 10)
         List<Long> deltas = new ArrayList<>(Collections.nCopies(60, 2L));
         deltas.add(15L);
 
-        // when
         DetectionResult result = detector.detect("regular_room", deltas, regularTier);
 
-        // then
+        assertThat(result.status()).isEqualTo(ChatFirepowerStatus.PEAK);
+        assertThat(result.firepower()).isEqualTo(15L);
+    }
+
+    @Test
+    void 마스킹_제외_틱수가_0일_때도_정상적으로_PEAK를_판정한다() {
+        StreamTierInfo unmaskedTier = StreamTierInfo.builder()
+            .streamId("stream-unmasked")
+            .tier(StreamTier.REGULAR)
+            .minFirepowerCutoff(10L)
+            .noiseFloor(6L)
+            .windowSeconds(180)
+            .windowTicks(60)
+            .zScoreThreshold(3.5)
+            .maskingExclusionTicks(0)
+            .build();
+
+        List<Long> deltas = new ArrayList<>(Collections.nCopies(60, 2L));
+        deltas.add(15L);
+
+        DetectionResult result = detector.detect("stream-unmasked", deltas, unmaskedTier);
+
+        assertThat(result.status()).isEqualTo(ChatFirepowerStatus.PEAK);
+        assertThat(result.firepower()).isEqualTo(15L);
+    }
+
+    @Test
+    void 마스킹_제외_틱수가_0일_때_현재_화력은_과거_비교_기준_history에_포함되지_않고_PEAK를_판정한다() {
+        StreamTierInfo unmaskedTier = StreamTierInfo.builder()
+            .streamId("stream-unmasked-edge")
+            .tier(StreamTier.REGULAR)
+            .minFirepowerCutoff(10L)
+            .noiseFloor(6L)
+            .windowSeconds(6)
+            .windowTicks(2)
+            .zScoreThreshold(3.5)
+            .maskingExclusionTicks(0)
+            .build();
+
+        List<Long> deltas = List.of(2L, 2L, 15L);
+
+        DetectionResult result = detector.detect("stream-unmasked-edge", deltas, unmaskedTier);
+
         assertThat(result.status()).isEqualTo(ChatFirepowerStatus.PEAK);
         assertThat(result.firepower()).isEqualTo(15L);
     }

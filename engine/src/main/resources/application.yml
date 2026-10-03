@@ -79,7 +79,7 @@ chzzk:
   collector:
     follower:
       cron: "0 30 3 * * *"
-      tps: 5.0
+      tps: 10.0
 
 api-server:
   host: ${SERVER_HOST}
@@ -103,6 +103,7 @@ highlight:
     # 1. 스케줄러 및 시간 설정
     scheduler-interval-ms: 3000       # 엔진 실시간 분석 주기 (3초)
     manager-refresh-ms: 180000        # 매니저 체급 갱신 주기 (3분)
+    aggregation-interval-ms: 3000     # 데이터 집계 및 저장 주기 (3초)
     masking-time-ms: 12000            # 마스킹 배제할 과거 시간 (12초)
     fetch-buffer-seconds: 15          # Redis 조회 시 여유분 (15초)
 
@@ -110,7 +111,13 @@ highlight:
     percentile-cut: 0.99              # 동적 임계치 상위 % (상위 1%)
     cold-start-weight: 0.005          # 방송 초기 시청자수 가중치 (0.5%)
 
-    # 3. 체급별 세부 파라미터
+    # 3. 화력 비례 동적 연속 바닥값 설정 (최소컷)
+    dynamic-floor:
+      min-floor: 5                    # 소형방 도서관 헛기침 방어 최저선 (5건)
+      slope: 4.0                      # 평균 화력 비례 계수 (압축 강화형)
+      intercept: 4.0                  # 기본 가산 절편
+
+    # 4. 체급별 세부 파라미터
     tier:
       mega:
         window-seconds: 180           # 대형방 과거 윈도우 (3분, 60틱)
