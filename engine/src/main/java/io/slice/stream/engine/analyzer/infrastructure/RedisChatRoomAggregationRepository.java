@@ -37,6 +37,9 @@ public class RedisChatRoomAggregationRepository implements ChatRoomAggregationRe
         RedisScript<List> tsRangeScript,
         @Value("${highlight.engine.aggregation-interval-ms:3000}") long tickIntervalMs
     ) {
+        if (tickIntervalMs <= 0) {
+            throw new IllegalArgumentException("데이터 집계 간격(tickIntervalMs)은 1ms 이상이어야 합니다.");
+        }
         this.redisTemplate = redisTemplate;
         this.tsAddScript = tsAddScript;
         this.tsRangeScript = tsRangeScript;

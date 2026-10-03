@@ -181,4 +181,25 @@ class ChatFirepowerDetectorTest {
         assertThat(result.status()).isEqualTo(ChatFirepowerStatus.PEAK);
         assertThat(result.firepower()).isEqualTo(15L);
     }
+
+    @Test
+    void 마스킹_제외_틱수가_0일_때_현재_화력은_과거_비교_기준_history에_포함되지_않고_PEAK를_판정한다() {
+        StreamTierInfo unmaskedTier = StreamTierInfo.builder()
+            .streamId("stream-unmasked-edge")
+            .tier(StreamTier.REGULAR)
+            .minFirepowerCutoff(10L)
+            .noiseFloor(6L)
+            .windowSeconds(6)
+            .windowTicks(2)
+            .zScoreThreshold(3.5)
+            .maskingExclusionTicks(0)
+            .build();
+
+        List<Long> deltas = List.of(2L, 2L, 15L);
+
+        DetectionResult result = detector.detect("stream-unmasked-edge", deltas, unmaskedTier);
+
+        assertThat(result.status()).isEqualTo(ChatFirepowerStatus.PEAK);
+        assertThat(result.firepower()).isEqualTo(15L);
+    }
 }

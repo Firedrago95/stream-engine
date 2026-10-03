@@ -40,7 +40,7 @@ public class ChatFirepowerDetector implements HighlightDetector {
     private List<Long> extractHistory(List<Long> deltas, StreamTierInfo tierInfo) {
         int maskingTicks = tierInfo.maskingExclusionTicks();
         int windowTicks = tierInfo.windowTicks();
-        int endIndex = deltas.size() - maskingTicks;
+        int endIndex = deltas.size() - Math.max(1, maskingTicks);
         int startIndex = Math.max(0, endIndex - windowTicks);
         if (startIndex >= endIndex) {
             return Collections.emptyList();

@@ -15,13 +15,12 @@ public record HighlightEngineProperties(
     DynamicFloorProperties dynamicFloor
 ) {
 
-    private static final long DEFAULT_AGGREGATION_INTERVAL_MS = 3_000L;
     private static final long RECENT_WINDOW_MS = 1_800_000L;
     private static final long MIN_TIER_DATA_MS = 300_000L;
 
     public HighlightEngineProperties {
         if (aggregationIntervalMs <= 0) {
-            aggregationIntervalMs = DEFAULT_AGGREGATION_INTERVAL_MS;
+            throw new IllegalArgumentException("데이터 집계 간격(aggregationIntervalMs)은 1ms 이상이어야 합니다.");
         }
         if (dynamicFloor == null) {
             dynamicFloor = new DynamicFloorProperties(5L, 4.0, 4.0);

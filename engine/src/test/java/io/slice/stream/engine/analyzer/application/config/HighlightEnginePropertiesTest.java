@@ -1,6 +1,7 @@
 package io.slice.stream.engine.analyzer.application.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.DynamicFloorProperties;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.GroupProperties;
@@ -58,10 +59,8 @@ class HighlightEnginePropertiesTest {
     }
 
     @Test
-    void 집계_간격이_0_이하이면_기본값인_3000ms로_보정된다() {
-        HighlightEngineProperties props = createProperties(3000L, 0L, 12000L);
-
-        assertThat(props.aggregationIntervalMs()).isEqualTo(3000L);
-        assertThat(props.getWindowTickCount(180)).isEqualTo(60);
+    void 집계_간격이_0_이하이면_예외가_발생한다() {
+        assertThatThrownBy(() -> createProperties(3000L, 0L, 12000L))
+            .isInstanceOf(IllegalArgumentException.class);
     }
 }

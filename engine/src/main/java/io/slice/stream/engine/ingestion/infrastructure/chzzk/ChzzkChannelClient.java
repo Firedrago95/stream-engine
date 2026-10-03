@@ -21,7 +21,7 @@ public class ChzzkChannelClient {
     public ChzzkChannelClient(
         RestClient restClient,
         @Value("${chzzk.api.channel-fetch:/service/v1/channels/{channelId}}") String channelFetchUrl,
-        @Value("${chzzk.collector.follower.tps:5.0}") double tps
+        @Value("${chzzk.collector.follower.tps:10.0}") double tps
     ) {
         this.restClient = restClient;
         this.channelFetchUrl = channelFetchUrl;

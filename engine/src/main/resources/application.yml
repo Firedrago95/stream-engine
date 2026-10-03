@@ -79,7 +79,7 @@ chzzk:
   collector:
     follower:
       cron: "0 30 3 * * *"
-      tps: 5.0
+      tps: 10.0
 
 api-server:
   host: ${SERVER_HOST}

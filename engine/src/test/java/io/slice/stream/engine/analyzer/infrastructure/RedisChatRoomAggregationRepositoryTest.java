@@ -1,6 +1,7 @@
 package io.slice.stream.engine.analyzer.infrastructure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
 import io.slice.stream.core.redis.Rediskeys;
@@ -220,5 +221,15 @@ class RedisChatRoomAggregationRepositoryTest implements RedisTestSupport {
 
         Optional<ChatSummary> result = repository.findSummaryByStreamId(streamId);
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void 집계_간격이_0_이하이면_예외가_발생한다() {
+        assertThatThrownBy(() -> new RedisChatRoomAggregationRepository(
+            redisTemplate,
+            tsAddScript,
+            tsRangeScript,
+            0L
+        )).isInstanceOf(IllegalArgumentException.class);
     }
 }
