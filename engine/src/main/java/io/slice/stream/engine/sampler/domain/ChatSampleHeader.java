@@ -7,12 +7,16 @@ public record ChatSampleHeader(
         String type,
         @JsonFormat(shape = JsonFormat.Shape.STRING, timezone = "UTC")
         Instant openDate,
+        Long openDateEpoch,
         @JsonFormat(shape = JsonFormat.Shape.STRING, timezone = "UTC")
         Instant samplingStartedAt,
+        Long samplingStartedAtEpoch,
         String channelId,
         String streamerName
 ) {
     public static ChatSampleHeader of(Instant openDate, Instant samplingStartedAt, String channelId, String streamerName) {
-        return new ChatSampleHeader("METADATA", openDate, samplingStartedAt, channelId, streamerName);
+        Long openEpoch = openDate != null ? openDate.getEpochSecond() : null;
+        Long samplingEpoch = samplingStartedAt != null ? samplingStartedAt.getEpochSecond() : null;
+        return new ChatSampleHeader("METADATA", openDate, openEpoch, samplingStartedAt, samplingEpoch, channelId, streamerName);
     }
 }

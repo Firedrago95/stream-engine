@@ -50,7 +50,9 @@ class LocalChatSampleWriterTest {
         assertThat(lines).hasSize(2);
         assertThat(lines.get(0)).contains("\"type\":\"METADATA\"");
         assertThat(lines.get(0)).contains("\"openDate\":\"2026-09-30T10:00:00Z\"");
+        assertThat(lines.get(0)).contains("\"openDateEpoch\":1790762400");
         assertThat(lines.get(0)).contains("\"samplingStartedAt\":\"2026-09-30T10:05:00Z\"");
+        assertThat(lines.get(0)).contains("\"samplingStartedAtEpoch\":1790762700");
         assertThat(lines.get(0)).contains("\"channelId\":\"channel_1\"");
         assertThat(lines.get(0)).contains("\"streamerName\":\"스트리머A\"");
         assertThat(lines.get(1)).contains("채팅 내용");
