@@ -6,6 +6,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.slice.stream.core.model.StreamTarget;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties;
+import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.DynamicFloorProperties;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.GroupProperties;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.TierProperties;
 import io.slice.stream.engine.analyzer.domain.detection.ChatFirepowerStatus;
@@ -67,7 +68,8 @@ class HighlightServiceTest {
                 new GroupProperties(180, 3.0, 3.0, 30, 12L),
                 new GroupProperties(180, 3.5, 0.8, 10, 6L),
                 new GroupProperties(180, 4.0, 0.0, 0, 5L)
-            )
+            ),
+            new DynamicFloorProperties(5L, 4.0, 4.0)
         );
 
         highlightService = new HighlightService(

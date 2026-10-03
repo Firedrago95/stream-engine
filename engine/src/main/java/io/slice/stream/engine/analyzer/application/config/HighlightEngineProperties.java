@@ -14,19 +14,6 @@ public record HighlightEngineProperties(
     DynamicFloorProperties dynamicFloor
 ) {
 
-    public HighlightEngineProperties(
-        long schedulerIntervalMs,
-        long managerRefreshMs,
-        long maskingTimeMs,
-        int fetchBufferSeconds,
-        double percentileCut,
-        double coldStartWeight,
-        TierProperties tier
-    ) {
-        this(schedulerIntervalMs, managerRefreshMs, maskingTimeMs, fetchBufferSeconds, percentileCut, coldStartWeight, tier,
-            new DynamicFloorProperties(5L, 4.0, 4.0));
-    }
-
     public HighlightEngineProperties {
         if (dynamicFloor == null) {
             dynamicFloor = new DynamicFloorProperties(5L, 4.0, 4.0);
