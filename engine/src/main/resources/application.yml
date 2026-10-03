@@ -103,6 +103,7 @@ highlight:
     # 1. 스케줄러 및 시간 설정
     scheduler-interval-ms: 3000       # 엔진 실시간 분석 주기 (3초)
     manager-refresh-ms: 180000        # 매니저 체급 갱신 주기 (3분)
+    aggregation-interval-ms: 3000     # 데이터 집계 및 저장 주기 (3초)
     masking-time-ms: 12000            # 마스킹 배제할 과거 시간 (12초)
     fetch-buffer-seconds: 15          # Redis 조회 시 여유분 (15초)
 

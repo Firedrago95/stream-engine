@@ -37,6 +37,12 @@ class RedisChatRoomAggregationRepositoryTest implements RedisTestSupport {
     @Autowired
     private RedisScript<List> tsGetScript;
 
+    @Autowired
+    private RedisScript<Long> tsAddScript;
+
+    @Autowired
+    private RedisScript<List> tsRangeScript;
+
     private static final String CHAT_AGGREGATION_KEY = "chat:aggregation:%s";
 
     @Test
@@ -135,6 +141,32 @@ class RedisChatRoomAggregationRepositoryTest implements RedisTestSupport {
         // T=9초의 패딩: 0
         // T=12초의 델타: 3
         assertThat(deltas).containsExactly(2L, 0L, 0L, 3L);
+    }
+
+    @Test
+    void 집계_간격이_6초로_설정된_경우_6초_기준으로_공백_패딩을_수행한다() {
+        Instant now = Instant.now();
+        String streamId = "sparse_room_6s";
+
+        RedisChatRoomAggregationRepository repo6s = new RedisChatRoomAggregationRepository(
+            redisTemplate,
+            tsAddScript,
+            tsRangeScript,
+            6000L
+        );
+
+        ChatRoomAggregation agg = new ChatRoomAggregation(streamId, now);
+        agg.increaseCount(now, false);
+        repo6s.save(agg, now);
+
+        Instant t1 = now.plusSeconds(18);
+        agg.increaseCount(t1, false);
+        agg.increaseCount(t1, false);
+        repo6s.save(agg, t1);
+
+        List<Long> deltas = repo6s.getFirepowerDeltas(streamId, now.minusSeconds(1), now.plusSeconds(20));
+
+        assertThat(deltas).containsExactly(0L, 0L, 2L);
     }
 
     @Test

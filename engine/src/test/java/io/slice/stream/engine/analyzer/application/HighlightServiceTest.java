@@ -60,6 +60,7 @@ class HighlightServiceTest {
         props = new HighlightEngineProperties(
             3000L,
             60000L,
+            3000L,
             12000L,
             15,
             0.01,
@@ -91,7 +92,12 @@ class HighlightServiceTest {
         StreamTarget target = new StreamTarget("stream1", "침착맨", "chat1", 1L, "title", 1000, "url", "게임", Instant.EPOCH);
         streamProvider.setTargets(List.of(target));
 
-        StreamTierInfo mockTierInfo = StreamTierInfo.builder().tier(StreamTier.MEGA).windowSeconds(180).build();
+        StreamTierInfo mockTierInfo = StreamTierInfo.builder()
+            .tier(StreamTier.MEGA)
+            .windowSeconds(180)
+            .windowTicks(60)
+            .maskingExclusionTicks(4)
+            .build();
         tierManager.setTierInfo("stream1", mockTierInfo);
 
         repository.setFirepowerDeltas("stream1", List.of(1L, 2L, 50L));
@@ -114,7 +120,12 @@ class HighlightServiceTest {
         StreamTarget target = new StreamTarget("stream-wait", "하꼬방", "chat1", 1L, "title", 10, "url", "소통", Instant.EPOCH);
         streamProvider.setTargets(List.of(target));
 
-        StreamTierInfo mockTierInfo = StreamTierInfo.builder().tier(StreamTier.REGULAR).windowSeconds(180).build();
+        StreamTierInfo mockTierInfo = StreamTierInfo.builder()
+            .tier(StreamTier.REGULAR)
+            .windowSeconds(180)
+            .windowTicks(60)
+            .maskingExclusionTicks(4)
+            .build();
         tierManager.setTierInfo("stream-wait", mockTierInfo);
 
         repository.setFirepowerDeltas("stream-wait", List.of(1L, 2L));
@@ -135,7 +146,12 @@ class HighlightServiceTest {
         StreamTarget targetWithoutStartedAt = new StreamTarget("stream-no-start", "방", "chat1", 1L, "title", 10, "url", "소통", null);
         streamProvider.setTargets(List.of(targetWithoutStartedAt));
 
-        StreamTierInfo mockTierInfo = StreamTierInfo.builder().tier(StreamTier.REGULAR).windowSeconds(180).build();
+        StreamTierInfo mockTierInfo = StreamTierInfo.builder()
+            .tier(StreamTier.REGULAR)
+            .windowSeconds(180)
+            .windowTicks(60)
+            .maskingExclusionTicks(4)
+            .build();
         tierManager.setTierInfo("stream-no-start", mockTierInfo);
 
         repository.setFirepowerDeltas("stream-no-start", List.of(1L, 2L));
@@ -154,7 +170,12 @@ class HighlightServiceTest {
         StreamTarget target = new StreamTarget("stream1", "침착맨", "chat1", 1L, "title", 1000, "url", "게임", Instant.EPOCH);
         streamProvider.setTargets(List.of(target));
 
-        StreamTierInfo mockTierInfo = StreamTierInfo.builder().tier(StreamTier.MEGA).windowSeconds(180).build();
+        StreamTierInfo mockTierInfo = StreamTierInfo.builder()
+            .tier(StreamTier.MEGA)
+            .windowSeconds(180)
+            .windowTicks(60)
+            .maskingExclusionTicks(4)
+            .build();
         tierManager.setTierInfo("stream1", mockTierInfo);
 
         repository.setFirepowerDeltas("stream1", List.of(1L, 2L, 50L));

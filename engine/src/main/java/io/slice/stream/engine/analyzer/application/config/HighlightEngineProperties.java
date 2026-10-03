@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record HighlightEngineProperties(
     long schedulerIntervalMs,
     long managerRefreshMs,
+    long aggregationIntervalMs,
     long maskingTimeMs,
     int fetchBufferSeconds,
     double percentileCut,
@@ -14,7 +15,14 @@ public record HighlightEngineProperties(
     DynamicFloorProperties dynamicFloor
 ) {
 
+    private static final long DEFAULT_AGGREGATION_INTERVAL_MS = 3_000L;
+    private static final long RECENT_WINDOW_MS = 1_800_000L;
+    private static final long MIN_TIER_DATA_MS = 300_000L;
+
     public HighlightEngineProperties {
+        if (aggregationIntervalMs <= 0) {
+            aggregationIntervalMs = DEFAULT_AGGREGATION_INTERVAL_MS;
+        }
         if (dynamicFloor == null) {
             dynamicFloor = new DynamicFloorProperties(5L, 4.0, 4.0);
         }
@@ -40,22 +48,19 @@ public record HighlightEngineProperties(
         double intercept
     ) {}
 
-    private static final long RECENT_WINDOW_MS = 1_800_000L;
-    private static final long MIN_TIER_DATA_MS = 300_000L;
-
     public int getMaskingTickCount() {
-        return (int) (maskingTimeMs / schedulerIntervalMs);
+        return (int) (maskingTimeMs / aggregationIntervalMs);
     }
 
     public int getRecentWindowTickCount() {
-        return (int) (RECENT_WINDOW_MS / schedulerIntervalMs);
+        return (int) (RECENT_WINDOW_MS / aggregationIntervalMs);
     }
 
     public int getMinTierDataPointCount() {
-        return (int) (MIN_TIER_DATA_MS / schedulerIntervalMs);
+        return (int) (MIN_TIER_DATA_MS / aggregationIntervalMs);
     }
 
     public int getWindowTickCount(int windowSeconds) {
-        return (int) (windowSeconds * 1000L / schedulerIntervalMs);
+        return (int) (windowSeconds * 1000L / aggregationIntervalMs);
     }
 }

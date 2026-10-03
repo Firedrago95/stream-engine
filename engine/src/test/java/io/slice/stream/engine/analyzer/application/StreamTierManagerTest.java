@@ -35,6 +35,7 @@ class StreamTierManagerTest {
         props = new HighlightEngineProperties(
             3000L,
             180000L,
+            3000L,
             12000L,
             15,
             0.99,
