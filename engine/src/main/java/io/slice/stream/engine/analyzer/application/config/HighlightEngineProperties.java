@@ -40,7 +40,22 @@ public record HighlightEngineProperties(
         double intercept
     ) {}
 
+    private static final long RECENT_WINDOW_MS = 1_800_000L;
+    private static final long MIN_TIER_DATA_MS = 300_000L;
+
     public int getMaskingTickCount() {
         return (int) (maskingTimeMs / schedulerIntervalMs);
+    }
+
+    public int getRecentWindowTickCount() {
+        return (int) (RECENT_WINDOW_MS / schedulerIntervalMs);
+    }
+
+    public int getMinTierDataPointCount() {
+        return (int) (MIN_TIER_DATA_MS / schedulerIntervalMs);
+    }
+
+    public int getWindowTickCount(int windowSeconds) {
+        return (int) (windowSeconds * 1000L / schedulerIntervalMs);
     }
 }

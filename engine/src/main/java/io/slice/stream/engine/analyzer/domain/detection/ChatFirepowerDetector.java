@@ -9,15 +9,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ChatFirepowerDetector implements HighlightDetector {
 
-    private static final int MIN_DATA_POINTS_FOR_ANALYSIS = 30;
-    private static final int WINDOW_TICKS = 60;
-    private static final int MASKING_EXCLUSION_TICKS = 5;
     private static final double NORMAL_CONSISTENCY_FACTOR = 1.4826;
     private static final double MIN_MAD_FLOOR = 0.5;
 
     @Override
     public DetectionResult detect(String streamId, List<Long> deltas, StreamTierInfo tierInfo) {
-        if (isDataInsufficient(deltas)) {
+        if (isDataInsufficient(deltas, tierInfo)) {
             return DetectionResult.waiting();
         }
 
@@ -27,7 +24,7 @@ public class ChatFirepowerDetector implements HighlightDetector {
             return new DetectionResult(ChatFirepowerStatus.NORMAL, currentDelta);
         }
 
-        List<Long> history = extractHistory(deltas);
+        List<Long> history = extractHistory(deltas, tierInfo);
         if (history.isEmpty()) {
             return new DetectionResult(ChatFirepowerStatus.NORMAL, currentDelta);
         }
@@ -35,13 +32,16 @@ public class ChatFirepowerDetector implements HighlightDetector {
         return evaluateRobustFirepower(streamId, currentDelta, history, tierInfo);
     }
 
-    private boolean isDataInsufficient(List<Long> deltas) {
-        return deltas == null || deltas.size() < MIN_DATA_POINTS_FOR_ANALYSIS;
+    private boolean isDataInsufficient(List<Long> deltas, StreamTierInfo tierInfo) {
+        int minRequired = Math.max(1, tierInfo.windowTicks() / 2);
+        return deltas == null || deltas.size() < minRequired;
     }
 
-    private List<Long> extractHistory(List<Long> deltas) {
-        int endIndex = deltas.size() - MASKING_EXCLUSION_TICKS;
-        int startIndex = Math.max(0, endIndex - WINDOW_TICKS);
+    private List<Long> extractHistory(List<Long> deltas, StreamTierInfo tierInfo) {
+        int maskingTicks = tierInfo.maskingExclusionTicks();
+        int windowTicks = tierInfo.windowTicks();
+        int endIndex = deltas.size() - maskingTicks;
+        int startIndex = Math.max(0, endIndex - windowTicks);
         if (startIndex >= endIndex) {
             return Collections.emptyList();
         }

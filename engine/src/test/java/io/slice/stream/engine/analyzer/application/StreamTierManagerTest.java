@@ -107,6 +107,7 @@ class StreamTierManagerTest {
         assertThat(tierInfo.isMega()).isTrue();
         assertThat(tierInfo.noiseFloor()).isEqualTo(41L);
         assertThat(tierInfo.zScoreThreshold()).isEqualTo(3.0);
+        assertThat(tierInfo.windowTicks()).isEqualTo(60);
     }
 
     @Test

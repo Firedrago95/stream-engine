@@ -23,8 +23,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class StreamTierManager {
 
-    private static final int RECENT_WINDOW_TICKS = 600;
-
     private final ActiveStreamProvider activeStreamProvider;
     private final ChatRoomAggregationRepository chatRepository;
     private final HighlightEngineProperties props;
@@ -59,7 +57,7 @@ public class StreamTierManager {
 
     private void processTierUpdate(String streamId, Instant from, Instant to) {
         List<Long> lastHourDeltas = chatRepository.getFirepowerDeltas(streamId, from, to);
-        if (lastHourDeltas.size() < 100) return;
+        if (lastHourDeltas.size() < props.getMinTierDataPointCount()) return;
 
         List<Long> recentDeltas = extractRecentDeltas(lastHourDeltas);
         double avgFirepower = calculateAverageFirepower(recentDeltas);
@@ -97,12 +95,14 @@ public class StreamTierManager {
             case MICRO -> props.tier().micro();
         };
 
+        int windowSeconds = groupProps.windowSeconds();
         return StreamTierInfo.builder()
             .streamId(streamId)
             .tier(tier)
             .minFirepowerCutoff(cutoff)
             .noiseFloor(noiseFloor)
-            .windowSeconds(groupProps.windowSeconds())
+            .windowSeconds(windowSeconds)
+            .windowTicks(props.getWindowTickCount(windowSeconds))
             .zScoreThreshold(groupProps.zScore())
             .maskingExclusionTicks(props.getMaskingTickCount())
             .build();
@@ -142,7 +142,8 @@ public class StreamTierManager {
     }
 
     private List<Long> extractRecentDeltas(List<Long> allDeltas) {
-        int startIndex = Math.max(0, allDeltas.size() - RECENT_WINDOW_TICKS);
+        int windowTicks = props.getRecentWindowTickCount();
+        int startIndex = Math.max(0, allDeltas.size() - windowTicks);
         return allDeltas.subList(startIndex, allDeltas.size());
     }
 }
