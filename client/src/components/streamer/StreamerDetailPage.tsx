@@ -198,10 +198,16 @@ export const StreamerDetailPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-        <div className="p-4 sm:p-5 bg-[#141416] border border-[#2A2A2C] rounded-2xl">
+        <div className="p-4 sm:p-5 bg-[#141416] border border-[#2A2A2C] rounded-2xl relative group/tip">
           <p className="text-xs text-gray-200 font-bold mb-1 flex items-center gap-1">
             <span>👥</span> 평균 시청자
+            <svg className="w-3.5 h-3.5 text-gray-400 group-hover/tip:text-[#67BFFF] transition-colors fill-current cursor-help ml-0.5" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
           </p>
+          <div className="absolute left-4 bottom-full mb-2 hidden group-hover/tip:block w-64 p-2.5 bg-[#18181c] border border-gray-700 text-[11px] text-gray-200 rounded-xl shadow-2xl z-50 font-normal leading-relaxed text-left backdrop-blur-md">
+            방송 시간 대비 총 시청 시간을 반영한 시간 가중 평균 지표입니다.
+          </div>
           <p className="text-xl sm:text-2xl font-black text-[#67BFFF] font-mono">
             {summary.averageViewers.toLocaleString()}
             <span className="text-xs text-gray-100 font-normal ml-1">명</span>

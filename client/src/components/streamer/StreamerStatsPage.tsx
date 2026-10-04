@@ -111,8 +111,9 @@ export const StreamerStatsPage: React.FC = () => {
                       <svg className="w-3.5 h-3.5 text-gray-100 group-hover/tip:text-[#00FFA3] transition-colors fill-current shrink-0" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                       </svg>
-                      <div className="absolute right-0 bottom-full mb-2 hidden group-hover/tip:block w-64 p-3 bg-[#18181c] border border-gray-700 text-[11px] text-gray-200 rounded-xl shadow-2xl z-50 font-normal leading-relaxed text-left backdrop-blur-md">
-                        💡 최근 30일간의 방송 세션 데이터를 바탕으로 산출된 평균 시청자 지표입니다. (매일 새벽 04:00 정기 갱신)
+                      <div className="absolute right-0 bottom-full mb-2 hidden group-hover/tip:block w-72 p-3 bg-[#18181c] border border-gray-700 text-[11px] text-gray-200 rounded-xl shadow-2xl z-50 font-normal leading-relaxed text-left backdrop-blur-md">
+                        <p className="font-semibold text-white mb-1">⏱️ 방송 시간 가중 평균</p>
+                        최근 30일간 방송 시간 대비 총 시청 시간을 반영한 체급 지표입니다. 단기 이벤트 방송으로 인한 체급 왜곡을 방지합니다. (매일 04:00 정기 갱신)
                       </div>
                     </div>
                   </th>
