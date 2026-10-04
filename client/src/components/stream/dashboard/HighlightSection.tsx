@@ -43,41 +43,129 @@ const formatAbsoluteTime = (isoString: string) => {
 interface HighlightSectionProps {
   highlights: any[];
   selectedTab: string;
+  startedAt?: string;
+  endedAt?: string | null;
 }
 
-export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, selectedTab}) => {
-  const [showAll, setShowAll] = useState(false);
+export const HighlightSection: React.FC<HighlightSectionProps> = ({
+  highlights,
+  selectedTab,
+  startedAt,
+  endedAt,
+}) => {
+  const [viewMode, setViewMode] = useState<'top6' | 'recommended' | 'all'>('top6');
+  const [sortOrder, setSortOrder] = useState<'firepower' | 'time'>('firepower');
   const isRealtime = selectedTab === 'realtime';
 
+  const durationHours = React.useMemo(() => {
+    if (!startedAt) return 1;
+    const start = new Date(startedAt).getTime();
+    if (isNaN(start)) return 1;
+
+    const end = endedAt ? new Date(endedAt).getTime() : Date.now();
+    if (isNaN(end) || end <= start) return 1;
+
+    return Math.max(1, (end - start) / (1000 * 60 * 60));
+  }, [startedAt, endedAt]);
+
+  const recommendedLimit = React.useMemo(() => {
+    return Math.max(6, Math.round(durationHours * 4));
+  }, [durationHours]);
+
+  const firepowerRankMap = React.useMemo(() => {
+    const sorted = [...highlights].sort((a, b) => b.peakFirepower - a.peakFirepower);
+    const map = new Map<string | number, number>();
+    sorted.forEach((hl, index) => {
+      map.set(hl.id, index + 1);
+    });
+    return map;
+  }, [highlights]);
+
   const processedHighlights = React.useMemo(() => {
-    let list = [...highlights];
-    list.sort((a, b) => b.peakFirepower - a.peakFirepower);
-    if (isRealtime) {
-      return list;
-    } else {
-      return showAll ? list : list.slice(0, 6);
+    const byFirepower = [...highlights].sort((a, b) => b.peakFirepower - a.peakFirepower);
+
+    let selected = byFirepower;
+    if (viewMode === 'top6') {
+      selected = byFirepower.slice(0, 6);
+    } else if (viewMode === 'recommended') {
+      selected = byFirepower.slice(0, recommendedLimit);
     }
-  }, [highlights, isRealtime, showAll]);
+
+    if (sortOrder === 'time') {
+      return [...selected].sort((a, b) => {
+        const timeA = a.startTimeOffset ?? (a.startTime ? new Date(a.startTime).getTime() : 0);
+        const timeB = b.startTimeOffset ?? (b.startTime ? new Date(b.startTime).getTime() : 0);
+        return timeA - timeB;
+      });
+    }
+
+    return selected;
+  }, [highlights, viewMode, recommendedLimit, sortOrder]);
+
+  const titleText = React.useMemo(() => {
+    const prefix = isRealtime ? "실시간 하이라이트" : "방송 하이라이트";
+    if (highlights.length <= 6) return prefix;
+    if (viewMode === 'top6') return `${prefix} (Top 6)`;
+    if (viewMode === 'recommended') {
+      const count = Math.min(recommendedLimit, highlights.length);
+      return `${prefix} (추천 ${count}선)`;
+    }
+    return `${prefix} (전체 ${highlights.length}개)`;
+  }, [isRealtime, highlights.length, viewMode, recommendedLimit]);
+
+  const countBadgeText = React.useMemo(() => {
+    if (highlights.length <= 6) return `${highlights.length}`;
+    if (viewMode === 'top6') return `6 / ${highlights.length}`;
+    if (viewMode === 'recommended') {
+      const count = Math.min(recommendedLimit, highlights.length);
+      return `${count} / ${highlights.length}`;
+    }
+    return `${highlights.length}`;
+  }, [highlights.length, viewMode, recommendedLimit]);
 
   return (
       <div className="mt-12">
-        <div className="flex items-center justify-between mb-6 px-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 px-2">
           <div className="flex items-center gap-2">
             <span className="text-2xl">🔥</span>
             <h3 className="text-xl font-black text-white italic tracking-tighter">
-              {isRealtime ? "실시간 하이라이트 (Top 6)" : "방송 하이라이트"}
+              {titleText}
             </h3>
             <span className="px-2.5 py-0.5 bg-[#00FFA3]/20 border border-[#00FFA3]/30 text-[#00FFA3] rounded-lg text-sm font-black">
-            {isRealtime ? processedHighlights.length : highlights.length}
-          </span>
+              {countBadgeText}
+            </span>
             <InfoTooltip
-                text={isRealtime ? "현재 방송에서 화력이 가장 높았던 상위 6개 구간입니다." : "과거 방송의 전체 하이라이트 목록입니다."}/>
+                text={
+                  isRealtime
+                    ? "현재 진행 중인 방송의 하이라이트입니다.\n- Top 6: 최상위 화력 순간\n- 추천 뷰: 방송 시간 기반(시간당 4개) 엄선\n- 정렬 토글로 타임라인순/화력순 전환 가능"
+                    : "방송 하이라이트 목록입니다.\n- Top 6: 최상위 화력 순간\n- 추천 뷰: 방송 시간 기반(시간당 4개) 엄선\n- 정렬 토글로 타임라인순/화력순 전환 가능"
+                }
+            />
           </div>
 
-          {!isRealtime && (
-              <span className="text-[10px] text-gray-100 font-bold uppercase tracking-widest">
-            정렬: 시간순
-          </span>
+          {highlights.length > 0 && (
+            <div className="flex items-center bg-[#1a1a1c] p-1 rounded-xl border border-gray-800 text-xs font-bold self-start sm:self-auto">
+              <button
+                onClick={() => setSortOrder('firepower')}
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
+                  sortOrder === 'firepower'
+                    ? 'bg-gray-800 text-[#00FFA3] shadow-sm'
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                <span>🔥</span> 화력순
+              </button>
+              <button
+                onClick={() => setSortOrder('time')}
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
+                  sortOrder === 'time'
+                    ? 'bg-gray-800 text-[#00FFA3] shadow-sm'
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                <span>⏱️</span> 타임라인순
+              </button>
+            </div>
           )}
         </div>
 
@@ -87,24 +175,25 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
                 데이터가 없습니다.
               </div>
           ) : (
-              processedHighlights.map((hl, index) => {
-                const getRankStyles = (idx: number) => {
-                  switch (idx) {
-                    case 0: // 1등 Gold
+              processedHighlights.map((hl) => {
+                const rank = firepowerRankMap.get(hl.id) || 1;
+                const getRankStyles = (r: number) => {
+                  switch (r) {
+                    case 1: // 1등 Gold
                       return {
                         card: "border-yellow-500/30 bg-gradient-to-br from-yellow-500/10 to-transparent shadow-lg hover:border-yellow-500/50",
                         badge: "border-yellow-500 bg-yellow-500/20 text-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.3)]",
                         peak: "text-yellow-500",
                         label: "text-yellow-500/70"
                       };
-                    case 1: // 2등 Silver
+                    case 2: // 2등 Silver
                       return {
                         card: "border-blue-100/30 bg-[#1a1a1c] hover:border-blue-100/50",
                         badge: "border-white bg-blue-100/20 text-white shadow-[0_0_10px_rgba(255,255,255,0.4)]",
                         peak: "text-white",
                         label: "text-blue-100/60"
                       };
-                    case 2: // 3등 Bronze (채도 보정)
+                    case 3: // 3등 Bronze
                       return {
                         card: "border-orange-600/20 bg-[#1a1a1c] hover:border-orange-600/40",
                         badge: "border-orange-600 bg-orange-600/10 text-orange-600",
@@ -121,7 +210,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
                   }
                 };
 
-                const style = getRankStyles(index);
+                const style = getRankStyles(rank);
 
                 return (
                     <div
@@ -129,8 +218,10 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
                         className={`flex items-center p-3.5 sm:p-5 border rounded-2xl transition-all shadow-sm ${style.card}`}
                     >
                       <div
-                          className={`mr-3 sm:mr-4 flex-shrink-0 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 font-black text-xs italic ${style.badge}`}>
-                        {index + 1}
+                          className={`mr-3 sm:mr-4 flex-shrink-0 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 font-black text-xs italic ${style.badge}`}
+                          title={`화력 순위 ${rank}위`}
+                      >
+                        {rank}
                       </div>
 
                       <div className="flex-1 min-w-0">
@@ -161,23 +252,69 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({highlights, s
           )}
         </div>
 
-        {!isRealtime && highlights.length > 6 && (
-            <button
-                onClick={() => setShowAll(!showAll)}
-                className="w-full mt-6 py-4 bg-[#1a1a1c] border border-gray-800 rounded-2xl text-gray-100 text-sm font-bold hover:bg-gray-800 hover:text-white transition-all shadow-lg group"
-            >
-              {showAll ? (
-                  "▲ 하이라이트 접기"
-              ) : (
-                  <div className="flex items-center justify-center gap-2">
-                    <span>▼ 전체 하이라이트 보기</span>
-                    <span className="bg-gray-800 px-2 py-0.5 rounded text-[11px] group-hover:bg-gray-700">
-                {highlights.length - 6}개 더보기
-              </span>
+        {highlights.length > 6 && (
+          <div className="mt-6 flex flex-col items-center gap-3">
+            {viewMode === 'top6' && (
+              <button
+                onClick={() => setViewMode(highlights.length <= recommendedLimit ? 'all' : 'recommended')}
+                className="w-full py-4 bg-[#1a1a1c] border border-gray-800 rounded-2xl text-gray-100 text-sm font-bold hover:bg-gray-800 hover:text-white transition-all shadow-lg group"
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <span>▼ 추천 하이라이트 보기</span>
+                  <span className="bg-gray-800 px-2.5 py-0.5 rounded text-[11px] group-hover:bg-gray-700 text-[#00FFA3]">
+                    {Math.min(recommendedLimit, highlights.length) - 6}개 더보기
+                    {highlights.length > recommendedLimit && ` (약 ${durationHours.toFixed(1)}시간 기준)`}
+                  </span>
+                </div>
+              </button>
+            )}
+
+            {viewMode === 'recommended' && (
+              <div className="w-full flex flex-col items-center gap-2.5">
+                <button
+                  onClick={() => setViewMode('top6')}
+                  className="w-full py-4 bg-[#1a1a1c] border border-gray-800 rounded-2xl text-gray-100 text-sm font-bold hover:bg-gray-800 hover:text-white transition-all shadow-lg"
+                >
+                  ▲ 기본(Top 6)으로 접기
+                </button>
+
+                {highlights.length > recommendedLimit && (
+                  <div className="flex items-center justify-center gap-2 text-xs text-gray-400 mt-1">
+                    <span>시간당 4개 기준으로 선별되었습니다.</span>
+                    <button
+                      onClick={() => setViewMode('all')}
+                      className="text-[#00FFA3] hover:underline font-bold"
+                    >
+                      전체 {highlights.length}개 모두 펼치기
+                    </button>
                   </div>
-              )}
-            </button>
+                )}
+              </div>
+            )}
+
+            {viewMode === 'all' && (
+              <div className="w-full flex flex-col items-center gap-2.5">
+                <button
+                  onClick={() => setViewMode(highlights.length > recommendedLimit ? 'recommended' : 'top6')}
+                  className="w-full py-4 bg-[#1a1a1c] border border-gray-800 rounded-2xl text-gray-100 text-sm font-bold hover:bg-gray-800 hover:text-white transition-all shadow-lg"
+                >
+                  {highlights.length > recommendedLimit
+                    ? `▲ 추천 하이라이트로 접기 (${Math.min(recommendedLimit, highlights.length)}개)`
+                    : "▲ 기본(Top 6)으로 접기"}
+                </button>
+                {highlights.length > recommendedLimit && (
+                  <button
+                    onClick={() => setViewMode('top6')}
+                    className="text-xs text-gray-400 hover:text-gray-200 transition-colors"
+                  >
+                    기본(Top 6)으로 바로 접기
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
   );
 };
+
