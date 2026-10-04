@@ -16,7 +16,7 @@ public interface JpaHighlightEventRepository extends JpaRepository<HighlightEven
         @Param("status") String status
     );
 
-    @Query("SELECT h FROM HighlightEventEntity h WHERE h.streamId = :streamId AND h.sessionId = :sessionId ORDER BY h.startTime ASC")
+    @Query("SELECT h FROM HighlightEventEntity h WHERE h.streamId = :streamId AND h.sessionId = :sessionId")
     List<HighlightEventEntity> findAllByStreamIdAndSessionId(@Param("streamId") String streamId, @Param("sessionId") String sessionId);
 
     @Query("""

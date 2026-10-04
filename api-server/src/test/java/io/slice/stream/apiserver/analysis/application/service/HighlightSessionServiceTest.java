@@ -41,7 +41,7 @@ class HighlightSessionServiceTest {
         Duration.ofSeconds(10),
         Duration.ofSeconds(60),
         0.7,
-        6,
+        5,
         6,
         20,
         10,
@@ -183,7 +183,7 @@ class HighlightSessionServiceTest {
     void 화력이_최소_임계값_미만인_PEAK_신호는_세션을_생성하지_않고_무시된다() {
         // given
         Instant now = Instant.now();
-        AnalysisSignal weakSignal = AnalysisSignal.of(STREAM_ID, "sessionId", "PEAK", now, 5L, 3600000L);
+        AnalysisSignal weakSignal = AnalysisSignal.of(STREAM_ID, "sessionId", "PEAK", now, 4L, 3600000L);
 
         // when
         highlightSessionService.handleSignal(weakSignal);

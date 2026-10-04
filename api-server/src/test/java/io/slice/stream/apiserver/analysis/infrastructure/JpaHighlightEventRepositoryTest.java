@@ -161,9 +161,9 @@ class JpaHighlightEventRepositoryTest implements PostgresTestSupport {
 
         // then
         assertThat(results).hasSize(2);
-        // startTime ASC (오름차순) 정렬이 제대로 되었는지 확인 (일찍 시작한 event2가 먼저 와야 함)
-        assertThat(results.get(0).getPeakFirepower()).isEqualTo(100L);
-        assertThat(results.get(1).getPeakFirepower()).isEqualTo(200L);
+        assertThat(results)
+            .extracting(HighlightEventEntity::getPeakFirepower)
+            .containsExactlyInAnyOrder(100L, 200L);
     }
 
     @Test
