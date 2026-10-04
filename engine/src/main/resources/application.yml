@@ -102,39 +102,20 @@ highlight:
   engine:
     # 1. 스케줄러 및 시간 설정
     scheduler-interval-ms: 3000       # 엔진 실시간 분석 주기 (3초)
-    manager-refresh-ms: 180000        # 매니저 체급 갱신 주기 (3분)
+    manager-refresh-ms: 180000        # 매니저 바닥값 갱신 주기 (3분)
     aggregation-interval-ms: 3000     # 데이터 집계 및 저장 주기 (3초)
-    masking-time-ms: 12000            # 마스킹 배제할 과거 시간 (12초)
     fetch-buffer-seconds: 15          # Redis 조회 시 여유분 (15초)
+    recent-window-ms: 1800000         # 평균 화력 산출 윈도우 (30분 = 1,800,000ms)
+    min-data-ms: 300000               # 최소 데이터 누적 시간 (5분 = 300,000ms)
 
-    # 2. 오토스케일링 및 백분위 설정
-    percentile-cut: 0.99              # 동적 임계치 상위 % (상위 1%)
+    # 2. 콜드스타트 설정
     cold-start-weight: 0.005          # 방송 초기 시청자수 가중치 (0.5%)
 
     # 3. 화력 비례 동적 연속 바닥값 설정 (최소컷)
     dynamic-floor:
       min-floor: 5                    # 소형방 도서관 헛기침 방어 최저선 (5건)
-      slope: 4.0                      # 평균 화력 비례 계수 (압축 강화형)
+      slope: 5.0                      # 평균 화력 비례 계수 (편집자 피로도 고려)
       intercept: 4.0                  # 기본 가산 절편
-
-    # 4. 체급별 세부 파라미터
-    tier:
-      mega:
-        window-seconds: 180           # 대형방 과거 윈도우 (3분, 60틱)
-        z-score: 4.0                  # 대형방 허들 (일상 잡담 필터링을 위해 4.0으로 상향)
-        condition-min-avg: 3.0        # 대형방 승급 조건 (30분 평균 3.0건/3초)
-        condition-min-peak: 30        # 대형방 승급 조건 (30분 최고 피크 30건/3초)
-        noise-floor: 16               # 최소 화력 바닥값 (16건/3초, 슈퍼플레이 보존 및 잡담 억제)
-      regular:
-        window-seconds: 180           # 중형방 과거 윈도우 (3분, 60틱)
-        z-score: 4.0                  # 중형방 허들 (피로도 방지 및 정밀도 향상을 위해 4.0으로 상향)
-        condition-min-avg: 0.8        # 중형방 승급 조건 (30분 평균 0.8건/3초)
-        condition-min-peak: 10        # 중형방 승급 조건 (30분 최고 피크 10건/3초)
-        noise-floor: 9                # 최소 화력 바닥값 (9건/3초, 시간당 7개 골든 레인지 안착)
-      micro:
-        window-seconds: 180           # 소형방/신규 과거 윈도우 (3분, 60틱)
-        z-score: 4.0                  # 소형방 허들 (도서관 헛기침 방어)
-        noise-floor: 5                # 최소 화력 바닥값 (5건/3초)
 
 # 커스텀 스레드 풀 스위칭 설정
 app:

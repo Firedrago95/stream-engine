@@ -102,7 +102,7 @@ public class HighlightService {
             StreamTierInfo tierInfo = tierManager.getTierInfo(streamId, currentViewers);
 
             // 분석에 필요한 델타 데이터 리스트 조회
-            List<Long> deltas = fetchDeltas(streamId, now, tierInfo);
+            List<Long> deltas = fetchDeltas(streamId, now);
 
             // 감지 로직 실행
             DetectionResult result = detector.detect(streamId, deltas, tierInfo);
@@ -114,9 +114,8 @@ public class HighlightService {
         }
     }
 
-    private List<Long> fetchDeltas(String streamId, Instant now, StreamTierInfo tierInfo) {
-        // 체급별 윈도우 사이즈와 여유분을 합산하여 데이터 조회
-        Instant from = now.minusSeconds(tierInfo.windowSeconds() + props.fetchBufferSeconds());
+    private List<Long> fetchDeltas(String streamId, Instant now) {
+        Instant from = now.minusSeconds(props.fetchBufferSeconds());
         return repository.getFirepowerDeltas(streamId, from, now);
     }
 
@@ -136,8 +135,8 @@ public class HighlightService {
 
         if (result.status() == ChatFirepowerStatus.PEAK) {
             peakDetectedCounter.increment();
-            log.info("[Analysis] PEAK 시그널 전송 - Stream: {}, 수치: {}, 체급: {}",
-                streamId, result.firepower(), tierInfo.tier().name());
+            log.info("[Analysis] PEAK 시그널 전송 - Stream: {}, 수치: {}, 바닥값: {}",
+                streamId, result.firepower(), tierInfo.noiseFloor());
         }
 
         return Optional.of(new AnalysisSignal(streamId, liveId, result.status().name(), now, result.firepower(), offsetMs));

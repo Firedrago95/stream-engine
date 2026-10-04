@@ -11,47 +11,21 @@ import org.junit.jupiter.api.Test;
 class StreamTierInfoTest {
 
     @Test
-    void 마스킹_제외_틱이_0이면_마스킹을_끈_상태로_정상_생성된다() {
+    void 정상적인_바닥값으로_StreamTierInfo를_생성한다() {
         StreamTierInfo info = StreamTierInfo.builder()
             .streamId("stream-1")
-            .tier(StreamTier.REGULAR)
-            .minFirepowerCutoff(10L)
             .noiseFloor(6L)
-            .windowSeconds(180)
-            .windowTicks(60)
-            .zScoreThreshold(3.5)
-            .maskingExclusionTicks(0)
             .build();
 
-        assertThat(info.maskingExclusionTicks()).isZero();
+        assertThat(info.streamId()).isEqualTo("stream-1");
+        assertThat(info.noiseFloor()).isEqualTo(6L);
     }
 
     @Test
-    void 윈도우_틱수가_0_이하이면_예외가_발생한다() {
+    void 바닥값이_음수이면_예외가_발생한다() {
         assertThatThrownBy(() -> StreamTierInfo.builder()
             .streamId("stream-1")
-            .tier(StreamTier.REGULAR)
-            .minFirepowerCutoff(10L)
-            .noiseFloor(6L)
-            .windowSeconds(180)
-            .windowTicks(0)
-            .zScoreThreshold(3.5)
-            .maskingExclusionTicks(4)
-            .build())
-            .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    void 마스킹_제외_틱수가_음수이면_예외가_발생한다() {
-        assertThatThrownBy(() -> StreamTierInfo.builder()
-            .streamId("stream-1")
-            .tier(StreamTier.REGULAR)
-            .minFirepowerCutoff(10L)
-            .noiseFloor(6L)
-            .windowSeconds(180)
-            .windowTicks(60)
-            .zScoreThreshold(3.5)
-            .maskingExclusionTicks(-1)
+            .noiseFloor(-1L)
             .build())
             .isInstanceOf(IllegalArgumentException.class);
     }
