@@ -11,19 +11,17 @@ import io.slice.stream.apiserver.analysis.infrastructure.JpaHighlightEventReposi
 import io.slice.stream.apiserver.analysis.infrastructure.entity.HighlightEventEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.analysis.presentation.dto.HighlightResponse;
-import io.slice.stream.apiserver.global.config.HighlightProperties;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,21 +33,6 @@ class HighlightQueryServiceTest {
 
     @Mock
     private JpaStreamSessionRepository sessionRepository;
-
-    @Spy
-    private HighlightProperties properties = new HighlightProperties(
-        Duration.ofSeconds(20),
-        Duration.ofSeconds(5),
-        Duration.ofSeconds(90),
-        0.7,
-        5,
-        6,
-        20,
-        10,
-        24,
-        30,
-        365
-    );
 
     @InjectMocks
     private HighlightQueryService highlightQueryService;
@@ -130,5 +113,35 @@ class HighlightQueryServiceTest {
 
         verify(sessionRepository).findActiveSession(streamId);
         verify(highlightRepository, never()).findAllByStreamIdAndSessionId(any(), any());
+    }
+
+    @Test
+    void 하이라이트_조회_시_개수_제한_없이_모든_하이라이트를_화력_내림차순으로_반환한다() {
+        // given
+        String streamId = "stream-123";
+        String sessionId = "session-123";
+        Instant baseTime = Instant.parse("2026-03-04T10:00:00Z");
+
+        List<HighlightEventEntity> entities = IntStream.rangeClosed(1, 30)
+            .mapToObj(i -> {
+                HighlightEventEntity entity = new HighlightEventEntity(
+                    streamId, sessionId, baseTime.plusSeconds(i * 60L), (long) i * 60000,
+                    baseTime.plusSeconds(i * 60L), (long) i * 60000, (long) i * 10
+                );
+                entity.finish(baseTime.plusSeconds(i * 60L + 30), (long) i * 60000 + 30000);
+                return entity;
+            })
+            .toList();
+
+        given(highlightRepository.findAllByStreamIdAndSessionId(streamId, sessionId))
+            .willReturn(entities);
+
+        // when
+        List<HighlightResponse> results = highlightQueryService.getHighlightsBySessionId(streamId, sessionId);
+
+        // then
+        assertThat(results).hasSize(30);
+        assertThat(results.get(0).peakFirepower()).isEqualTo(300L);
+        assertThat(results.get(29).peakFirepower()).isEqualTo(10L);
     }
 }

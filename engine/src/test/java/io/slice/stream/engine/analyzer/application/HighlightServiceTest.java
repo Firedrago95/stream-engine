@@ -7,12 +7,9 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.slice.stream.core.model.StreamTarget;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.DynamicFloorProperties;
-import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.GroupProperties;
-import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.TierProperties;
 import io.slice.stream.engine.analyzer.domain.detection.ChatFirepowerStatus;
 import io.slice.stream.engine.analyzer.domain.detection.DetectionResult;
 import io.slice.stream.engine.analyzer.domain.signal.AnalysisSignal;
-import io.slice.stream.engine.analyzer.domain.tier.StreamTier;
 import io.slice.stream.engine.analyzer.domain.tier.StreamTierInfo;
 import io.slice.stream.engine.analyzer.fake.DirectExecutorService;
 import io.slice.stream.engine.analyzer.fake.FakeActiveStreamProvider;
@@ -61,16 +58,11 @@ class HighlightServiceTest {
             3000L,
             60000L,
             3000L,
-            12000L,
+            1800000L,
+            300000L,
             15,
-            0.01,
             0.05,
-            new TierProperties(
-                new GroupProperties(180, 3.0, 3.0, 30, 12L),
-                new GroupProperties(180, 3.5, 0.8, 10, 6L),
-                new GroupProperties(180, 4.0, 0.0, 0, 5L)
-            ),
-            new DynamicFloorProperties(5L, 4.0, 4.0)
+            new DynamicFloorProperties(5L, 5.0, 4.0)
         );
 
         highlightService = new HighlightService(
@@ -93,10 +85,8 @@ class HighlightServiceTest {
         streamProvider.setTargets(List.of(target));
 
         StreamTierInfo mockTierInfo = StreamTierInfo.builder()
-            .tier(StreamTier.MEGA)
-            .windowSeconds(180)
-            .windowTicks(60)
-            .maskingExclusionTicks(4)
+            .streamId("stream1")
+            .noiseFloor(12L)
             .build();
         tierManager.setTierInfo("stream1", mockTierInfo);
 
@@ -121,10 +111,8 @@ class HighlightServiceTest {
         streamProvider.setTargets(List.of(target));
 
         StreamTierInfo mockTierInfo = StreamTierInfo.builder()
-            .tier(StreamTier.REGULAR)
-            .windowSeconds(180)
-            .windowTicks(60)
-            .maskingExclusionTicks(4)
+            .streamId("stream-wait")
+            .noiseFloor(6L)
             .build();
         tierManager.setTierInfo("stream-wait", mockTierInfo);
 
@@ -147,10 +135,8 @@ class HighlightServiceTest {
         streamProvider.setTargets(List.of(targetWithoutStartedAt));
 
         StreamTierInfo mockTierInfo = StreamTierInfo.builder()
-            .tier(StreamTier.REGULAR)
-            .windowSeconds(180)
-            .windowTicks(60)
-            .maskingExclusionTicks(4)
+            .streamId("stream-no-start")
+            .noiseFloor(6L)
             .build();
         tierManager.setTierInfo("stream-no-start", mockTierInfo);
 
@@ -171,10 +157,8 @@ class HighlightServiceTest {
         streamProvider.setTargets(List.of(target));
 
         StreamTierInfo mockTierInfo = StreamTierInfo.builder()
-            .tier(StreamTier.MEGA)
-            .windowSeconds(180)
-            .windowTicks(60)
-            .maskingExclusionTicks(4)
+            .streamId("stream1")
+            .noiseFloor(12L)
             .build();
         tierManager.setTierInfo("stream1", mockTierInfo);
 

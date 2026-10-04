@@ -4,13 +4,10 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.DynamicFloorProperties;
-import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.GroupProperties;
 import io.slice.stream.engine.analyzer.domain.aggregation.ChatRoomAggregationRepository;
 import io.slice.stream.engine.analyzer.domain.stream.ActiveStreamProvider;
-import io.slice.stream.engine.analyzer.domain.tier.StreamTier;
 import io.slice.stream.engine.analyzer.domain.tier.StreamTierInfo;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
@@ -44,75 +41,34 @@ public class StreamTierManager {
     public void refreshAllTiers() {
         List<String> activeStreamIds = activeStreamProvider.getActiveStreamIds();
         Instant now = Instant.now();
-        Instant oneHourAgo = now.minus(1, ChronoUnit.HOURS);
+        Instant windowStart = now.minusMillis(props.recentWindowMs());
 
         for (String streamId : activeStreamIds) {
             try {
-                processTierUpdate(streamId, oneHourAgo, now);
+                processTierUpdate(streamId, windowStart, now);
             } catch (Exception e) {
-                log.error("[TierManager] 스트림 {} 체급 갱신 중 에러 발생", streamId, e);
+                log.error("[TierManager] 스트림 {} 바닥값 갱신 중 에러 발생", streamId, e);
             }
         }
     }
 
     private void processTierUpdate(String streamId, Instant from, Instant to) {
-        List<Long> lastHourDeltas = chatRepository.getFirepowerDeltas(streamId, from, to);
-        if (lastHourDeltas.size() < props.getMinTierDataPointCount()) return;
+        List<Long> recentDeltas = chatRepository.getFirepowerDeltas(streamId, from, to);
+        if (recentDeltas.size() < props.getMinDataPointCount()) {
+            return;
+        }
 
-        List<Long> recentDeltas = extractRecentDeltas(lastHourDeltas);
         double avgFirepower = calculateAverageFirepower(recentDeltas);
         long dynamicNoiseFloor = calculateDynamicNoiseFloor(avgFirepower);
 
-        long percentile1Cutoff = calculatePercentile(lastHourDeltas, props.percentileCut());
-        StreamTier tier = determineTier(recentDeltas);
-
-        tierCache.put(streamId, buildTierInfo(streamId, tier, percentile1Cutoff, dynamicNoiseFloor));
-    }
-
-    private StreamTier determineTier(List<Long> recentDeltas) {
-        if (recentDeltas.isEmpty()) {
-            return StreamTier.MICRO;
-        }
-
-        double avgFirepower = calculateAverageFirepower(recentDeltas);
-        long maxFirepower = calculateMaxFirepower(recentDeltas);
-
-        if (avgFirepower >= props.tier().mega().conditionMinAvg() &&
-            maxFirepower >= props.tier().mega().conditionMinPeak()) {
-            return StreamTier.MEGA;
-        }
-        if (avgFirepower >= props.tier().regular().conditionMinAvg() &&
-            maxFirepower >= props.tier().regular().conditionMinPeak()) {
-            return StreamTier.REGULAR;
-        }
-        return StreamTier.MICRO;
-    }
-
-    private StreamTierInfo buildTierInfo(String streamId, StreamTier tier, long cutoff, long noiseFloor) {
-        GroupProperties groupProps = switch (tier) {
-            case MEGA -> props.tier().mega();
-            case REGULAR -> props.tier().regular();
-            case MICRO -> props.tier().micro();
-        };
-
-        int windowSeconds = groupProps.windowSeconds();
-        return StreamTierInfo.builder()
-            .streamId(streamId)
-            .tier(tier)
-            .minFirepowerCutoff(cutoff)
-            .noiseFloor(noiseFloor)
-            .windowSeconds(windowSeconds)
-            .windowTicks(props.getWindowTickCount(windowSeconds))
-            .zScoreThreshold(groupProps.zScore())
-            .maskingExclusionTicks(props.getMaskingTickCount())
-            .build();
+        tierCache.put(streamId, new StreamTierInfo(streamId, dynamicNoiseFloor));
     }
 
     private StreamTierInfo createColdStartTier(String streamId, int currentViewers) {
         long calculatedCutoff = (long) (currentViewers * props.coldStartWeight());
         long hardFloorCutoff = Math.max(props.dynamicFloor().minFloor(), calculatedCutoff);
 
-        return buildTierInfo(streamId, StreamTier.MICRO, hardFloorCutoff, hardFloorCutoff);
+        return new StreamTierInfo(streamId, hardFloorCutoff);
     }
 
     private long calculateDynamicNoiseFloor(double avgFirepower) {
@@ -126,24 +82,5 @@ public class StreamTierManager {
             .mapToLong(Long::longValue)
             .average()
             .orElse(0.0);
-    }
-
-    private long calculateMaxFirepower(List<Long> deltas) {
-        return deltas.stream()
-            .mapToLong(Long::longValue)
-            .max()
-            .orElse(0L);
-    }
-
-    private long calculatePercentile(List<Long> values, double percentile) {
-        List<Long> sorted = values.stream().sorted().toList();
-        int index = (int) Math.ceil(percentile * sorted.size()) - 1;
-        return sorted.get(Math.max(0, index));
-    }
-
-    private List<Long> extractRecentDeltas(List<Long> allDeltas) {
-        int windowTicks = props.getRecentWindowTickCount();
-        int startIndex = Math.max(0, allDeltas.size() - windowTicks);
-        return allDeltas.subList(startIndex, allDeltas.size());
     }
 }

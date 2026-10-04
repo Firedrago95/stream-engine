@@ -514,6 +514,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
       <HighlightSection
         highlights={highlights}
         selectedTab={isLiveTabSelected ? "realtime" : selectedTab}
+        startedAt={isLiveTabSelected ? availableSessions[0]?.startedAt : currentSessionInfo?.startedAt}
+        endedAt={isLiveTabSelected ? null : currentSessionInfo?.endedAt}
       />
 
       <footer className="mt-16 sm:mt-24 pt-8 sm:pt-12 border-t border-gray-800/60 text-center">
