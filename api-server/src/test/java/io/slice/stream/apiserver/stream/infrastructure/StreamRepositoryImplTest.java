@@ -263,6 +263,35 @@ class StreamRepositoryImplTest implements PostgresTestSupport {
     }
 
     @Test
+    void 키워드_검색시에도_방송시간이_서로_다른_세션들은_시간_가중평균으로_계산된다() {
+        Instant now = Instant.now();
+        Instant since = now.minus(30, ChronoUnit.DAYS);
+
+        StreamEntity stream = new StreamEntity("search-weighted-1", "가중테스트스트리머");
+        stream.heartbeat("가중테스트스트리머", "생방송", "url", "게임", 4000);
+        jpaStreamRepository.save(stream);
+
+        StreamSessionEntity session1 = new StreamSessionEntity(
+            "search-weighted-1", "sess-sw-1", "1시간방송", "게임", now.minus(5, ChronoUnit.DAYS)
+        );
+        session1.finishSession(now.minus(5, ChronoUnit.DAYS).plusSeconds(3600), 12000, 10000);
+
+        StreamSessionEntity session2 = new StreamSessionEntity(
+            "search-weighted-1", "sess-sw-2", "3시간방송", "게임", now.minus(2, ChronoUnit.DAYS)
+        );
+        session2.finishSession(now.minus(2, ChronoUnit.DAYS).plusSeconds(10800), 3000, 2000);
+
+        jpaStreamSessionRepository.saveAll(List.of(session1, session2));
+
+        List<StreamerLeaderboardProjection> results =
+            repository.searchTopStreamersWith30dAvg("가중테스트", since, 10);
+
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).getStreamerName()).isEqualTo("가중테스트스트리머");
+        assertThat(results.get(0).getAverageViewers()).isEqualTo(4000);
+    }
+
+    @Test
     void 최근_30일간_5일_이상_방송한_정규_스트리머만_리더보드에_조회된다() {
         Instant now = Instant.now();
         Instant since = now.minus(30, ChronoUnit.DAYS);
@@ -411,7 +440,46 @@ class StreamRepositoryImplTest implements PostgresTestSupport {
             .filter(p -> p.getStreamId().equals("marathon-streamer"))
             .findFirst()
             .orElseThrow();
-        assertThat(projection.getAverageViewers()).isEqualTo(8000);
+        assertThat(projection.getAverageViewers()).isEqualTo(9880);
+    }
+
+    @Test
+    void 방송시간이_서로_다른_세션들은_단순_산술평균이_아닌_시간_가중평균으로_계산된다() {
+        Instant now = Instant.now();
+        Instant since = now.minus(30, ChronoUnit.DAYS);
+
+        StreamEntity streamer = new StreamEntity("weighted-test-streamer", "가중평균스트리머");
+        streamer.heartbeat("가중평균스트리머", "실시간", "url", "게임", 2800);
+        jpaStreamRepository.save(streamer);
+
+        StreamSessionEntity shortSession = new StreamSessionEntity(
+            "weighted-test-streamer", "sess-short", "1시간 단기방송", "게임", now.minus(10, ChronoUnit.DAYS)
+        );
+        shortSession.finishSession(now.minus(10, ChronoUnit.DAYS).plusSeconds(3600), 12000, 10000);
+
+        StreamSessionEntity longSession = new StreamSessionEntity(
+            "weighted-test-streamer", "sess-long", "9시간 장기방송", "게임", now.minus(5, ChronoUnit.DAYS)
+        );
+        longSession.finishSession(now.minus(5, ChronoUnit.DAYS).plusSeconds(32400), 3000, 2000);
+
+        for (int i = 1; i <= 3; i++) {
+            StreamSessionEntity filler = new StreamSessionEntity(
+                "weighted-test-streamer", "sess-filler-" + i, "추가방송" + i, "게임", now.minus(15 + i, ChronoUnit.DAYS)
+            );
+            filler.finishSession(now.minus(15 + i, ChronoUnit.DAYS).plusSeconds(3600), 3000, 2000);
+            jpaStreamSessionRepository.save(filler);
+        }
+
+        jpaStreamSessionRepository.saveAll(List.of(shortSession, longSession));
+
+        List<StreamerLeaderboardProjection> results = repository.findTopStreamersWith30dAvg(since, 5, 10);
+
+        StreamerLeaderboardProjection target = results.stream()
+            .filter(p -> p.getStreamId().equals("weighted-test-streamer"))
+            .findFirst()
+            .orElseThrow();
+
+        assertThat(target.getAverageViewers()).isEqualTo(2615);
     }
 }
 

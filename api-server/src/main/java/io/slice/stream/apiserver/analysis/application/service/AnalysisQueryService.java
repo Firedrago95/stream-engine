@@ -63,6 +63,10 @@ public class AnalysisQueryService {
                 .toList())
             .orElse(List.of());
 
+        List<SegmentResponse> segments = activeSession
+            .map(s -> fetchSegments(s.getSessionId()))
+            .orElse(List.of());
+
         SessionSummaryResponse summary = activeSession
             .map(s -> new SessionSummaryResponse(
                 s.getSessionId(),
@@ -76,7 +80,7 @@ public class AnalysisQueryService {
             ))
             .orElse(null);
 
-        return new AnalysisResponse(streamId, dataPoints, List.of(), timeline, summary);
+        return new AnalysisResponse(streamId, dataPoints, segments, timeline, summary);
     }
 
     public List<SessionResponse> getAvailableSessions(String streamId, int limit) {
@@ -96,18 +100,7 @@ public class AnalysisQueryService {
     }
 
     public AnalysisResponse getHistoryAnalysis(String streamId, String sessionId) {
-        List<StreamSessionSegmentEntity> segments = segmentRepository.findBySessionIdOrderByStartedAtAsc(sessionId);
-        List<SegmentResponse> segmentResponses = segments.stream()
-            .map(seg -> new SegmentResponse(
-                seg.getId(),
-                seg.getTitle(),
-                seg.getCategoryName(),
-                seg.getStartedAt(),
-                seg.getEndedAt(),
-                seg.getStartOffsetMs(),
-                seg.getEndOffsetMs()
-            ))
-            .toList();
+        List<SegmentResponse> segmentResponses = fetchSegments(sessionId);
 
         List<ViewMetricTimelineEntity> timelines = timelineRepository.findBySessionIdOrderByTimestampAsc(sessionId);
         List<TimelineDataPoint> timelineResponses = timelines.stream()
@@ -283,6 +276,21 @@ public class AnalysisQueryService {
 
                 return new AnalysisDataPoint(minuteTimestamp, avgValue, status, firstOffsetMs);
             })
+            .toList();
+    }
+
+    private List<SegmentResponse> fetchSegments(String sessionId) {
+        List<StreamSessionSegmentEntity> segments = segmentRepository.findBySessionIdOrderByStartedAtAsc(sessionId);
+        return segments.stream()
+            .map(seg -> new SegmentResponse(
+                seg.getId(),
+                seg.getTitle(),
+                seg.getCategoryName(),
+                seg.getStartedAt(),
+                seg.getEndedAt(),
+                seg.getStartOffsetMs(),
+                seg.getEndOffsetMs()
+            ))
             .toList();
     }
 }

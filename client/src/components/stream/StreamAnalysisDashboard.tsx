@@ -127,11 +127,24 @@ export const StreamAnalysisDashboard: React.FC = () => {
     timeline: any[],
     matchViewer: (targetTs: number, timeline: any[], fallbackViewer?: number) => number
   ) => {
-    if (!data || data.length === 0) return [];
+    if ((!data || data.length === 0) && (!timeline || timeline.length === 0)) {
+      return [];
+    }
 
-    return data.map((p: any) => ({
-      ...p,
-      viewerCount: matchViewer(p.timestamp, timeline, p.viewerCount || 0)
+    if (data && data.length > 0) {
+      return data.map((p: any) => ({
+        ...p,
+        viewerCount: matchViewer(p.timestamp, timeline, p.viewerCount || 0),
+        hasFirepower: true
+      }));
+    }
+
+    return (timeline || []).map((t: any) => ({
+      timestamp: t.timestamp,
+      value: 0,
+      status: 'NORMAL',
+      viewerCount: t.viewerCount,
+      hasFirepower: false
     }));
   };
 
@@ -152,10 +165,25 @@ export const StreamAnalysisDashboard: React.FC = () => {
     const timeline = analysisData.timeline || [];
     const fallbackViewers = streamerInfo?.concurrentUserCount || 0;
 
-    return points.slice(-CONFIG.DISPLAY_POINTS).map((p: any) => ({
-      ...p,
-      viewerCount: matchViewerCount(p.timestamp, timeline, fallbackViewers)
-    }));
+    if (points.length > 0) {
+      return points.slice(-CONFIG.DISPLAY_POINTS).map((p: any) => ({
+        ...p,
+        viewerCount: matchViewerCount(p.timestamp, timeline, fallbackViewers),
+        hasFirepower: true
+      }));
+    }
+
+    if (timeline.length > 0) {
+      return timeline.slice(-CONFIG.DISPLAY_POINTS).map((t: any) => ({
+        timestamp: t.timestamp,
+        value: 0,
+        status: 'NORMAL',
+        viewerCount: t.viewerCount,
+        hasFirepower: false
+      }));
+    }
+
+    return [];
   }, [analysisData, streamerInfo?.concurrentUserCount]);
 
   const { highlights } = useHighlights(
@@ -450,8 +478,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
     ? (liveTimeframe === 'realtime' ? isLoading : isLiveCumulativeLoading)
     : false;
   const isHistoryEmpty = isLiveTabSelected
-    ? (liveTimeframe === 'cumulative' && !isLiveCumulativeLoading && compressedLiveHistory.length === 0)
-    : historicalData.length === 0;
+    ? (liveTimeframe === 'cumulative' && !isLiveCumulativeLoading && compressedLiveHistory.length === 0 && liveCumulativeTimeline.length === 0)
+    : (historicalData.length === 0 && historicalTimeline.length === 0);
 
   return (
     <div className="w-full pb-16 sm:pb-20 bg-[#060606] min-h-screen text-white px-2 sm:px-6 lg:px-8">

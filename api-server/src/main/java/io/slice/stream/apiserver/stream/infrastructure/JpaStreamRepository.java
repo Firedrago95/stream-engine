@@ -110,7 +110,12 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
             CAST(sub.avg_viewers AS integer) AS averageViewers
         FROM streams s
         INNER JOIN (
-            SELECT ss.stream_id, ROUND(AVG(ss.average_viewer_count)) AS avg_viewers
+            SELECT 
+                ss.stream_id, 
+                ROUND(
+                    SUM(ss.average_viewer_count * GREATEST(1, EXTRACT(EPOCH FROM (COALESCE(ss.ended_at, NOW()) - ss.started_at))))
+                    / NULLIF(SUM(GREATEST(1, EXTRACT(EPOCH FROM (COALESCE(ss.ended_at, NOW()) - ss.started_at)))), 0)
+                ) AS avg_viewers
             FROM stream_sessions ss
             INNER JOIN (
                 SELECT s2.stream_id
@@ -148,7 +153,10 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
             s.is_live AS isLive,
             s.last_update_at AS lastUpdateAt,
             s.concurrent_user_count AS concurrentUserCount,
-            CAST(COALESCE(ROUND(AVG(ss.average_viewer_count)), 0) AS integer) AS averageViewers
+            CAST(COALESCE(ROUND(
+                SUM(ss.average_viewer_count * GREATEST(1, EXTRACT(EPOCH FROM (COALESCE(ss.ended_at, NOW()) - ss.started_at))))
+                / NULLIF(SUM(GREATEST(1, EXTRACT(EPOCH FROM (COALESCE(ss.ended_at, NOW()) - ss.started_at)))), 0)
+            ), 0) AS integer) AS averageViewers
         FROM streams s
         LEFT JOIN stream_sessions ss 
             ON s.stream_id = ss.stream_id 

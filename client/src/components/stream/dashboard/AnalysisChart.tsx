@@ -113,14 +113,34 @@ const CustomTooltip = ({ active, payload, selectedTab, timeframe = 'realtime', f
   return null;
 };
 
-const getCategoryColor = (category: string) => {
-  const name = category.toLowerCase();
+const GAME_PALETTE = ['#8B5CF6', '#06B6D4', '#10B981', '#F43F5E', '#F97316', '#3B82F6', '#A855F7'];
 
-  if (name.includes('talk')) {
-    return '#EAB308'
+const buildCategoryColorMap = (segments: StreamSegment[]) => {
+  const colorMap = new Map<string, string>();
+  let gameColorIndex = 0;
+
+  for (const seg of segments) {
+    const cat = seg.categoryName || '기타';
+    if (!colorMap.has(cat)) {
+      if (cat.toLowerCase().includes('talk')) {
+        colorMap.set(cat, '#EAB308');
+      } else {
+        colorMap.set(cat, GAME_PALETTE[gameColorIndex % GAME_PALETTE.length]);
+        gameColorIndex++;
+      }
+    }
   }
+  return colorMap;
+};
 
-  return '#8B5CF6'
+const formatDuration = (ms: number) => {
+  if (ms <= 0) return "";
+  const totalMin = Math.round(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h > 0 && m > 0) return `${h}시간 ${m}분`;
+  if (h > 0) return `${h}시간`;
+  return `${m}분`;
 };
 
 export const AnalysisChart: React.FC<Props> = ({
@@ -130,6 +150,14 @@ export const AnalysisChart: React.FC<Props> = ({
 }) => {
   const isFixedRealtime = selectedTab === "realtime" && timeframe === "realtime";
   const isLiveTab = selectedTab === "realtime";
+
+  const categoryColorMap = React.useMemo(() => {
+    return buildCategoryColorMap(segments);
+  }, [segments]);
+
+  const hasAnyFirepower = React.useMemo(() => {
+    return chartData.some(d => d.value > 0);
+  }, [chartData]);
 
   const { processedData, uniqueColors } = React.useMemo(() => {
     if (isFixedRealtime || !segments.length || !chartData.length) {
@@ -151,7 +179,7 @@ export const AnalysisChart: React.FC<Props> = ({
         return tsMs >= start && tsMs < end;
       });
       
-      const color = activeSeg ? getCategoryColor(activeSeg.categoryName) : '#00FFA3';
+      const color = activeSeg ? (categoryColorMap.get(activeSeg.categoryName) || '#8B5CF6') : '#00FFA3';
       colors.add(color);
       
       d[`val_${color}`] = d.value;
@@ -167,7 +195,55 @@ export const AnalysisChart: React.FC<Props> = ({
     }
 
     return { processedData: newData, uniqueColors: Array.from(colors) };
-  }, [chartData, isFixedRealtime, segments]);
+  }, [chartData, isFixedRealtime, segments, categoryColorMap]);
+
+  const categoryTransitionLines = React.useMemo(() => {
+    if (isFixedRealtime || segments.length <= 1 || !chartData.length) return [];
+    const normalize = (ts: number) => (ts < 10000000000 ? ts * 1000 : ts);
+
+    const lines: Array<{ slotIndex: number; categoryName: string; color: string; id: any }> = [];
+
+    for (let i = 1; i < segments.length; i++) {
+      const seg = segments[i];
+      const segStartTs = new Date(seg.startedAt).getTime();
+      const idx = chartData.findIndex(d => d.timestamp && normalize(d.timestamp) >= segStartTs);
+      if (idx !== -1) {
+        lines.push({
+          slotIndex: chartData[idx]?.slotIndex ?? idx,
+          categoryName: seg.categoryName,
+          color: categoryColorMap.get(seg.categoryName) || '#8B5CF6',
+          id: seg.id || i
+        });
+      }
+    }
+    return lines;
+  }, [chartData, segments, isFixedRealtime, categoryColorMap]);
+
+  const ribbonSegments = React.useMemo(() => {
+    if (isFixedRealtime || !segments.length) return [];
+    const now = Date.now();
+    const parsed = segments.map(seg => {
+      const start = new Date(seg.startedAt).getTime();
+      const end = seg.endedAt ? new Date(seg.endedAt).getTime() : now;
+      const duration = Math.max(0, end - start);
+      return {
+        ...seg,
+        startMs: start,
+        endMs: end,
+        durationMs: duration,
+        color: categoryColorMap.get(seg.categoryName) || '#8B5CF6'
+      };
+    });
+
+    const totalDuration = parsed.reduce((acc, s) => acc + s.durationMs, 0);
+    if (totalDuration <= 0) return [];
+
+    return parsed.map(s => ({
+      ...s,
+      percent: Math.max(3, (s.durationMs / totalDuration) * 100),
+      durationLabel: formatDuration(s.durationMs)
+    }));
+  }, [segments, isFixedRealtime, categoryColorMap]);
 
 
   return (
@@ -196,7 +272,7 @@ export const AnalysisChart: React.FC<Props> = ({
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 sm:mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <div>
             <h3 className="text-base sm:text-lg font-bold text-gray-200 uppercase tracking-widest italic">채팅 화력 및 시청자 추이</h3>
@@ -261,6 +337,40 @@ export const AnalysisChart: React.FC<Props> = ({
         </div>
       </div>
 
+      {ribbonSegments.length > 0 && (
+        <div className="mb-5">
+          <div className="flex items-center gap-1.5 w-full h-7 bg-[#141518] rounded-lg p-1 border border-gray-800/80 overflow-x-auto no-scrollbar">
+            {ribbonSegments.map((seg, idx) => (
+              <div
+                key={seg.id || idx}
+                style={{
+                  width: `${seg.percent}%`,
+                  backgroundColor: `${seg.color}25`,
+                  borderColor: `${seg.color}60`
+                }}
+                className="h-full rounded-md border flex items-center justify-between px-2 min-w-[70px] truncate transition-all hover:brightness-125 cursor-default"
+                title={`${seg.categoryName} - ${seg.title || ''} (${seg.durationLabel})`}
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: seg.color }}
+                  />
+                  <span className="text-[11px] font-bold text-gray-200 truncate">
+                    {seg.categoryName}
+                  </span>
+                </div>
+                {seg.durationLabel && (
+                  <span className="text-[10px] text-gray-400 font-mono ml-1 shrink-0 hidden sm:inline">
+                    {seg.durationLabel}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="h-[280px] sm:h-[350px] lg:h-[400px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={processedData} margin={{ top: 10, right: 30, left: -20, bottom: 0 }} onMouseMove={onMouseMove} onMouseLeave={onMouseLeave}>
@@ -268,6 +378,10 @@ export const AnalysisChart: React.FC<Props> = ({
               <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#00FFA3" stopOpacity={0.3} />
                 <stop offset="95%" stopColor="#00FFA3" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="colorViewerArea" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#67BFFF" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#67BFFF" stopOpacity={0.02} />
               </linearGradient>
               {uniqueColors.map(color => (
                 <linearGradient key={color} id={`grad_${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
@@ -295,7 +409,7 @@ export const AnalysisChart: React.FC<Props> = ({
                     value: '🔥 하이라이트', 
                     fill: '#F97316', 
                     fontSize: 10, 
-                    fontWeight: 'bold',
+                    fontWeight: 'bold', 
                     offset: 15
                   }}
                 />
@@ -338,34 +452,67 @@ export const AnalysisChart: React.FC<Props> = ({
               />
             ))}
 
-            {isFixedRealtime ? (
-              <Area yAxisId="firepower" type="monotone" dataKey="value" stroke="#00FFA3" strokeWidth={3} fill="url(#colorValue)" isAnimationActive={false} connectNulls={false} />
-            ) : (
-              uniqueColors.map(color => (
-                <Area 
-                  key={color} 
-                  yAxisId="firepower"
-                  type="monotone" 
-                  dataKey={`val_${color}`} 
-                  stroke={color} 
-                  strokeWidth={3} 
-                  fill={`url(#grad_${color.replace('#', '')})`} 
-                  isAnimationActive={false} 
-                  connectNulls={false} 
-                />
-              ))
+            {!isFixedRealtime && categoryTransitionLines.map((line) => (
+              <ReferenceLine
+                key={`cat-trans-${line.id}`}
+                x={line.slotIndex}
+                stroke={line.color}
+                strokeDasharray="4 4"
+                strokeOpacity={0.7}
+                label={{ 
+                  position: 'insideTopLeft', 
+                  value: `🎮 ${line.categoryName}`, 
+                  fill: line.color, 
+                  fontSize: 10, 
+                  fontWeight: 'bold', 
+                  offset: 12 
+                }}
+              />
+            ))}
+
+            {hasAnyFirepower && (
+              isFixedRealtime ? (
+                <Area yAxisId="firepower" type="monotone" dataKey="value" stroke="#00FFA3" strokeWidth={3} fill="url(#colorValue)" isAnimationActive={false} connectNulls={false} />
+              ) : (
+                uniqueColors.map(color => (
+                  <Area 
+                    key={color} 
+                    yAxisId="firepower" 
+                    type="monotone" 
+                    dataKey={`val_${color}`} 
+                    stroke={color} 
+                    strokeWidth={3} 
+                    fill={`url(#grad_${color.replace('#', '')})`} 
+                    isAnimationActive={false} 
+                    connectNulls={false} 
+                  />
+                ))
+              )
             )}
             
-            <Line
-              yAxisId="viewers"
-              type="monotone"
-              dataKey="viewerCount"
-              stroke="#67BFFF"
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-              connectNulls={true}
-            />
+            {!hasAnyFirepower ? (
+              <Area 
+                yAxisId="viewers" 
+                type="monotone" 
+                dataKey="viewerCount" 
+                stroke="#67BFFF" 
+                strokeWidth={2.5} 
+                fill="url(#colorViewerArea)" 
+                isAnimationActive={false} 
+                connectNulls={true} 
+              />
+            ) : (
+              <Line
+                yAxisId="viewers"
+                type="monotone"
+                dataKey="viewerCount"
+                stroke="#67BFFF"
+                strokeWidth={2}
+                dot={false}
+                isAnimationActive={false}
+                connectNulls={true}
+              />
+            )}
 
             <Tooltip content={<CustomTooltip selectedTab={selectedTab} timeframe={timeframe} formatTime={formatTime} segments={segments} />} cursor={{ stroke: "#00FFA3", strokeWidth: 1 }} />
           </AreaChart>
