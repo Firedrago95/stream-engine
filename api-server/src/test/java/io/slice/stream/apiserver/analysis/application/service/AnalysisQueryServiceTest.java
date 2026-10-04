@@ -60,10 +60,14 @@ class AnalysisQueryServiceTest {
         activeSession.updatePeakViewers(1500);
 
         ViewMetricTimelineEntity timeline = new ViewMetricTimelineEntity(streamId, "sessionId", now, 1500);
+        StreamSessionSegmentEntity segment = new StreamSessionSegmentEntity(
+            streamId, "sessionId", "실시간 방송", "Just Chatting", now.minusSeconds(600), 0L
+        );
 
         given(analysisRepository.findRecentSignals(streamId, 100)).willReturn(signals);
         given(sessionRepository.findActiveSession(streamId)).willReturn(Optional.of(activeSession));
         given(timelineRepository.findBySessionIdOrderByTimestampAsc("sessionId")).willReturn(List.of(timeline));
+        given(segmentRepository.findBySessionIdOrderByStartedAtAsc("sessionId")).willReturn(List.of(segment));
 
         AnalysisResponse response = analysisQueryService.getRecentAnalysis(streamId);
 
@@ -71,6 +75,9 @@ class AnalysisQueryServiceTest {
         assertThat(response.dataPoints()).hasSize(1);
         assertThat(response.dataPoints().get(0).value()).isEqualTo(100L);
         assertThat(response.dataPoints().get(0).status()).isEqualTo("PEAK");
+        assertThat(response.segments()).hasSize(1);
+        assertThat(response.segments().get(0).title()).isEqualTo("실시간 방송");
+        assertThat(response.segments().get(0).categoryName()).isEqualTo("Just Chatting");
         assertThat(response.timeline()).hasSize(1);
         assertThat(response.timeline().get(0).viewerCount()).isEqualTo(1500);
         assertThat(response.summary()).isNotNull();
@@ -92,8 +99,11 @@ class AnalysisQueryServiceTest {
 
         assertThat(response.streamId()).isEqualTo(streamId);
         assertThat(response.dataPoints()).hasSize(1);
+        assertThat(response.segments()).isEmpty();
         assertThat(response.timeline()).isEmpty();
         assertThat(response.summary()).isNull();
+
+        verify(segmentRepository, never()).findBySessionIdOrderByStartedAtAsc(any());
     }
 
     @Test
