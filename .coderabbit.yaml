@@ -43,11 +43,13 @@ reviews:
 
     - path: "**"
       instructions: |
+        - **리뷰 심각도 기준:** 사소한 스타일 지적이나 마이너한 의견(Nitpick)은 배제하고, 시스템 장애 유발, 동시성/데이터 정합성 결함, 메모리 누수, 성능 저하 등 **Critical 및 Major 이슈 위주로만 엄선하여 리뷰 코멘트를 작성**하세요.
         - 단순한 변수명 변경이나 포맷팅 이슈는 지양하고, 시스템 안정성과 비즈니스 로직 결함에 집중하세요.
         - 리뷰 코멘트는 친절하고 명확한 한국어로 작성하며, 구체적인 코드 예시를 함께 제시하세요.
 
   auto_review:
     enabled: true
+    auto_incremental_review: false
     ignore_title_keywords:
       - "chore"
       - "docs"
