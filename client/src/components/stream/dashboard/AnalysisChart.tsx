@@ -133,11 +133,48 @@ const formatDuration = (ms: number) => {
   return `${m}분`;
 };
 
+const formatClockTime = (isoString: string | null) => {
+  if (!isoString) return '현재';
+  const d = new Date(isoString);
+  return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+};
+
 export const AnalysisChart: React.FC<Props> = ({
   chartData, metric, viewerMetric, maxY, maxViewerY = 100, isLoading, isGathering, error, selectedTab,
   historyEmpty, onMouseMove, onMouseLeave, formatTime, rebangIndexes = [], segments = [], highlights = []
 }) => {
   const isLiveTab = selectedTab === "realtime";
+
+  const mergedSegments = React.useMemo(() => {
+    if (!segments || segments.length === 0) return [];
+    const merged: Array<{
+      id: any;
+      categoryName: string;
+      titles: string[];
+      startedAt: string;
+      endedAt: string | null;
+    }> = [];
+
+    for (const seg of segments) {
+      const cat = seg.categoryName || '기타';
+      const last = merged[merged.length - 1];
+      if (last && last.categoryName === cat) {
+        last.endedAt = seg.endedAt;
+        if (seg.title && !last.titles.includes(seg.title)) {
+          last.titles.push(seg.title);
+        }
+      } else {
+        merged.push({
+          id: seg.id ?? `${cat}-${seg.startedAt}`,
+          categoryName: cat,
+          titles: seg.title ? [seg.title] : [],
+          startedAt: seg.startedAt,
+          endedAt: seg.endedAt
+        });
+      }
+    }
+    return merged;
+  }, [segments]);
 
   const categoryColorMap = React.useMemo(() => {
     return buildCategoryColorMap(segments);
@@ -185,32 +222,51 @@ export const AnalysisChart: React.FC<Props> = ({
     return { processedData: newData, uniqueColors: Array.from(colors) };
   }, [chartData, segments, categoryColorMap]);
 
-  const categoryTransitionLines = React.useMemo(() => {
-    if (segments.length <= 1 || !chartData.length) return [];
+  const ribbonSegments = React.useMemo(() => {
+    if (!mergedSegments.length) return [];
+    const now = Date.now();
     const normalize = (ts: number) => (ts < 10000000000 ? ts * 1000 : ts);
 
-    const lines: Array<{ slotIndex: number; categoryName: string; color: string; id: any }> = [];
+    if (chartData.length > 0) {
+      const totalSlots = chartData.length;
+      let prevEndSlot = 0;
 
-    for (let i = 1; i < segments.length; i++) {
-      const seg = segments[i];
-      const segStartTs = new Date(seg.startedAt).getTime();
-      const idx = chartData.findIndex(d => d.timestamp && normalize(d.timestamp) >= segStartTs);
-      if (idx !== -1) {
-        lines.push({
-          slotIndex: chartData[idx]?.slotIndex ?? idx,
-          categoryName: seg.categoryName,
+      const parsedWithSlots = mergedSegments.map((seg, idx) => {
+        const segStartMs = new Date(seg.startedAt).getTime();
+        const segEndMs = seg.endedAt ? new Date(seg.endedAt).getTime() : now;
+        const duration = Math.max(0, segEndMs - segStartMs);
+
+        const startSlot = prevEndSlot;
+        let endSlot = totalSlots;
+        if (seg.endedAt && idx < mergedSegments.length - 1) {
+          const nextSegStartMs = new Date(mergedSegments[idx + 1].startedAt).getTime();
+          const foundEndIdx = chartData.findIndex(d => d.timestamp && normalize(d.timestamp) >= nextSegStartMs);
+          endSlot = foundEndIdx !== -1 ? Math.max(startSlot + 1, foundEndIdx) : totalSlots;
+        }
+        prevEndSlot = endSlot;
+
+        const slotCount = Math.max(1, endSlot - startSlot);
+
+        return {
+          ...seg,
+          startMs: segStartMs,
+          endMs: segEndMs,
+          durationMs: duration,
+          slotCount,
           color: categoryColorMap.get(seg.categoryName) || '#8B5CF6',
-          id: seg.id || i
-        });
-      }
-    }
-    return lines;
-  }, [chartData, segments, categoryColorMap]);
+          timeRangeLabel: `${formatClockTime(seg.startedAt)} ~ ${seg.endedAt ? formatClockTime(seg.endedAt) : '현재'}`,
+          durationLabel: formatDuration(duration)
+        };
+      });
 
-  const ribbonSegments = React.useMemo(() => {
-    if (!segments.length) return [];
-    const now = Date.now();
-    const parsed = segments.map(seg => {
+      const sumSlots = parsedWithSlots.reduce((acc, s) => acc + s.slotCount, 0);
+      return parsedWithSlots.map(s => ({
+        ...s,
+        percent: (s.slotCount / (sumSlots || 1)) * 100
+      }));
+    }
+
+    const parsed = mergedSegments.map(seg => {
       const start = new Date(seg.startedAt).getTime();
       const end = seg.endedAt ? new Date(seg.endedAt).getTime() : now;
       const duration = Math.max(0, end - start);
@@ -219,7 +275,9 @@ export const AnalysisChart: React.FC<Props> = ({
         startMs: start,
         endMs: end,
         durationMs: duration,
-        color: categoryColorMap.get(seg.categoryName) || '#8B5CF6'
+        color: categoryColorMap.get(seg.categoryName) || '#8B5CF6',
+        timeRangeLabel: `${formatClockTime(seg.startedAt)} ~ ${seg.endedAt ? formatClockTime(seg.endedAt) : '현재'}`,
+        durationLabel: formatDuration(duration)
       };
     });
 
@@ -228,10 +286,9 @@ export const AnalysisChart: React.FC<Props> = ({
 
     return parsed.map(s => ({
       ...s,
-      percent: Math.max(3, (s.durationMs / totalDuration) * 100),
-      durationLabel: formatDuration(s.durationMs)
+      percent: (s.durationMs / totalDuration) * 100
     }));
-  }, [segments, categoryColorMap]);
+  }, [mergedSegments, chartData, categoryColorMap]);
 
 
   return (
@@ -297,20 +354,24 @@ export const AnalysisChart: React.FC<Props> = ({
       </div>
 
       {ribbonSegments.length > 0 && (
-        <div className="mb-5">
-          <div className="flex items-center gap-1.5 w-full h-7 bg-[#141518] rounded-lg p-1 border border-gray-800/80 overflow-x-auto no-scrollbar">
+        <div style={{ paddingLeft: '40px', paddingRight: '48px' }} className="w-full mb-5">
+          <div className="flex w-full h-7 bg-[#141518] rounded-lg border border-gray-800/80 relative z-10">
             {ribbonSegments.map((seg, idx) => (
               <div
                 key={seg.id || idx}
                 style={{
                   width: `${seg.percent}%`,
-                  backgroundColor: `${seg.color}25`,
-                  borderColor: `${seg.color}60`
+                  backgroundColor: `${seg.color}25`
                 }}
-                className="h-full rounded-md border flex items-center justify-between px-2 min-w-[70px] truncate transition-all hover:brightness-125 cursor-default"
-                title={`${seg.categoryName} - ${seg.title || ''} (${seg.durationLabel})`}
+                className={`h-full flex items-center justify-center px-1.5 relative group cursor-default transition-all hover:brightness-125 ${
+                  idx === 0 ? 'rounded-l-lg' : ''
+                } ${
+                  idx === ribbonSegments.length - 1 ? 'rounded-r-lg' : ''
+                } ${
+                  idx > 0 ? 'border-l border-gray-800/80' : ''
+                }`}
               >
-                <div className="flex items-center gap-1.5 min-w-0">
+                <div className="flex items-center gap-1.5 min-w-0 max-w-full">
                   <span
                     className="w-2 h-2 rounded-full shrink-0"
                     style={{ backgroundColor: seg.color }}
@@ -319,11 +380,25 @@ export const AnalysisChart: React.FC<Props> = ({
                     {seg.categoryName}
                   </span>
                 </div>
-                {seg.durationLabel && (
-                  <span className="text-[10px] text-gray-400 font-mono ml-1 shrink-0 hidden sm:inline">
-                    {seg.durationLabel}
-                  </span>
-                )}
+
+                {/* 마우스 호버 시 상세 툴팁 */}
+                <div className="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-50 whitespace-nowrap">
+                  <div className="bg-[#1a1b1e] border border-gray-700/80 text-white px-3 py-2 rounded-xl shadow-2xl text-xs flex flex-col gap-1 min-w-[130px]">
+                    <div className="flex items-center gap-1.5 font-bold text-gray-100">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: seg.color }} />
+                      <span>{seg.categoryName}</span>
+                    </div>
+                    <div className="text-[11px] text-gray-300 font-mono">
+                      ⏱️ {seg.durationLabel} ({seg.timeRangeLabel})
+                    </div>
+                    {seg.titles && seg.titles.length > 0 && (
+                      <div className="text-[10px] text-gray-400 max-w-[220px] truncate">
+                        📝 {seg.titles.join(' / ')}
+                      </div>
+                    )}
+                  </div>
+                  <div className="w-2 h-2 bg-[#1a1b1e] border-r border-b border-gray-700/80 rotate-45 -mt-1" />
+                </div>
               </div>
             ))}
           </div>
@@ -332,7 +407,7 @@ export const AnalysisChart: React.FC<Props> = ({
 
       <div className="h-[280px] sm:h-[350px] lg:h-[400px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={processedData} margin={{ top: 10, right: 30, left: -20, bottom: 0 }} onMouseMove={onMouseMove} onMouseLeave={onMouseLeave}>
+          <AreaChart data={processedData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }} onMouseMove={onMouseMove} onMouseLeave={onMouseLeave}>
             <defs>
               <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#00FFA3" stopOpacity={0.3} />
@@ -389,10 +464,11 @@ export const AnalysisChart: React.FC<Props> = ({
               axisLine={false}
               tickLine={false}
             />
-            <YAxis yAxisId="firepower" stroke="#475569" fontSize={11} domain={[0, maxY]} axisLine={false} tickLine={false} />
+            <YAxis yAxisId="firepower" width={40} stroke="#475569" fontSize={11} domain={[0, maxY]} axisLine={false} tickLine={false} />
             <YAxis
               yAxisId="viewers"
               orientation="right"
+              width={48}
               stroke="#475569"
               fontSize={11}
               domain={[0, maxViewerY]}
@@ -408,24 +484,6 @@ export const AnalysisChart: React.FC<Props> = ({
                 stroke="#475569"
                 strokeDasharray="5 5"
                 label={{ position: 'insideTop', value: '⚡ RE-LIVE', fill: '#64748b', fontSize: 11, fontWeight: 'bold', offset: 15 }}
-              />
-            ))}
-
-            {categoryTransitionLines.map((line) => (
-              <ReferenceLine
-                key={`cat-trans-${line.id}`}
-                x={line.slotIndex}
-                stroke={line.color}
-                strokeDasharray="4 4"
-                strokeOpacity={0.7}
-                label={{ 
-                  position: 'insideTopLeft', 
-                  value: `🎮 ${line.categoryName}`, 
-                  fill: line.color, 
-                  fontSize: 10, 
-                  fontWeight: 'bold', 
-                  offset: 12 
-                }}
               />
             ))}
 
