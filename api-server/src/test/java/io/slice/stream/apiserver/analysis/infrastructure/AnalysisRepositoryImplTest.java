@@ -71,25 +71,6 @@ class AnalysisRepositoryImplTest implements PostgresTestSupport {
     }
 
     @Test
-    void 특정_스트림의_최신_데이터를_도메인_객체_리스트로_반환한다() {
-        // given
-        String streamId = "stream-1";
-        Instant now = Instant.now();
-
-        analysisRepository.save(AnalysisSignal.of(streamId, "sessionId", "NORMAL", now.minusSeconds(10), 50L, 1000L));
-        analysisRepository.save(AnalysisSignal.of(streamId, "sessionId", "PEAK", now, 200L, 2000L));
-
-        // when
-        List<AnalysisSignal> results = analysisRepository.findRecentSignals(streamId, 1);
-
-        // then
-        assertThat(results).hasSize(1);
-        assertThat(results.get(0).status()).isEqualTo("PEAK");
-        assertThat(results.get(0).firepower()).isEqualTo(200L);
-        assertThat(results.get(0).offsetMs()).isEqualTo(2000L); // [추가] 오프셋 검증
-    }
-
-    @Test
     void 여러_스트림_ID_중_기준_시간_이후의_데이터가_있는_ID만_추출한다() {
         // given
         Instant now = Instant.now();

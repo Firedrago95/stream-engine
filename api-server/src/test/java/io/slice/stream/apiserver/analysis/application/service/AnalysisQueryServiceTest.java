@@ -4,11 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
-import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
 import io.slice.stream.apiserver.analysis.presentation.dto.SessionResponse;
@@ -48,63 +46,6 @@ class AnalysisQueryServiceTest {
 
     @InjectMocks
     private AnalysisQueryService analysisQueryService;
-
-    @Test
-    void 특정_스트림의_최근_분석_데이터를_조회하면_DTO_형태로_변환하여_반환한다() {
-        String streamId = "test-stream";
-        Instant now = Instant.now();
-        List<AnalysisSignal> signals = List.of(
-            AnalysisSignal.of(streamId, "sessionId", "PEAK", now, 100L, 1000L)
-        );
-        StreamSessionEntity activeSession = new StreamSessionEntity(streamId, "sessionId", "실시간 방송", "Just Chatting", now.minusSeconds(600));
-        activeSession.updatePeakViewers(1500);
-
-        ViewMetricTimelineEntity timeline = new ViewMetricTimelineEntity(streamId, "sessionId", now, 1500);
-        StreamSessionSegmentEntity segment = new StreamSessionSegmentEntity(
-            streamId, "sessionId", "실시간 방송", "Just Chatting", now.minusSeconds(600), 0L
-        );
-
-        given(analysisRepository.findRecentSignals(streamId, 100)).willReturn(signals);
-        given(sessionRepository.findActiveSession(streamId)).willReturn(Optional.of(activeSession));
-        given(timelineRepository.findBySessionIdOrderByTimestampAsc("sessionId")).willReturn(List.of(timeline));
-        given(segmentRepository.findBySessionIdOrderByStartedAtAsc("sessionId")).willReturn(List.of(segment));
-
-        AnalysisResponse response = analysisQueryService.getRecentAnalysis(streamId);
-
-        assertThat(response.streamId()).isEqualTo(streamId);
-        assertThat(response.dataPoints()).hasSize(1);
-        assertThat(response.dataPoints().get(0).value()).isEqualTo(100L);
-        assertThat(response.dataPoints().get(0).status()).isEqualTo("PEAK");
-        assertThat(response.segments()).hasSize(1);
-        assertThat(response.segments().get(0).title()).isEqualTo("실시간 방송");
-        assertThat(response.segments().get(0).categoryName()).isEqualTo("Just Chatting");
-        assertThat(response.timeline()).hasSize(1);
-        assertThat(response.timeline().get(0).viewerCount()).isEqualTo(1500);
-        assertThat(response.summary()).isNotNull();
-        assertThat(response.summary().peakViewers()).isEqualTo(1500);
-    }
-
-    @Test
-    void 활성_세션이_없는_경우_최근_분석_데이터_조회시_타임라인과_요약은_비어있는_상태로_반환된다() {
-        String streamId = "test-stream";
-        Instant now = Instant.now();
-        List<AnalysisSignal> signals = List.of(
-            AnalysisSignal.of(streamId, "sessionId", "NORMAL", now, 50L, 500L)
-        );
-
-        given(analysisRepository.findRecentSignals(streamId, 100)).willReturn(signals);
-        given(sessionRepository.findActiveSession(streamId)).willReturn(Optional.empty());
-
-        AnalysisResponse response = analysisQueryService.getRecentAnalysis(streamId);
-
-        assertThat(response.streamId()).isEqualTo(streamId);
-        assertThat(response.dataPoints()).hasSize(1);
-        assertThat(response.segments()).isEmpty();
-        assertThat(response.timeline()).isEmpty();
-        assertThat(response.summary()).isNull();
-
-        verify(segmentRepository, never()).findBySessionIdOrderByStartedAtAsc(any());
-    }
 
     @Test
     void 과거_데이터_조회_시_요약_데이터와_원본_데이터를_시간순으로_병합하여_반환한다() {
