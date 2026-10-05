@@ -32,11 +32,11 @@ class StreamTierManagerTest {
             3000L,
             180000L,
             3000L,
-            1800000L,
+            900000L,
             300000L,
             15,
             0.005,
-            new DynamicFloorProperties(5L, 5.0, 4.0)
+            new DynamicFloorProperties(5L, 4.0, 4.0)
         );
 
         streamTierManager = new StreamTierManager(streamProvider, repository, props);
@@ -66,17 +66,17 @@ class StreamTierManagerTest {
     }
 
     @Test
-    void 화력_비례_동적_바닥값이_30분_평균_화력에_따라_산출된다() {
+    void 화력_비례_동적_바닥값이_15분_평균_화력에_따라_산출된다() {
         String streamId = "stream-dynamic";
         streamProvider.setActiveStreamIds(List.of(streamId));
 
-        List<Long> deltas = new ArrayList<>(Collections.nCopies(600, 10L));
+        List<Long> deltas = new ArrayList<>(Collections.nCopies(300, 10L));
         repository.setFirepowerDeltas(streamId, deltas);
 
         streamTierManager.refreshAllTiers();
         StreamTierInfo tierInfo = streamTierManager.getTierInfo(streamId, 1000);
 
-        assertThat(tierInfo.noiseFloor()).isEqualTo(54L);
+        assertThat(tierInfo.noiseFloor()).isEqualTo(44L);
     }
 
     @Test
@@ -84,7 +84,7 @@ class StreamTierManagerTest {
         String streamId = "stream-quiet";
         streamProvider.setActiveStreamIds(List.of(streamId));
 
-        List<Long> deltas = new ArrayList<>(Collections.nCopies(600, 0L));
+        List<Long> deltas = new ArrayList<>(Collections.nCopies(300, 0L));
         repository.setFirepowerDeltas(streamId, deltas);
 
         streamTierManager.refreshAllTiers();
@@ -94,16 +94,16 @@ class StreamTierManagerTest {
     }
 
     @Test
-    void 중형방_평균_화력_2점0일_때_바닥값_14가_산출된다() {
+    void 중형방_평균_화력_2점0일_때_바닥값_12가_산출된다() {
         String streamId = "stream-medium";
         streamProvider.setActiveStreamIds(List.of(streamId));
 
-        List<Long> deltas = new ArrayList<>(Collections.nCopies(600, 2L));
+        List<Long> deltas = new ArrayList<>(Collections.nCopies(300, 2L));
         repository.setFirepowerDeltas(streamId, deltas);
 
         streamTierManager.refreshAllTiers();
         StreamTierInfo tierInfo = streamTierManager.getTierInfo(streamId, 300);
 
-        assertThat(tierInfo.noiseFloor()).isEqualTo(14L);
+        assertThat(tierInfo.noiseFloor()).isEqualTo(12L);
     }
 }
