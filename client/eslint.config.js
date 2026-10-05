@@ -19,5 +19,18 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'JSXAttribute[name.name="className"] Literal[value=/\\btext-(gray-[3-9]00|slate-|zinc-|neutral-)/]',
+          message: '다크 테마 텍스트 색상은 text-white, text-gray-100, text-gray-200만 허용됩니다.',
+        },
+        {
+          selector: 'JSXAttribute[name.name="className"] TemplateElement[value.raw=/\\btext-(gray-[3-9]00|slate-|zinc-|neutral-)/]',
+          message: '다크 테마 텍스트 색상은 text-white, text-gray-100, text-gray-200만 허용됩니다.',
+        },
+      ],
+    },
   },
 ])

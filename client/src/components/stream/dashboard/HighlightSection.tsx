@@ -10,7 +10,7 @@ const InfoTooltip = ({text}: { text: string }) => (
       </svg>
     </span>
       <div
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-56 p-3 bg-[#1a1a1c] text-gray-200 text-xs rounded-xl shadow-2xl border border-gray-600 pointer-events-none text-left whitespace-pre-line leading-relaxed">
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-72 sm:w-80 p-3 bg-[#18181c] text-gray-200 text-xs rounded-xl shadow-2xl border border-gray-700 pointer-events-none text-left whitespace-pre-line break-keep leading-relaxed z-50 backdrop-blur-md">
         {text}
       </div>
     </div>
@@ -150,7 +150,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
                 className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
                   sortOrder === 'firepower'
                     ? 'bg-gray-800 text-[#00FFA3] shadow-sm'
-                    : 'text-gray-400 hover:text-gray-200'
+                    : 'text-gray-200 hover:text-white'
                 }`}
               >
                 <span>🔥</span> 화력순
@@ -160,7 +160,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
                 className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
                   sortOrder === 'time'
                     ? 'bg-gray-800 text-[#00FFA3] shadow-sm'
-                    : 'text-gray-400 hover:text-gray-200'
+                    : 'text-gray-200 hover:text-white'
                 }`}
               >
                 <span>⏱️</span> 타임라인순
@@ -279,7 +279,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
                 </button>
 
                 {highlights.length > recommendedLimit && (
-                  <div className="flex items-center justify-center gap-2 text-xs text-gray-400 mt-1">
+                  <div className="flex items-center justify-center gap-2 text-xs text-gray-200 mt-1">
                     <span>시간당 4개 기준으로 선별되었습니다.</span>
                     <button
                       onClick={() => setViewMode('all')}
@@ -305,7 +305,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
                 {highlights.length > recommendedLimit && (
                   <button
                     onClick={() => setViewMode('top6')}
-                    className="text-xs text-gray-400 hover:text-gray-200 transition-colors"
+                    className="text-xs text-gray-200 hover:text-white transition-colors"
                   >
                     기본(Top 6)으로 바로 접기
                   </button>

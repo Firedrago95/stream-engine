@@ -134,3 +134,22 @@
     @apply bg-gray-900 text-gray-100;
   }
 }
+
+@layer utilities {
+  /* 💡 텍스트 색상 절대 원칙: 다크 테마에서는 text-white, text-gray-100, text-gray-200만 사용.
+     어두운 회색 계열(gray-300~900, slate, zinc 등)이 실수로 텍스트 클래스로 적용되더라도 고명도 보조 텍스트(text-gray-200)로 자동 보정 */
+  .text-gray-300,
+  .text-gray-400,
+  .text-gray-500,
+  .text-gray-600,
+  .text-gray-700,
+  .text-gray-800,
+  .text-slate-300,
+  .text-slate-400,
+  .text-slate-500,
+  .text-zinc-300,
+  .text-zinc-400 {
+    color: var(--color-gray-200) !important;
+  }
+}
+

@@ -5,12 +5,25 @@ import { useStreamers } from '../../hooks/useStreamers';
 export const StreamerStatsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const { streamers: streams, isLoading } = useStreamers(searchTerm, 30000);
+  const isSearching = searchTerm.trim().length > 0;
 
-  const activeLiveCount = useMemo(() => {
-    if (!streams) return 0;
-    return streams.filter((s) => s.status === 'LIVE' || s.status === 'ANALYZING').length;
-  }, [streams]);
+  // 전체 리더보드 스트리머 목록 (실시간 방송 현황 배너 전용, 검색어와 무관하게 고정 유지)
+  const { streamers: defaultStreamers, isLoading: isDefaultLoading } = useStreamers('', 30000);
+
+  // 검색어 입력 시 스트리머 검색 목록
+  const { streamers: searchStreamers, isLoading: isSearchLoading } = useStreamers(
+    searchTerm.trim(),
+    30000,
+    isSearching
+  );
+
+  const streams = isSearching ? searchStreamers : defaultStreamers;
+  const isLoading = isSearching ? isSearchLoading : isDefaultLoading;
+
+  const totalLiveCount = useMemo(() => {
+    if (!defaultStreamers) return 0;
+    return defaultStreamers.filter((s) => s.status === 'LIVE' || s.status === 'ANALYZING').length;
+  }, [defaultStreamers]);
 
   const handleRowClick = (streamId: string) => {
     navigate(`/streamers/${streamId}`);
@@ -64,9 +77,9 @@ export const StreamerStatsPage: React.FC = () => {
           <div>
             <p className="text-xs text-gray-100 font-bold uppercase tracking-wider">실시간 방송 현황</p>
             <h3 className="text-lg font-black text-white">
-              {activeLiveCount}개 방송 중{' '}
+              {totalLiveCount}개 방송 중{' '}
               <span className="text-xs text-gray-100 font-normal">
-                / {searchTerm ? `검색 결과 ${streams.length}명` : `Top ${streams.length}`}
+                / Top {defaultStreamers.length || 100}
               </span>
             </h3>
             <p className="text-xs text-gray-100 font-medium">매일 새벽 04:00 자동 정산</p>
@@ -82,13 +95,37 @@ export const StreamerStatsPage: React.FC = () => {
 
       <div className="p-5 sm:p-6 bg-[#141416] border border-[#2A2A2C] rounded-2xl">
         <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
               <span>📊</span> 30일 평균 시청자 순위
             </h3>
+            <div className="relative group/tip flex items-center">
+              <button
+                type="button"
+                className="w-4 h-4 rounded-full border border-gray-600 flex items-center justify-center text-[10px] font-bold text-gray-200 hover:text-[#00FFA3] hover:border-[#00FFA3] transition-colors focus:outline-none"
+                aria-label="30일 평균 시청자 순위 산출 방식 안내"
+              >
+                i
+              </button>
+              <div className="absolute left-0 bottom-full mb-2 hidden group-hover/tip:block w-72 sm:w-80 p-3.5 bg-[#18181c] border border-gray-700 text-xs text-gray-200 rounded-xl shadow-2xl z-50 font-normal leading-relaxed text-left backdrop-blur-md pointer-events-none break-keep">
+                <p className="font-semibold text-white mb-1.5 flex items-center gap-1.5">
+                  <span>📊</span> 30일 평균 시청자 순위 산출 기준
+                </p>
+                <div className="space-y-1.5 text-gray-100">
+                  <p>
+                    최근 30일간 방송의 길이를 반영한 <span className="text-white font-medium">시간 가중 평균 시청자 수</span>를 기준으로 순위를 산정합니다.
+                  </p>
+                  <div className="text-[11px] text-gray-200 border-t border-gray-800 pt-1.5 space-y-1">
+                    <p>• <span className="text-white font-medium">시간 가중치:</span> 총 시청 시간(View Hours) ÷ 총 방송 시간</p>
+                    <p>• <span className="text-white font-medium">노이즈 배제:</span> 5분 미만의 테스트/튕김 방송 집계 제외</p>
+                    <p>• <span className="text-white font-medium">정산 주기:</span> 매일 새벽 04:00 일괄 갱신 스냅샷</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           <span className="text-xs text-gray-100 font-mono font-semibold">
-            {streams.length}명 랭크
+            {isSearching ? `검색 결과 ${streams.length}명` : `${streams.length}명 랭크`}
           </span>
         </div>
 
@@ -105,18 +142,7 @@ export const StreamerStatsPage: React.FC = () => {
                   <th className="py-3 px-3 w-12 text-center whitespace-nowrap">순위</th>
                   <th className="py-3 px-4 min-w-[200px]">스트리머</th>
                   <th className="py-3 px-4 whitespace-nowrap min-w-[120px]">주력 카테고리</th>
-                  <th className="py-3 px-4 text-right whitespace-nowrap min-w-[130px]">
-                    <div className="inline-flex items-center gap-1 cursor-help group/tip relative">
-                      <span className="whitespace-nowrap">30일 평균 시청자</span>
-                      <svg className="w-3.5 h-3.5 text-gray-100 group-hover/tip:text-[#00FFA3] transition-colors fill-current shrink-0" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                      </svg>
-                      <div className="absolute right-0 bottom-full mb-2 hidden group-hover/tip:block w-72 p-3 bg-[#18181c] border border-gray-700 text-[11px] text-gray-200 rounded-xl shadow-2xl z-50 font-normal leading-relaxed text-left backdrop-blur-md">
-                        <p className="font-semibold text-white mb-1">⏱️ 방송 시간 가중 평균</p>
-                        최근 30일간 방송 시간 대비 총 시청 시간을 반영한 체급 지표입니다. 단기 이벤트 방송으로 인한 체급 왜곡을 방지합니다. (매일 04:00 정기 갱신)
-                      </div>
-                    </div>
-                  </th>
+                  <th className="py-3 px-4 text-right whitespace-nowrap min-w-[130px]">30일 평균 시청자</th>
                   <th className="py-3 px-4 text-right whitespace-nowrap min-w-[110px]">실시간 시청자</th>
                   <th className="py-3 px-4 text-center whitespace-nowrap min-w-[90px]">방송 상태</th>
                   <th className="py-3 px-4 text-center whitespace-nowrap w-24">전적 분석</th>

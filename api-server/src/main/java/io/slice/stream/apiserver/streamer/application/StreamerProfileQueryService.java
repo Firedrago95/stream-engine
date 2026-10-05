@@ -41,23 +41,42 @@ public class StreamerProfileQueryService {
 
     private final JpaStreamRepository streamRepository;
     private final JpaStreamSessionRepository sessionRepository;
+    private final StreamerLeaderboardQueryService leaderboardQueryService;
     private final Clock clock;
 
     public StreamerProfileQueryService(
         JpaStreamRepository streamRepository,
         JpaStreamSessionRepository sessionRepository
     ) {
-        this(streamRepository, sessionRepository, Clock.system(KST));
+        this(streamRepository, sessionRepository, null, Clock.system(KST));
+    }
+
+    public StreamerProfileQueryService(
+        JpaStreamRepository streamRepository,
+        JpaStreamSessionRepository sessionRepository,
+        Clock clock
+    ) {
+        this(streamRepository, sessionRepository, null, clock);
+    }
+
+    public StreamerProfileQueryService(
+        JpaStreamRepository streamRepository,
+        JpaStreamSessionRepository sessionRepository,
+        StreamerLeaderboardQueryService leaderboardQueryService
+    ) {
+        this(streamRepository, sessionRepository, leaderboardQueryService, Clock.system(KST));
     }
 
     @Autowired
     public StreamerProfileQueryService(
         JpaStreamRepository streamRepository,
         JpaStreamSessionRepository sessionRepository,
+        StreamerLeaderboardQueryService leaderboardQueryService,
         Clock clock
     ) {
         this.streamRepository = streamRepository;
         this.sessionRepository = sessionRepository;
+        this.leaderboardQueryService = leaderboardQueryService;
         this.clock = clock;
     }
 
@@ -75,8 +94,12 @@ public class StreamerProfileQueryService {
         boolean isLive = isStreamLive(stream, now);
         SessionKpiAccumulator kpi = aggregateSessions(sessions30d, start30dInstant, start7dInstant, start30d, today, now, isLive);
 
+        Optional<Integer> cachedAverageViewers = leaderboardQueryService != null
+            ? leaderboardQueryService.getCachedAverageViewers(channelId)
+            : Optional.empty();
+
         StreamerHeaderDto header = buildHeader(stream, isLive, kpi.followerGrowth7d(), kpi.followerGrowth30d());
-        StreamerKpiSummaryDto summary = buildKpiSummary(kpi);
+        StreamerKpiSummaryDto summary = buildKpiSummary(kpi, cachedAverageViewers);
         List<StreamerCategoryDto> mostPlayedCategories = calculateMostPlayedCategories(sessions30d, start30dInstant, now);
 
         log.debug("스트리머 프로필 및 요약 통계 조회 완료: channelId={}", channelId);
@@ -194,14 +217,16 @@ public class StreamerProfileQueryService {
         );
     }
 
-    private StreamerKpiSummaryDto buildKpiSummary(SessionKpiAccumulator kpi) {
+    private StreamerKpiSummaryDto buildKpiSummary(SessionKpiAccumulator kpi, Optional<Integer> cachedAverageViewers) {
         int broadcastDays30d = kpi.broadcastDates().size();
         double attendanceRate30d = Math.round(((double) broadcastDays30d / DAYS_30 * 100.0) * 10.0) / 10.0;
 
-        int averageViewers = 0;
-        if (kpi.totalWeightedDurationSeconds() > 0) {
-            averageViewers = (int) Math.round(kpi.totalWeightedViewerSeconds() / kpi.totalWeightedDurationSeconds());
-        }
+        int averageViewers = cachedAverageViewers.orElseGet(() -> {
+            if (kpi.totalWeightedDurationSeconds() > 0) {
+                return (int) Math.round(kpi.totalWeightedViewerSeconds() / kpi.totalWeightedDurationSeconds());
+            }
+            return 0;
+        });
         double totalHoursWatched = Math.round((kpi.totalWeightedViewerSeconds() / 3600.0) * 10.0) / 10.0;
 
         return new StreamerKpiSummaryDto(

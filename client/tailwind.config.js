@@ -11,6 +11,7 @@ export default {
           hover: '#252629'
         },
         gray: {
+          300: '#f3f4f6',
           400: '#e5e7eb',
           500: '#d1d5db',
         }

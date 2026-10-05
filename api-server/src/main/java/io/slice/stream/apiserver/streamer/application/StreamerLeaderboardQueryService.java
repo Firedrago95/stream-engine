@@ -15,6 +15,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -71,6 +73,17 @@ public class StreamerLeaderboardQueryService {
         }
 
         return cacheRefreshed ? cached : syncRealtimeStatusForCached(cached);
+    }
+
+    public Optional<Integer> getCachedAverageViewers(String channelId) {
+        if (channelId == null || channelId.isBlank()) {
+            return Optional.empty();
+        }
+        return readFromRedis().stream()
+            .filter(item -> channelId.equals(item.streamId()))
+            .map(StreamResponse::averageViewers)
+            .filter(Objects::nonNull)
+            .findFirst();
     }
 
     @Retryable(

@@ -416,15 +416,15 @@ export const AnalysisChart: React.FC<Props> = ({
                   {/* 마우스 호버 시 상세 툴팁 */}
                   <div className="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-50 whitespace-nowrap">
                     <div className="bg-[#1a1b1e] border border-gray-700/80 text-white px-3 py-2 rounded-xl shadow-2xl text-xs flex flex-col gap-1 min-w-[130px]">
-                      <div className="flex items-center gap-1.5 font-bold text-gray-100">
+                      <div className="flex items-center gap-1.5 font-bold text-white">
                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: seg.color }} />
                         <span>{seg.categoryName}</span>
                       </div>
-                      <div className="text-[11px] text-gray-300 font-mono">
+                      <div className="text-[11px] text-gray-100 font-mono">
                         ⏱️ {seg.durationLabel} ({seg.timeRangeLabel})
                       </div>
                       {seg.titles && seg.titles.length > 0 && (
-                        <div className="text-[10px] text-gray-400 max-w-[220px] truncate">
+                        <div className="text-[10px] text-gray-200 max-w-[220px] truncate">
                           📝 {seg.titles.join(' / ')}
                         </div>
                       )}
