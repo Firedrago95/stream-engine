@@ -33,7 +33,7 @@ class StreamTierManagerTest {
             180000L,
             3000L,
             900000L,
-            300000L,
+            600000L,
             15,
             0.005,
             new DynamicFloorProperties(5L, 4.0, 4.0)
@@ -43,26 +43,28 @@ class StreamTierManagerTest {
     }
 
     @Test
-    void 방송_데이터가_100틱_미만이면_바닥값_갱신을_유보하고_기본_콜드스타트_값을_유지한다() {
+    void 방송_데이터가_200틱_미만이면_바닥값_갱신을_유보하고_기본_콜드스타트_값을_유지한다() {
         String streamId = "stream-short";
         streamProvider.setActiveStreamIds(List.of(streamId));
 
-        List<Long> shortDeltas = new ArrayList<>(Collections.nCopies(50, 50L));
+        List<Long> shortDeltas = new ArrayList<>(Collections.nCopies(150, 50L));
         repository.setFirepowerDeltas(streamId, shortDeltas);
 
         streamTierManager.refreshAllTiers();
         StreamTierInfo tierInfo = streamTierManager.getTierInfo(streamId, 100);
 
-        assertThat(tierInfo.noiseFloor()).isEqualTo(5L);
+        assertThat(tierInfo.noiseFloor()).isEqualTo(8L);
     }
 
     @Test
-    void 콜드스타트_시_시청자수_가중치와_최소_바닥값_중_큰_값을_부여한다() {
+    void 콜드스타트_시_시청자수_체급별_고정_바닥값_F0을_부여한다() {
         StreamTierInfo smallRoom = streamTierManager.getTierInfo("small", 100);
-        StreamTierInfo largeRoom = streamTierManager.getTierInfo("large", 2000);
+        StreamTierInfo mediumRoom = streamTierManager.getTierInfo("medium", 2000);
+        StreamTierInfo largeRoom = streamTierManager.getTierInfo("large", 6000);
 
-        assertThat(smallRoom.noiseFloor()).isEqualTo(5L);
-        assertThat(largeRoom.noiseFloor()).isEqualTo(10L);
+        assertThat(smallRoom.noiseFloor()).isEqualTo(8L);
+        assertThat(mediumRoom.noiseFloor()).isEqualTo(20L);
+        assertThat(largeRoom.noiseFloor()).isEqualTo(40L);
     }
 
     @Test
