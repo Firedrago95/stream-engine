@@ -53,4 +53,22 @@ class StreamSessionEntityTest {
         assertThat(session.getEndedAt()).isEqualTo(endedAt);
         assertThat(session.getPeakViewers()).isEqualTo(2000);
     }
+
+    @Test
+    void 세션_재활성화_시_종료_시각과_평균_시청자_구독자_채팅비율을_초기화한다() {
+        // given
+        Instant now = Instant.now();
+        StreamSessionEntity session = new StreamSessionEntity("streamId", "sessionId", "방제", "카테고리", now.minusSeconds(3600));
+        session.finishSession(now, 1500, 1000);
+        session.updateSubscriberChatRatio(25.5);
+
+        // when
+        session.reopen();
+
+        // then
+        assertThat(session.getEndedAt()).isNull();
+        assertThat(session.getAverageViewerCount()).isNull();
+        assertThat(session.getSubscriberChatRatio()).isNull();
+        assertThat(session.getPeakViewers()).isEqualTo(1500);
+    }
 }

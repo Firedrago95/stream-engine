@@ -68,7 +68,7 @@ export const SessionSummaryGrid: React.FC<SessionSummaryGridProps> = ({
   }, [isLive, startedAt, endedAt, timeline, dataPoints]);
 
   const { avgViewers, peakViewers } = useMemo(() => {
-    if (summaryAvg !== null && summaryAvg !== undefined && summaryPeak !== null && summaryPeak !== undefined) {
+    if (!isLive && summaryAvg !== null && summaryAvg !== undefined && summaryPeak !== null && summaryPeak !== undefined) {
       return { avgViewers: summaryAvg, peakViewers: summaryPeak };
     }
 
@@ -92,17 +92,17 @@ export const SessionSummaryGrid: React.FC<SessionSummaryGridProps> = ({
 
     if (viewerSamples.length === 0) {
       return {
-        avgViewers: summaryAvg ?? currentViewers ?? 0,
-        peakViewers: summaryPeak ?? currentViewers ?? 0
+        avgViewers: isLive ? (currentViewers ?? 0) : (summaryAvg ?? currentViewers ?? 0),
+        peakViewers: isLive ? (currentViewers ?? 0) : (summaryPeak ?? currentViewers ?? 0)
       };
     }
 
     const sum = viewerSamples.reduce((acc, v) => acc + v, 0);
-    const avg = summaryAvg ?? Math.round(sum / viewerSamples.length);
-    const peak = summaryPeak ?? Math.max(...viewerSamples);
+    const avg = isLive ? Math.round(sum / viewerSamples.length) : (summaryAvg ?? Math.round(sum / viewerSamples.length));
+    const peak = isLive ? Math.max(...viewerSamples, summaryPeak ?? 0) : (summaryPeak ?? Math.max(...viewerSamples));
 
     return { avgViewers: avg, peakViewers: peak };
-  }, [timeline, dataPoints, currentViewers, summaryAvg, summaryPeak]);
+  }, [isLive, timeline, dataPoints, currentViewers, summaryAvg, summaryPeak]);
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 my-6 sm:my-8">
@@ -167,16 +167,22 @@ export const SessionSummaryGrid: React.FC<SessionSummaryGridProps> = ({
           <span className="text-xs text-gray-200 font-bold tracking-wider flex items-center gap-1.5 truncate">
             <span className="text-sm">💬</span> 구독자 채팅 비율
           </span>
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#00FFA3]/10 text-[#00FFA3] border border-[#00FFA3]/20 shrink-0">
-            {subscriberChatRate !== null ? '분석 완료' : '집계 중'}
-          </span>
+          {isLive ? (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">
+              실시간 집계 중
+            </span>
+          ) : (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#00FFA3]/10 text-[#00FFA3] border border-[#00FFA3]/20 shrink-0">
+              {subscriberChatRate !== null ? '분석 완료' : '집계 중'}
+            </span>
+          )}
         </div>
         <div>
           <div className="text-xl sm:text-2xl lg:text-3xl font-black text-white font-mono tracking-tight truncate">
-            {subscriberChatRate !== null ? `${subscriberChatRate.toFixed(1)}%` : '준비 중'}
+            {isLive ? '--' : (subscriberChatRate !== null ? `${subscriberChatRate.toFixed(1)}%` : '준비 중')}
           </div>
           <p className="text-[10px] sm:text-[11px] text-gray-100 mt-1 font-medium truncate">
-            전체 채팅 중 팬덤 활성도
+            {isLive ? '방송 종료 후 최종 정산' : '전체 채팅 중 팬덤 활성도'}
           </p>
         </div>
       </div>
