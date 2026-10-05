@@ -28,9 +28,6 @@ interface Props {
   rebangIndexes?: number[];
   segments: StreamSegment[];
   highlights?: HighlightResponse[];
-  showTimeframeToggle?: boolean;
-  timeframe?: 'realtime' | 'cumulative';
-  onTimeframeChange?: (tf: 'realtime' | 'cumulative') => void;
 }
 
 const formatOffset = (ms: number | undefined | null) => {
@@ -49,14 +46,13 @@ const formatShortTime = (ts: any) => {
   return d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
 };
 
-const CustomTooltip = ({ active, payload, selectedTab, timeframe = 'realtime', formatTime, segments = [] }: any) => {
+const CustomTooltip = ({ active, payload, selectedTab, formatTime, segments = [] }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     if (!data.hasData) return null;
 
-    const isFixedRealtime = selectedTab === "realtime" && timeframe === "realtime";
     const tsMs = data.timestamp < 10000000000 ? data.timestamp * 1000 : data.timestamp;
-    const activeSeg = isFixedRealtime ? null : segments.find((seg: any) => {
+    const activeSeg = segments.find((seg: any) => {
       const start = new Date(seg.startedAt).getTime();
       const end = seg.endedAt ? new Date(seg.endedAt).getTime() : Infinity;
       return tsMs >= start && tsMs < end;
@@ -80,22 +76,16 @@ const CustomTooltip = ({ active, payload, selectedTab, timeframe = 'realtime', f
             </div>
           )}
         </div>
-        {isFixedRealtime ? (
-          <div className="text-[11px] text-gray-200 font-mono tracking-tighter">
-            실제 시각: {formatTime(data.timestamp)}
-          </div>
-        ) : (
-          <div className="flex flex-col mt-2">
-            {data.offsetMs !== undefined && data.offsetMs !== null && (
-              <div className="text-sm text-gray-100 font-bold mb-0.5 italic">
-                🎬 {selectedTab === "realtime" ? "방송 진행" : "영상"} {formatOffset(data.offsetMs)}
-              </div>
-            )}
-            <div className="text-[11px] text-gray-200 font-mono tracking-tighter">
-              (방송 시각 {formatTime(data.timestamp)})
+        <div className="flex flex-col mt-2">
+          {data.offsetMs !== undefined && data.offsetMs !== null && (
+            <div className="text-sm text-gray-100 font-bold mb-0.5 italic">
+              🎬 {selectedTab === "realtime" ? "방송 진행" : "영상"} {formatOffset(data.offsetMs)}
             </div>
+          )}
+          <div className="text-[11px] text-gray-200 font-mono tracking-tighter">
+            (방송 시각 {formatTime(data.timestamp)})
           </div>
-        )}
+        </div>
 
         {activeSeg && (
           <div className="mt-2 pt-2 border-t border-gray-700/60 flex flex-col gap-1">
@@ -145,10 +135,8 @@ const formatDuration = (ms: number) => {
 
 export const AnalysisChart: React.FC<Props> = ({
   chartData, metric, viewerMetric, maxY, maxViewerY = 100, isLoading, isGathering, error, selectedTab,
-  historyEmpty, onMouseMove, onMouseLeave, formatTime, rebangIndexes = [], segments = [], highlights = [],
-  showTimeframeToggle = false, timeframe = 'realtime', onTimeframeChange
+  historyEmpty, onMouseMove, onMouseLeave, formatTime, rebangIndexes = [], segments = [], highlights = []
 }) => {
-  const isFixedRealtime = selectedTab === "realtime" && timeframe === "realtime";
   const isLiveTab = selectedTab === "realtime";
 
   const categoryColorMap = React.useMemo(() => {
@@ -160,7 +148,7 @@ export const AnalysisChart: React.FC<Props> = ({
   }, [chartData]);
 
   const { processedData, uniqueColors } = React.useMemo(() => {
-    if (isFixedRealtime || !segments.length || !chartData.length) {
+    if (!segments.length || !chartData.length) {
       return { processedData: chartData, uniqueColors: ['#00FFA3'] };
     }
 
@@ -195,10 +183,10 @@ export const AnalysisChart: React.FC<Props> = ({
     }
 
     return { processedData: newData, uniqueColors: Array.from(colors) };
-  }, [chartData, isFixedRealtime, segments, categoryColorMap]);
+  }, [chartData, segments, categoryColorMap]);
 
   const categoryTransitionLines = React.useMemo(() => {
-    if (isFixedRealtime || segments.length <= 1 || !chartData.length) return [];
+    if (segments.length <= 1 || !chartData.length) return [];
     const normalize = (ts: number) => (ts < 10000000000 ? ts * 1000 : ts);
 
     const lines: Array<{ slotIndex: number; categoryName: string; color: string; id: any }> = [];
@@ -217,10 +205,10 @@ export const AnalysisChart: React.FC<Props> = ({
       }
     }
     return lines;
-  }, [chartData, segments, isFixedRealtime, categoryColorMap]);
+  }, [chartData, segments, categoryColorMap]);
 
   const ribbonSegments = React.useMemo(() => {
-    if (isFixedRealtime || !segments.length) return [];
+    if (!segments.length) return [];
     const now = Date.now();
     const parsed = segments.map(seg => {
       const start = new Date(seg.startedAt).getTime();
@@ -243,7 +231,7 @@ export const AnalysisChart: React.FC<Props> = ({
       percent: Math.max(3, (s.durationMs / totalDuration) * 100),
       durationLabel: formatDuration(s.durationMs)
     }));
-  }, [segments, isFixedRealtime, categoryColorMap]);
+  }, [segments, categoryColorMap]);
 
 
   return (
@@ -287,35 +275,6 @@ export const AnalysisChart: React.FC<Props> = ({
               </span>
             </div>
           </div>
-
-          {showTimeframeToggle && (
-            <div className="inline-flex bg-[#16171a] p-1 rounded-xl border border-gray-800 text-[11px] sm:text-xs font-semibold self-start sm:self-auto sm:ml-2">
-              <button
-                type="button"
-                onClick={() => onTimeframeChange?.('realtime')}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
-                  timeframe === 'realtime'
-                    ? 'bg-[#24262b] text-[#00FFA3] font-bold border border-[#00FFA3]/30 shadow-sm'
-                    : 'text-gray-100 hover:text-white'
-                }`}
-              >
-                <span>⏱️</span>
-                <span>실시간 (5분)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onTimeframeChange?.('cumulative')}
-                className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
-                  timeframe === 'cumulative'
-                    ? 'bg-[#24262b] text-[#00FFA3] font-bold border border-[#00FFA3]/30 shadow-sm'
-                    : 'text-gray-100 hover:text-white'
-                }`}
-              >
-                <span>📈</span>
-                <span>전체 누적</span>
-              </button>
-            </div>
-          )}
         </div>
 
         <div className="flex items-center gap-4 sm:gap-6 justify-between sm:justify-end w-full sm:w-auto border-t sm:border-t-0 border-gray-800/60 pt-3 sm:pt-0">
@@ -391,7 +350,7 @@ export const AnalysisChart: React.FC<Props> = ({
               ))}
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} opacity={0.3} />
-            {!isFixedRealtime && highlights.map((h) => {
+            {highlights.map((h) => {
               const hTs = new Date(h.startTime).getTime();
               const normalize = (ts: number) => (ts < 10000000000 ? ts * 1000 : ts);
               const idx = chartData.findIndex(d => d.timestamp && normalize(d.timestamp) >= hTs);
@@ -420,10 +379,10 @@ export const AnalysisChart: React.FC<Props> = ({
               tickFormatter={(idx) => {
                 const ts = chartData[idx]?.timestamp;
                 if (!ts) return "";
-                return isFixedRealtime ? formatTime(ts) : formatShortTime(ts);
+                return formatShortTime(ts);
               }}
               interval="preserveStartEnd"
-              minTickGap={isFixedRealtime ? 50 : 80}
+              minTickGap={80}
               stroke="#475569"
               fontSize={10}
               tickMargin={15}
@@ -442,7 +401,7 @@ export const AnalysisChart: React.FC<Props> = ({
               tickFormatter={(v) => (v >= 10000 ? `${(v / 10000).toFixed(1)}만` : v >= 1000 ? `${(v / 1000).toFixed(1)}천` : `${v}`)}
             />
 
-            {!isFixedRealtime && rebangIndexes.map((idx: number) => (
+            {rebangIndexes.map((idx: number) => (
               <ReferenceLine
                 key={idx}
                 x={idx}
@@ -452,7 +411,7 @@ export const AnalysisChart: React.FC<Props> = ({
               />
             ))}
 
-            {!isFixedRealtime && categoryTransitionLines.map((line) => (
+            {categoryTransitionLines.map((line) => (
               <ReferenceLine
                 key={`cat-trans-${line.id}`}
                 x={line.slotIndex}
@@ -471,23 +430,19 @@ export const AnalysisChart: React.FC<Props> = ({
             ))}
 
             {hasAnyFirepower && (
-              isFixedRealtime ? (
-                <Area yAxisId="firepower" type="monotone" dataKey="value" stroke="#00FFA3" strokeWidth={3} fill="url(#colorValue)" isAnimationActive={false} connectNulls={false} />
-              ) : (
-                uniqueColors.map(color => (
-                  <Area 
-                    key={color} 
-                    yAxisId="firepower" 
-                    type="monotone" 
-                    dataKey={`val_${color}`} 
-                    stroke={color} 
-                    strokeWidth={3} 
-                    fill={`url(#grad_${color.replace('#', '')})`} 
-                    isAnimationActive={false} 
-                    connectNulls={false} 
-                  />
-                ))
-              )
+              uniqueColors.map(color => (
+                <Area 
+                  key={color} 
+                  yAxisId="firepower" 
+                  type="monotone" 
+                  dataKey={`val_${color}`} 
+                  stroke={color} 
+                  strokeWidth={3} 
+                  fill={`url(#grad_${color.replace('#', '')})`} 
+                  isAnimationActive={false} 
+                  connectNulls={false} 
+                />
+              ))
             )}
             
             {!hasAnyFirepower ? (
@@ -514,7 +469,7 @@ export const AnalysisChart: React.FC<Props> = ({
               />
             )}
 
-            <Tooltip content={<CustomTooltip selectedTab={selectedTab} timeframe={timeframe} formatTime={formatTime} segments={segments} />} cursor={{ stroke: "#00FFA3", strokeWidth: 1 }} />
+            <Tooltip content={<CustomTooltip selectedTab={selectedTab} formatTime={formatTime} segments={segments} />} cursor={{ stroke: "#00FFA3", strokeWidth: 1 }} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
