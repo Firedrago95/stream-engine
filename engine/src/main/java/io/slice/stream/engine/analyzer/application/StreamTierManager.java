@@ -65,10 +65,18 @@ public class StreamTierManager {
     }
 
     private StreamTierInfo createColdStartTier(String streamId, int currentViewers) {
-        long calculatedCutoff = (long) (currentViewers * props.coldStartWeight());
-        long hardFloorCutoff = Math.max(props.dynamicFloor().minFloor(), calculatedCutoff);
+        long f0 = calculateF0(currentViewers);
+        return new StreamTierInfo(streamId, f0);
+    }
 
-        return new StreamTierInfo(streamId, hardFloorCutoff);
+    private long calculateF0(int currentViewers) {
+        if (currentViewers >= 5000) {
+            return 40L;
+        }
+        if (currentViewers >= 1000) {
+            return 20L;
+        }
+        return 8L;
     }
 
     private long calculateDynamicNoiseFloor(double avgFirepower) {
