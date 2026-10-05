@@ -46,17 +46,37 @@ const formatShortTime = (ts: any) => {
   return d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
 };
 
+const resolveActiveSegment = (tsMs: number, segments: any[]) => {
+  if (!segments || segments.length === 0) return null;
+
+  const exact = segments.find((seg: any) => {
+    const start = new Date(seg.startedAt).getTime();
+    const end = seg.endedAt ? new Date(seg.endedAt).getTime() : Infinity;
+    return tsMs >= start && tsMs < end;
+  });
+  if (exact) return exact;
+
+  const firstStart = new Date(segments[0].startedAt).getTime();
+  if (tsMs <= firstStart) {
+    return segments[0];
+  }
+
+  for (let i = segments.length - 1; i >= 0; i--) {
+    if (new Date(segments[i].startedAt).getTime() <= tsMs) {
+      return segments[i];
+    }
+  }
+
+  return segments[0];
+};
+
 const CustomTooltip = ({ active, payload, selectedTab, formatTime, segments = [] }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     if (!data.hasData) return null;
 
     const tsMs = data.timestamp < 10000000000 ? data.timestamp * 1000 : data.timestamp;
-    const activeSeg = segments.find((seg: any) => {
-      const start = new Date(seg.startedAt).getTime();
-      const end = seg.endedAt ? new Date(seg.endedAt).getTime() : Infinity;
-      return tsMs >= start && tsMs < end;
-    });
+    const activeSeg = resolveActiveSegment(tsMs, segments);
 
     return (
       <div className="bg-[#1a1a1c] border border-gray-700 p-3 rounded-xl shadow-2xl z-50 min-w-[200px]">
@@ -198,11 +218,7 @@ export const AnalysisChart: React.FC<Props> = ({
       if (!d.timestamp) continue;
       
       const tsMs = normalize(d.timestamp);
-      const activeSeg = segments.find(seg => {
-        const start = new Date(seg.startedAt).getTime();
-        const end = seg.endedAt ? new Date(seg.endedAt).getTime() : Infinity;
-        return tsMs >= start && tsMs < end;
-      });
+      const activeSeg = resolveActiveSegment(tsMs, segments);
       
       const color = activeSeg ? (categoryColorMap.get(activeSeg.categoryName) || '#8B5CF6') : '#00FFA3';
       colors.add(color);
@@ -233,20 +249,21 @@ export const AnalysisChart: React.FC<Props> = ({
       const chartEndTs = normalize(chartData[chartData.length - 1].timestamp);
 
       const validSegments = [];
-      for (const seg of mergedSegments) {
+      for (let sIdx = 0; sIdx < mergedSegments.length; sIdx++) {
+        const seg = mergedSegments[sIdx];
         const segStartMs = new Date(seg.startedAt).getTime();
         const segEndMs = seg.endedAt ? new Date(seg.endedAt).getTime() : now;
 
         if (segEndMs <= chartStartTs || segStartMs >= chartEndTs) continue;
 
         let startSlot = 0;
-        if (segStartMs > chartStartTs) {
+        if (sIdx > 0 && segStartMs > chartStartTs) {
           const foundIdx = chartData.findIndex(d => d.timestamp && normalize(d.timestamp) >= segStartMs);
           startSlot = foundIdx !== -1 ? foundIdx : 0;
         }
 
         let endSlot = totalSlots;
-        if (seg.endedAt && segEndMs < chartEndTs) {
+        if (seg.endedAt && segEndMs < chartEndTs && sIdx < mergedSegments.length - 1) {
           const foundEndIdx = chartData.findIndex(d => d.timestamp && normalize(d.timestamp) >= segEndMs);
           endSlot = foundEndIdx !== -1 ? foundEndIdx : totalSlots;
         }
