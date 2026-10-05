@@ -127,11 +127,13 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
                 ) AS d(broadcast_date)
                 WHERE s2.started_at >= :since
                   AND s2.average_viewer_count > 0
+                  AND EXTRACT(EPOCH FROM (COALESCE(s2.ended_at, NOW()) - s2.started_at)) >= 300
                 GROUP BY s2.stream_id
                 HAVING COUNT(DISTINCT d.broadcast_date) >= :minDays
             ) active_days ON ss.stream_id = active_days.stream_id
             WHERE ss.started_at >= :since
               AND ss.average_viewer_count > 0
+              AND EXTRACT(EPOCH FROM (COALESCE(ss.ended_at, NOW()) - ss.started_at)) >= 300
             GROUP BY ss.stream_id
         ) sub ON s.stream_id = sub.stream_id
         ORDER BY averageViewers DESC, s.id DESC
@@ -162,6 +164,7 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
             ON s.stream_id = ss.stream_id 
             AND ss.started_at >= :since 
             AND ss.average_viewer_count > 0
+            AND EXTRACT(EPOCH FROM (COALESCE(ss.ended_at, NOW()) - ss.started_at)) >= 300
         WHERE LOWER(s.streamer_name) LIKE LOWER(CONCAT('%', :keyword, '%'))
         GROUP BY s.stream_id, s.streamer_name, s.live_title, s.profile_image_url, s.category_name, s.is_live, s.last_update_at, s.concurrent_user_count, s.id
         ORDER BY averageViewers DESC, s.id DESC

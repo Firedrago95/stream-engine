@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { type StreamItem, StreamItemSchema } from '../types/stream';
 import { z } from 'zod';
 
-export const useStreamers = (keyword = '', interval = 30000) => {
+export const useStreamers = (keyword = '', interval = 30000, enabled = true) => {
   const [streamers, setStreamers] = useState<StreamItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async (signal?: AbortSignal) => {
+    if (!enabled) return;
     try {
       const baseUrl = import.meta.env.VITE_API_URL || '';
       const url = keyword
@@ -28,9 +29,15 @@ export const useStreamers = (keyword = '', interval = 30000) => {
     } finally {
       setIsLoading(false);
     }
-  }, [keyword]);
+  }, [keyword, enabled]);
 
   useEffect(() => {
+    if (!enabled) {
+      setStreamers([]);
+      setIsLoading(false);
+      return;
+    }
+
     let timer: ReturnType<typeof setInterval> | null = null;
     const controller = new AbortController();
 
@@ -65,7 +72,7 @@ export const useStreamers = (keyword = '', interval = 30000) => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       controller.abort();
     };
-  }, [fetchData, interval]);
+  }, [fetchData, interval, enabled]);
 
   return { streamers, isLoading, error, refetch: fetchData };
 };

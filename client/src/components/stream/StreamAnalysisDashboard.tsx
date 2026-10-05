@@ -337,7 +337,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
     }
   };
 
-  const displayLabel = currentSessionInfo ? currentSessionInfo.label : "해당 방송";
+  const isLiveSession = isLiveTabSelected || !!currentSessionInfo?.isLive;
+  const displayLabel = currentSessionInfo ? currentSessionInfo.label.replace(/^[^\w\s가-힣0-9.-]+\s*/, '') : "해당 방송";
 
   const viewerMetric = useMemo(() => {
     if (hoveredData.viewers !== null && hoveredData.viewers !== undefined) {
@@ -348,8 +349,9 @@ export const StreamAnalysisDashboard: React.FC = () => {
       ? Math.max(...compressedHistory.map((d: any) => d.viewerCount || 0))
       : (isLiveTabSelected ? (streamerInfo?.concurrentUserCount || 0) : (currentSessionInfo?.viewers || 0));
 
-    return { label: `${displayLabel} 최고 시청자`, value: maxViewer };
-  }, [compressedHistory, hoveredData, isLiveTabSelected, streamerInfo?.concurrentUserCount, currentSessionInfo, displayLabel]);
+    const label = isLiveSession ? "실시간 최고 시청자" : `${displayLabel} 최고 시청자`;
+    return { label, value: maxViewer };
+  }, [compressedHistory, hoveredData, isLiveTabSelected, isLiveSession, streamerInfo?.concurrentUserCount, currentSessionInfo, displayLabel]);
 
   const metric = useMemo(() => {
     if (hoveredData.value !== null) {
@@ -360,11 +362,12 @@ export const StreamAnalysisDashboard: React.FC = () => {
       ? Math.max(...compressedHistory.map((d: any) => d.value || 0))
       : 0;
 
+    const label = isLiveSession ? "실시간 최고 화력" : `${displayLabel} 최고 화력`;
     return {
-      label: `${displayLabel} 최고 화력`,
+      label,
       value: maxVal
     };
-  }, [compressedHistory, hoveredData, displayLabel]);
+  }, [compressedHistory, hoveredData, isLiveSession, displayLabel]);
 
   const displayTitle = isLiveTabSelected ? streamerInfo?.liveTitle : currentSessionInfo?.liveTitle;
   const displayCategory = isLiveTabSelected ? streamerInfo?.categoryName : currentSessionInfo?.categoryName;

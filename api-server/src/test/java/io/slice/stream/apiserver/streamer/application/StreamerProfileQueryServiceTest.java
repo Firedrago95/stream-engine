@@ -41,6 +41,9 @@ class StreamerProfileQueryServiceTest {
     @Mock
     private JpaStreamSessionRepository sessionRepository;
 
+    @Mock
+    private StreamerLeaderboardQueryService leaderboardQueryService;
+
     private StreamerProfileQueryService profileQueryService;
 
     @BeforeEach
@@ -48,6 +51,7 @@ class StreamerProfileQueryServiceTest {
         profileQueryService = new StreamerProfileQueryService(
             streamRepository,
             sessionRepository,
+            leaderboardQueryService,
             fixedClock
         );
     }
@@ -277,5 +281,30 @@ class StreamerProfileQueryServiceTest {
         assertThat(response.summary().averageViewers()).isEqualTo(15000);
         assertThat(response.mostPlayedCategories()).hasSize(1);
         assertThat(response.mostPlayedCategories().get(0).averageViewers()).isEqualTo(15000);
+    }
+
+    @Test
+    void 일일_리더보드_캐시에_정산된_평균_시청자수가_존재하는_경우_리더보드_수치를_우선하여_일치시킨다() {
+        String channelId = "ch_cached_test";
+        Instant now = FIXED_NOW;
+
+        StreamEntity stream = new StreamEntity(channelId, "캐시테스트스트리머");
+        ReflectionTestUtils.setField(stream, "lastUpdateAt", now.minus(1, ChronoUnit.HOURS));
+
+        Instant validStart = now.minus(2, ChronoUnit.DAYS);
+        StreamSessionEntity session = new StreamSessionEntity(
+            channelId, "sess_1", "테스트 방송", "Game", validStart
+        );
+        session.finishSession(validStart.plusSeconds(10000), 20000, 15000.0);
+
+        given(streamRepository.findByStreamId(channelId)).willReturn(Optional.of(stream));
+        given(sessionRepository.findSessionsOverlapping(eq(channelId), any(), any()))
+            .willReturn(List.of(session));
+        given(leaderboardQueryService.getCachedAverageViewers(channelId))
+            .willReturn(Optional.of(14819));
+
+        StreamerProfileResponse response = profileQueryService.getProfile(channelId);
+
+        assertThat(response.summary().averageViewers()).isEqualTo(14819);
     }
 }
