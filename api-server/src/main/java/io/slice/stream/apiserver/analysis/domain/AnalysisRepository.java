@@ -12,8 +12,6 @@ public interface AnalysisRepository {
 
     void saveAll(List<AnalysisSignal> signals);
 
-    List<AnalysisSignal> findRecentSignals(String streamId, int limit);
-
     Set<String> findChannelsWithRecentSignals(Collection<String> streamIds, Instant threshold);
 
     List<AnalysisDataPoint> findRawHistory(String streamId, String sessionId);

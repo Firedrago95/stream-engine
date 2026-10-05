@@ -12,7 +12,6 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Repository;
 
@@ -69,21 +68,6 @@ public class AnalysisRepositoryImpl implements AnalysisRepository {
             signal.firepower(),
             signal.offsetMs()
         );
-    }
-
-    @Override
-    public List<AnalysisSignal> findRecentSignals(String streamId, int limit) {
-        return jpaRepository.findByStreamIdOrderByTimestampDesc(streamId, PageRequest.of(0, limit))
-            .stream()
-            .map(e -> AnalysisSignal.of(
-                e.getStreamId(),
-                e.getSessionId(),
-                e.getStatus(),
-                e.getTimestamp(),
-                e.getFirepower(),
-                e.getOffsetMs()
-            ))
-            .toList();
     }
 
     @Override

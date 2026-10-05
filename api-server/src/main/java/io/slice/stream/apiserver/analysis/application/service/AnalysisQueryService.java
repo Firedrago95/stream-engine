@@ -1,7 +1,6 @@
 package io.slice.stream.apiserver.analysis.application.service;
 
 import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
-import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.SegmentResponse;
@@ -35,7 +34,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AnalysisQueryService {
 
-    private static final int FIND_LIMIT = 100;
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final long ONE_MINUTE_MS = 60_000L;
     private static final long NOISE_THRESHOLD_SECONDS = 300L;
@@ -44,44 +42,6 @@ public class AnalysisQueryService {
     private final JpaStreamSessionRepository sessionRepository;
     private final JpaStreamSessionSegmentRepository segmentRepository;
     private final JpaViewMetricTimelineRepository timelineRepository;
-
-    public AnalysisResponse getRecentAnalysis(String streamId) {
-        List<AnalysisSignal> signals = analysisRepository.findRecentSignals(streamId, FIND_LIMIT);
-
-        List<AnalysisDataPoint> dataPoints = signals.stream()
-            .map(s -> new AnalysisDataPoint(
-                s.timestamp().toEpochMilli(),
-                s.firepower(),
-                s.status()
-            ))
-            .toList();
-
-        Optional<StreamSessionEntity> activeSession = sessionRepository.findActiveSession(streamId);
-        List<TimelineDataPoint> timeline = activeSession
-            .map(s -> timelineRepository.findBySessionIdOrderByTimestampAsc(s.getSessionId()).stream()
-                .map(t -> new TimelineDataPoint(t.getTimestamp().toEpochMilli(), t.getViewerCount()))
-                .toList())
-            .orElse(List.of());
-
-        List<SegmentResponse> segments = activeSession
-            .map(s -> fetchSegments(s.getSessionId()))
-            .orElse(List.of());
-
-        SessionSummaryResponse summary = activeSession
-            .map(s -> new SessionSummaryResponse(
-                s.getSessionId(),
-                s.getTitle(),
-                s.getCategoryName(),
-                s.getStartedAt(),
-                s.getEndedAt(),
-                s.getPeakViewers(),
-                s.getAverageViewerCount(),
-                s.getSubscriberChatRatio()
-            ))
-            .orElse(null);
-
-        return new AnalysisResponse(streamId, dataPoints, segments, timeline, summary);
-    }
 
     public List<SessionResponse> getAvailableSessions(String streamId, int limit) {
         return sessionRepository.findRecentValidSessionsByStreamId(streamId, NOISE_THRESHOLD_SECONDS, PageRequest.of(0, limit))
