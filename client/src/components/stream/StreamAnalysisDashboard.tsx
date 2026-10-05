@@ -136,12 +136,12 @@ export const StreamAnalysisDashboard: React.FC = () => {
     }));
   };
 
-  const fetchSessionHistory = useCallback(async (sessionId: string, isBackground = false) => {
+  const fetchSessionHistory = useCallback(async (sessionId: string, isBackground = false, signal?: AbortSignal) => {
     if (!sessionId || !streamId) return;
     if (!isBackground) setIsHistoryLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/history?sessionId=${sessionId}`);
+      const res = await fetch(`${API_BASE_URL}/api/v1/analysis/streams/${streamId}/history?sessionId=${sessionId}`, { signal });
       if (!res.ok) throw new Error("분석 데이터를 불러오지 못했습니다.");
       const data = await res.json();
       const sortedHistory = (data.dataPoints || []).sort((a: any, b: any) => a.timestamp - b.timestamp);
@@ -150,6 +150,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
       setSegments(data.segments || []);
       setHistoryError(null);
     } catch (err: any) {
+      if (err.name === 'AbortError') return;
       console.error("분석 데이터 조회 실패", err);
       if (!isBackground) {
         setHistoryError(err instanceof Error ? err.message : "네트워크 오류");
@@ -158,7 +159,9 @@ export const StreamAnalysisDashboard: React.FC = () => {
         setSegments([]);
       }
     } finally {
-      if (!isBackground) setIsHistoryLoading(false);
+      if (!isBackground && (!signal || !signal.aborted)) {
+        setIsHistoryLoading(false);
+      }
     }
   }, [streamId]);
 
@@ -261,14 +264,21 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   useEffect(() => {
     if (!selectedTab) return;
-    fetchSessionHistory(selectedTab, false);
+    const controller = new AbortController();
 
+    fetchSessionHistory(selectedTab, false, controller.signal);
+
+    let timer: ReturnType<typeof setInterval> | null = null;
     if (isLiveTabSelected) {
-      const timer = setInterval(() => {
-        fetchSessionHistory(selectedTab, true);
+      timer = setInterval(() => {
+        fetchSessionHistory(selectedTab, true, controller.signal);
       }, CONFIG.LIVE_REFRESH_INTERVAL);
-      return () => clearInterval(timer);
     }
+
+    return () => {
+      controller.abort();
+      if (timer) clearInterval(timer);
+    };
   }, [selectedTab, isLiveTabSelected, fetchSessionHistory]);
 
   const compressedHistory = useMemo(() => {

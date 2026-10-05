@@ -229,41 +229,47 @@ export const AnalysisChart: React.FC<Props> = ({
 
     if (chartData.length > 0) {
       const totalSlots = chartData.length;
-      let prevEndSlot = 0;
+      const chartStartTs = normalize(chartData[0].timestamp);
+      const chartEndTs = normalize(chartData[chartData.length - 1].timestamp);
 
-      const parsedWithSlots = mergedSegments.map((seg, idx) => {
+      const validSegments = [];
+      for (const seg of mergedSegments) {
         const segStartMs = new Date(seg.startedAt).getTime();
         const segEndMs = seg.endedAt ? new Date(seg.endedAt).getTime() : now;
-        const duration = Math.max(0, segEndMs - segStartMs);
 
-        const startSlot = prevEndSlot;
-        let endSlot = totalSlots;
-        if (seg.endedAt && idx < mergedSegments.length - 1) {
-          const nextSegStartMs = new Date(mergedSegments[idx + 1].startedAt).getTime();
-          const foundEndIdx = chartData.findIndex(d => d.timestamp && normalize(d.timestamp) >= nextSegStartMs);
-          endSlot = foundEndIdx !== -1 ? Math.max(startSlot + 1, foundEndIdx) : totalSlots;
+        if (segEndMs <= chartStartTs || segStartMs >= chartEndTs) continue;
+
+        let startSlot = 0;
+        if (segStartMs > chartStartTs) {
+          const foundIdx = chartData.findIndex(d => d.timestamp && normalize(d.timestamp) >= segStartMs);
+          startSlot = foundIdx !== -1 ? foundIdx : 0;
         }
-        prevEndSlot = endSlot;
+
+        let endSlot = totalSlots;
+        if (seg.endedAt && segEndMs < chartEndTs) {
+          const foundEndIdx = chartData.findIndex(d => d.timestamp && normalize(d.timestamp) >= segEndMs);
+          endSlot = foundEndIdx !== -1 ? foundEndIdx : totalSlots;
+        }
 
         const slotCount = Math.max(1, endSlot - startSlot);
+        const duration = Math.max(0, segEndMs - segStartMs);
 
-        return {
+        validSegments.push({
           ...seg,
           startMs: segStartMs,
           endMs: segEndMs,
           durationMs: duration,
-          slotCount,
+          startSlot,
+          endSlot,
+          leftPercent: (startSlot / totalSlots) * 100,
+          widthPercent: (slotCount / totalSlots) * 100,
           color: categoryColorMap.get(seg.categoryName) || '#8B5CF6',
           timeRangeLabel: `${formatClockTime(seg.startedAt)} ~ ${seg.endedAt ? formatClockTime(seg.endedAt) : '현재'}`,
           durationLabel: formatDuration(duration)
-        };
-      });
+        });
+      }
 
-      const sumSlots = parsedWithSlots.reduce((acc, s) => acc + s.slotCount, 0);
-      return parsedWithSlots.map(s => ({
-        ...s,
-        percent: (s.slotCount / (sumSlots || 1)) * 100
-      }));
+      return validSegments;
     }
 
     const parsed = mergedSegments.map(seg => {
@@ -284,10 +290,17 @@ export const AnalysisChart: React.FC<Props> = ({
     const totalDuration = parsed.reduce((acc, s) => acc + s.durationMs, 0);
     if (totalDuration <= 0) return [];
 
-    return parsed.map(s => ({
-      ...s,
-      percent: (s.durationMs / totalDuration) * 100
-    }));
+    let accumulatedMs = 0;
+    return parsed.map(s => {
+      const leftPercent = (accumulatedMs / totalDuration) * 100;
+      const widthPercent = (s.durationMs / totalDuration) * 100;
+      accumulatedMs += s.durationMs;
+      return {
+        ...s,
+        leftPercent,
+        widthPercent
+      };
+    });
   }, [mergedSegments, chartData, categoryColorMap]);
 
 
@@ -355,52 +368,55 @@ export const AnalysisChart: React.FC<Props> = ({
 
       {ribbonSegments.length > 0 && (
         <div style={{ paddingLeft: '40px', paddingRight: '48px' }} className="w-full mb-5">
-          <div className="flex w-full h-7 bg-[#141518] rounded-lg border border-gray-800/80 relative z-10">
-            {ribbonSegments.map((seg, idx) => (
-              <div
-                key={seg.id || idx}
-                style={{
-                  width: `${seg.percent}%`,
-                  backgroundColor: `${seg.color}25`
-                }}
-                className={`h-full flex items-center justify-center px-1.5 relative group cursor-default transition-all hover:brightness-125 ${
-                  idx === 0 ? 'rounded-l-lg' : ''
-                } ${
-                  idx === ribbonSegments.length - 1 ? 'rounded-r-lg' : ''
-                } ${
-                  idx > 0 ? 'border-l border-gray-800/80' : ''
-                }`}
-              >
-                <div className="flex items-center gap-1.5 min-w-0 max-w-full">
-                  <span
-                    className="w-2 h-2 rounded-full shrink-0"
-                    style={{ backgroundColor: seg.color }}
-                  />
-                  <span className="text-[11px] font-bold text-gray-200 truncate">
-                    {seg.categoryName}
-                  </span>
-                </div>
-
-                {/* 마우스 호버 시 상세 툴팁 */}
-                <div className="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-50 whitespace-nowrap">
-                  <div className="bg-[#1a1b1e] border border-gray-700/80 text-white px-3 py-2 rounded-xl shadow-2xl text-xs flex flex-col gap-1 min-w-[130px]">
-                    <div className="flex items-center gap-1.5 font-bold text-gray-100">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: seg.color }} />
-                      <span>{seg.categoryName}</span>
-                    </div>
-                    <div className="text-[11px] text-gray-300 font-mono">
-                      ⏱️ {seg.durationLabel} ({seg.timeRangeLabel})
-                    </div>
-                    {seg.titles && seg.titles.length > 0 && (
-                      <div className="text-[10px] text-gray-400 max-w-[220px] truncate">
-                        📝 {seg.titles.join(' / ')}
-                      </div>
-                    )}
+          <div className="w-full h-7 bg-[#141518] rounded-lg border border-gray-800/80 relative z-10">
+            {ribbonSegments.map((seg, idx) => {
+              const isFirst = seg.leftPercent <= 0.1;
+              const isLast = seg.leftPercent + seg.widthPercent >= 99.9;
+              return (
+                <div
+                  key={seg.id || idx}
+                  style={{
+                    left: `${seg.leftPercent}%`,
+                    width: `${seg.widthPercent}%`,
+                    backgroundColor: `${seg.color}25`
+                  }}
+                  className={`absolute top-0 bottom-0 flex items-center justify-center px-1.5 border-r border-gray-800/80 group cursor-default transition-all hover:brightness-125 ${
+                    isFirst ? 'rounded-l-lg' : ''
+                  } ${
+                    isLast ? 'rounded-r-lg border-r-0' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 min-w-0 max-w-full">
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: seg.color }}
+                    />
+                    <span className="text-[11px] font-bold text-gray-200 truncate">
+                      {seg.categoryName}
+                    </span>
                   </div>
-                  <div className="w-2 h-2 bg-[#1a1b1e] border-r border-b border-gray-700/80 rotate-45 -mt-1" />
+
+                  {/* 마우스 호버 시 상세 툴팁 */}
+                  <div className="pointer-events-none absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-50 whitespace-nowrap">
+                    <div className="bg-[#1a1b1e] border border-gray-700/80 text-white px-3 py-2 rounded-xl shadow-2xl text-xs flex flex-col gap-1 min-w-[130px]">
+                      <div className="flex items-center gap-1.5 font-bold text-gray-100">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: seg.color }} />
+                        <span>{seg.categoryName}</span>
+                      </div>
+                      <div className="text-[11px] text-gray-300 font-mono">
+                        ⏱️ {seg.durationLabel} ({seg.timeRangeLabel})
+                      </div>
+                      {seg.titles && seg.titles.length > 0 && (
+                        <div className="text-[10px] text-gray-400 max-w-[220px] truncate">
+                          📝 {seg.titles.join(' / ')}
+                        </div>
+                      )}
+                    </div>
+                    <div className="w-2 h-2 bg-[#1a1b1e] border-r border-b border-gray-700/80 rotate-45 -mt-1" />
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
