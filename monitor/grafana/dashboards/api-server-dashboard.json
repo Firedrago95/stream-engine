@@ -640,7 +640,7 @@
         "type": "prometheus",
         "uid": "grafanacloud-prom"
       },
-      "description": "최근 24시간 동안 인입된 모든 API 요청(새벽 일배치 포함)의 상위 5%(p95) 처리 지연 시간입니다. 1초 이하 정상(녹색), 1~3초 주의(노랑), 3초 초과 위험(빨강).",
+      "description": "최근 15분 동안 인입된 API 요청의 상위 5%(p95) 처리 지연 시간입니다. 1초 이하 정상(녹색), 1~3초 주의(노랑), 3초 초과 위험(빨강).",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -937,13 +937,13 @@
             "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=\"api-server-oci\", uri!~\"/\\\\*\\\\*\"}[24h])) by (le, uri)) > 0",
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=\"api-server-oci\", uri!~\"/\\\\*\\\\*\"}[15m])) by (le, uri)) > 0",
           "legendFormat": "{{uri}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "[API] 엔드포인트별 24시간 p95 지연 시간 (경고: 1s / 위험: 3s)",
+      "title": "[API] 엔드포인트별 15분 p95 지연 시간 (경고: 1s / 위험: 3s)",
       "type": "bargauge"
     },
     {
@@ -1494,13 +1494,13 @@
             "uid": "grafanacloud-prom"
           },
           "editorMode": "code",
-          "expr": "max by (scheduler) (scheduler_last_duration_seconds{job=\"api-server-oci\"})",
+          "expr": "max by (scheduler) (last_over_time(scheduler_last_duration_seconds{job=\"api-server-oci\"}[24h]))",
           "legendFormat": "{{scheduler}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "[스케줄러] 작업별 최대 소요 시간 및 병목 상한 기준",
+      "title": "[스케줄러] 작업별 직전 소요 시간 및 병목 상한 기준 (최근 24h 유지)",
       "type": "bargauge"
     },
     {
