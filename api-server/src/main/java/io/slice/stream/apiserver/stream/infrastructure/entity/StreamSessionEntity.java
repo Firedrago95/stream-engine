@@ -103,6 +103,8 @@ public class StreamSessionEntity {
 
     public void reopen() {
         this.endedAt = null;
+        this.averageViewerCount = null;
+        this.subscriberChatRatio = null;
     }
 
     public void updateAverageViewerCount(Integer averageViewerCount) {
