@@ -69,6 +69,9 @@ logs/
 
 # Antigravity CLI Config
 .antigravitycli/
+GEMINI.md
+AGENTS.md
+.agents/
 docs
 
 interview_prep.md

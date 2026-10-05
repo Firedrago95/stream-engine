@@ -244,4 +244,38 @@ class StreamerProfileQueryServiceTest {
         assertThatThrownBy(() -> profileQueryService.getProfile("non_existing"))
             .isInstanceOf(BusinessException.class);
     }
+
+    @Test
+    void 시청자_수가_0명이거나_미수집된_세션은_평균_시청자_가중치_분모에서_제외되어_수치가_왜곡되지_않는다() {
+        String channelId = "ch_zero_viewer_test";
+        Instant now = FIXED_NOW;
+
+        StreamEntity stream = new StreamEntity(channelId, "미수집테스트스트리머");
+        ReflectionTestUtils.setField(stream, "lastUpdateAt", now.minus(1, ChronoUnit.HOURS));
+
+        // 유효 세션: 10,000초 방송, 평균 15,000명
+        Instant validStart = now.minus(2, ChronoUnit.DAYS);
+        StreamSessionEntity validSession = new StreamSessionEntity(
+            channelId, "sess_valid", "정상 방송", "Game", validStart
+        );
+        validSession.finishSession(validStart.plusSeconds(10000), 20000, 15000.0);
+
+        // 과거 미수집 세션 (0명): 10,000초 방송, averageViewerCount = 0 (수집기 도입 이전 세션)
+        Instant zeroStart = now.minus(10, ChronoUnit.DAYS);
+        StreamSessionEntity zeroViewerSession = new StreamSessionEntity(
+            channelId, "sess_zero", "미수집 과거 방송", "Game", zeroStart
+        );
+        zeroViewerSession.finishSession(zeroStart.plusSeconds(10000), 0, 0.0);
+
+        given(streamRepository.findByStreamId(channelId)).willReturn(Optional.of(stream));
+        given(sessionRepository.findSessionsOverlapping(eq(channelId), any(), any()))
+            .willReturn(List.of(validSession, zeroViewerSession));
+
+        StreamerProfileResponse response = profileQueryService.getProfile(channelId);
+
+        assertThat(response.summary().totalBroadcastDurationSeconds()).isEqualTo(20000L);
+        assertThat(response.summary().averageViewers()).isEqualTo(15000);
+        assertThat(response.mostPlayedCategories()).hasSize(1);
+        assertThat(response.mostPlayedCategories().get(0).averageViewers()).isEqualTo(15000);
+    }
 }

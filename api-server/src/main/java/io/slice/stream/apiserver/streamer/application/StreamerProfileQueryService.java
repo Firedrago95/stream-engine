@@ -106,6 +106,7 @@ public class StreamerProfileQueryService {
         int followerGrowth7d = 0;
         Set<LocalDate> broadcastDates = new HashSet<>();
         long totalDuration = 0L;
+        long totalWeightedDurationSeconds = 0L;
         double totalWeightedViewerSeconds = 0.0;
         int peakViewers = 0;
 
@@ -126,7 +127,10 @@ public class StreamerProfileQueryService {
             peakViewers = Math.max(peakViewers, sPeak);
 
             int sAvg = session.getAverageViewerCount() != null ? session.getAverageViewerCount() : 0;
-            totalWeightedViewerSeconds += (double) dur * sAvg;
+            if (sAvg > 0) {
+                totalWeightedViewerSeconds += (double) dur * sAvg;
+                totalWeightedDurationSeconds += dur;
+            }
 
             Integer fGrowth = session.getSessionFollowerGrowth();
             if (fGrowth != null) {
@@ -145,6 +149,7 @@ public class StreamerProfileQueryService {
 
         return new SessionKpiAccumulator(
             totalDuration,
+            totalWeightedDurationSeconds,
             totalWeightedViewerSeconds,
             peakViewers,
             followerGrowth30d,
@@ -194,8 +199,8 @@ public class StreamerProfileQueryService {
         double attendanceRate30d = Math.round(((double) broadcastDays30d / DAYS_30 * 100.0) * 10.0) / 10.0;
 
         int averageViewers = 0;
-        if (kpi.totalBroadcastDurationSeconds() > 0) {
-            averageViewers = (int) Math.round(kpi.totalWeightedViewerSeconds() / kpi.totalBroadcastDurationSeconds());
+        if (kpi.totalWeightedDurationSeconds() > 0) {
+            averageViewers = (int) Math.round(kpi.totalWeightedViewerSeconds() / kpi.totalWeightedDurationSeconds());
         }
         double totalHoursWatched = Math.round((kpi.totalWeightedViewerSeconds() / 3600.0) * 10.0) / 10.0;
 
@@ -220,6 +225,7 @@ public class StreamerProfileQueryService {
         }
 
         Map<String, Long> durationByCategory = new HashMap<>();
+        Map<String, Long> weightedDurationByCategory = new HashMap<>();
         Map<String, Double> weightedViewerSecondsByCategory = new HashMap<>();
 
         for (StreamSessionEntity session : sessions) {
@@ -244,8 +250,11 @@ public class StreamerProfileQueryService {
             durationByCategory.merge(category, durationSeconds, Long::sum);
 
             int avgViewers = session.getAverageViewerCount() != null ? session.getAverageViewerCount() : 0;
-            double viewerSeconds = (double) avgViewers * durationSeconds;
-            weightedViewerSecondsByCategory.merge(category, viewerSeconds, Double::sum);
+            if (avgViewers > 0) {
+                double viewerSeconds = (double) avgViewers * durationSeconds;
+                weightedViewerSecondsByCategory.merge(category, viewerSeconds, Double::sum);
+                weightedDurationByCategory.merge(category, durationSeconds, Long::sum);
+            }
         }
 
         long totalDurationAll = durationByCategory.values().stream().mapToLong(Long::longValue).sum();
@@ -261,7 +270,8 @@ public class StreamerProfileQueryService {
                 long durationSec = entry.getValue();
                 double shareRatio = Math.round(((double) durationSec / totalDurationAll * 100.0) * 10.0) / 10.0;
                 double viewerSec = weightedViewerSecondsByCategory.getOrDefault(category, 0.0);
-                int avgViewers = (int) Math.round(viewerSec / durationSec);
+                long validDuration = weightedDurationByCategory.getOrDefault(category, 0L);
+                int avgViewers = validDuration > 0 ? (int) Math.round(viewerSec / validDuration) : 0;
 
                 return new StreamerCategoryDto(category, durationSec, shareRatio, avgViewers);
             })
@@ -270,6 +280,7 @@ public class StreamerProfileQueryService {
 
     private record SessionKpiAccumulator(
         long totalBroadcastDurationSeconds,
+        long totalWeightedDurationSeconds,
         double totalWeightedViewerSeconds,
         int peakViewers,
         int followerGrowth30d,
