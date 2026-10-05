@@ -75,9 +75,9 @@ highlight:
   minimum: 5                    # 하이라이트로 인정될 최소 화력 (엔진 min-floor 5와 일치)
   realtime-limit: 50            # 실시간 하이라이트 조회 한도 (프론트에서 Top 6 및 더보기 처리)
   history-display-limit: 50     # 방종후 하이라이트 조회 한도 (프론트에서 Top 6 및 더보기 처리)
-  cleanup-retention-limit: 10   # 방종후 24시간 이후 하이라이트는 10개만 남기고 삭제
-  cleanup-grace-hours: 24       # 방종후 하이라이트 삭제 기간
-  highlight-retention-days: 30  # 방종후 30일 지난 하이라이트 및 세그먼트 완전 삭제
+  cleanup-retention-limit: 10   # 30일 경과 후 하이라이트는 Top 10만 압축 보존
+  cleanup-grace-days: 30        # 하이라이트 전량 보존 기간 (일, 30일 경과 후 Top 10 압축)
+  highlight-retention-days: 365 # 방종후 365일(1년) 지난 하이라이트 완전 삭제
   session-retention-days: 365   # 방종후 365일(1년) 지난 방송 세션 기록 삭제 (잔디 최대 1년 지원)
 
 category:

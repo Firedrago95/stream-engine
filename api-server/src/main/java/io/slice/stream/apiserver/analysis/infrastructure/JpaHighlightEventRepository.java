@@ -40,6 +40,27 @@ public interface JpaHighlightEventRepository extends JpaRepository<HighlightEven
     int deleteExceptTop(@Param("sessionId") String sessionId, @Param("retentionLimit") int retentionLimit);
 
     @Modifying
+    @Query(value = """
+        DELETE FROM highlight_events 
+        WHERE id IN (
+            SELECT id FROM (
+                SELECT id, ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY peak_firepower DESC) as rn
+                FROM highlight_events 
+                WHERE start_time < :threshold
+            ) sub
+            WHERE sub.rn > :retentionLimit
+        )
+        """, nativeQuery = true)
+    int compressOldHighlightsExceptTop(
+        @Param("threshold") Instant threshold,
+        @Param("retentionLimit") int retentionLimit
+    );
+
+    @Modifying
+    @Query("DELETE FROM HighlightEventEntity h WHERE h.startTime < :expiredThreshold")
+    int deleteExpiredHighlights(@Param("expiredThreshold") Instant expiredThreshold);
+
+    @Modifying
     @Query("DELETE FROM HighlightEventEntity h WHERE h.sessionId IN :sessionIds")
     int deleteAllBySessionIds(@Param("sessionIds") List<String> sessionIds);
 }

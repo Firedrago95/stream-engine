@@ -30,37 +30,30 @@ public class HighlightCleanupScheduler {
     @Scheduled(cron = "0 0 6 * * *", zone = "Asia/Seoul")
     @Transactional
     public void cleanupOldHighlights() {
-        trimOldSessionHighlights();
+        compressOldSessionHighlights();
         purgeExpiredHighlights();
         purgeExpiredSessions();
         purgeExpiredFollowerSnapshots();
     }
 
-    private void trimOldSessionHighlights() {
-        Instant twentyFourHoursAgo = Instant.now().minus(properties.cleanupGraceHours(), ChronoUnit.HOURS);
-
-        sessionRepository.findFinishedSessionsOlderThan(twentyFourHoursAgo).forEach(session -> {
-            int deletedCount = highlightRepository.deleteExceptTop(session.getSessionId(), properties.cleanupRetentionLimit());
-            if (deletedCount > 0) {
-                log.info("[Cleanup] 세션 {} 데이터 {}개 정리 완료 (Top 10 유지)",
-                    session.getSessionId(), deletedCount);
-            }
-        });
+    private void compressOldSessionHighlights() {
+        Instant compressionThreshold = Instant.now().minus(properties.cleanupGraceDays(), ChronoUnit.DAYS);
+        int deletedCount = highlightRepository.compressOldHighlightsExceptTop(
+            compressionThreshold,
+            properties.cleanupRetentionLimit()
+        );
+        if (deletedCount > 0) {
+            log.info("[하이라이트 압축] {}일 경과 세션의 하이라이트 중 상위 {}개 제외 {}건 벌크 정리 완료",
+                properties.cleanupGraceDays(), properties.cleanupRetentionLimit(), deletedCount);
+        }
     }
 
     private void purgeExpiredHighlights() {
         Instant highlightExpiredThreshold = Instant.now().minus(properties.highlightRetentionDays(), ChronoUnit.DAYS);
-        List<StreamSessionEntity> highlightExpiredSessions = sessionRepository.findFinishedSessionsOlderThan(highlightExpiredThreshold);
-
-        if (!highlightExpiredSessions.isEmpty()) {
-            List<String> expiredSessionIds = highlightExpiredSessions.stream()
-                .map(StreamSessionEntity::getSessionId)
-                .toList();
-
-            highlightRepository.deleteAllBySessionIds(expiredSessionIds);
-
-            log.info("[Cleanup] {}일 이상 지난 만료 하이라이트 영상 클립 영구 삭제 완료 (총 {}개 세션)",
-                properties.highlightRetentionDays(), expiredSessionIds.size());
+        int deletedCount = highlightRepository.deleteExpiredHighlights(highlightExpiredThreshold);
+        if (deletedCount > 0) {
+            log.info("[하이라이트 만료 삭제] {}일(1년) 경과 하이라이트 데이터 {}건 영구 삭제 완료",
+                properties.highlightRetentionDays(), deletedCount);
         }
     }
 

@@ -1,8 +1,8 @@
 package io.slice.stream.apiserver.analysis.application.scheduler;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -54,41 +54,23 @@ class HighlightCleanupSchedulerTest {
         6,
         20,
         10,
-        24,
         30,
+        365,
         365
     );
 
     @Test
-    void 하루가_지난_종료된_세션들에_대해_청소_로직을_실행한다() {
-        String sessionId = "old-session-id";
-        StreamSessionEntity oldSession = mock(StreamSessionEntity.class);
-        given(oldSession.getSessionId()).willReturn(sessionId);
-
-        given(sessionRepository.findFinishedSessionsOlderThan(any(Instant.class)))
-            .willReturn(List.of(oldSession))
-            .willReturn(List.of());
-
+    void 삼십일이_지난_하이라이트들에_대해_상위_십개를_제외한_벌크_압축을_실행한다() {
         scheduler.cleanupOldHighlights();
 
-        verify(sessionRepository, atLeastOnce()).findFinishedSessionsOlderThan(any(Instant.class));
-        verify(highlightRepository).deleteExceptTop(sessionId, 10);
+        verify(highlightRepository).compressOldHighlightsExceptTop(any(Instant.class), eq(10));
     }
 
     @Test
-    void 삼십일이_지난_만료된_하이라이트_영상_데이터를_삭제한다() {
-        String expiredSessionId = "expired-session-id";
-        StreamSessionEntity expiredSession = mock(StreamSessionEntity.class);
-        given(expiredSession.getSessionId()).willReturn(expiredSessionId);
-
-        given(sessionRepository.findFinishedSessionsOlderThan(any(Instant.class)))
-            .willReturn(List.of())
-            .willReturn(List.of(expiredSession))
-            .willReturn(List.of());
-
+    void 일년이_지난_만료된_하이라이트_데이터를_영구_삭제한다() {
         scheduler.cleanupOldHighlights();
 
-        verify(highlightRepository).deleteAllBySessionIds(List.of(expiredSessionId));
+        verify(highlightRepository).deleteExpiredHighlights(any(Instant.class));
     }
 
     @Test
@@ -98,8 +80,6 @@ class HighlightCleanupSchedulerTest {
         given(expiredSession.getSessionId()).willReturn(expiredSessionId);
 
         given(sessionRepository.findFinishedSessionsOlderThan(any(Instant.class)))
-            .willReturn(List.of())
-            .willReturn(List.of())
             .willReturn(List.of(expiredSession));
 
         scheduler.cleanupOldHighlights();
