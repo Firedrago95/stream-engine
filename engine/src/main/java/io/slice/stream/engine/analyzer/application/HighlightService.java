@@ -99,7 +99,7 @@ public class HighlightService {
 
         try {
             Instant now = clock.instant();
-            StreamTierInfo tierInfo = tierManager.getTierInfo(streamId, currentViewers);
+            StreamTierInfo tierInfo = tierManager.getTierInfo(streamId, target.liveId(), currentViewers);
 
             // 분석에 필요한 델타 데이터 리스트 조회
             List<Long> deltas = fetchDeltas(streamId, now);

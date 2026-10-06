@@ -70,6 +70,8 @@ public class ChzzkLiveStatusClient implements LiveStatusClient {
 
             long liveId = content.liveId() != null ? content.liveId() : 0L;
 
+            boolean adult = Boolean.TRUE.equals(content.adult());
+
             return new StreamTarget(
                 channelId,
                 channelId,
@@ -79,7 +81,8 @@ public class ChzzkLiveStatusClient implements LiveStatusClient {
                 content.concurrentUserCount(),
                 null,
                 content.liveCategoryValue(),
-                startedAt
+                startedAt,
+                adult
             );
         } catch (Exception e) {
             log.warn("[상태 조회 실패] 채널 ID: {}, 사유: {}", channelId, e.getMessage());

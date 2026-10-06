@@ -287,4 +287,22 @@ class StreamServiceTest {
 
         assertThat(activeSession.isPaidPromotion()).isTrue();
     }
+
+    @Test
+    void 기존_활성_세션_동기화_시_adult_상태_변경이_세션과_활성_세그먼트에_정상_동기화된다() {
+        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
+        StreamSessionEntity activeSession = new StreamSessionEntity("ch1", "live1", "제목", "소통", startedAt, false, false);
+        StreamSessionSegmentEntity activeSegment = new StreamSessionSegmentEntity("ch1", "live1", "제목", "소통", startedAt, 0L, false, false);
+        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", startedAt, false, true);
+
+        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
+            .willReturn(List.of(activeSession));
+        given(segmentRepository.findActiveSegment("live1"))
+            .willReturn(Optional.of(activeSegment));
+
+        streamService.syncAll(List.of(request));
+
+        assertThat(activeSession.isAdult()).isTrue();
+        assertThat(activeSegment.isAdult()).isTrue();
+    }
 }

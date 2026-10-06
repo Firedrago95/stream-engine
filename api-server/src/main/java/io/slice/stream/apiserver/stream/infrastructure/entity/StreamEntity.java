@@ -60,10 +60,14 @@ public class StreamEntity {
 
     // 최초 생성
     public StreamEntity(String streamId, String streamerName) {
+        this(streamId, streamerName, Instant.now());
+    }
+
+    public StreamEntity(String streamId, String streamerName, Instant lastUpdateAt) {
         this.streamId = streamId;
         this.streamerName = streamerName;
         this.isLive = true;
-        this.lastUpdateAt = Instant.now();
+        this.lastUpdateAt = lastUpdateAt;
     }
 
     public void heartbeat(String streamerName, String liveTitle, String profileImageUrl, String categoryName, int concurrentUserCount) {

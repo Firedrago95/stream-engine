@@ -20,7 +20,8 @@ public record ChzzkLiveStatusResponse(
         LocalDateTime openDate,
         String chatChannelId,
         String liveCategoryValue,
-        String channelId
+        String channelId,
+        Boolean adult
     ) {
     }
 }

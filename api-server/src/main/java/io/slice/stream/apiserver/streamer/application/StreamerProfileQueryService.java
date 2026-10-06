@@ -1,5 +1,6 @@
 package io.slice.stream.apiserver.streamer.application;
 
+import io.slice.stream.apiserver.global.config.SessionProperties;
 import io.slice.stream.apiserver.global.error.BusinessException;
 import io.slice.stream.apiserver.global.error.ErrorCode;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
@@ -37,18 +38,18 @@ public class StreamerProfileQueryService {
     private static final int DAYS_30 = 30;
     private static final int DAYS_7 = 7;
     private static final int TOP_CATEGORIES_LIMIT = 5;
-    private static final long NOISE_THRESHOLD_SECONDS = 300L;
 
     private final JpaStreamRepository streamRepository;
     private final JpaStreamSessionRepository sessionRepository;
     private final StreamerLeaderboardQueryService leaderboardQueryService;
+    private final SessionProperties sessionProperties;
     private final Clock clock;
 
     public StreamerProfileQueryService(
         JpaStreamRepository streamRepository,
         JpaStreamSessionRepository sessionRepository
     ) {
-        this(streamRepository, sessionRepository, null, Clock.system(KST));
+        this(streamRepository, sessionRepository, null, new SessionProperties(null, null, 50), Clock.system(KST));
     }
 
     public StreamerProfileQueryService(
@@ -56,7 +57,7 @@ public class StreamerProfileQueryService {
         JpaStreamSessionRepository sessionRepository,
         Clock clock
     ) {
-        this(streamRepository, sessionRepository, null, clock);
+        this(streamRepository, sessionRepository, null, new SessionProperties(null, null, 50), clock);
     }
 
     public StreamerProfileQueryService(
@@ -64,7 +65,16 @@ public class StreamerProfileQueryService {
         JpaStreamSessionRepository sessionRepository,
         StreamerLeaderboardQueryService leaderboardQueryService
     ) {
-        this(streamRepository, sessionRepository, leaderboardQueryService, Clock.system(KST));
+        this(streamRepository, sessionRepository, leaderboardQueryService, new SessionProperties(null, null, 50), Clock.system(KST));
+    }
+
+    public StreamerProfileQueryService(
+        JpaStreamRepository streamRepository,
+        JpaStreamSessionRepository sessionRepository,
+        StreamerLeaderboardQueryService leaderboardQueryService,
+        Clock clock
+    ) {
+        this(streamRepository, sessionRepository, leaderboardQueryService, new SessionProperties(null, null, 50), clock);
     }
 
     @Autowired
@@ -72,11 +82,13 @@ public class StreamerProfileQueryService {
         JpaStreamRepository streamRepository,
         JpaStreamSessionRepository sessionRepository,
         StreamerLeaderboardQueryService leaderboardQueryService,
+        SessionProperties sessionProperties,
         Clock clock
     ) {
         this.streamRepository = streamRepository;
         this.sessionRepository = sessionRepository;
         this.leaderboardQueryService = leaderboardQueryService;
+        this.sessionProperties = sessionProperties;
         this.clock = clock;
     }
 
@@ -140,7 +152,7 @@ public class StreamerProfileQueryService {
             Instant effectiveStart = sStart.isBefore(start30dInstant) ? start30dInstant : sStart;
             long dur = Math.max(0L, Duration.between(effectiveStart, sEnd).getSeconds());
 
-            if (session.getEndedAt() != null && dur < NOISE_THRESHOLD_SECONDS) {
+            if (session.getEndedAt() != null && dur < sessionProperties.noiseThreshold().getSeconds()) {
                 continue;
             }
 
@@ -264,7 +276,7 @@ public class StreamerProfileQueryService {
             Instant end = session.getEndedAt() != null ? session.getEndedAt() : now;
             long durationSeconds = Math.max(0L, Duration.between(effectiveStart, end).getSeconds());
 
-            if (session.getEndedAt() != null && durationSeconds < NOISE_THRESHOLD_SECONDS) {
+            if (session.getEndedAt() != null && durationSeconds < sessionProperties.noiseThreshold().getSeconds()) {
                 continue;
             }
 

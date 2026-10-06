@@ -71,9 +71,12 @@ public class StreamUpdateAnalyzer {
     private boolean isMetadataChanged(StreamTarget oldTarget, StreamTarget newTarget) {
         boolean oldPaid = isPaidPromotion(oldTarget);
         boolean newPaid = isPaidPromotion(newTarget);
+        boolean oldAdult = Boolean.TRUE.equals(oldTarget.adult());
+        boolean newAdult = Boolean.TRUE.equals(newTarget.adult());
         return !Objects.equals(oldTarget.liveTitle(), newTarget.liveTitle()) ||
             !Objects.equals(oldTarget.categoryName(), newTarget.categoryName()) ||
-            !Objects.equals(oldPaid, newPaid);
+            !Objects.equals(oldPaid, newPaid) ||
+            !Objects.equals(oldAdult, newAdult);
     }
 
     private ChangedStream createChangedStream(StreamTarget oldTarget, StreamTarget newTarget, Instant changedAt) {
@@ -81,6 +84,7 @@ public class StreamUpdateAnalyzer {
             ? Duration.between(newTarget.startedAt(), changedAt).toMillis()
             : null;
         boolean paidPromotion = isPaidPromotion(newTarget);
+        boolean adult = Boolean.TRUE.equals(newTarget.adult());
         return new ChangedStream(
             newTarget.channelId(),
             String.valueOf(newTarget.liveId()),
@@ -90,7 +94,8 @@ public class StreamUpdateAnalyzer {
             newTarget.categoryName(),
             changedAt,
             changedOffsetMs,
-            paidPromotion
+            paidPromotion,
+            adult
         );
     }
 

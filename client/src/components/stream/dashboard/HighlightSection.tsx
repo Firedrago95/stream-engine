@@ -45,6 +45,7 @@ interface HighlightSectionProps {
   selectedTab: string;
   startedAt?: string;
   endedAt?: string | null;
+  isAdult?: boolean;
 }
 
 export const HighlightSection: React.FC<HighlightSectionProps> = ({
@@ -52,6 +53,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
   selectedTab,
   startedAt,
   endedAt,
+  isAdult = false,
 }) => {
   const [viewMode, setViewMode] = useState<'top6' | 'recommended' | 'all'>('top6');
   const [sortOrder, setSortOrder] = useState<'firepower' | 'time'>('firepower');
@@ -169,10 +171,24 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
           )}
         </div>
 
+        {isAdult && highlights.length > 0 && (
+          <div className="mb-4 mx-2 p-3 rounded-xl bg-[#141416] border border-rose-500/30 flex items-center gap-2 text-xs text-gray-300">
+            <span className="text-rose-400 font-bold shrink-0">🔞 안내</span>
+            <span>연령 제한(19금) 설정 이전 구간에서 집계된 하이라이트입니다. 19금 전환 이후 구간은 채팅 화력 분석이 지원되지 않습니다.</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {processedHighlights.length === 0 ? (
-              <div className="col-span-full p-16 text-center bg-[#1a1a1c] border border-gray-800 rounded-3xl text-gray-200 font-bold italic">
-                데이터가 없습니다.
+              <div className="col-span-full p-16 text-center bg-[#1a1a1c] border border-gray-800 rounded-3xl text-gray-200 font-bold italic flex flex-col items-center gap-2">
+                {isAdult ? (
+                  <>
+                    <span className="text-rose-400 text-sm font-semibold">🔞 해당 방송은 연령 제한(19금)으로 인해 채팅 화력 하이라이트가 수집되지 않았습니다.</span>
+                    <span className="text-gray-400 text-xs font-normal">치지직 정책상 19금 설정 방송은 채팅 접근이 제한됩니다. (시청자 지표는 상단에서 확인 가능합니다)</span>
+                  </>
+                ) : (
+                  "데이터가 없습니다."
+                )}
               </div>
           ) : (
               processedHighlights.map((hl) => {

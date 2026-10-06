@@ -6,8 +6,7 @@ reviews:
   high_level_summary: true
 
   path_filters:
-    - "!client/dist/**"
-    - "!client/node_modules/**"
+    - "!client/**"
     - "!**/build/**"
     - "!**/out/**"
     - "!**/.gradle/**"
@@ -17,18 +16,6 @@ reviews:
     - "!**/*.lock"
 
   path_instructions:
-    - path: "client/**"
-      instructions: |
-        당신은 React, TypeScript, 모던 프론트엔드 전문 수석 엔지니어입니다.
-        아래의 원칙에 따라 실용적이고 엄격한 리뷰를 수행하세요:
-
-        - **컴포넌트 설계 및 책임 분리:** 단일 책임 원칙 준수, 비대한 컴포넌트 분리 여부 점검.
-        - **성능 및 렌더링 최적화:** 불필요한 리렌더링, 낭비적인 네트워크 폴링 또는 이벤트 리스너 메모리 누수 점검.
-        - **타입 안정성:** `any` 타입 지양 및 명확한 TypeScript 타입/인터페이스 정의 확인.
-        - **UI/UX 및 데이터 시각화:** 차트 데이터 정합성, 반응형 레이아웃, 직관적인 사용자 경험 점검.
-        - 단순 포맷팅은 Linter에게 맡기고, 아키텍처 및 런타임 잠재 결함에 집중하세요.
-        리뷰 코멘트는 한국어로, 문제점과 구체적인 개선 제안(코드 예시 포함)을 함께 작성하세요.
-
     - path: "{api-server,engine,collector,core}/**"
       instructions: |
         당신은 Java, Spring Boot, 그리고 고성능 분산 시스템 전문 수석 엔지니어입니다.

@@ -139,4 +139,34 @@ class StreamerSessionQueryServiceTest {
         assertThat(resultSessionIds).containsExactly("sess_live", "sess_long", "sess_300s");
         assertThat(resultSessionIds).doesNotContain("sess_92s", "sess_299s");
     }
+
+    @Test
+    void 육분_이내_리방된_세션들은_전적_목록_조회_시_단일_세션으로_병합되어_반환된다() {
+        String channelId = "ch_relive_test";
+        Instant t1 = Instant.parse("2026-03-24T10:00:00Z");
+        Instant t1End = t1.plusSeconds(600); // 10분 방송 후 튕김
+        Instant t2 = t1End.plusSeconds(120); // 2분 뒤 리방 (6분 이내)
+
+        StreamSessionEntity session1 = new StreamSessionEntity(channelId, "sess_1", "1차 방제", "롤", t1);
+        session1.finishSession(t1End, 1500, 1000.0);
+        ReflectionTestUtils.setField(session1, "sessionFollowerGrowth", 20);
+
+        StreamSessionEntity session2 = new StreamSessionEntity(channelId, "sess_2", "2차 리방 방제", "종합게임", t2);
+        session2.finishSession(t2.plusSeconds(7200), 4000, 3000.0);
+        ReflectionTestUtils.setField(session2, "sessionFollowerGrowth", 50);
+
+        sessionRepository.addSession(session1);
+        sessionRepository.addSession(session2);
+
+        StreamerSessionHistoryResponse response = sessionQueryService.getSessionHistory(channelId, 0, 10);
+
+        assertThat(response.sessions()).hasSize(1);
+        var merged = response.sessions().get(0);
+        assertThat(merged.sessionId()).isEqualTo("sess_2");
+        assertThat(merged.title()).isEqualTo("2차 리방 방제");
+        assertThat(merged.categoryName()).isEqualTo("종합게임");
+        assertThat(merged.startedAt()).isEqualTo(t1);
+        assertThat(merged.peakViewers()).isEqualTo(4000);
+        assertThat(merged.followerGrowth()).isEqualTo(70);
+    }
 }

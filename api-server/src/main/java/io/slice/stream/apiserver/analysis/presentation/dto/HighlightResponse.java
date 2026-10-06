@@ -16,9 +16,23 @@ public record HighlightResponse(
     String status
 ) {
     public static HighlightResponse from(HighlightEventEntity entity) {
+        return from(entity, null);
+    }
+
+    public static HighlightResponse from(HighlightEventEntity entity, Instant baseStartedAt) {
         long duration = 0;
         if (entity.getStartTime() != null && entity.getEndTime() != null) {
             duration = Duration.between(entity.getStartTime(), entity.getEndTime()).getSeconds();
+        }
+
+        Long startOffset = entity.getStartTimeOffset();
+        Long endOffset = entity.getEndTimeOffset();
+
+        if (baseStartedAt != null && entity.getStartTime() != null) {
+            startOffset = Math.max(0L, Duration.between(baseStartedAt, entity.getStartTime()).toMillis());
+            if (entity.getEndTime() != null) {
+                endOffset = Duration.between(baseStartedAt, entity.getEndTime()).toMillis();
+            }
         }
 
         return new HighlightResponse(
@@ -27,8 +41,8 @@ public record HighlightResponse(
             entity.getStartTime(),
             entity.getEndTime(),
             duration,
-            entity.getStartTimeOffset(), // 매핑 추가
-            entity.getEndTimeOffset(),   // 매핑 추가
+            startOffset,
+            endOffset,
             entity.getPeakFirepower(),
             entity.getStatus()
         );

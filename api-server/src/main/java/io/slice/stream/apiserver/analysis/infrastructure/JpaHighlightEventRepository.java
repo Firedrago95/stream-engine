@@ -2,6 +2,7 @@ package io.slice.stream.apiserver.analysis.infrastructure;
 
 import io.slice.stream.apiserver.analysis.infrastructure.entity.HighlightEventEntity;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,6 +19,9 @@ public interface JpaHighlightEventRepository extends JpaRepository<HighlightEven
 
     @Query("SELECT h FROM HighlightEventEntity h WHERE h.streamId = :streamId AND h.sessionId = :sessionId")
     List<HighlightEventEntity> findAllByStreamIdAndSessionId(@Param("streamId") String streamId, @Param("sessionId") String sessionId);
+
+    @Query("SELECT h FROM HighlightEventEntity h WHERE h.streamId = :streamId AND h.sessionId IN :sessionIds")
+    List<HighlightEventEntity> findAllByStreamIdAndSessionIdIn(@Param("streamId") String streamId, @Param("sessionIds") Collection<String> sessionIds);
 
     @Query("""
            SELECT h FROM HighlightEventEntity h

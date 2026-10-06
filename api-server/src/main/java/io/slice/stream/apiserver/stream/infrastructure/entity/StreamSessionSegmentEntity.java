@@ -48,6 +48,29 @@ public class StreamSessionSegmentEntity {
     @Column(name = "paid_promotion", nullable = false)
     private boolean paidPromotion;
 
+    @Column(name = "is_adult", nullable = false)
+    private boolean isAdult;
+
+    public StreamSessionSegmentEntity(
+        String streamId,
+        String sessionId,
+        String title,
+        String categoryName,
+        Instant startedAt,
+        Long startOffsetMs,
+        boolean paidPromotion,
+        boolean isAdult
+    ) {
+        this.streamId = streamId;
+        this.sessionId = sessionId;
+        this.title = title;
+        this.categoryName = categoryName;
+        this.startedAt = startedAt;
+        this.startOffsetMs = startOffsetMs;
+        this.paidPromotion = paidPromotion;
+        this.isAdult = isAdult;
+    }
+
     public StreamSessionSegmentEntity(
         String streamId,
         String sessionId,
@@ -57,13 +80,7 @@ public class StreamSessionSegmentEntity {
         Long startOffsetMs,
         boolean paidPromotion
     ) {
-        this.streamId = streamId;
-        this.sessionId = sessionId;
-        this.title = title;
-        this.categoryName = categoryName;
-        this.startedAt = startedAt;
-        this.startOffsetMs = startOffsetMs;
-        this.paidPromotion = paidPromotion;
+        this(streamId, sessionId, title, categoryName, startedAt, startOffsetMs, paidPromotion, false);
     }
 
     public StreamSessionSegmentEntity(
@@ -74,7 +91,7 @@ public class StreamSessionSegmentEntity {
         Instant startedAt,
         Long startOffsetMs
     ) {
-        this(streamId, sessionId, title, categoryName, startedAt, startOffsetMs, false);
+        this(streamId, sessionId, title, categoryName, startedAt, startOffsetMs, false, false);
     }
 
     public void endSegment(Instant endedAt, Long endOffsetMs) {
@@ -84,6 +101,10 @@ public class StreamSessionSegmentEntity {
 
     public void updatePaidPromotion(boolean paidPromotion) {
         this.paidPromotion = paidPromotion;
+    }
+
+    public void updateAdult(boolean isAdult) {
+        this.isAdult = isAdult;
     }
 
     public void reopen() {

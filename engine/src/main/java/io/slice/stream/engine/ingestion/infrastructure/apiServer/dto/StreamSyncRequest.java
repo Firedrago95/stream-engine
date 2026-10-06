@@ -12,8 +12,23 @@ public record StreamSyncRequest(
     int concurrentUserCount,
     String categoryName,
     Instant startedAt,
-    boolean paidPromotion
+    boolean paidPromotion,
+    boolean adult
 ) {
+    public StreamSyncRequest(
+        String streamId,
+        String liveId,
+        String streamerName,
+        String liveTitle,
+        String profileImageUrl,
+        int concurrentUserCount,
+        String categoryName,
+        Instant startedAt,
+        boolean paidPromotion
+    ) {
+        this(streamId, liveId, streamerName, liveTitle, profileImageUrl, concurrentUserCount, categoryName, startedAt, paidPromotion, false);
+    }
+
     public StreamSyncRequest(
         String streamId,
         String liveId,
@@ -24,7 +39,7 @@ public record StreamSyncRequest(
         String categoryName,
         Instant startedAt
     ) {
-        this(streamId, liveId, streamerName, liveTitle, profileImageUrl, concurrentUserCount, categoryName, startedAt, false);
+        this(streamId, liveId, streamerName, liveTitle, profileImageUrl, concurrentUserCount, categoryName, startedAt, false, false);
     }
 
     public static StreamSyncRequest from(StreamTarget target) {
@@ -37,7 +52,8 @@ public record StreamSyncRequest(
             target.concurrentUserCount(),
             target.categoryName(),
             target.startedAt(),
-            target.paidPromotion()
+            Boolean.TRUE.equals(target.paidPromotion()),
+            Boolean.TRUE.equals(target.adult())
         );
     }
 }

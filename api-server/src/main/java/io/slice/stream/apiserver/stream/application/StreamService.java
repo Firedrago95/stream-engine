@@ -112,6 +112,11 @@ public class StreamService {
                     if (req.paidPromotion()) {
                         activeSession.markPaidPromotion();
                     }
+                    if (req.adult() != activeSession.isAdult()) {
+                        activeSession.updateAdult(req.adult());
+                        segmentRepository.findActiveSegment(activeSession.getSessionId())
+                            .ifPresent(segment -> segment.updateAdult(req.adult()));
+                    }
                     sessionMap.put(req.streamId(), activeSession);
                 } else {
                     closePreviousSession(activeSession, currentTime, req.liveId());
@@ -179,6 +184,9 @@ public class StreamService {
                 if (req.paidPromotion()) {
                     existing.markPaidPromotion();
                 }
+                if (req.adult()) {
+                    existing.markAdult();
+                }
                 sessionMap.put(req.streamId(), existing);
 
                 if (!activeSegmentSessionIds.contains(existing.getSessionId())) {
@@ -191,7 +199,8 @@ public class StreamService {
                         req.categoryName(),
                         sessionStartedAt,
                         Math.max(0L, startOffset),
-                        req.paidPromotion()
+                        req.paidPromotion(),
+                        req.adult()
                     );
                     newSegments.add(segment);
                     activeSegmentSessionIds.add(existing.getSessionId());
@@ -221,7 +230,8 @@ public class StreamService {
                     req.liveTitle(),
                     req.categoryName(),
                     sessionStartedAt,
-                    req.paidPromotion()
+                    req.paidPromotion(),
+                    req.adult()
                 );
                 newSessions.add(session);
                 sessionMap.put(req.streamId(), session);
@@ -233,7 +243,8 @@ public class StreamService {
                     req.categoryName(),
                     sessionStartedAt,
                     0L,
-                    req.paidPromotion()
+                    req.paidPromotion(),
+                    req.adult()
                 );
                 newSegments.add(segment);
             }

@@ -1,6 +1,7 @@
 package io.slice.stream.apiserver;
 
 import io.slice.stream.apiserver.global.config.HighlightProperties;
+import io.slice.stream.apiserver.global.config.SessionProperties;
 import jakarta.annotation.PostConstruct;
 import java.util.TimeZone;
 import org.springframework.boot.SpringApplication;
@@ -10,7 +11,7 @@ import org.springframework.resilience.annotation.EnableResilientMethods;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@EnableConfigurationProperties(HighlightProperties.class)
+@EnableConfigurationProperties({HighlightProperties.class, SessionProperties.class})
 @EnableAsync
 @EnableResilientMethods
 @EnableScheduling

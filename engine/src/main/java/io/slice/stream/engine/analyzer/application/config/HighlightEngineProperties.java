@@ -10,6 +10,7 @@ public record HighlightEngineProperties(
     long aggregationIntervalMs,
     long recentWindowMs,
     long minDataMs,
+    long reLiveRetentionMs,
     int fetchBufferSeconds,
     double coldStartWeight,
     DynamicFloorProperties dynamicFloor
@@ -30,6 +31,9 @@ public record HighlightEngineProperties(
         }
         if (minDataMs <= 0) {
             throw new IllegalArgumentException("최소 데이터 누적 시간(minDataMs)은 1ms 이상이어야 합니다.");
+        }
+        if (reLiveRetentionMs <= 0) {
+            throw new IllegalArgumentException("리방 바닥값 보존 시간(reLiveRetentionMs)은 1ms 이상이어야 합니다.");
         }
         if (fetchBufferSeconds <= 0) {
             throw new IllegalArgumentException("Redis 조회 여유분(fetchBufferSeconds)은 1초 이상이어야 합니다.");

@@ -60,6 +60,7 @@ class HighlightServiceTest {
             3000L,
             1800000L,
             300000L,
+            420000L,
             15,
             0.05,
             new DynamicFloorProperties(5L, 5.0, 4.0)

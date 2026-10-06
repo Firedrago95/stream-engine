@@ -12,6 +12,8 @@ export interface DashboardSessionTab {
   averageViewerCount?: number | null;
   peakViewers?: number | null;
   subscriberChatRatio?: number | null;
+  isAdult?: boolean;
+  linkedSessionIds?: string[];
 }
 
 interface AnalysisTabsProps {
@@ -44,6 +46,9 @@ export const AnalysisTabs: React.FC<AnalysisTabsProps> = ({ availableSessions, s
             `}
           >
             {tab.label}
+            {tab.isAdult && (
+              <span className="text-xs ml-0.5" title="연령 제한(19금) 방송">🔞</span>
+            )}
           </button>
         );
       })}

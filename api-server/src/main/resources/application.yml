@@ -84,5 +84,10 @@ category:
   ranking:
     timeline-interval-seconds: ${TIMELINE_INTERVAL_SECONDS:30}
 
+session:
+  re-live-gap: 6m               # 리방(Re-Live) 인정 최대 공백 시간
+  noise-threshold: 5m           # 유효 방송 최소 지속 시간 (미만 노이즈 필터링)
+  recent-fetch-limit: 50        # 연관 세션 탐색 한도
+
 
 

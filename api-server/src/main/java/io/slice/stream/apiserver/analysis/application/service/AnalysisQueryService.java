@@ -13,74 +13,124 @@ import io.slice.stream.apiserver.stream.infrastructure.JpaViewMetricTimelineRepo
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.ViewMetricTimelineEntity;
+import io.slice.stream.apiserver.global.config.SessionProperties;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AnalysisQueryService {
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final long ONE_MINUTE_MS = 60_000L;
-    private static final long NOISE_THRESHOLD_SECONDS = 300L;
 
     private final AnalysisRepository analysisRepository;
     private final JpaStreamSessionRepository sessionRepository;
     private final JpaStreamSessionSegmentRepository segmentRepository;
     private final JpaViewMetricTimelineRepository timelineRepository;
+    private final ReLiveSessionMerger reLiveSessionMerger;
+    private final SessionProperties sessionProperties;
+
+    public AnalysisQueryService(
+        AnalysisRepository analysisRepository,
+        JpaStreamSessionRepository sessionRepository,
+        JpaStreamSessionSegmentRepository segmentRepository,
+        JpaViewMetricTimelineRepository timelineRepository,
+        ReLiveSessionMerger reLiveSessionMerger
+    ) {
+        this(
+            analysisRepository,
+            sessionRepository,
+            segmentRepository,
+            timelineRepository,
+            reLiveSessionMerger,
+            new SessionProperties(null, null, 50)
+        );
+    }
+
+    @Autowired
+    public AnalysisQueryService(
+        AnalysisRepository analysisRepository,
+        JpaStreamSessionRepository sessionRepository,
+        JpaStreamSessionSegmentRepository segmentRepository,
+        JpaViewMetricTimelineRepository timelineRepository,
+        ReLiveSessionMerger reLiveSessionMerger,
+        SessionProperties sessionProperties
+    ) {
+        this.analysisRepository = analysisRepository;
+        this.sessionRepository = sessionRepository;
+        this.segmentRepository = segmentRepository;
+        this.timelineRepository = timelineRepository;
+        this.reLiveSessionMerger = reLiveSessionMerger;
+        this.sessionProperties = sessionProperties;
+    }
 
     public List<SessionResponse> getAvailableSessions(String streamId, int limit) {
-        return sessionRepository.findRecentValidSessionsByStreamId(streamId, NOISE_THRESHOLD_SECONDS, PageRequest.of(0, limit))
-            .stream()
-            .map(session -> new SessionResponse(
-                session.getSessionId(),
-                session.getTitle(),
-                session.getCategoryName(),
-                session.getStartedAt(),
-                session.getEndedAt(),
-                session.getPeakViewers(),
-                session.getAverageViewerCount(),
-                session.getSubscriberChatRatio()
-            ))
+        int fetchLimit = Math.max(limit * 2, sessionProperties.recentFetchLimit());
+        List<StreamSessionEntity> sessions = sessionRepository.findRecentValidSessionsByStreamId(
+            streamId, 0L, PageRequest.of(0, fetchLimit)
+        );
+
+        List<List<StreamSessionEntity>> groups = reLiveSessionMerger.groupSessions(sessions);
+        return groups.stream()
+            .map(reLiveSessionMerger::mergeToSessionResponse)
+            .filter(this::isValidMergedSession)
+            .sorted(Comparator.comparing(SessionResponse::startedAt).reversed())
+            .limit(limit)
             .toList();
     }
 
+    private boolean isValidMergedSession(SessionResponse session) {
+        if (session.endedAt() == null) {
+            return true;
+        }
+        return Duration.between(session.startedAt(), session.endedAt()).getSeconds() >= sessionProperties.noiseThreshold().getSeconds();
+    }
+
     public AnalysisResponse getHistoryAnalysis(String streamId, String sessionId) {
-        List<SegmentResponse> segmentResponses = fetchSegments(sessionId);
+        List<StreamSessionEntity> linkedGroup = resolveLinkedGroup(streamId, sessionId);
+        List<String> linkedSessionIds = linkedGroup.isEmpty()
+            ? List.of(sessionId)
+            : linkedGroup.stream().map(StreamSessionEntity::getSessionId).toList();
+        Instant baseStartedAt = linkedGroup.isEmpty()
+            ? null
+            : linkedGroup.getFirst().getStartedAt();
 
-        List<ViewMetricTimelineEntity> timelines = timelineRepository.findBySessionIdOrderByTimestampAsc(sessionId);
-        List<TimelineDataPoint> timelineResponses = timelines.stream()
-            .map(t -> new TimelineDataPoint(t.getTimestamp().toEpochMilli(), t.getViewerCount()))
-            .toList();
+        List<SegmentResponse> segmentResponses = fetchSegments(linkedSessionIds, baseStartedAt);
 
-        SessionSummaryResponse summaryResponse = sessionRepository.findBySessionId(sessionId)
-            .map(session -> new SessionSummaryResponse(
-                session.getSessionId(),
-                session.getTitle(),
-                session.getCategoryName(),
-                session.getStartedAt(),
-                session.getEndedAt(),
-                session.getPeakViewers(),
-                session.getAverageViewerCount(),
-                session.getSubscriberChatRatio()
-            ))
-            .orElse(null);
+        List<ViewMetricTimelineEntity> timelines = timelineRepository.findBySessionIdInOrderByTimestampAsc(linkedSessionIds);
 
-        List<AnalysisDataPoint> mergedOneMinutePoints = loadMergedHistoryPoints(streamId, sessionId);
+        SessionSummaryResponse summaryResponse = !linkedGroup.isEmpty()
+            ? reLiveSessionMerger.mergeToSessionSummary(linkedGroup)
+            : sessionRepository.findBySessionId(sessionId)
+                .map(session -> new SessionSummaryResponse(
+                    session.getSessionId(),
+                    session.getTitle(),
+                    session.getCategoryName(),
+                    session.getStartedAt(),
+                    session.getEndedAt(),
+                    session.getPeakViewers(),
+                    session.getAverageViewerCount(),
+                    session.getSubscriberChatRatio(),
+                    session.isAdult()
+                ))
+                .orElse(null);
+
+        List<AnalysisDataPoint> mergedOneMinutePoints = loadMergedHistoryPoints(streamId, linkedSessionIds, baseStartedAt);
         long bucketIntervalMs = determineBucketIntervalMs(summaryResponse, mergedOneMinutePoints);
 
         List<AnalysisDataPoint> downsampledPoints = downsampleDataPoints(mergedOneMinutePoints, bucketIntervalMs);
@@ -89,25 +139,59 @@ public class AnalysisQueryService {
         return new AnalysisResponse(streamId, downsampledPoints, segmentResponses, downsampledTimelines, summaryResponse);
     }
 
-    private List<AnalysisDataPoint> loadMergedHistoryPoints(String streamId, String sessionId) {
-        List<AnalysisDataPoint> summaryDataPoints = analysisRepository.findSummaryHistory(streamId, sessionId);
-        List<AnalysisDataPoint> rawDataPoints = aggregateToOneMinuteIntervals(analysisRepository.findRawHistory(streamId, sessionId));
-
-        if (summaryDataPoints.isEmpty()) {
-            return rawDataPoints;
-        }
-        if (rawDataPoints.isEmpty()) {
-            return summaryDataPoints;
+    private List<StreamSessionEntity> resolveLinkedGroup(String streamId, String sessionId) {
+        String targetSessionId = sessionId;
+        if (targetSessionId == null || "realtime".equalsIgnoreCase(targetSessionId)) {
+            targetSessionId = sessionRepository.findActiveSession(streamId)
+                .map(StreamSessionEntity::getSessionId)
+                .orElse(null);
         }
 
+        if (targetSessionId == null) {
+            return List.of();
+        }
+
+        List<StreamSessionEntity> recentSessions = sessionRepository.findRecentValidSessionsByStreamId(
+            streamId, 0L, PageRequest.of(0, sessionProperties.recentFetchLimit())
+        );
+        List<StreamSessionEntity> linked = reLiveSessionMerger.findLinkedGroup(targetSessionId, recentSessions);
+        if (!linked.isEmpty()) {
+            return linked;
+        }
+
+        return sessionRepository.findBySessionId(targetSessionId)
+            .map(List::of)
+            .orElse(List.of());
+    }
+
+    private List<AnalysisDataPoint> loadMergedHistoryPoints(String streamId, List<String> sessionIds, Instant baseStartedAt) {
         Map<Long, AnalysisDataPoint> merged = new TreeMap<>();
-        for (AnalysisDataPoint p : summaryDataPoints) {
-            merged.put(p.timestamp(), p);
+
+        for (String sid : sessionIds) {
+            List<AnalysisDataPoint> summaryDataPoints = analysisRepository.findSummaryHistory(streamId, sid);
+            List<AnalysisDataPoint> rawDataPoints = aggregateToOneMinuteIntervals(analysisRepository.findRawHistory(streamId, sid));
+
+            for (AnalysisDataPoint p : summaryDataPoints) {
+                merged.put(p.timestamp(), p);
+            }
+            for (AnalysisDataPoint p : rawDataPoints) {
+                merged.putIfAbsent(p.timestamp(), p);
+            }
         }
-        for (AnalysisDataPoint p : rawDataPoints) {
-            merged.putIfAbsent(p.timestamp(), p);
+
+        if (baseStartedAt == null) {
+            return new ArrayList<>(merged.values());
         }
-        return new ArrayList<>(merged.values());
+
+        long baseEpochMs = baseStartedAt.toEpochMilli();
+        return merged.values().stream()
+            .map(p -> new AnalysisDataPoint(
+                p.timestamp(),
+                p.value(),
+                p.status(),
+                Math.max(0L, p.timestamp() - baseEpochMs)
+            ))
+            .toList();
     }
 
     private long determineBucketIntervalMs(SessionSummaryResponse summary, List<AnalysisDataPoint> points) {
@@ -239,18 +323,31 @@ public class AnalysisQueryService {
             .toList();
     }
 
-    private List<SegmentResponse> fetchSegments(String sessionId) {
-        List<StreamSessionSegmentEntity> segments = segmentRepository.findBySessionIdOrderByStartedAtAsc(sessionId);
+    private List<SegmentResponse> fetchSegments(List<String> sessionIds, Instant baseStartedAt) {
+        List<StreamSessionSegmentEntity> segments = segmentRepository.findBySessionIdInOrderByStartedAtAsc(sessionIds);
         return segments.stream()
-            .map(seg -> new SegmentResponse(
-                seg.getId(),
-                seg.getTitle(),
-                seg.getCategoryName(),
-                seg.getStartedAt(),
-                seg.getEndedAt(),
-                seg.getStartOffsetMs(),
-                seg.getEndOffsetMs()
-            ))
+            .map(seg -> {
+                Long startOffset = seg.getStartOffsetMs();
+                Long endOffset = seg.getEndOffsetMs();
+
+                if (baseStartedAt != null && seg.getStartedAt() != null) {
+                    startOffset = Math.max(0L, Duration.between(baseStartedAt, seg.getStartedAt()).toMillis());
+                    if (seg.getEndedAt() != null) {
+                        endOffset = Duration.between(baseStartedAt, seg.getEndedAt()).toMillis();
+                    }
+                }
+
+                return new SegmentResponse(
+                    seg.getId(),
+                    seg.getTitle(),
+                    seg.getCategoryName(),
+                    seg.getStartedAt(),
+                    seg.getEndedAt(),
+                    startOffset,
+                    endOffset,
+                    seg.isAdult()
+                );
+            })
             .toList();
     }
 }

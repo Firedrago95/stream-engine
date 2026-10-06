@@ -1,14 +1,16 @@
 package io.slice.stream.apiserver.streamer.application;
 
+import io.slice.stream.apiserver.analysis.application.service.ReLiveSessionMerger;
+import io.slice.stream.apiserver.global.config.SessionProperties;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerSessionHistoryResponse;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerSessionHistoryResponse.StreamerSessionItemDto;
-import java.time.Duration;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -17,13 +19,27 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class StreamerSessionQueryService {
 
-    public static final long NOISE_THRESHOLD_SECONDS = 300L;
-
     private final JpaStreamSessionRepository sessionRepository;
+    private final ReLiveSessionMerger reLiveSessionMerger;
+    private final SessionProperties sessionProperties;
+
+    public StreamerSessionQueryService(JpaStreamSessionRepository sessionRepository) {
+        this(sessionRepository, new ReLiveSessionMerger(), new SessionProperties(null, null, 50));
+    }
+
+    @Autowired
+    public StreamerSessionQueryService(
+        JpaStreamSessionRepository sessionRepository,
+        ReLiveSessionMerger reLiveSessionMerger,
+        SessionProperties sessionProperties
+    ) {
+        this.sessionRepository = sessionRepository;
+        this.reLiveSessionMerger = reLiveSessionMerger;
+        this.sessionProperties = sessionProperties;
+    }
 
     public StreamerSessionHistoryResponse getSessionHistory(String channelId, int page, int size) {
         return getSessionHistory(channelId, page, size, false);
@@ -34,14 +50,17 @@ public class StreamerSessionQueryService {
         int validSize = (size > 0 && size <= 50) ? size : 10;
         Pageable pageable = PageRequest.of(validPage, validSize);
 
+        long noiseThresholdSeconds = sessionProperties.noiseThreshold().getSeconds();
         Page<StreamSessionEntity> sessionPage = paidPromotionOnly
-            ? sessionRepository.findValidSessionsByStreamIdAndPaidPromotionTrue(channelId, NOISE_THRESHOLD_SECONDS, pageable)
-            : sessionRepository.findValidSessionsByStreamId(channelId, NOISE_THRESHOLD_SECONDS, pageable);
+            ? sessionRepository.findValidSessionsByStreamIdAndPaidPromotionTrue(channelId, noiseThresholdSeconds, pageable)
+            : sessionRepository.findValidSessionsByStreamId(channelId, noiseThresholdSeconds, pageable);
 
         Instant now = Instant.now();
 
-        List<StreamerSessionItemDto> items = sessionPage.getContent().stream()
-            .map(session -> toSessionItemDto(session, now))
+        List<List<StreamSessionEntity>> groups = reLiveSessionMerger.groupSessions(sessionPage.getContent());
+        List<StreamerSessionItemDto> items = groups.stream()
+            .map(group -> reLiveSessionMerger.mergeToStreamerSessionItemDto(group, now))
+            .sorted(Comparator.comparing(StreamerSessionItemDto::startedAt).reversed())
             .toList();
 
         log.debug("스트리머 세션 전적 히스토리 조회 완료: channelId={}, page={}, items={}, paidPromotionOnly={}",
@@ -54,30 +73,6 @@ public class StreamerSessionQueryService {
             sessionPage.getTotalElements(),
             sessionPage.getTotalPages(),
             sessionPage.hasNext()
-        );
-    }
-
-    private StreamerSessionItemDto toSessionItemDto(StreamSessionEntity session, Instant now) {
-        Instant start = session.getStartedAt();
-        Instant end = session.getEndedAt() != null ? session.getEndedAt() : now;
-        long durationSeconds = Math.max(0L, Duration.between(start, end).getSeconds());
-
-        int peak = session.getPeakViewers() != null ? session.getPeakViewers() : 0;
-        int avg = session.getAverageViewerCount() != null ? session.getAverageViewerCount() : 0;
-
-        return new StreamerSessionItemDto(
-            session.getSessionId(),
-            session.getTitle(),
-            session.getCategoryName(),
-            start,
-            session.getEndedAt(),
-            durationSeconds,
-            peak,
-            avg,
-            session.getSessionFollowerGrowth(),
-            session.getSubscriberChatRatio(),
-            null,
-            session.isPaidPromotion()
         );
     }
 }

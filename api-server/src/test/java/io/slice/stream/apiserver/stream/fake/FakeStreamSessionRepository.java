@@ -115,9 +115,20 @@ public class FakeStreamSessionRepository implements JpaStreamSessionRepository {
             .toList();
     }
 
+    private List<StreamSessionEntity> sessionsToClose = new ArrayList<>();
+
+    public void setSessionsToClose(List<StreamSessionEntity> sessions) {
+        this.sessionsToClose = new ArrayList<>(sessions);
+    }
+
     @Override
     public List<StreamSessionEntity> findSessionsToClose(Instant threshold) {
-        return List.of();
+        if (!sessionsToClose.isEmpty()) {
+            return sessionsToClose;
+        }
+        return storage.values().stream()
+            .filter(s -> s.getEndedAt() == null && s.getStartedAt().isBefore(threshold))
+            .toList();
     }
 
     @Override

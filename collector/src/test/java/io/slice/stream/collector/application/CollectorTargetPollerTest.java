@@ -206,4 +206,52 @@ class CollectorTargetPollerTest {
         assertThat(fakeCollectorFactory.getCollector("ch_target_2").isConnected()).isFalse();
         assertThat(fakeCollectorFactory.getCollector("ch_target_3").isConnected()).isFalse();
     }
+
+    @Test
+    @DisplayName("19금 연령제한 방송은 수집 대상에서 제외되어 수집기가 시작되지 않는다")
+    void doNotStartCollectorWhenStreamIsAdult() {
+        fakeTargetStreamReader.addTarget("ch_target_adult");
+        StreamTarget adultStream = new StreamTarget(
+            "ch_target_adult", "고수달", "chat_room_adult", 100L, "19금 음주 토크", 500, null, "talk", Instant.now(), true
+        );
+        fakeLiveStatusClient.setOpenStream(adultStream);
+
+        poller.pollTargets();
+
+        assertThat(chatManager.getActiveChannelIds()).doesNotContain("ch_target_adult");
+    }
+
+    @Test
+    @DisplayName("방송 중 19금이 설정되면 수집기가 즉시 disconnect되고 해제 시 자동으로 재연결된다")
+    void disconnectWhenStreamChangesToAdultAndReconnectWhenLifted() {
+        fakeTargetStreamReader.addTarget("ch_target_dynamic");
+        StreamTarget normalStream = new StreamTarget(
+            "ch_target_dynamic", "고수달", "chat_room_dynamic", 100L, "일반 토크", 500, null, "talk", Instant.now(), false
+        );
+        fakeLiveStatusClient.setOpenStream(normalStream);
+
+        // 1. 일반 방송 시작 시 수집기 연결
+        poller.pollTargets();
+        assertThat(chatManager.getActiveChannelIds()).contains("ch_target_dynamic");
+        FakeChatCollector collector = fakeCollectorFactory.getCollector("ch_target_dynamic");
+        assertThat(collector.isConnected()).isTrue();
+
+        // 2. 19금으로 전환 시 수집기 정상 종료(disconnect)
+        StreamTarget adultStream = new StreamTarget(
+            "ch_target_dynamic", "고수달", "chat_room_dynamic", 100L, "19금 음주 토크", 500, null, "talk", Instant.now(), true
+        );
+        fakeLiveStatusClient.setOpenStream(adultStream);
+        poller.pollTargets();
+
+        assertThat(chatManager.getActiveChannelIds()).doesNotContain("ch_target_dynamic");
+        assertThat(collector.isConnected()).isFalse();
+
+        // 3. 19금 해제 시 자동으로 수집기 재연결
+        fakeLiveStatusClient.setOpenStream(normalStream);
+        poller.pollTargets();
+
+        assertThat(chatManager.getActiveChannelIds()).contains("ch_target_dynamic");
+        FakeChatCollector reconnected = fakeCollectorFactory.getCollector("ch_target_dynamic");
+        assertThat(reconnected.isConnected()).isTrue();
+    }
 }
