@@ -47,16 +47,20 @@ public class CollectorTargetPoller {
     }
 
     private void syncCollectorStreams(Set<String> targetChannels, List<StreamTarget> openStreams) {
-        Map<String, StreamTarget> openStreamMap = openStreams.stream()
+        List<StreamTarget> collectableStreams = openStreams.stream()
+            .filter(target -> !Boolean.TRUE.equals(target.adult()))
+            .toList();
+
+        Map<String, StreamTarget> collectableStreamMap = collectableStreams.stream()
             .collect(Collectors.toMap(StreamTarget::channelId, target -> target, (existing, replace) -> existing));
 
-        Set<StreamTarget> missingTargets = openStreams.stream()
+        Set<StreamTarget> missingTargets = collectableStreams.stream()
             .filter(target -> !chatManager.isCollecting(target.channelId(), target.chatChannelId()))
             .collect(Collectors.toSet());
 
         Set<String> activeChannelIds = chatManager.getActiveChannelIds();
         Set<String> closedChannelIds = activeChannelIds.stream()
-            .filter(channelId -> !targetChannels.contains(channelId) || !openStreamMap.containsKey(channelId))
+            .filter(channelId -> !targetChannels.contains(channelId) || !collectableStreamMap.containsKey(channelId))
             .collect(Collectors.toSet());
 
         Set<StreamTarget> closedTargets = toClosedTargets(closedChannelIds);
