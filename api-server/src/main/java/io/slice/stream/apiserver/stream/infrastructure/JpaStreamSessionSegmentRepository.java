@@ -1,6 +1,7 @@
 package io.slice.stream.apiserver.stream.infrastructure;
 
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -27,6 +28,8 @@ public interface JpaStreamSessionSegmentRepository extends JpaRepository<StreamS
     List<StreamSessionSegmentEntity> findAllActiveSegments(@Param("sessionIds") List<String> sessionIds);
 
     List<StreamSessionSegmentEntity> findBySessionIdOrderByStartedAtAsc(String sessionId);
+
+    List<StreamSessionSegmentEntity> findBySessionIdInOrderByStartedAtAsc(Collection<String> sessionIds);
 
     Optional<StreamSessionSegmentEntity> findFirstBySessionIdOrderByStartedAtDesc(String sessionId);
 

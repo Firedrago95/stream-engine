@@ -3,6 +3,7 @@ package io.slice.stream.apiserver.stream.fake;
 import io.slice.stream.apiserver.stream.infrastructure.JpaViewMetricTimelineRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.ViewMetricTimelineEntity;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,14 @@ public class FakeViewMetricTimelineRepository implements JpaViewMetricTimelineRe
     public List<ViewMetricTimelineEntity> findBySessionIdOrderByTimestampAsc(String sessionId) {
         return storage.values().stream()
             .filter(v -> Objects.equals(v.getSessionId(), sessionId))
+            .sorted(Comparator.comparing(ViewMetricTimelineEntity::getTimestamp))
+            .toList();
+    }
+
+    @Override
+    public List<ViewMetricTimelineEntity> findBySessionIdInOrderByTimestampAsc(Collection<String> sessionIds) {
+        return storage.values().stream()
+            .filter(v -> sessionIds.contains(v.getSessionId()))
             .sorted(Comparator.comparing(ViewMetricTimelineEntity::getTimestamp))
             .toList();
     }

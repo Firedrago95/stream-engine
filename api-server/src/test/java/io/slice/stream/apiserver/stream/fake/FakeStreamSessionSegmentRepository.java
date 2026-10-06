@@ -59,6 +59,14 @@ public class FakeStreamSessionSegmentRepository implements JpaStreamSessionSegme
     }
 
     @Override
+    public List<StreamSessionSegmentEntity> findBySessionIdInOrderByStartedAtAsc(Collection<String> sessionIds) {
+        return storage.values().stream()
+            .filter(s -> sessionIds.contains(s.getSessionId()))
+            .sorted(Comparator.comparing(StreamSessionSegmentEntity::getStartedAt))
+            .toList();
+    }
+
+    @Override
     public Optional<StreamSessionSegmentEntity> findFirstBySessionIdOrderByStartedAtDesc(String sessionId) {
         return storage.values().stream()
             .filter(s -> Objects.equals(s.getSessionId(), sessionId))
