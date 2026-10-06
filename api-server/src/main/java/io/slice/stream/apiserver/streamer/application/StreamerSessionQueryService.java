@@ -27,7 +27,7 @@ public class StreamerSessionQueryService {
     private final SessionProperties sessionProperties;
 
     public StreamerSessionQueryService(JpaStreamSessionRepository sessionRepository) {
-        this(sessionRepository, new ReLiveSessionMerger(), new SessionProperties(null, null, 50));
+        this(sessionRepository, new ReLiveSessionMerger(), new SessionProperties(null, null, null, 50));
     }
 
     @Autowired

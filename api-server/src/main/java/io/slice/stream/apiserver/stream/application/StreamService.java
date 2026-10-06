@@ -119,26 +119,39 @@ public class StreamService {
                     }
                     sessionMap.put(req.streamId(), activeSession);
                 } else {
-                    closePreviousSession(activeSession, currentTime, req.liveId());
+                    closePreviousSession(activeSession, currentTime, req.liveId(), req.startedAt());
                 }
             }
         }
     }
 
-    private void closePreviousSession(StreamSessionEntity activeSession, Instant currentTime, String newLiveId) {
+    private void closePreviousSession(
+        StreamSessionEntity activeSession,
+        Instant currentTime,
+        String newLiveId,
+        Instant newLiveStartedAt
+    ) {
         Double avgViewers = timelineRepository.findAverageViewerCountBySessionId(activeSession.getSessionId());
         Integer peakViewers = timelineRepository.findPeakViewerCountBySessionId(activeSession.getSessionId());
         int finalPeak = peakViewers != null ? Math.max(peakViewers, activeSession.getPeakViewers()) : activeSession.getPeakViewers();
-        activeSession.finishSession(currentTime, finalPeak, avgViewers);
+        Instant endedAt = determineClosedEndedAt(activeSession.getStartedAt(), newLiveStartedAt, currentTime);
+        activeSession.finishSession(endedAt, finalPeak, avgViewers);
 
         segmentRepository.findActiveSegment(activeSession.getSessionId())
             .ifPresent(segment -> {
-                long endOffset = Duration.between(activeSession.getStartedAt(), currentTime).toMillis();
-                segment.endSegment(currentTime, endOffset);
+                long endOffset = Math.max(0L, Duration.between(activeSession.getStartedAt(), endedAt).toMillis());
+                segment.endSegment(endedAt, endOffset);
             });
 
         log.info("[Sync] 이전 세션 종료 (새 방송 감지) - Stream: {}, OldSession: {}, NewLiveId: {}, AvgViewers: {}",
             activeSession.getStreamId(), activeSession.getSessionId(), newLiveId, activeSession.getAverageViewerCount());
+    }
+
+    private Instant determineClosedEndedAt(Instant sessionStartedAt, Instant newLiveStartedAt, Instant currentTime) {
+        if (newLiveStartedAt != null && newLiveStartedAt.isAfter(sessionStartedAt) && !newLiveStartedAt.isAfter(currentTime)) {
+            return newLiveStartedAt;
+        }
+        return currentTime;
     }
 
 

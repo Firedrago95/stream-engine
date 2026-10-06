@@ -21,7 +21,7 @@ public class ReLiveSessionMerger {
     private final SessionProperties sessionProperties;
 
     public ReLiveSessionMerger() {
-        this(new SessionProperties(null, null, 50));
+        this(new SessionProperties(null, null, null, 50));
     }
 
     @Autowired
@@ -65,7 +65,8 @@ public class ReLiveSessionMerger {
 
         Instant prevAnchor = prev.getEndedAt() != null ? prev.getEndedAt() : prev.getStartedAt();
         long gapSeconds = Duration.between(prevAnchor, curr.getStartedAt()).getSeconds();
-        return gapSeconds >= 0 && gapSeconds <= sessionProperties.reLiveGap().getSeconds();
+        long maxOverlapSeconds = sessionProperties.reLiveOverlapTolerance().getSeconds();
+        return gapSeconds >= -maxOverlapSeconds && gapSeconds <= sessionProperties.reLiveGap().getSeconds();
     }
 
     public List<StreamSessionEntity> findLinkedGroup(String targetSessionId, List<StreamSessionEntity> sessions) {
