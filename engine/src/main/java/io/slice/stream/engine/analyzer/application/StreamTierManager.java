@@ -20,22 +20,37 @@ import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class StreamTierManager {
 
     private final ActiveStreamProvider activeStreamProvider;
     private final ChatRoomAggregationRepository chatRepository;
     private final SessionTierRepository sessionTierRepository;
     private final HighlightEngineProperties props;
+    private final Cache<String, StreamTierInfo> tierCache;
 
-    private final Cache<String, StreamTierInfo> tierCache = Caffeine.newBuilder()
-        .expireAfterWrite(5, TimeUnit.MINUTES)
-        .maximumSize(2000)
-        .build();
+    public StreamTierManager(
+        ActiveStreamProvider activeStreamProvider,
+        ChatRoomAggregationRepository chatRepository,
+        SessionTierRepository sessionTierRepository,
+        HighlightEngineProperties props
+    ) {
+        this.activeStreamProvider = activeStreamProvider;
+        this.chatRepository = chatRepository;
+        this.sessionTierRepository = sessionTierRepository;
+        this.props = props;
+        long retentionMs = props != null ? props.reLiveRetentionMs() : 420_000L;
+        this.tierCache = Caffeine.newBuilder()
+            .expireAfterWrite(retentionMs, TimeUnit.MILLISECONDS)
+            .maximumSize(2000)
+            .build();
+    }
 
     public StreamTierInfo getTierInfo(String streamId, long liveId, int currentViewers) {
         StreamTierInfo info = tierCache.getIfPresent(streamId);
         if (info != null) {
+            if (liveId > 0) {
+                sessionTierRepository.save(liveId, info.noiseFloor());
+            }
             return info;
         }
 

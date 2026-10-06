@@ -18,6 +18,7 @@ class HighlightEnginePropertiesTest {
             aggregationIntervalMs,
             900_000L,
             300_000L,
+            420_000L,
             15,
             0.005,
             new DynamicFloorProperties(5L, 4.0, 4.0)
@@ -49,11 +50,15 @@ class HighlightEnginePropertiesTest {
     @Test
     void 필수_설정값이_0_이하이거나_누락되면_예외가_발생한다() {
         assertThatThrownBy(() -> new HighlightEngineProperties(
-            3000L, 180_000L, 3000L, 0L, 300_000L, 15, 0.005, new DynamicFloorProperties(5L, 4.0, 4.0)
+            3000L, 180_000L, 3000L, 0L, 300_000L, 420_000L, 15, 0.005, new DynamicFloorProperties(5L, 4.0, 4.0)
         )).isInstanceOf(IllegalArgumentException.class);
 
         assertThatThrownBy(() -> new HighlightEngineProperties(
-            3000L, 180_000L, 3000L, 900_000L, 300_000L, 15, 0.005, null
+            3000L, 180_000L, 3000L, 900_000L, 300_000L, 0L, 15, 0.005, new DynamicFloorProperties(5L, 4.0, 4.0)
+        )).isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> new HighlightEngineProperties(
+            3000L, 180_000L, 3000L, 900_000L, 300_000L, 420_000L, 15, 0.005, null
         )).isInstanceOf(NullPointerException.class);
     }
 }

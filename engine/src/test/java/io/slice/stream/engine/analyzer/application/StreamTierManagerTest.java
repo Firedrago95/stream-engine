@@ -38,6 +38,7 @@ class StreamTierManagerTest {
             3000L,
             900000L,
             600000L,
+            420000L,
             15,
             0.005,
             new DynamicFloorProperties(5L, 4.0, 4.0)
@@ -150,5 +151,31 @@ class StreamTierManagerTest {
         streamTierManager.refreshAllTiers();
 
         assertThat(sessionTierRepository.findByLiveId(liveId)).contains(44L);
+    }
+
+    @Test
+    void 동일_채널이_리방_시_새로운_liveId가_부여되어도_보존_시간_내에는_이전_세션의_동적_바닥값을_계승한다() {
+        String streamId = "stream-relive";
+        long previousLiveId = 11111L;
+        long newLiveId = 22222L;
+
+        streamProvider.setTargets(List.of(
+            new StreamTarget(streamId, "streamer", "chat", previousLiveId, "title", 6000, "", "", null)
+        ));
+
+        List<Long> deltas = new ArrayList<>(Collections.nCopies(300, 10L));
+        repository.setFirepowerDeltas(streamId, deltas);
+        streamTierManager.refreshAllTiers();
+
+        // 1. 이전 세션에서 동적 바닥값(44) 산출 확인
+        StreamTierInfo oldTier = streamTierManager.getTierInfo(streamId, previousLiveId, 6000);
+        assertThat(oldTier.noiseFloor()).isEqualTo(44L);
+
+        // 2. 7분 이내에 리방되어 새로운 liveId로 조회 시 콜드스타트(40)가 아닌 이전 바닥값(44)을 계승해야 함
+        StreamTierInfo reLiveTier = streamTierManager.getTierInfo(streamId, newLiveId, 6000);
+        assertThat(reLiveTier.noiseFloor()).isEqualTo(44L);
+
+        // 3. 신규 liveId에도 바닥값이 세션 저장소에 백업 저장되어야 함
+        assertThat(sessionTierRepository.findByLiveId(newLiveId)).contains(44L);
     }
 }

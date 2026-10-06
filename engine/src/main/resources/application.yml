@@ -107,6 +107,7 @@ highlight:
     fetch-buffer-seconds: 15          # Redis 조회 시 여유분 (15초)
     recent-window-ms: 900000          # 평균 화력 산출 윈도우 (15분 = 900,000ms)
     min-data-ms: 600000               # 최소 데이터 누적 시간 (10분 = 600,000ms)
+    re-live-retention-ms: 420000      # 리방(Re-Live) 시 이전 바닥값 캐시 보존 시간 (7분 = 420,000ms)
 
     # 2. 콜드스타트 설정
     cold-start-weight: 0.005          # 방송 초기 시청자수 가중치 (0.5%)

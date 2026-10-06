@@ -312,12 +312,13 @@ class IngestionServiceTest {
     }
 
     @Test
-    void 성인_방송은_웹소켓_수집_대상에서_제외되지만_API_서버_동기화_대상에는_포함된다() {
+    void 성인_방송도_타겟_목록에_포함되어_세션이_유지되고_API_서버_동기화_대상에_포함된다() {
         StreamTarget normalTarget = new StreamTarget("ch1", "일반스트리머", "chatCh1", 101L, "일반방송", 1000, "https://thumb.com/ch1.jpg", "GAME", Instant.EPOCH, false);
         StreamTarget adultTarget = new StreamTarget("ch2", "성인스트리머", "chatCh2", 102L, "19금방송", 2000, "https://thumb.com/ch2.jpg", "GAME", Instant.EPOCH, true);
 
         discoveryClient.setTopLiveStreams(List.of(normalTarget, adultTarget));
         discoveryClient.addDetailedStream(normalTarget);
+        discoveryClient.addDetailedStream(adultTarget);
         targetStreamPool.setTargetChannels(Set.of("ch1", "ch2"));
 
         ingestionService.ingest();
@@ -327,7 +328,7 @@ class IngestionServiceTest {
         assertThat(syncedRequests.stream().map(StreamSyncRequest::streamId).toList())
             .containsExactlyInAnyOrder("ch1", "ch2");
 
-        assertThat(streamRepository.getLastSyncedTargets()).containsExactly(normalTarget);
+        assertThat(streamRepository.getLastSyncedTargets()).containsExactlyInAnyOrder(normalTarget, adultTarget);
     }
 
     @Test
