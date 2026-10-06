@@ -15,7 +15,7 @@ public record SessionProperties(
             reLiveGap = Duration.ofMinutes(6);
         }
         if (reLiveOverlapTolerance == null) {
-            reLiveOverlapTolerance = Duration.ofMinutes(1);
+            reLiveOverlapTolerance = Duration.ofMinutes(6);
         }
         if (noiseThreshold == null) {
             noiseThreshold = Duration.ofMinutes(5);

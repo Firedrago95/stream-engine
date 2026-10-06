@@ -139,11 +139,11 @@ class ReLiveSessionMergerTest {
     }
 
     @Test
-    void 오버랩_허용치_1분을_초과하여_역전된_세션은_별도의_그룹으로_분리된다() {
+    void 오버랩_허용치_6분을_초과하여_역전된_세션은_별도의_그룹으로_분리된다() {
         String streamId = "runner";
         Instant t0 = Instant.parse("2026-10-06T02:00:00Z");
         Instant t1 = Instant.parse("2026-10-06T05:26:19Z");
-        Instant t2 = Instant.parse("2026-10-06T05:25:10Z"); // -69초 오버랩 (1분 초과)
+        Instant t2 = t1.minusSeconds(370); // -370초 오버랩 (6분 초과)
 
         StreamSessionEntity session1 = new StreamSessionEntity(streamId, "sess-1", "세션1", "talk", t0, false, false);
         session1.finishSession(t1, 1000, 500.0);
