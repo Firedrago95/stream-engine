@@ -110,4 +110,48 @@ class ReLiveSessionMergerTest {
 
         assertThat(summary.isAdult()).isTrue();
     }
+
+    @Test
+    void 감지_지연으로_인해_이전_세션_종료시각과_새_세션_시작시각이_오버랩되어도_허용오차_이내면_리방으로_병합된다() {
+        String streamId = "runner";
+        Instant t0 = Instant.parse("2026-10-06T02:00:00Z");
+        Instant t1 = Instant.parse("2026-10-06T05:26:19Z"); // 이전 세션 종료 시각
+        Instant t2 = Instant.parse("2026-10-06T05:26:01Z"); // 새 세션 시작 시각 (-18초 오버랩)
+        Instant t3 = t2.plus(Duration.ofHours(1));
+
+        StreamSessionEntity session1 = new StreamSessionEntity(streamId, "sess-1", "안녕하세여", "talk", t0, false, false);
+        session1.finishSession(t1, 2460, 1825.0);
+
+        StreamSessionEntity session2 = new StreamSessionEntity(streamId, "sess-2", "에반게리온", "anime", t2, false, false);
+        session2.finishSession(t3, 3000, 2000.0);
+
+        List<List<StreamSessionEntity>> groups = merger.groupSessions(List.of(session1, session2));
+
+        assertThat(groups).hasSize(1);
+        assertThat(groups.getFirst()).containsExactly(session1, session2);
+
+        SessionResponse mergedResponse = merger.mergeToSessionResponse(groups.getFirst());
+        assertThat(mergedResponse.sessionId()).isEqualTo("sess-2");
+        assertThat(mergedResponse.title()).isEqualTo("에반게리온");
+        assertThat(mergedResponse.startedAt()).isEqualTo(t0);
+        assertThat(mergedResponse.endedAt()).isEqualTo(t3);
+        assertThat(mergedResponse.peakViewers()).isEqualTo(3000);
+    }
+
+    @Test
+    void 오버랩_허용치_1분을_초과하여_역전된_세션은_별도의_그룹으로_분리된다() {
+        String streamId = "runner";
+        Instant t0 = Instant.parse("2026-10-06T02:00:00Z");
+        Instant t1 = Instant.parse("2026-10-06T05:26:19Z");
+        Instant t2 = Instant.parse("2026-10-06T05:25:10Z"); // -69초 오버랩 (1분 초과)
+
+        StreamSessionEntity session1 = new StreamSessionEntity(streamId, "sess-1", "세션1", "talk", t0, false, false);
+        session1.finishSession(t1, 1000, 500.0);
+
+        StreamSessionEntity session2 = new StreamSessionEntity(streamId, "sess-2", "세션2", "talk", t2, false, false);
+
+        List<List<StreamSessionEntity>> groups = merger.groupSessions(List.of(session1, session2));
+
+        assertThat(groups).hasSize(2);
+    }
 }

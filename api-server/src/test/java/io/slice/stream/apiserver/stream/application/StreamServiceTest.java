@@ -199,7 +199,7 @@ class StreamServiceTest {
 
         streamService.syncAll(List.of(request));
 
-        assertThat(oldActiveSession.getEndedAt()).isNotNull();
+        assertThat(oldActiveSession.getEndedAt()).isEqualTo(startedAt);
         assertThat(oldActiveSession.getAverageViewerCount()).isEqualTo(2500);
         assertThat(oldActiveSession.getPeakViewers()).isEqualTo(3000);
 
@@ -212,6 +212,26 @@ class StreamServiceTest {
         List<StreamSessionSegmentEntity> savedSegments = segmentListCaptor.getValue();
         assertThat(savedSegments).hasSize(1);
         assertThat(savedSegments.get(0).getSessionId()).isEqualTo("live2");
+    }
+
+    @Test
+    void 새_라이브_요청의_시작시각이_null인_경우_이전_세션은_현재시각으로_안전하게_종료된다() {
+        StreamSyncRequest request = new StreamSyncRequest("ch1", "live2", "침착맨", "새 방송", "thumb.jpg", 4000, "게임", null);
+        StreamSessionEntity oldActiveSession = new StreamSessionEntity("ch1", "live1", "이전 방송", "소통", Instant.now().minusSeconds(3600));
+
+        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
+            .willReturn(List.of(oldActiveSession));
+        given(sessionRepository.findAllBySessionIdIn(List.of("live2")))
+            .willReturn(List.of());
+        given(timelineRepository.findAverageViewerCountBySessionId("live1"))
+            .willReturn(2500.0);
+        given(timelineRepository.findPeakViewerCountBySessionId("live1"))
+            .willReturn(3000);
+
+        streamService.syncAll(List.of(request));
+
+        assertThat(oldActiveSession.getEndedAt()).isNotNull();
+        assertThat(oldActiveSession.getEndedAt()).isAfter(oldActiveSession.getStartedAt());
     }
 
     @Test

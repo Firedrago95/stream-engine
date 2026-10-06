@@ -28,7 +28,7 @@ public class HighlightQueryService {
         JpaStreamSessionRepository sessionRepository,
         ReLiveSessionMerger reLiveSessionMerger
     ) {
-        this(highlightRepository, sessionRepository, reLiveSessionMerger, new SessionProperties(null, null, 50));
+        this(highlightRepository, sessionRepository, reLiveSessionMerger, new SessionProperties(null, null, null, 50));
     }
 
     @Autowired

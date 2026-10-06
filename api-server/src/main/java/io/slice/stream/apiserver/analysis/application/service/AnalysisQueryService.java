@@ -58,7 +58,7 @@ public class AnalysisQueryService {
             segmentRepository,
             timelineRepository,
             reLiveSessionMerger,
-            new SessionProperties(null, null, 50)
+            new SessionProperties(null, null, null, 50)
         );
     }
 

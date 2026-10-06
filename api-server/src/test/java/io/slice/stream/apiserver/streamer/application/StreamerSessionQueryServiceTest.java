@@ -115,7 +115,7 @@ class StreamerSessionQueryServiceTest {
         StreamSessionEntity longSession = new StreamSessionEntity(
             channelId, "sess_long", "2시간 본방송", "Game", now.minus(2, ChronoUnit.HOURS)
         );
-        ReflectionTestUtils.setField(longSession, "endedAt", now);
+        ReflectionTestUtils.setField(longSession, "endedAt", now.minus(30, ChronoUnit.MINUTES));
 
         // 방금 켠 1분짜리 라이브 세션 (endedAt == null) -> 라이브이므로 포함 대상
         StreamSessionEntity liveSession = new StreamSessionEntity(
