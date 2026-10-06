@@ -1,5 +1,7 @@
 package io.slice.stream.apiserver.streamer.application;
 
+import io.slice.stream.apiserver.analysis.application.service.ReLiveSessionMerger;
+import io.slice.stream.apiserver.global.config.SessionProperties;
 import io.slice.stream.apiserver.global.error.BusinessException;
 import io.slice.stream.apiserver.global.error.ErrorCode;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
@@ -27,21 +29,33 @@ public class StreamerCalendarQueryService {
     private static final int MAX_YEAR = 2100;
     private static final int MIN_MONTH = 1;
     private static final int MAX_MONTH = 12;
-    private static final long NOISE_THRESHOLD_SECONDS = 300L;
 
     private final JpaStreamSessionRepository sessionRepository;
+    private final ReLiveSessionMerger reLiveSessionMerger;
+    private final SessionProperties sessionProperties;
     private final Clock clock;
 
     public StreamerCalendarQueryService(JpaStreamSessionRepository sessionRepository) {
-        this(sessionRepository, Clock.system(KST));
+        this(sessionRepository, new ReLiveSessionMerger(), new SessionProperties(null, null, 50), Clock.system(KST));
+    }
+
+    public StreamerCalendarQueryService(
+        JpaStreamSessionRepository sessionRepository,
+        Clock clock
+    ) {
+        this(sessionRepository, new ReLiveSessionMerger(), new SessionProperties(null, null, 50), clock);
     }
 
     @Autowired
     public StreamerCalendarQueryService(
         JpaStreamSessionRepository sessionRepository,
+        ReLiveSessionMerger reLiveSessionMerger,
+        SessionProperties sessionProperties,
         Clock clock
     ) {
         this.sessionRepository = sessionRepository;
+        this.reLiveSessionMerger = reLiveSessionMerger;
+        this.sessionProperties = sessionProperties;
         this.clock = clock;
     }
 
@@ -57,8 +71,9 @@ public class StreamerCalendarQueryService {
 
         Instant now = Instant.now(clock);
 
-        List<CalendarSessionDto> dtos = sessions.stream()
-            .map(session -> toCalendarSessionDto(session, now))
+        List<List<StreamSessionEntity>> groups = reLiveSessionMerger.groupSessions(sessions);
+        List<CalendarSessionDto> dtos = groups.stream()
+            .map(group -> reLiveSessionMerger.mergeToCalendarSessionDto(group, now))
             .filter(dto -> !isNoiseSession(dto))
             .toList();
 
@@ -117,6 +132,6 @@ public class StreamerCalendarQueryService {
     }
 
     private boolean isNoiseSession(CalendarSessionDto dto) {
-        return !dto.isLive() && dto.durationSeconds() < NOISE_THRESHOLD_SECONDS;
+        return !dto.isLive() && dto.durationSeconds() < sessionProperties.noiseThreshold().getSeconds();
     }
 }

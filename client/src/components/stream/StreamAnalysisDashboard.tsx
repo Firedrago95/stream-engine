@@ -74,7 +74,9 @@ export const StreamAnalysisDashboard: React.FC = () => {
 
   const visibleSessions = useMemo(() => {
     if (requestedSessionId) {
-      return availableSessions.filter((session) => session.sessionId === requestedSessionId);
+      return availableSessions.filter((session) =>
+        session.sessionId === requestedSessionId || session.linkedSessionIds?.includes(requestedSessionId)
+      );
     }
 
     if (isLive) {
@@ -208,7 +210,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
             averageViewerCount: sessions[0].averageViewerCount,
             peakViewers: sessions[0].peakViewers,
             subscriberChatRatio: sessions[0].subscriberChatRatio,
-            isAdult: sessions[0].isAdult
+            isAdult: sessions[0].isAdult,
+            linkedSessionIds: sessions[0].linkedSessionIds
           };
 
           const pastSessions: DashboardSessionTab[] = sessions.slice(1).map(s => ({
@@ -223,7 +226,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
             averageViewerCount: s.averageViewerCount,
             peakViewers: s.peakViewers,
             subscriberChatRatio: s.subscriberChatRatio,
-            isAdult: s.isAdult
+            isAdult: s.isAdult,
+            linkedSessionIds: s.linkedSessionIds
           }));
 
           setAvailableSessions([liveSession, ...pastSessions]);
@@ -240,7 +244,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
             averageViewerCount: s.averageViewerCount,
             peakViewers: s.peakViewers,
             subscriberChatRatio: s.subscriberChatRatio,
-            isAdult: s.isAdult
+            isAdult: s.isAdult,
+            linkedSessionIds: s.linkedSessionIds
           }));
           setAvailableSessions(pastSessions);
         } else if (isCurrentlyLive && sessions.length === 0) {
@@ -325,7 +330,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
       const curr = compressedHistory[i];
       const timeDiff = curr.timestamp - prev.timestamp;
 
-      if (timeDiff > 600000 || (curr.offsetMs !== undefined && prev.offsetMs !== undefined && curr.offsetMs < prev.offsetMs)) {
+      if (timeDiff >= 120000 || (curr.offsetMs !== undefined && prev.offsetMs !== undefined && curr.offsetMs < prev.offsetMs)) {
         indexes.push(i);
       }
     }

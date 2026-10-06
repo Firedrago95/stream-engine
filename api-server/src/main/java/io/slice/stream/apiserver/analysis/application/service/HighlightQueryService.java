@@ -4,9 +4,9 @@ import io.slice.stream.apiserver.analysis.infrastructure.JpaHighlightEventReposi
 import io.slice.stream.apiserver.analysis.presentation.dto.HighlightResponse;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
+import io.slice.stream.apiserver.global.config.SessionProperties;
 import java.time.Instant;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -14,13 +14,33 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class HighlightQueryService {
 
     private final JpaHighlightEventRepository highlightRepository;
     private final JpaStreamSessionRepository sessionRepository;
     private final ReLiveSessionMerger reLiveSessionMerger;
+    private final SessionProperties sessionProperties;
+
+    public HighlightQueryService(
+        JpaHighlightEventRepository highlightRepository,
+        JpaStreamSessionRepository sessionRepository,
+        ReLiveSessionMerger reLiveSessionMerger
+    ) {
+        this(highlightRepository, sessionRepository, reLiveSessionMerger, new SessionProperties(null, null, 50));
+    }
+
+    public HighlightQueryService(
+        JpaHighlightEventRepository highlightRepository,
+        JpaStreamSessionRepository sessionRepository,
+        ReLiveSessionMerger reLiveSessionMerger,
+        SessionProperties sessionProperties
+    ) {
+        this.highlightRepository = highlightRepository;
+        this.sessionRepository = sessionRepository;
+        this.reLiveSessionMerger = reLiveSessionMerger;
+        this.sessionProperties = sessionProperties;
+    }
 
     public List<HighlightResponse> getHighlightsBySessionId(String streamId, String sessionId) {
         String targetSessionId = sessionId;
@@ -49,7 +69,7 @@ public class HighlightQueryService {
 
     private List<StreamSessionEntity> resolveLinkedGroup(String streamId, String targetSessionId) {
         List<StreamSessionEntity> recentSessions = sessionRepository.findRecentValidSessionsByStreamId(
-            streamId, 0L, PageRequest.of(0, 50)
+            streamId, 0L, PageRequest.of(0, sessionProperties.recentFetchLimit())
         );
         return reLiveSessionMerger.findLinkedGroup(targetSessionId, recentSessions);
     }

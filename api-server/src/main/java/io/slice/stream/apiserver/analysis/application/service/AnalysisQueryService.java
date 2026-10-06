@@ -13,6 +13,7 @@ import io.slice.stream.apiserver.stream.infrastructure.JpaViewMetricTimelineRepo
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.ViewMetricTimelineEntity;
+import io.slice.stream.apiserver.global.config.SessionProperties;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -23,7 +24,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -31,22 +31,54 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AnalysisQueryService {
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final long ONE_MINUTE_MS = 60_000L;
-    private static final long NOISE_THRESHOLD_SECONDS = 300L;
 
     private final AnalysisRepository analysisRepository;
     private final JpaStreamSessionRepository sessionRepository;
     private final JpaStreamSessionSegmentRepository segmentRepository;
     private final JpaViewMetricTimelineRepository timelineRepository;
     private final ReLiveSessionMerger reLiveSessionMerger;
+    private final SessionProperties sessionProperties;
+
+    public AnalysisQueryService(
+        AnalysisRepository analysisRepository,
+        JpaStreamSessionRepository sessionRepository,
+        JpaStreamSessionSegmentRepository segmentRepository,
+        JpaViewMetricTimelineRepository timelineRepository,
+        ReLiveSessionMerger reLiveSessionMerger
+    ) {
+        this(
+            analysisRepository,
+            sessionRepository,
+            segmentRepository,
+            timelineRepository,
+            reLiveSessionMerger,
+            new SessionProperties(null, null, 50)
+        );
+    }
+
+    public AnalysisQueryService(
+        AnalysisRepository analysisRepository,
+        JpaStreamSessionRepository sessionRepository,
+        JpaStreamSessionSegmentRepository segmentRepository,
+        JpaViewMetricTimelineRepository timelineRepository,
+        ReLiveSessionMerger reLiveSessionMerger,
+        SessionProperties sessionProperties
+    ) {
+        this.analysisRepository = analysisRepository;
+        this.sessionRepository = sessionRepository;
+        this.segmentRepository = segmentRepository;
+        this.timelineRepository = timelineRepository;
+        this.reLiveSessionMerger = reLiveSessionMerger;
+        this.sessionProperties = sessionProperties;
+    }
 
     public List<SessionResponse> getAvailableSessions(String streamId, int limit) {
-        int fetchLimit = Math.max(limit * 2, 20);
+        int fetchLimit = Math.max(limit * 2, sessionProperties.recentFetchLimit());
         List<StreamSessionEntity> sessions = sessionRepository.findRecentValidSessionsByStreamId(
             streamId, 0L, PageRequest.of(0, fetchLimit)
         );
@@ -64,7 +96,7 @@ public class AnalysisQueryService {
         if (session.endedAt() == null) {
             return true;
         }
-        return Duration.between(session.startedAt(), session.endedAt()).getSeconds() >= NOISE_THRESHOLD_SECONDS;
+        return Duration.between(session.startedAt(), session.endedAt()).getSeconds() >= sessionProperties.noiseThreshold().getSeconds();
     }
 
     public AnalysisResponse getHistoryAnalysis(String streamId, String sessionId) {
@@ -106,15 +138,26 @@ public class AnalysisQueryService {
     }
 
     private List<StreamSessionEntity> resolveLinkedGroup(String streamId, String sessionId) {
+        String targetSessionId = sessionId;
+        if (targetSessionId == null || "realtime".equalsIgnoreCase(targetSessionId)) {
+            targetSessionId = sessionRepository.findActiveSession(streamId)
+                .map(StreamSessionEntity::getSessionId)
+                .orElse(null);
+        }
+
+        if (targetSessionId == null) {
+            return List.of();
+        }
+
         List<StreamSessionEntity> recentSessions = sessionRepository.findRecentValidSessionsByStreamId(
-            streamId, 0L, PageRequest.of(0, 50)
+            streamId, 0L, PageRequest.of(0, sessionProperties.recentFetchLimit())
         );
-        List<StreamSessionEntity> linked = reLiveSessionMerger.findLinkedGroup(sessionId, recentSessions);
+        List<StreamSessionEntity> linked = reLiveSessionMerger.findLinkedGroup(targetSessionId, recentSessions);
         if (!linked.isEmpty()) {
             return linked;
         }
 
-        return sessionRepository.findBySessionId(sessionId)
+        return sessionRepository.findBySessionId(targetSessionId)
             .map(List::of)
             .orElse(List.of());
     }

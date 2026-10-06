@@ -13,6 +13,7 @@ export interface DashboardSessionTab {
   peakViewers?: number | null;
   subscriberChatRatio?: number | null;
   isAdult?: boolean;
+  linkedSessionIds?: string[];
 }
 
 interface AnalysisTabsProps {

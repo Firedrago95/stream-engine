@@ -2,7 +2,10 @@ package io.slice.stream.apiserver.analysis.application.service;
 
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.SessionSummaryResponse;
 import io.slice.stream.apiserver.analysis.presentation.dto.SessionResponse;
+import io.slice.stream.apiserver.global.config.SessionProperties;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
+import io.slice.stream.apiserver.streamer.presentation.dto.StreamerCalendarResponse.CalendarSessionDto;
+import io.slice.stream.apiserver.streamer.presentation.dto.StreamerSessionHistoryResponse.StreamerSessionItemDto;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -14,7 +17,15 @@ import org.springframework.stereotype.Component;
 @Component
 public class ReLiveSessionMerger {
 
-    public static final long RE_LIVE_GAP_THRESHOLD_SECONDS = 360L; // 6분
+    private final SessionProperties sessionProperties;
+
+    public ReLiveSessionMerger() {
+        this(new SessionProperties(null, null, 50));
+    }
+
+    public ReLiveSessionMerger(SessionProperties sessionProperties) {
+        this.sessionProperties = sessionProperties;
+    }
 
     public List<List<StreamSessionEntity>> groupSessions(List<StreamSessionEntity> sessions) {
         if (sessions == null || sessions.isEmpty()) {
@@ -52,7 +63,7 @@ public class ReLiveSessionMerger {
 
         Instant prevAnchor = prev.getEndedAt() != null ? prev.getEndedAt() : prev.getStartedAt();
         long gapSeconds = Duration.between(prevAnchor, curr.getStartedAt()).getSeconds();
-        return gapSeconds >= 0 && gapSeconds <= RE_LIVE_GAP_THRESHOLD_SECONDS;
+        return gapSeconds >= 0 && gapSeconds <= sessionProperties.reLiveGap().getSeconds();
     }
 
     public List<StreamSessionEntity> findLinkedGroup(String targetSessionId, List<StreamSessionEntity> sessions) {
@@ -98,6 +109,7 @@ public class ReLiveSessionMerger {
         Integer averageViewerCount = calculateMergedAverageViewers(group);
         Double subscriberChatRatio = calculateMergedSubscriberChatRatio(group);
         boolean isAdult = group.stream().anyMatch(StreamSessionEntity::isAdult);
+        List<String> linkedSessionIds = group.stream().map(StreamSessionEntity::getSessionId).toList();
 
         return new SessionResponse(
             sessionId,
@@ -108,7 +120,8 @@ public class ReLiveSessionMerger {
             peakViewers,
             averageViewerCount,
             subscriberChatRatio,
-            isAdult
+            isAdult,
+            linkedSessionIds
         );
     }
 
@@ -130,6 +143,7 @@ public class ReLiveSessionMerger {
         Integer averageViewerCount = calculateMergedAverageViewers(group);
         Double subscriberChatRatio = calculateMergedSubscriberChatRatio(group);
         boolean isAdult = group.stream().anyMatch(StreamSessionEntity::isAdult);
+        List<String> linkedSessionIds = group.stream().map(StreamSessionEntity::getSessionId).toList();
 
         return new SessionSummaryResponse(
             sessionId,
@@ -140,7 +154,76 @@ public class ReLiveSessionMerger {
             peakViewers,
             averageViewerCount,
             subscriberChatRatio,
-            isAdult
+            isAdult,
+            linkedSessionIds
+        );
+    }
+
+    public CalendarSessionDto mergeToCalendarSessionDto(List<StreamSessionEntity> group, Instant now) {
+        StreamSessionEntity master = group.getLast();
+        StreamSessionEntity first = group.getFirst();
+
+        boolean isLive = group.stream().anyMatch(s -> s.getEndedAt() == null);
+        Instant startedAt = first.getStartedAt();
+        Instant endedAt = isLive ? null : master.getEndedAt();
+        Instant effectiveEndedAt = isLive ? now : endedAt;
+        long durationSeconds = Math.max(0L, Duration.between(startedAt, effectiveEndedAt).getSeconds());
+
+        int peakViewers = group.stream()
+            .mapToInt(s -> s.getPeakViewers() != null ? s.getPeakViewers() : 0)
+            .max()
+            .orElse(0);
+
+        Integer averageViewers = calculateMergedAverageViewers(group);
+
+        return new CalendarSessionDto(
+            master.getSessionId(),
+            master.getTitle() != null ? master.getTitle() : first.getTitle(),
+            master.getCategoryName() != null ? master.getCategoryName() : first.getCategoryName(),
+            startedAt,
+            endedAt,
+            durationSeconds,
+            peakViewers,
+            averageViewers != null ? averageViewers : 0,
+            isLive
+        );
+    }
+
+    public StreamerSessionItemDto mergeToStreamerSessionItemDto(List<StreamSessionEntity> group, Instant now) {
+        StreamSessionEntity master = group.getLast();
+        StreamSessionEntity first = group.getFirst();
+
+        Instant startedAt = first.getStartedAt();
+        Instant endedAt = master.getEndedAt();
+        Instant effectiveEndedAt = endedAt != null ? endedAt : now;
+        long durationSeconds = Math.max(0L, Duration.between(startedAt, effectiveEndedAt).getSeconds());
+
+        int peakViewers = group.stream()
+            .mapToInt(s -> s.getPeakViewers() != null ? s.getPeakViewers() : 0)
+            .max()
+            .orElse(0);
+
+        Integer averageViewers = calculateMergedAverageViewers(group);
+        Double subscriberChatRatio = calculateMergedSubscriberChatRatio(group);
+        Integer followerGrowth = group.stream()
+            .map(StreamSessionEntity::getSessionFollowerGrowth)
+            .filter(Objects::nonNull)
+            .reduce(0, Integer::sum);
+        boolean paidPromotion = group.stream().anyMatch(StreamSessionEntity::isPaidPromotion);
+
+        return new StreamerSessionItemDto(
+            master.getSessionId(),
+            master.getTitle() != null ? master.getTitle() : first.getTitle(),
+            master.getCategoryName() != null ? master.getCategoryName() : first.getCategoryName(),
+            startedAt,
+            endedAt,
+            durationSeconds,
+            peakViewers,
+            averageViewers != null ? averageViewers : 0,
+            followerGrowth,
+            subscriberChatRatio,
+            null,
+            paidPromotion
         );
     }
 

@@ -160,4 +160,37 @@ class StreamerCalendarQueryServiceTest {
             .isInstanceOf(BusinessException.class)
             .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_VALUE);
     }
+
+    @Test
+    void 육분_이내_리방된_세션들은_달력_조회_시_단일_세션으로_병합되어_반환된다() {
+        String channelId = "ch-relive";
+        int year = 2026;
+        int month = 9;
+
+        Instant rangeStart = Instant.parse("2026-08-31T15:00:00Z");
+        Instant rangeEnd = Instant.parse("2026-09-30T15:00:00Z");
+
+        Instant t1 = Instant.parse("2026-09-15T10:00:00Z");
+        Instant t1End = t1.plusSeconds(30); // 30초 방송 후 튕김
+        Instant t2 = t1End.plusSeconds(120); // 2분 뒤 리방 (6분 이내)
+
+        StreamSessionEntity session1 = new StreamSessionEntity(channelId, "sess-1", "1차 방제", "롤", t1);
+        session1.finishSession(t1End, 1000, 800.0);
+
+        StreamSessionEntity session2 = new StreamSessionEntity(channelId, "sess-2", "2차 리방 방제", "종합게임", t2);
+        session2.finishSession(t2.plusSeconds(3600), 3000, 2500.0);
+
+        when(sessionRepository.findSessionsOverlapping(eq(channelId), eq(rangeStart), eq(rangeEnd)))
+            .thenReturn(List.of(session1, session2));
+
+        StreamerCalendarResponse response = calendarQueryService.getMonthlyCalendar(channelId, year, month);
+
+        assertThat(response.sessions()).hasSize(1);
+        CalendarSessionDto merged = response.sessions().get(0);
+        assertThat(merged.sessionId()).isEqualTo("sess-2");
+        assertThat(merged.title()).isEqualTo("2차 리방 방제");
+        assertThat(merged.categoryName()).isEqualTo("종합게임");
+        assertThat(merged.startedAt()).isEqualTo(t1);
+        assertThat(merged.peakViewers()).isEqualTo(3000);
+    }
 }
