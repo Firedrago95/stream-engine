@@ -49,7 +49,7 @@ public class StreamerProfileQueryService {
         JpaStreamRepository streamRepository,
         JpaStreamSessionRepository sessionRepository
     ) {
-        this(streamRepository, sessionRepository, null, new SessionProperties(null, null, null, 50), Clock.system(KST));
+        this(streamRepository, sessionRepository, null, new SessionProperties(null, null, 50), Clock.system(KST));
     }
 
     public StreamerProfileQueryService(
@@ -57,7 +57,7 @@ public class StreamerProfileQueryService {
         JpaStreamSessionRepository sessionRepository,
         Clock clock
     ) {
-        this(streamRepository, sessionRepository, null, new SessionProperties(null, null, null, 50), clock);
+        this(streamRepository, sessionRepository, null, new SessionProperties(null, null, 50), clock);
     }
 
     public StreamerProfileQueryService(
@@ -65,7 +65,7 @@ public class StreamerProfileQueryService {
         JpaStreamSessionRepository sessionRepository,
         StreamerLeaderboardQueryService leaderboardQueryService
     ) {
-        this(streamRepository, sessionRepository, leaderboardQueryService, new SessionProperties(null, null, null, 50), Clock.system(KST));
+        this(streamRepository, sessionRepository, leaderboardQueryService, new SessionProperties(null, null, 50), Clock.system(KST));
     }
 
     public StreamerProfileQueryService(
@@ -74,7 +74,7 @@ public class StreamerProfileQueryService {
         StreamerLeaderboardQueryService leaderboardQueryService,
         Clock clock
     ) {
-        this(streamRepository, sessionRepository, leaderboardQueryService, new SessionProperties(null, null, null, 50), clock);
+        this(streamRepository, sessionRepository, leaderboardQueryService, new SessionProperties(null, null, 50), clock);
     }
 
     @Autowired

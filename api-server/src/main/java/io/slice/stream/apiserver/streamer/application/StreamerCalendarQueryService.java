@@ -36,14 +36,14 @@ public class StreamerCalendarQueryService {
     private final Clock clock;
 
     public StreamerCalendarQueryService(JpaStreamSessionRepository sessionRepository) {
-        this(sessionRepository, new ReLiveSessionMerger(), new SessionProperties(null, null, null, 50), Clock.system(KST));
+        this(sessionRepository, new ReLiveSessionMerger(), new SessionProperties(null, null, 50), Clock.system(KST));
     }
 
     public StreamerCalendarQueryService(
         JpaStreamSessionRepository sessionRepository,
         Clock clock
     ) {
-        this(sessionRepository, new ReLiveSessionMerger(), new SessionProperties(null, null, null, 50), clock);
+        this(sessionRepository, new ReLiveSessionMerger(), new SessionProperties(null, null, 50), clock);
     }
 
     @Autowired
