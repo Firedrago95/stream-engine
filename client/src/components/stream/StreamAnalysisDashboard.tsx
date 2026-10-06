@@ -64,6 +64,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
   const [historicalTimeline, setHistoricalTimeline] = useState<any[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyIsAdult, setHistoryIsAdult] = useState(false);
 
   const [maxY, setMaxY] = useState(10);
   const [maxViewerY, setMaxViewerY] = useState(100);
@@ -148,6 +149,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
       setHistoricalData(sortedHistory);
       setHistoricalTimeline(data.timeline || []);
       setSegments(data.segments || []);
+      setHistoryIsAdult(Boolean(data.isAdult));
       setHistoryError(null);
     } catch (err: any) {
       if (err.name === 'AbortError') return;
@@ -157,6 +159,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
         setHistoricalData([]);
         setHistoricalTimeline([]);
         setSegments([]);
+        setHistoryIsAdult(false);
       }
     } finally {
       if (!isBackground && (!signal || !signal.aborted)) {
@@ -204,7 +207,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
             endedAt: sessions[0].endedAt,
             averageViewerCount: sessions[0].averageViewerCount,
             peakViewers: sessions[0].peakViewers,
-            subscriberChatRatio: sessions[0].subscriberChatRatio
+            subscriberChatRatio: sessions[0].subscriberChatRatio,
+            isAdult: sessions[0].isAdult
           };
 
           const pastSessions: DashboardSessionTab[] = sessions.slice(1).map(s => ({
@@ -218,7 +222,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
             endedAt: s.endedAt,
             averageViewerCount: s.averageViewerCount,
             peakViewers: s.peakViewers,
-            subscriberChatRatio: s.subscriberChatRatio
+            subscriberChatRatio: s.subscriberChatRatio,
+            isAdult: s.isAdult
           }));
 
           setAvailableSessions([liveSession, ...pastSessions]);
@@ -234,7 +239,8 @@ export const StreamAnalysisDashboard: React.FC = () => {
             endedAt: s.endedAt,
             averageViewerCount: s.averageViewerCount,
             peakViewers: s.peakViewers,
-            subscriberChatRatio: s.subscriberChatRatio
+            subscriberChatRatio: s.subscriberChatRatio,
+            isAdult: s.isAdult
           }));
           setAvailableSessions(pastSessions);
         } else if (isCurrentlyLive && sessions.length === 0) {
@@ -372,6 +378,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
   const displayTitle = isLiveTabSelected ? streamerInfo?.liveTitle : currentSessionInfo?.liveTitle;
   const displayCategory = isLiveTabSelected ? streamerInfo?.categoryName : currentSessionInfo?.categoryName;
   const displayViewers = isLiveTabSelected ? streamerInfo?.concurrentUserCount : currentSessionInfo?.viewers;
+  const isAdultSession = Boolean(historyIsAdult || currentSessionInfo?.isAdult || segments.some(s => s.isAdult));
 
   if (!streamId) return <div className="p-10 text-center text-gray-100">잘못된 접근입니다.</div>;
 
@@ -400,6 +407,26 @@ export const StreamAnalysisDashboard: React.FC = () => {
           setHoveredData({ value: null, viewers: null, time: null });
         }}
       />
+
+      {isAdultSession && (
+        <div className="mb-6 p-4 rounded-2xl bg-rose-950/20 border border-rose-500/30 flex items-start gap-3.5 backdrop-blur-md">
+          <span className="text-2xl shrink-0">🔞</span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <h4 className="text-rose-400 font-bold text-sm sm:text-base">연령 제한(19금) 설정 구간 안내</h4>
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                채팅 화력 수집 제외
+              </span>
+            </div>
+            <p className="text-gray-300 text-xs sm:text-sm leading-relaxed">
+              치지직 정책상 연령 제한(19금) 방송 구간은 채팅 접근이 제한되어 <strong>채팅 화력 그래프 및 실시간 하이라이트 감지</strong>가 제공되지 않습니다.
+              <span className="text-gray-400 block sm:inline sm:ml-1">
+                (시청자 수 추이, 방송 세션 및 총 방송 시간 통계는 정상 제공됩니다)
+              </span>
+            </p>
+          </div>
+        </div>
+      )}
 
       <AnalysisChart
         chartData={chartDisplayData}
@@ -437,6 +464,7 @@ export const StreamAnalysisDashboard: React.FC = () => {
         selectedTab={isLiveTabSelected ? "realtime" : selectedTab}
         startedAt={isLiveTabSelected ? availableSessions[0]?.startedAt : currentSessionInfo?.startedAt}
         endedAt={isLiveTabSelected ? null : currentSessionInfo?.endedAt}
+        isAdult={isAdultSession}
       />
 
       <footer className="mt-16 sm:mt-24 pt-8 sm:pt-12 border-t border-gray-800/60 text-center">

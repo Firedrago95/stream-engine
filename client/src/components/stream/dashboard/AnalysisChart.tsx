@@ -109,12 +109,24 @@ const CustomTooltip = ({ active, payload, selectedTab, formatTime, segments = []
 
         {activeSeg && (
           <div className="mt-2 pt-2 border-t border-gray-700/60 flex flex-col gap-1">
-            <span className="text-[10px] text-purple-300 font-bold uppercase tracking-wider">
-              🎮 {activeSeg.categoryName}
-            </span>
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] text-purple-300 font-bold uppercase tracking-wider">
+                🎮 {activeSeg.categoryName}
+              </span>
+              {activeSeg.isAdult && (
+                <span className="text-[10px] bg-rose-500/20 text-rose-400 border border-rose-500/40 px-1 py-0.2 rounded font-bold">
+                  🔞 19금
+                </span>
+              )}
+            </div>
             <span className="text-xs text-white font-medium max-w-[200px] truncate block" title={activeSeg.title}>
               📝 {activeSeg.title}
             </span>
+            {activeSeg.isAdult && (
+              <span className="text-[10px] text-rose-300/80 italic">
+                (채팅 화력 수집 제외 구간)
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -173,12 +185,13 @@ export const AnalysisChart: React.FC<Props> = ({
       titles: string[];
       startedAt: string;
       endedAt: string | null;
+      isAdult?: boolean;
     }> = [];
 
     for (const seg of segments) {
       const cat = seg.categoryName || '기타';
       const last = merged[merged.length - 1];
-      if (last && last.categoryName === cat) {
+      if (last && last.categoryName === cat && Boolean(last.isAdult) === Boolean(seg.isAdult)) {
         last.endedAt = seg.endedAt;
         if (seg.title && !last.titles.includes(seg.title)) {
           last.titles.push(seg.title);
@@ -189,7 +202,8 @@ export const AnalysisChart: React.FC<Props> = ({
           categoryName: cat,
           titles: seg.title ? [seg.title] : [],
           startedAt: seg.startedAt,
-          endedAt: seg.endedAt
+          endedAt: seg.endedAt,
+          isAdult: seg.isAdult
         });
       }
     }
@@ -408,7 +422,8 @@ export const AnalysisChart: React.FC<Props> = ({
                       className="w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: seg.color }}
                     />
-                    <span className="text-[11px] font-bold text-gray-200 truncate">
+                    <span className="text-[11px] font-bold text-gray-200 truncate flex items-center gap-1">
+                      {seg.isAdult && <span title="연령 제한(19금) 구간">🔞</span>}
                       {seg.categoryName}
                     </span>
                   </div>
@@ -419,10 +434,16 @@ export const AnalysisChart: React.FC<Props> = ({
                       <div className="flex items-center gap-1.5 font-bold text-white">
                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: seg.color }} />
                         <span>{seg.categoryName}</span>
+                        {seg.isAdult && <span className="text-[10px] text-rose-400 font-bold ml-1">🔞 19금</span>}
                       </div>
                       <div className="text-[11px] text-gray-100 font-mono">
                         ⏱️ {seg.durationLabel} ({seg.timeRangeLabel})
                       </div>
+                      {seg.isAdult && (
+                        <div className="text-[10px] text-rose-400 font-medium">
+                          채팅 화력 수집 제외 구간
+                        </div>
+                      )}
                       {seg.titles && seg.titles.length > 0 && (
                         <div className="text-[10px] text-gray-200 max-w-[220px] truncate">
                           📝 {seg.titles.join(' / ')}

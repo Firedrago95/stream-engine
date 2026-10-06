@@ -6,4 +6,6 @@ export interface StreamSegment {
     endedAt: string | null;
     startOffsetMs: number;
     endOffsetMs: number | null;
+    paidPromotion?: boolean;
+    isAdult?: boolean;
 }
