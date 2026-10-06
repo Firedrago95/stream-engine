@@ -146,4 +146,24 @@ class StreamUpdateAnalyzerTest {
         ChangedStream changed = results.changedStreams().iterator().next();
         assertThat(changed.paidPromotion()).isTrue();
     }
+
+    @Test
+    void 방제나_카테고리가_같아도_adult_19금_상태가_변경되면_변경_내역을_추출한다() {
+        Instant startTime = Instant.now().minusSeconds(3600);
+        Instant changedAt = Instant.now();
+
+        StreamTarget oldTarget = new StreamTarget("channel1", "고수달", "chat1", 100L, "경찰청장회담", 1200, "thumb1.jpg", "talk", startTime, false, false);
+        StreamTarget newTarget = new StreamTarget("channel1", "고수달", "chat1", 100L, "경찰청장회담", 1200, "thumb1.jpg", "talk", startTime, true, false);
+
+        List<StreamTarget> currentTargets = List.of(newTarget);
+        Set<String> activeChannelIds = Set.of("channel1");
+        List<StreamTarget> oldTargets = List.of(oldTarget);
+
+        StreamUpdateResults results = analyzer.analyze(currentTargets, activeChannelIds, oldTargets, changedAt);
+
+        assertThat(results.changedStreams()).hasSize(1);
+        ChangedStream changed = results.changedStreams().iterator().next();
+        assertThat(changed.adult()).isTrue();
+        assertThat(changed.newTitle()).isEqualTo("경찰청장회담");
+    }
 }

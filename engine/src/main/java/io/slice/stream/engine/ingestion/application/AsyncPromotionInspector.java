@@ -66,7 +66,8 @@ public class AsyncPromotionInspector {
                     changed.newCategory(),
                     changed.changedAt(),
                     changed.changeOffsetMs(),
-                    latestPaidPromotion
+                    latestPaidPromotion,
+                    changed.adult()
                 );
 
                 apiServerClient.recordNewSegments(List.of(corrected));
