@@ -25,7 +25,7 @@ class ReLiveSessionMergerTest {
 
     @Test
     void gap이_6분_이내인_두_세션은_하나의_리방_그룹으로_병합된다() {
-        String streamId = "runner";
+        String streamId = "stream-1";
         Instant t0 = Instant.parse("2026-10-06T02:00:00Z");
         Instant t1 = t0.plus(Duration.ofMinutes(30)); // 02:30:00
         Instant t2 = t1.plusSeconds(16); // 16초 후 리방 (02:30:16)
@@ -52,7 +52,7 @@ class ReLiveSessionMergerTest {
 
     @Test
     void gap이_6분을_초과하는_두_세션은_별도의_그룹으로_분리된다() {
-        String streamId = "runner";
+        String streamId = "stream-1";
         Instant t0 = Instant.parse("2026-10-06T02:00:00Z");
         Instant t1 = t0.plus(Duration.ofHours(2));
         Instant t2 = t1.plus(Duration.ofMinutes(10)); // 10분 후 재개 (리방 아님, 2부)
@@ -73,7 +73,7 @@ class ReLiveSessionMergerTest {
 
     @Test
     void findLinkedSessionIds는_대상_세션이_속한_모든_리방_세션_ID_목록을_반환한다() {
-        String streamId = "runner";
+        String streamId = "stream-1";
         Instant t0 = Instant.parse("2026-10-06T02:00:00Z");
         Instant t1 = t0.plus(Duration.ofMinutes(20));
         Instant t2 = t1.plusSeconds(30);
@@ -96,7 +96,7 @@ class ReLiveSessionMergerTest {
 
     @Test
     void 세션_중_하나라도_19금이면_병합된_세션도_19금으로_표시된다() {
-        String streamId = "runner";
+        String streamId = "stream-1";
         Instant t0 = Instant.parse("2026-10-06T02:00:00Z");
         Instant t1 = t0.plus(Duration.ofMinutes(20));
         Instant t2 = t1.plusSeconds(10);
@@ -113,16 +113,16 @@ class ReLiveSessionMergerTest {
 
     @Test
     void 감지_지연으로_인해_이전_세션_종료시각과_새_세션_시작시각이_오버랩되어도_허용오차_이내면_리방으로_병합된다() {
-        String streamId = "runner";
+        String streamId = "stream-1";
         Instant t0 = Instant.parse("2026-10-06T02:00:00Z");
         Instant t1 = Instant.parse("2026-10-06T05:26:19Z"); // 이전 세션 종료 시각
         Instant t2 = Instant.parse("2026-10-06T05:26:01Z"); // 새 세션 시작 시각 (-18초 오버랩)
         Instant t3 = t2.plus(Duration.ofHours(1));
 
-        StreamSessionEntity session1 = new StreamSessionEntity(streamId, "sess-1", "안녕하세여", "talk", t0, false, false);
+        StreamSessionEntity session1 = new StreamSessionEntity(streamId, "sess-1", "1차 방송", "talk", t0, false, false);
         session1.finishSession(t1, 2460, 1825.0);
 
-        StreamSessionEntity session2 = new StreamSessionEntity(streamId, "sess-2", "에반게리온", "anime", t2, false, false);
+        StreamSessionEntity session2 = new StreamSessionEntity(streamId, "sess-2", "2차 방송", "anime", t2, false, false);
         session2.finishSession(t3, 3000, 2000.0);
 
         List<List<StreamSessionEntity>> groups = merger.groupSessions(List.of(session1, session2));
@@ -132,15 +132,35 @@ class ReLiveSessionMergerTest {
 
         SessionResponse mergedResponse = merger.mergeToSessionResponse(groups.getFirst());
         assertThat(mergedResponse.sessionId()).isEqualTo("sess-2");
-        assertThat(mergedResponse.title()).isEqualTo("에반게리온");
+        assertThat(mergedResponse.title()).isEqualTo("2차 방송");
         assertThat(mergedResponse.startedAt()).isEqualTo(t0);
         assertThat(mergedResponse.endedAt()).isEqualTo(t3);
         assertThat(mergedResponse.peakViewers()).isEqualTo(3000);
     }
 
     @Test
+    void 수집_지연으로_인해_1분_이상_역전된_세션도_6분_리방_공백_이내이므로_정상_병합된다() {
+        String streamId = "stream-1";
+        Instant t0 = Instant.parse("2026-10-04T08:31:28Z");
+        Instant t1 = Instant.parse("2026-10-04T12:37:39Z"); // 이전 세션 종료 시각
+        Instant t2 = Instant.parse("2026-10-04T12:36:25Z"); // 새 세션 시작 시각 (-74초 오버랩)
+        Instant t3 = Instant.parse("2026-10-04T19:57:36Z");
+
+        StreamSessionEntity session1 = new StreamSessionEntity(streamId, "sess-1", "동일 방제", "game", t0, false, false);
+        session1.finishSession(t1, 1720, 1251.0);
+
+        StreamSessionEntity session2 = new StreamSessionEntity(streamId, "sess-2", "동일 방제", "game", t2, false, false);
+        session2.finishSession(t3, 5012, 1920.0);
+
+        List<List<StreamSessionEntity>> groups = merger.groupSessions(List.of(session1, session2));
+
+        assertThat(groups).hasSize(1);
+        assertThat(groups.getFirst()).containsExactly(session1, session2);
+    }
+
+    @Test
     void 오버랩_허용치_6분을_초과하여_역전된_세션은_별도의_그룹으로_분리된다() {
-        String streamId = "runner";
+        String streamId = "stream-1";
         Instant t0 = Instant.parse("2026-10-06T02:00:00Z");
         Instant t1 = Instant.parse("2026-10-06T05:26:19Z");
         Instant t2 = t1.minusSeconds(370); // -370초 오버랩 (6분 초과)

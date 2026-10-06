@@ -86,7 +86,6 @@ category:
 
 session:
   re-live-gap: 6m               # 리방(Re-Live) 인정 최대 공백 시간
-  re-live-overlap-tolerance: 6m # 리방 판정 시 허용할 최대 시간 역전/오버랩 오차
   noise-threshold: 5m           # 유효 방송 최소 지속 시간 (미만 노이즈 필터링)
   recent-fetch-limit: 50        # 연관 세션 탐색 한도
 
