@@ -80,8 +80,16 @@ public class StreamSessionEntity {
         this.paidPromotion = true;
     }
 
+    public void updatePaidPromotion(boolean paidPromotion) {
+        this.paidPromotion = paidPromotion;
+    }
+
     public void markAdult() {
         this.isAdult = true;
+    }
+
+    public void updateAdult(boolean isAdult) {
+        this.isAdult = isAdult;
     }
 
     public void updateMetadata(String title, String categoryName) {

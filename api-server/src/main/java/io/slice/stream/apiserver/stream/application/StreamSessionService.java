@@ -110,6 +110,12 @@ public class StreamSessionService {
             Objects.equals(req.newCategory(), session.getCategoryName());
 
         if (activeSegment != null) {
+            if (req.changedAt() != null && activeSegment.getStartedAt() != null && req.changedAt().isBefore(activeSegment.getStartedAt())) {
+                log.warn("[세그먼트 지연 무시] 활성 세그먼트 시작 시각({})보다 이전 변경 시각({}) 요청이 도착하여 무시합니다. 스트림: {}",
+                    activeSegment.getStartedAt(), req.changedAt(), req.streamId());
+                return Optional.empty();
+            }
+
             boolean isPromotionSame = activeSegment.isPaidPromotion() == paidPromotion;
             boolean isAdultSame = activeSegment.isAdult() == isAdult;
             if (isMetadataSame && isPromotionSame && isAdultSame) {

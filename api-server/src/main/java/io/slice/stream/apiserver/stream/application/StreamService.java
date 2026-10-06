@@ -112,6 +112,11 @@ public class StreamService {
                     if (req.paidPromotion()) {
                         activeSession.markPaidPromotion();
                     }
+                    if (req.adult() != activeSession.isAdult()) {
+                        activeSession.updateAdult(req.adult());
+                        segmentRepository.findActiveSegment(activeSession.getSessionId())
+                            .ifPresent(segment -> segment.updateAdult(req.adult()));
+                    }
                     sessionMap.put(req.streamId(), activeSession);
                 } else {
                     closePreviousSession(activeSession, currentTime, req.liveId());

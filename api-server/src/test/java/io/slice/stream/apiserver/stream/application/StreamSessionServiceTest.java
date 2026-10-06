@@ -385,4 +385,30 @@ class StreamSessionServiceTest {
         assertThat(newActiveSegOpt.get().isAdult()).isTrue();
         assertThat(newActiveSegOpt.get().getStartOffsetMs()).isEqualTo(1800000L);
     }
+
+    @Test
+    void 활성_세그먼트_시작_시각보다_이전_시각의_지연된_변경_요청은_무시된다() {
+        String streamId = "stream-stale-test";
+        String liveId = "live-stale-123";
+        Instant segStartedAt = Instant.parse("2026-10-06T10:30:00Z");
+        Instant staleChangedAt = Instant.parse("2026-10-06T10:20:00Z"); // 시작 시각보다 10분 이전 요청
+
+        StreamSessionEntity session = new StreamSessionEntity(streamId, liveId, "현재 방제", "game", segStartedAt);
+        StreamSessionSegmentEntity activeSegment = new StreamSessionSegmentEntity(
+            streamId, liveId, "현재 방제", "game", segStartedAt, 1800000L, false, false
+        );
+
+        sessionRepository.addSession(session);
+        segmentRepository.addSegment(activeSegment);
+
+        ChangedStreamRequest staleRequest = new ChangedStreamRequest(
+            streamId, liveId, "현재 방제", "과거 방제", "game", "talk", staleChangedAt, 1200000L, false, false
+        );
+
+        streamSessionService.updateSessionSegment(List.of(staleRequest));
+
+        // 지연된 요청이므로 활성 세그먼트가 마감되지 않고 시작 상태 그대로 유지되어야 함
+        assertThat(activeSegment.getEndedAt()).isNull();
+        assertThat(activeSegment.getTitle()).isEqualTo("현재 방제");
+    }
 }

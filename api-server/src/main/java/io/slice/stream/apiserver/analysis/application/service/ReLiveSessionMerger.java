@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -23,6 +24,7 @@ public class ReLiveSessionMerger {
         this(new SessionProperties(null, null, 50));
     }
 
+    @Autowired
     public ReLiveSessionMerger(SessionProperties sessionProperties) {
         this.sessionProperties = sessionProperties;
     }

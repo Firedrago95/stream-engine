@@ -8,6 +8,7 @@ import io.slice.stream.apiserver.global.config.SessionProperties;
 import java.time.Instant;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ public class HighlightQueryService {
         this(highlightRepository, sessionRepository, reLiveSessionMerger, new SessionProperties(null, null, 50));
     }
 
+    @Autowired
     public HighlightQueryService(
         JpaHighlightEventRepository highlightRepository,
         JpaStreamSessionRepository sessionRepository,

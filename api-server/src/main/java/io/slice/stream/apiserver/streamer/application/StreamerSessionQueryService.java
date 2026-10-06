@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +30,7 @@ public class StreamerSessionQueryService {
         this(sessionRepository, new ReLiveSessionMerger(), new SessionProperties(null, null, 50));
     }
 
+    @Autowired
     public StreamerSessionQueryService(
         JpaStreamSessionRepository sessionRepository,
         ReLiveSessionMerger reLiveSessionMerger,
