@@ -11,7 +11,7 @@ public class FakeStreamTierManager extends StreamTierManager {
     private final Map<String, StreamTierInfo> streamTierMap = new HashMap<>();
 
     public FakeStreamTierManager() {
-        super(null, null, null);
+        super(null, null, null, null);
     }
 
     public void setDefaultTierInfo(StreamTierInfo defaultTierInfo) {
@@ -23,11 +23,16 @@ public class FakeStreamTierManager extends StreamTierManager {
     }
 
     @Override
-    public StreamTierInfo getTierInfo(String streamId, int currentViewers) {
+    public StreamTierInfo getTierInfo(String streamId, long liveId, int currentViewers) {
         if (streamTierMap.containsKey(streamId)) {
             return streamTierMap.get(streamId);
         }
         return defaultTierInfo;
+    }
+
+    @Override
+    public StreamTierInfo getTierInfo(String streamId, int currentViewers) {
+        return getTierInfo(streamId, 0L, currentViewers);
     }
 
     @Override

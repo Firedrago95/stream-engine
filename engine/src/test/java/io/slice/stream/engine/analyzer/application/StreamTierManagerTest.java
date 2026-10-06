@@ -2,11 +2,13 @@ package io.slice.stream.engine.analyzer.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.slice.stream.core.model.StreamTarget;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties;
 import io.slice.stream.engine.analyzer.application.config.HighlightEngineProperties.DynamicFloorProperties;
 import io.slice.stream.engine.analyzer.domain.tier.StreamTierInfo;
 import io.slice.stream.engine.analyzer.fake.FakeActiveStreamProvider;
 import io.slice.stream.engine.analyzer.fake.FakeChatRoomAggregationRepository;
+import io.slice.stream.engine.analyzer.fake.FakeSessionTierRepository;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -21,12 +23,14 @@ class StreamTierManagerTest {
     private StreamTierManager streamTierManager;
     private FakeActiveStreamProvider streamProvider;
     private FakeChatRoomAggregationRepository repository;
+    private FakeSessionTierRepository sessionTierRepository;
     private HighlightEngineProperties props;
 
     @BeforeEach
     void setUp() {
         streamProvider = new FakeActiveStreamProvider();
         repository = new FakeChatRoomAggregationRepository();
+        sessionTierRepository = new FakeSessionTierRepository();
 
         props = new HighlightEngineProperties(
             3000L,
@@ -39,7 +43,7 @@ class StreamTierManagerTest {
             new DynamicFloorProperties(5L, 4.0, 4.0)
         );
 
-        streamTierManager = new StreamTierManager(streamProvider, repository, props);
+        streamTierManager = new StreamTierManager(streamProvider, repository, sessionTierRepository, props);
     }
 
     @Test
@@ -107,5 +111,44 @@ class StreamTierManagerTest {
         StreamTierInfo tierInfo = streamTierManager.getTierInfo(streamId, 300);
 
         assertThat(tierInfo.noiseFloor()).isEqualTo(12L);
+    }
+
+    @Test
+    void L1_캐시_미스_시_Redis_L2에_이전_세션_바닥값이_존재하면_이를_복원하여_적용한다() {
+        String streamId = "stream-reconnected";
+        long liveId = 12345L;
+        sessionTierRepository.save(liveId, 55L);
+
+        // 시청자가 6000명이므로 신규 방송이면 F0=40이어야 하지만, L2에 이전 바닥값(55)이 있으므로 복원되어야 함
+        StreamTierInfo tierInfo = streamTierManager.getTierInfo(streamId, liveId, 6000);
+
+        assertThat(tierInfo.noiseFloor()).isEqualTo(55L);
+    }
+
+    @Test
+    void L1과_L2_모두_데이터가_없으면_신규_방송으로_판단하여_콜드스타트_F0을_적용한다() {
+        String streamId = "stream-new";
+        long liveId = 99999L;
+
+        StreamTierInfo tierInfo = streamTierManager.getTierInfo(streamId, liveId, 6000);
+
+        assertThat(tierInfo.noiseFloor()).isEqualTo(40L);
+    }
+
+    @Test
+    void 동적_바닥값_갱신_시_L1_캐시와_함께_L2_Redis_저장소에도_세션별로_저장된다() {
+        String streamId = "stream-persist";
+        long liveId = 77777L;
+
+        streamProvider.setTargets(List.of(
+            new StreamTarget(streamId, "streamer", "chat", liveId, "title", 1000, "", "", null)
+        ));
+
+        List<Long> deltas = new ArrayList<>(Collections.nCopies(300, 10L));
+        repository.setFirepowerDeltas(streamId, deltas);
+
+        streamTierManager.refreshAllTiers();
+
+        assertThat(sessionTierRepository.findByLiveId(liveId)).contains(44L);
     }
 }
