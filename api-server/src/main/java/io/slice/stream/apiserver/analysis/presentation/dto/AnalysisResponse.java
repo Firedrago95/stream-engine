@@ -36,8 +36,13 @@ public record AnalysisResponse(
         Instant startedAt,
         Instant endedAt,
         Long startOffsetMs,
-        Long endOffsetMs
-    ) {}
+        Long endOffsetMs,
+        boolean isAdult
+    ) {
+        public SegmentResponse(Long id, String title, String categoryName, Instant startedAt, Instant endedAt, Long startOffsetMs, Long endOffsetMs) {
+            this(id, title, categoryName, startedAt, endedAt, startOffsetMs, endOffsetMs, false);
+        }
+    }
 
     public record TimelineDataPoint(
         long timestamp,
@@ -52,6 +57,11 @@ public record AnalysisResponse(
         Instant endedAt,
         Integer peakViewers,
         Integer averageViewerCount,
-        Double subscriberChatRatio
-    ) {}
+        Double subscriberChatRatio,
+        boolean isAdult
+    ) {
+        public SessionSummaryResponse(String sessionId, String title, String categoryName, Instant startedAt, Instant endedAt, Integer peakViewers, Integer averageViewerCount, Double subscriberChatRatio) {
+            this(sessionId, title, categoryName, startedAt, endedAt, peakViewers, averageViewerCount, subscriberChatRatio, false);
+        }
+    }
 }

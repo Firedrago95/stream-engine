@@ -54,7 +54,8 @@ public class AnalysisQueryService {
                 session.getEndedAt(),
                 session.getPeakViewers(),
                 session.getAverageViewerCount(),
-                session.getSubscriberChatRatio()
+                session.getSubscriberChatRatio(),
+                session.isAdult()
             ))
             .toList();
     }
@@ -76,7 +77,8 @@ public class AnalysisQueryService {
                 session.getEndedAt(),
                 session.getPeakViewers(),
                 session.getAverageViewerCount(),
-                session.getSubscriberChatRatio()
+                session.getSubscriberChatRatio(),
+                session.isAdult()
             ))
             .orElse(null);
 
@@ -249,7 +251,8 @@ public class AnalysisQueryService {
                 seg.getStartedAt(),
                 seg.getEndedAt(),
                 seg.getStartOffsetMs(),
-                seg.getEndOffsetMs()
+                seg.getEndOffsetMs(),
+                seg.isAdult()
             ))
             .toList();
     }

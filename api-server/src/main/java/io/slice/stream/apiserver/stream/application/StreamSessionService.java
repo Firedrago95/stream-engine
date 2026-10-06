@@ -105,16 +105,18 @@ public class StreamSessionService {
         StreamSessionSegmentEntity activeSegment
     ) {
         boolean paidPromotion = Boolean.TRUE.equals(req.paidPromotion());
+        boolean isAdult = Boolean.TRUE.equals(req.adult());
         boolean isMetadataSame = Objects.equals(req.newTitle(), session.getTitle()) &&
             Objects.equals(req.newCategory(), session.getCategoryName());
 
         if (activeSegment != null) {
             boolean isPromotionSame = activeSegment.isPaidPromotion() == paidPromotion;
-            if (isMetadataSame && isPromotionSame) {
+            boolean isAdultSame = activeSegment.isAdult() == isAdult;
+            if (isMetadataSame && isPromotionSame && isAdultSame) {
                 return Optional.empty();
             }
 
-            if (isMetadataSame) {
+            if (isMetadataSame && isAdultSame) {
                 long elapsedSeconds = Duration.between(activeSegment.getStartedAt(), req.changedAt()).abs().toSeconds();
                 if (elapsedSeconds <= 10) {
                     return correctActiveSegmentPromotion(session, activeSegment, paidPromotion, req, elapsedSeconds);
@@ -126,7 +128,7 @@ public class StreamSessionService {
             return Optional.empty();
         }
 
-        return createNewSegment(req, session, paidPromotion);
+        return createNewSegment(req, session, paidPromotion, isAdult);
     }
 
     private Optional<StreamSessionSegmentEntity> correctActiveSegmentPromotion(
@@ -148,15 +150,19 @@ public class StreamSessionService {
     private Optional<StreamSessionSegmentEntity> createNewSegment(
         ChangedStreamRequest req,
         StreamSessionEntity session,
-        boolean paidPromotion
+        boolean paidPromotion,
+        boolean isAdult
     ) {
         session.updateMetadata(req.newTitle(), req.newCategory());
         if (paidPromotion) {
             session.markPaidPromotion();
         }
+        if (isAdult) {
+            session.markAdult();
+        }
 
-        log.info("[세그먼트 변경] 스트림: {}, 방제: {}, 카테고리: {}, 유료프로모션: {}",
-            req.streamId(), req.newTitle(), req.newCategory(), paidPromotion);
+        log.info("[세그먼트 변경] 스트림: {}, 방제: {}, 카테고리: {}, 유료프로모션: {}, 19금: {}",
+            req.streamId(), req.newTitle(), req.newCategory(), paidPromotion, isAdult);
 
         return Optional.of(new StreamSessionSegmentEntity(
             req.streamId(),
@@ -165,7 +171,8 @@ public class StreamSessionService {
             req.newCategory(),
             req.changedAt(),
             req.changeOffsetMs(),
-            paidPromotion
+            paidPromotion,
+            isAdult
         ));
     }
 
