@@ -1,8 +1,10 @@
 package io.slice.stream.apiserver.stream.domain;
 
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
+import io.slice.stream.apiserver.streamer.domain.repository.StreamerFollowerGrowthProjection;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardProjection;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -30,4 +32,8 @@ public interface StreamRepository {
     List<StreamEntity> findAllByStreamIdIn(List<String> streamIds);
 
     int markAllOfflineBefore(Instant threshold);
+
+    List<StreamEntity> findTopFollowers(Pageable pageable);
+
+    List<StreamerFollowerGrowthProjection> findTopFollowerGrowth(LocalDate sinceDate, int limit);
 }
