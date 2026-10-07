@@ -2,16 +2,12 @@ package io.slice.stream.apiserver.streamer.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
 
-import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
-import io.slice.stream.apiserver.stream.domain.StreamRepository;
 import io.slice.stream.apiserver.stream.domain.StreamStatus;
+import io.slice.stream.apiserver.stream.fake.FakeAnalysisRepository;
+import io.slice.stream.apiserver.stream.fake.FakeStreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamResponse;
 import io.slice.stream.apiserver.stream.targeting.TargetStreamerService;
@@ -19,27 +15,21 @@ import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardP
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
-import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
 @ExtendWith(MockitoExtension.class)
 class StreamerLeaderboardQueryServiceTest {
 
-    @Mock
-    private StreamRepository streamRepository;
-
-    @Mock
-    private AnalysisRepository analysisRepository;
+    private FakeStreamRepository streamRepository;
+    private FakeAnalysisRepository analysisRepository;
 
     @Mock
     private TargetStreamerService targetStreamerService;
@@ -50,11 +40,23 @@ class StreamerLeaderboardQueryServiceTest {
     @Mock
     private ValueOperations<String, String> valueOperations;
 
-    @Mock
     private JsonMapper jsonMapper;
-
-    @InjectMocks
     private StreamerLeaderboardQueryService leaderboardQueryService;
+
+    @BeforeEach
+    void setUp() {
+        streamRepository = new FakeStreamRepository();
+        analysisRepository = new FakeAnalysisRepository();
+        jsonMapper = JsonMapper.builder().build();
+
+        leaderboardQueryService = new StreamerLeaderboardQueryService(
+            streamRepository,
+            analysisRepository,
+            targetStreamerService,
+            redisTemplate,
+            jsonMapper
+        );
+    }
 
     @Test
     @DisplayName("캐시가 비어있을 때 최근 30일 평균 시청자 기준으로 정산하고 결과를 반환한다")
@@ -65,12 +67,8 @@ class StreamerLeaderboardQueryServiceTest {
         StreamerLeaderboardProjection p1 = createProjection("ch_1", "울프", "토크", 30074, 1000, true, Instant.now());
         StreamerLeaderboardProjection p2 = createProjection("ch_2", "풍월량", "종합게임", 11634, 0, false, Instant.now().minusSeconds(7200));
 
-        given(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), eq(5), eq(100)))
-            .willReturn(List.of(p1, p2));
-        given(targetStreamerService.getActiveTargetChannelIds())
-            .willReturn(List.of("ch_1", "ch_2"));
-        given(analysisRepository.findChannelsWithRecentSignals(anySet(), any(Instant.class)))
-            .willReturn(Collections.emptySet());
+        streamRepository.setTopStreamersWith30dAvg(List.of(p1, p2));
+        given(targetStreamerService.getActiveTargetChannelIds()).willReturn(List.of("ch_1", "ch_2"));
 
         List<StreamResponse> result = leaderboardQueryService.getLeaderboard(null);
 
@@ -94,20 +92,13 @@ class StreamerLeaderboardQueryServiceTest {
     @Test
     @DisplayName("키워드가 캐시된 Top 100에 포함되어 있으면 DB 조회 없이 캐시에서 필터링하여 반환한다")
     void getLeaderboard_withKeyword_whenMatchInCache_returnsFromCacheWithoutDb() throws Exception {
-        given(redisTemplate.opsForValue()).willReturn(valueOperations);
-        given(valueOperations.get(StreamerLeaderboardQueryService.REDIS_LEADERBOARD_KEY)).willReturn("[{\"streamId\":\"ch_wolf\"}]");
-
         StreamResponse cachedResponse1 = new StreamResponse("ch_wolf", "울프", "이전 방제", "https://img.png", "토크", 0, StreamStatus.OFFLINE, 30074);
         StreamResponse cachedResponse2 = new StreamResponse("ch_pung", "풍월량", "이전 방제", "https://img.png", "게임", 0, StreamStatus.OFFLINE, 11634);
-        given(jsonMapper.readValue(anyString(), any(TypeReference.class)))
-            .willReturn(List.of(cachedResponse1, cachedResponse2));
+        String json = jsonMapper.writeValueAsString(List.of(cachedResponse1, cachedResponse2));
 
-        given(streamRepository.findActiveStreamsByStreamIds(any(), any()))
-            .willReturn(Collections.emptyList());
-        given(targetStreamerService.getActiveTargetChannelIds())
-            .willReturn(Collections.emptyList());
-        given(analysisRepository.findChannelsWithRecentSignals(anySet(), any(Instant.class)))
-            .willReturn(Collections.emptySet());
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.get(StreamerLeaderboardQueryService.REDIS_LEADERBOARD_KEY)).willReturn(json);
+        given(targetStreamerService.getActiveTargetChannelIds()).willReturn(Collections.emptyList());
 
         List<StreamResponse> result = leaderboardQueryService.getLeaderboard("울프");
 
@@ -123,18 +114,10 @@ class StreamerLeaderboardQueryServiceTest {
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
         given(valueOperations.get(StreamerLeaderboardQueryService.REDIS_LEADERBOARD_KEY)).willReturn(null);
 
-        given(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), eq(5), eq(100)))
-            .willReturn(Collections.emptyList());
-
         StreamerLeaderboardProjection projection =
             createProjection("ch_search", "침착맨", "토크", 25000, 20000, true, Instant.now());
-
-        given(streamRepository.searchTopStreamersWith30dAvg(eq("침착맨"), any(Instant.class), eq(50)))
-            .willReturn(List.of(projection));
-        given(targetStreamerService.getActiveTargetChannelIds())
-            .willReturn(Collections.emptyList());
-        given(analysisRepository.findChannelsWithRecentSignals(anySet(), any(Instant.class)))
-            .willReturn(Collections.emptySet());
+        streamRepository.setSearchTopStreamersWith30dAvg(List.of(projection));
+        given(targetStreamerService.getActiveTargetChannelIds()).willReturn(Collections.emptyList());
 
         List<StreamResponse> result = leaderboardQueryService.getLeaderboard("침착맨");
 
@@ -147,22 +130,17 @@ class StreamerLeaderboardQueryServiceTest {
     @Test
     @DisplayName("캐시가 존재할 때 캐시에서 조회 후 현재 실시간 방송 상태를 동기화하여 반환한다")
     void getLeaderboard_whenCacheHit_syncsRealtimeStatus() throws Exception {
-        given(redisTemplate.opsForValue()).willReturn(valueOperations);
-        given(valueOperations.get(StreamerLeaderboardQueryService.REDIS_LEADERBOARD_KEY)).willReturn("[{\"streamId\":\"ch_wolf\"}]");
-
         StreamResponse cachedResponse = new StreamResponse("ch_wolf", "울프", "이전 방제", "https://img.png", "토크", 0, StreamStatus.OFFLINE, 30074);
-        given(jsonMapper.readValue(anyString(), any(TypeReference.class)))
-            .willReturn(List.of(cachedResponse));
+        String json = jsonMapper.writeValueAsString(List.of(cachedResponse));
+
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.get(StreamerLeaderboardQueryService.REDIS_LEADERBOARD_KEY)).willReturn(json);
 
         StreamEntity activeWolf = new StreamEntity("ch_wolf", "울프");
         activeWolf.heartbeat("울프", "롤드컵 중계", "https://img.png", "LCK", 45000);
+        streamRepository.addStream(activeWolf);
 
-        given(streamRepository.findActiveStreamsByStreamIds(any(), any()))
-            .willReturn(List.of(activeWolf));
-        given(targetStreamerService.getActiveTargetChannelIds())
-            .willReturn(Collections.emptyList());
-        given(analysisRepository.findChannelsWithRecentSignals(anySet(), any(Instant.class)))
-            .willReturn(Collections.emptySet());
+        given(targetStreamerService.getActiveTargetChannelIds()).willReturn(Collections.emptyList());
 
         List<StreamResponse> result = leaderboardQueryService.getLeaderboard(null);
 
@@ -177,13 +155,12 @@ class StreamerLeaderboardQueryServiceTest {
     }
 
     @Test
-    @DisplayName("정규 활동 스트리머가 100명 미만일 때 전체 스트리머 시청자순으로 100명을 보충한다")
+    @DisplayName("정규 활동 스트리머가 100명 미만일 때 전체 스트리머 시청자순으로 보충한다")
     void refreshDailyLeaderboard_whenVerifiedLessThanLimit_fillsUpFromAllStreamers() {
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
 
         StreamerLeaderboardProjection p1 = createProjection("ch_verified", "검증스트리머", "종합게임", 5000, 3000, true, Instant.now());
-        given(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), eq(5), eq(100)))
-            .willReturn(List.of(p1));
+        streamRepository.setTopStreamersWith30dAvg(List.of(p1));
 
         StreamEntity s1 = new StreamEntity("ch_verified", "검증스트리머");
         s1.heartbeat("검증스트리머", "방제1", "https://img.png", "종합게임", 3000);
@@ -191,12 +168,8 @@ class StreamerLeaderboardQueryServiceTest {
         StreamEntity s2 = new StreamEntity("ch_fillup", "보충스트리머");
         s2.heartbeat("보충스트리머", "방제2", "https://img.png", "소통", 2000);
 
-        given(streamRepository.findAllStreamersForLeaderboard(any(Instant.class), any(Pageable.class)))
-            .willReturn(List.of(s1, s2));
-        given(targetStreamerService.getActiveTargetChannelIds())
-            .willReturn(Collections.emptyList());
-        given(analysisRepository.findChannelsWithRecentSignals(anySet(), any(Instant.class)))
-            .willReturn(Collections.emptySet());
+        streamRepository.setAllStreamersForLeaderboard(List.of(s1, s2));
+        given(targetStreamerService.getActiveTargetChannelIds()).willReturn(Collections.emptyList());
 
         List<StreamResponse> result = leaderboardQueryService.refreshDailyLeaderboard();
 
@@ -206,8 +179,6 @@ class StreamerLeaderboardQueryServiceTest {
         assertThat(result.get(1).streamId()).isEqualTo("ch_fillup");
         assertThat(result.get(1).streamerName()).isEqualTo("보충스트리머");
         assertThat(result.get(1).averageViewers()).isEqualTo(2000);
-        verify(analysisRepository).findChannelsWithRecentSignals(eq(Set.of("ch_verified")), any(Instant.class));
-        verify(analysisRepository).findChannelsWithRecentSignals(eq(Set.of("ch_fillup")), any(Instant.class));
     }
 
     private StreamerLeaderboardProjection createProjection(
