@@ -202,11 +202,13 @@ public class StreamerProfileQueryService {
             return new FollowerGrowthDto(0, 0);
         }
 
+        LocalDate baseline30dDate = today.minusDays(DAYS_30);
         LocalDate start30d = today.minusDays(DAYS_30 - 1L);
+        LocalDate baseline7dDate = today.minusDays(DAYS_7);
         LocalDate start7d = today.minusDays(DAYS_7 - 1L);
 
         List<StreamerFollowerSnapshotEntity> snapshots =
-            snapshotRepository.findAllByStreamIdAndSnapshotDateGreaterThanEqualOrderBySnapshotDateAsc(channelId, start30d);
+            snapshotRepository.findAllByStreamIdAndSnapshotDateGreaterThanEqualOrderBySnapshotDateAsc(channelId, baseline30dDate);
 
         if (snapshots.isEmpty()) {
             return new FollowerGrowthDto(0, 0);
@@ -216,17 +218,34 @@ public class StreamerProfileQueryService {
             ? stream.getFollowerCount()
             : snapshots.get(snapshots.size() - 1).getFollowerCount();
 
-        int oldest30dFollowers = snapshots.get(0).getFollowerCount();
-        int growth30d = currentFollowers - oldest30dFollowers;
+        int baseline30dFollowers = resolveBaselineFollowers(snapshots, baseline30dDate, start30d, currentFollowers);
+        int growth30d = currentFollowers - baseline30dFollowers;
 
-        int oldest7dFollowers = snapshots.stream()
-            .filter(s -> !s.getSnapshotDate().isBefore(start7d))
-            .findFirst()
-            .map(StreamerFollowerSnapshotEntity::getFollowerCount)
-            .orElse(oldest30dFollowers);
-        int growth7d = currentFollowers - oldest7dFollowers;
+        int baseline7dFollowers = resolveBaselineFollowers(snapshots, baseline7dDate, start7d, currentFollowers);
+        int growth7d = currentFollowers - baseline7dFollowers;
 
         return new FollowerGrowthDto(growth7d, growth30d);
+    }
+
+    private int resolveBaselineFollowers(
+        List<StreamerFollowerSnapshotEntity> snapshots,
+        LocalDate baselineDate,
+        LocalDate periodStartDate,
+        int fallbackFollowers
+    ) {
+        for (StreamerFollowerSnapshotEntity snapshot : snapshots) {
+            if (snapshot.getSnapshotDate().equals(baselineDate)) {
+                return snapshot.getFollowerCount();
+            }
+        }
+
+        for (StreamerFollowerSnapshotEntity snapshot : snapshots) {
+            if (!snapshot.getSnapshotDate().isBefore(periodStartDate)) {
+                return snapshot.getFollowerCount();
+            }
+        }
+
+        return fallbackFollowers;
     }
 
     private void accumulateBroadcastDates(

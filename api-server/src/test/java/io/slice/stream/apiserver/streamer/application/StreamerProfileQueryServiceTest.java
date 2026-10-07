@@ -84,10 +84,10 @@ class StreamerProfileQueryServiceTest {
 
         LocalDate today = LocalDate.of(2026, 9, 17);
         StreamerFollowerSnapshotEntity snapOld = new StreamerFollowerSnapshotEntity(
-            channelId, today.minusDays(29), 49850, 10
+            channelId, today.minusDays(30), 49850, 10
         );
         StreamerFollowerSnapshotEntity snap7d = new StreamerFollowerSnapshotEntity(
-            channelId, today.minusDays(6), 49900, 20
+            channelId, today.minusDays(7), 49900, 20
         );
         snapshotRepository.addSnapshot(snapOld);
         snapshotRepository.addSnapshot(snap7d);
