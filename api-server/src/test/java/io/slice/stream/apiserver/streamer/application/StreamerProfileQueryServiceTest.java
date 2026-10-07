@@ -11,9 +11,12 @@ import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
+import io.slice.stream.apiserver.streamer.domain.repository.StreamerFollowerSnapshotRepository;
+import io.slice.stream.apiserver.streamer.infrastructure.entity.StreamerFollowerSnapshotEntity;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerProfileResponse;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -42,6 +45,9 @@ class StreamerProfileQueryServiceTest {
     private JpaStreamSessionRepository sessionRepository;
 
     @Mock
+    private StreamerFollowerSnapshotRepository snapshotRepository;
+
+    @Mock
     private StreamerLeaderboardQueryService leaderboardQueryService;
 
     private StreamerProfileQueryService profileQueryService;
@@ -51,6 +57,7 @@ class StreamerProfileQueryServiceTest {
         profileQueryService = new StreamerProfileQueryService(
             streamRepository,
             sessionRepository,
+            snapshotRepository,
             leaderboardQueryService,
             fixedClock
         );
@@ -85,6 +92,16 @@ class StreamerProfileQueryServiceTest {
         given(sessionRepository.findSessionsOverlapping(eq(channelId), any(), any()))
             .willReturn(List.of(session1, session2));
 
+        LocalDate today = LocalDate.of(2026, 9, 17);
+        StreamerFollowerSnapshotEntity snapOld = new StreamerFollowerSnapshotEntity(
+            channelId, today.minusDays(29), 49850, 10
+        );
+        StreamerFollowerSnapshotEntity snap7d = new StreamerFollowerSnapshotEntity(
+            channelId, today.minusDays(6), 49900, 20
+        );
+        given(snapshotRepository.findAllByStreamIdAndSnapshotDateGreaterThanEqualOrderBySnapshotDateAsc(eq(channelId), any()))
+            .willReturn(List.of(snapOld, snap7d));
+
         StreamerProfileResponse response = profileQueryService.getProfile(channelId);
 
         assertThat(response.header().channelId()).isEqualTo(channelId);
@@ -92,7 +109,8 @@ class StreamerProfileQueryServiceTest {
         assertThat(response.header().isLive()).isTrue();
         assertThat(response.header().currentFollowers()).isEqualTo(50000);
         assertThat(response.header().followerGrowth30d()).isEqualTo(150);
-        assertThat(response.header().followerGrowth7d()).isEqualTo(150);
+        assertThat(response.header().followerGrowth7d()).isEqualTo(100);
+        assertThat(response.summary().followerGrowth30d()).isEqualTo(150);
 
         assertThat(response.summary().peakViewers()).isEqualTo(6000);
         assertThat(response.summary().totalBroadcastDurationSeconds()).isEqualTo(30000L);
@@ -306,5 +324,59 @@ class StreamerProfileQueryServiceTest {
         StreamerProfileResponse response = profileQueryService.getProfile(channelId);
 
         assertThat(response.summary().averageViewers()).isEqualTo(14819);
+    }
+
+    @Test
+    void 스냅샷_데이터가_최근_3일치만_있어도_수집된_기간_기준으로_순증이_계산된다() {
+        String channelId = "ch_partial_snapshots";
+        Instant now = FIXED_NOW;
+
+        StreamEntity stream = new StreamEntity(channelId, "부분수집스트리머");
+        stream.updateChannelMetrics(50000, 100);
+        ReflectionTestUtils.setField(stream, "lastUpdateAt", now.minus(1, ChronoUnit.HOURS));
+
+        LocalDate today = LocalDate.of(2026, 9, 17);
+        // 3일 전 49,000명, 1일 전 49,800명 (총 3일치만 수집됨)
+        StreamerFollowerSnapshotEntity snap3d = new StreamerFollowerSnapshotEntity(
+            channelId, today.minusDays(3), 49000, 500
+        );
+        StreamerFollowerSnapshotEntity snap1d = new StreamerFollowerSnapshotEntity(
+            channelId, today.minusDays(1), 49800, 800
+        );
+
+        given(streamRepository.findByStreamId(channelId)).willReturn(Optional.of(stream));
+        given(sessionRepository.findSessionsOverlapping(eq(channelId), any(), any()))
+            .willReturn(List.of());
+        given(snapshotRepository.findAllByStreamIdAndSnapshotDateGreaterThanEqualOrderBySnapshotDateAsc(eq(channelId), any()))
+            .willReturn(List.of(snap3d, snap1d));
+
+        StreamerProfileResponse response = profileQueryService.getProfile(channelId);
+
+        // 현재 50,000 - 3일 전 최초 스냅샷 49,000 = 1,000명 순증
+        assertThat(response.header().followerGrowth30d()).isEqualTo(1000);
+        assertThat(response.header().followerGrowth7d()).isEqualTo(1000);
+        assertThat(response.summary().followerGrowth30d()).isEqualTo(1000);
+    }
+
+    @Test
+    void 스냅샷_데이터가_전혀_없는_경우_팔로워_순증은_0으로_반환된다() {
+        String channelId = "ch_no_snapshots";
+        Instant now = FIXED_NOW;
+
+        StreamEntity stream = new StreamEntity(channelId, "신규스트리머");
+        stream.updateChannelMetrics(1000, 10);
+        ReflectionTestUtils.setField(stream, "lastUpdateAt", now.minus(1, ChronoUnit.HOURS));
+
+        given(streamRepository.findByStreamId(channelId)).willReturn(Optional.of(stream));
+        given(sessionRepository.findSessionsOverlapping(eq(channelId), any(), any()))
+            .willReturn(List.of());
+        given(snapshotRepository.findAllByStreamIdAndSnapshotDateGreaterThanEqualOrderBySnapshotDateAsc(eq(channelId), any()))
+            .willReturn(List.of());
+
+        StreamerProfileResponse response = profileQueryService.getProfile(channelId);
+
+        assertThat(response.header().followerGrowth30d()).isZero();
+        assertThat(response.header().followerGrowth7d()).isZero();
+        assertThat(response.summary().followerGrowth30d()).isZero();
     }
 }
