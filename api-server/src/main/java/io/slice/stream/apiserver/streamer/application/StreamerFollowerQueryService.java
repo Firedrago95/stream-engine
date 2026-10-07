@@ -10,6 +10,7 @@ import io.slice.stream.apiserver.streamer.domain.repository.StreamerFollowerGrow
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerFollowerSnapshotRepository;
 import io.slice.stream.apiserver.streamer.infrastructure.entity.StreamerFollowerSnapshotEntity;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class StreamerFollowerQueryService {
 
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final int DEFAULT_DAYS = 30;
     private static final int MAX_DAYS = 90;
     private static final int DEFAULT_RANKING_LIMIT = 20;
@@ -37,7 +39,7 @@ public class StreamerFollowerQueryService {
 
     public List<FollowerTrendResponse> getFollowerTrend(String channelId, int days) {
         int validDays = resolveValidDays(days);
-        LocalDate startDate = LocalDate.now().minusDays(validDays);
+        LocalDate startDate = LocalDate.now(KST).minusDays(validDays);
 
         List<StreamerFollowerSnapshotEntity> snapshots =
             snapshotRepository.findAllByStreamIdAndSnapshotDateGreaterThanEqualOrderBySnapshotDateAsc(channelId, startDate);
@@ -70,7 +72,7 @@ public class StreamerFollowerQueryService {
 
     private List<FollowerRankingResponse> getWeeklyGrowthRanking(int limit) {
         log.info("[Streamer Follower] 주간 팔로워 급상승 순위 조회. limit: {}", limit);
-        LocalDate sinceDate = LocalDate.now().minusDays(WEEKLY_GROWTH_DAYS);
+        LocalDate sinceDate = LocalDate.now(KST).minusDays(WEEKLY_GROWTH_DAYS - 1);
         List<StreamerFollowerGrowthProjection> projections =
             streamRepository.findTopFollowerGrowth(sinceDate, limit);
 

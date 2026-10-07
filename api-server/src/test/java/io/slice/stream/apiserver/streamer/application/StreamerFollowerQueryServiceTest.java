@@ -12,6 +12,7 @@ import io.slice.stream.apiserver.streamer.application.dto.FollowerTrendResponse;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerFollowerGrowthProjection;
 import io.slice.stream.apiserver.streamer.infrastructure.entity.StreamerFollowerSnapshotEntity;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -168,6 +169,9 @@ class StreamerFollowerQueryServiceTest {
         assertThat(result.get(1).streamId()).isEqualTo("ch_rising2");
         assertThat(result.get(1).weeklyGrowth()).isEqualTo(2150);
         assertThat(result.get(1).status()).isEqualTo(StreamStatus.OFFLINE);
+
+        LocalDate expectedSinceDate = LocalDate.now(ZoneId.of("Asia/Seoul")).minusDays(6);
+        assertThat(streamRepository.getLastFollowerGrowthSinceDate()).isEqualTo(expectedSinceDate);
     }
 
     private record TestGrowthProjection(

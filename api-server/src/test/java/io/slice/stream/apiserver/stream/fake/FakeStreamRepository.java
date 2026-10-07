@@ -142,9 +142,14 @@ public class FakeStreamRepository implements JpaStreamRepository, StreamReposito
     }
 
     private List<StreamerFollowerGrowthProjection> customFollowerGrowthProjections = new ArrayList<>();
+    private LocalDate lastFollowerGrowthSinceDate;
 
     public void setFollowerGrowthProjections(List<StreamerFollowerGrowthProjection> projections) {
         this.customFollowerGrowthProjections = new ArrayList<>(projections);
+    }
+
+    public LocalDate getLastFollowerGrowthSinceDate() {
+        return lastFollowerGrowthSinceDate;
     }
 
     @Override
@@ -158,6 +163,7 @@ public class FakeStreamRepository implements JpaStreamRepository, StreamReposito
 
     @Override
     public List<StreamerFollowerGrowthProjection> findTopFollowerGrowth(LocalDate sinceDate, int limit) {
+        this.lastFollowerGrowthSinceDate = sinceDate;
         if (!customFollowerGrowthProjections.isEmpty()) {
             return customFollowerGrowthProjections.stream().limit(limit).toList();
         }
