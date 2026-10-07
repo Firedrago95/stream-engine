@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStreamers } from '../../hooks/useStreamers';
 
@@ -7,7 +7,7 @@ export const StreamerStatsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const isSearching = searchTerm.trim().length > 0;
 
-  // 전체 리더보드 스트리머 목록 (실시간 방송 현황 배너 전용, 검색어와 무관하게 고정 유지)
+  // 전체 리더보드 스트리머 목록
   const { streamers: defaultStreamers, isLoading: isDefaultLoading } = useStreamers('', 30000);
 
   // 검색어 입력 시 스트리머 검색 목록
@@ -19,11 +19,6 @@ export const StreamerStatsPage: React.FC = () => {
 
   const streams = isSearching ? searchStreamers : defaultStreamers;
   const isLoading = isSearching ? isSearchLoading : isDefaultLoading;
-
-  const totalLiveCount = useMemo(() => {
-    if (!defaultStreamers) return 0;
-    return defaultStreamers.filter((s) => s.status === 'LIVE' || s.status === 'ANALYZING').length;
-  }, [defaultStreamers]);
 
   const handleRowClick = (streamId: string) => {
     navigate(`/streamers/${streamId}`);
@@ -71,28 +66,6 @@ export const StreamerStatsPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="p-5 bg-[#141416] border border-[#2A2A2C] rounded-2xl flex items-center justify-between hover:border-[#00FFA3]/30 hover:shadow-[0_0_15px_rgba(0,255,163,0.1)] transition-all">
-        <div className="flex items-center gap-4">
-          <span className="text-2xl">📡</span>
-          <div>
-            <p className="text-xs text-gray-100 font-bold uppercase tracking-wider">실시간 방송 현황</p>
-            <h3 className="text-lg font-black text-white">
-              {totalLiveCount}개 방송 중{' '}
-              <span className="text-xs text-gray-100 font-normal">
-                / Top {defaultStreamers.length || 100}
-              </span>
-            </h3>
-            <p className="text-xs text-gray-100 font-medium">매일 새벽 04:00 자동 정산</p>
-          </div>
-        </div>
-        <div className="text-right font-mono">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#00FFA3]/15 text-[#00FFA3] border border-[#00FFA3]/30">
-            <span className="w-2 h-2 rounded-full bg-[#00FFA3] animate-pulse" />
-            정상 가동
-          </span>
-        </div>
-      </div>
-
       <div className="p-5 sm:p-6 bg-[#141416] border border-[#2A2A2C] rounded-2xl">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
@@ -136,16 +109,16 @@ export const StreamerStatsPage: React.FC = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-100 min-w-[760px]">
+            <table className="w-full text-left text-sm text-gray-100">
               <thead>
                 <tr className="border-b border-gray-800 text-[11px] font-bold text-gray-200 uppercase tracking-wider">
-                  <th className="py-3 px-3 w-12 text-center whitespace-nowrap">순위</th>
-                  <th className="py-3 px-4 min-w-[200px]">스트리머</th>
-                  <th className="py-3 px-4 whitespace-nowrap min-w-[120px]">주력 카테고리</th>
-                  <th className="py-3 px-4 text-right whitespace-nowrap min-w-[130px]">30일 평균 시청자</th>
-                  <th className="py-3 px-4 text-right whitespace-nowrap min-w-[110px]">실시간 시청자</th>
-                  <th className="py-3 px-4 text-center whitespace-nowrap min-w-[90px]">방송 상태</th>
-                  <th className="py-3 px-4 text-center whitespace-nowrap w-24">전적 분석</th>
+                  <th className="py-3 px-2 w-10 text-center whitespace-nowrap">순위</th>
+                  <th className="py-3 px-3">스트리머</th>
+                  <th className="py-3 px-2 sm:px-3 whitespace-nowrap">주력 카테고리</th>
+                  <th className="py-3 px-2 sm:px-3 text-right whitespace-nowrap">30일 평균 시청자</th>
+                  <th className="py-3 px-2 sm:px-3 text-right whitespace-nowrap">실시간 시청자</th>
+                  <th className="py-3 px-2 text-center whitespace-nowrap">방송 상태</th>
+                  <th className="py-3 px-2 text-center whitespace-nowrap w-20">정보</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800/60 font-mono">
@@ -157,7 +130,7 @@ export const StreamerStatsPage: React.FC = () => {
                       onClick={() => handleRowClick(stream.streamId)}
                       className="transition-all duration-200 cursor-pointer group hover:bg-[#16231c]/70 hover:shadow-[inset_0_0_0_1px_rgba(0,255,163,0.5),0_0_16px_rgba(0,255,163,0.15)]"
                     >
-                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                      <td className="py-3 px-2 text-center whitespace-nowrap">
                         <span
                           className={`inline-block w-6 h-6 rounded-md leading-6 text-xs font-black ${
                             idx === 0
@@ -173,67 +146,67 @@ export const StreamerStatsPage: React.FC = () => {
                         </span>
                       </td>
 
-                      <td className="py-3.5 px-4 font-sans">
-                        <div className="flex items-center gap-3">
+                      <td className="py-3 px-3 font-sans">
+                        <div className="flex items-center gap-2.5">
                           <div className="relative shrink-0">
                             <img
                               src={stream.profileImageUrl || '/cheese-pick-logo.png'}
                               alt={stream.streamerName}
-                              className="w-10 h-10 rounded-full object-cover border border-gray-800"
+                              className="w-9 h-9 rounded-full object-cover border border-gray-800"
                             />
                             {isStreaming && (
-                              <span className="absolute bottom-0 right-0 w-3 h-3 bg-red-500 border-2 border-[#141416] rounded-full" />
+                              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-red-500 border-2 border-[#141416] rounded-full" />
                             )}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-extrabold text-white text-[15px] group-hover:text-[#00FFA3] transition-colors truncate">
+                            <p className="font-extrabold text-white text-sm group-hover:text-[#00FFA3] transition-colors truncate">
                               {stream.streamerName}
                             </p>
-                            <p className="text-xs text-gray-100 group-hover:text-white transition-colors truncate max-w-xs sm:max-w-md">
+                            <p className="text-xs text-gray-100 group-hover:text-white transition-colors truncate max-w-[150px] sm:max-w-[200px] md:max-w-xs">
                               {stream.liveTitle || '최근 방송 기록 없음'}
                             </p>
                           </div>
                         </div>
                       </td>
 
-                      <td className="py-3.5 px-4 font-sans whitespace-nowrap">
+                      <td className="py-3 px-2 sm:px-3 font-sans whitespace-nowrap">
                         <span
-                          className="inline-block max-w-[130px] sm:max-w-[180px] truncate whitespace-nowrap align-middle px-2.5 py-1 rounded-md text-xs font-bold bg-[#13221a] text-[#00FFA3]/90 border border-[#00FFA3]/30 tracking-wide shadow-xs"
+                          className="inline-block max-w-[110px] sm:max-w-[140px] truncate whitespace-nowrap align-middle px-2 py-0.5 rounded-md text-xs font-bold bg-[#13221a] text-[#00FFA3]/90 border border-[#00FFA3]/30 tracking-wide shadow-xs"
                           title={stream.categoryName || '기타'}
                         >
                           {stream.categoryName || '기타'}
                         </span>
                       </td>
 
-                      <td className="py-3.5 px-4 text-right font-bold text-gray-100 whitespace-nowrap">
+                      <td className="py-3 px-2 sm:px-3 text-right font-bold text-gray-100 whitespace-nowrap">
                         {(stream.averageViewers ?? 0) > 0
                           ? `${(stream.averageViewers ?? 0).toLocaleString()}명`
                           : '-'}
                       </td>
 
-                      <td className="py-3.5 px-4 text-right font-bold text-[#00FFA3] whitespace-nowrap">
+                      <td className="py-3 px-2 sm:px-3 text-right font-bold text-[#00FFA3] whitespace-nowrap">
                         {isStreaming && (stream.concurrentUserCount ?? 0) > 0
                           ? `${(stream.concurrentUserCount ?? 0).toLocaleString()}명`
                           : '-'}
                       </td>
 
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                      <td className="py-3 px-2 text-center whitespace-nowrap">
                         {isStreaming && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-red-500/15 text-red-400 border border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.25)]">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-red-500/15 text-red-400 border border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.25)]">
                             <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                             LIVE
                           </span>
                         )}
                         {!isStreaming && (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-gray-800/70 text-gray-100 border border-gray-700">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-gray-800/70 text-gray-100 border border-gray-700">
                             OFFLINE
                           </span>
                         )}
                       </td>
 
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                      <td className="py-3 px-2 text-center whitespace-nowrap">
                         <span className="inline-block px-2.5 py-1 text-xs font-bold rounded-lg bg-[#1e1e24] group-hover:bg-[#00FFA3] group-hover:text-black transition-all text-gray-100">
-                          전적 →
+                          정보 →
                         </span>
                       </td>
                     </tr>

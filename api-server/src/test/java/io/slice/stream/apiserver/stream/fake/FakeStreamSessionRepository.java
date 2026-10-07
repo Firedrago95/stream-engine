@@ -168,7 +168,12 @@ public class FakeStreamSessionRepository implements JpaStreamSessionRepository {
 
     @Override
     public List<StreamSessionEntity> findSessionsOverlapping(String streamId, Instant rangeStart, Instant rangeEnd) {
-        return List.of();
+        return storage.values().stream()
+            .filter(s -> Objects.equals(s.getStreamId(), streamId))
+            .filter(s -> s.getStartedAt().isBefore(rangeEnd))
+            .filter(s -> s.getEndedAt() == null || s.getEndedAt().isAfter(rangeStart))
+            .sorted(Comparator.comparing(StreamSessionEntity::getStartedAt))
+            .toList();
     }
 
     @Override

@@ -2,32 +2,29 @@ package io.slice.stream.apiserver.streamer.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
 
+import io.slice.stream.apiserver.global.config.SessionProperties;
 import io.slice.stream.apiserver.global.error.BusinessException;
-import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
-import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
+import io.slice.stream.apiserver.stream.fake.FakeStreamRepository;
+import io.slice.stream.apiserver.stream.fake.FakeStreamSessionRepository;
+import io.slice.stream.apiserver.stream.fake.FakeStreamerFollowerSnapshotRepository;
+import io.slice.stream.apiserver.stream.fake.FakeStreamerLeaderboardQueryService;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
+import io.slice.stream.apiserver.streamer.infrastructure.entity.StreamerFollowerSnapshotEntity;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerProfileResponse;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-@ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class StreamerProfileQueryServiceTest {
 
@@ -35,23 +32,25 @@ class StreamerProfileQueryServiceTest {
     private static final Instant FIXED_NOW = Instant.parse("2026-09-17T06:00:00Z"); // 15:00 KST
     private final Clock fixedClock = Clock.fixed(FIXED_NOW, KST);
 
-    @Mock
-    private JpaStreamRepository streamRepository;
-
-    @Mock
-    private JpaStreamSessionRepository sessionRepository;
-
-    @Mock
-    private StreamerLeaderboardQueryService leaderboardQueryService;
-
+    private FakeStreamRepository streamRepository;
+    private FakeStreamSessionRepository sessionRepository;
+    private FakeStreamerFollowerSnapshotRepository snapshotRepository;
+    private FakeStreamerLeaderboardQueryService leaderboardQueryService;
     private StreamerProfileQueryService profileQueryService;
 
     @BeforeEach
     void setUp() {
+        streamRepository = new FakeStreamRepository();
+        sessionRepository = new FakeStreamSessionRepository();
+        snapshotRepository = new FakeStreamerFollowerSnapshotRepository();
+        leaderboardQueryService = new FakeStreamerLeaderboardQueryService();
+
         profileQueryService = new StreamerProfileQueryService(
             streamRepository,
             sessionRepository,
+            snapshotRepository,
             leaderboardQueryService,
+            new SessionProperties(null, Duration.ofMinutes(3), 50),
             fixedClock
         );
     }
@@ -66,24 +65,32 @@ class StreamerProfileQueryServiceTest {
         stream.updateChannelMetrics(50000, 1200);
         ReflectionTestUtils.setField(stream, "lastUpdateAt", now.minus(30, ChronoUnit.SECONDS));
 
-        // 세션 1: 10,000초 방송, 평균 2000명, 피크 5000명, 팔로워 증가 100명
+        // 세션 1: 10,000초 방송, 평균 2000명, 피크 5000명
         StreamSessionEntity session1 = new StreamSessionEntity(
             channelId, "sess_1", "오늘 방송", "Talk", now.minusSeconds(10000)
         );
         session1.finishSession(now, 5000, 2000.0);
-        session1.updateSessionFollowerGrowth(100);
 
-        // 세션 2 (5일 전): 20,000초 방송, 평균 3000명, 피크 6000명, 팔로워 증가 50명
+        // 세션 2 (5일 전): 20,000초 방송, 평균 3000명, 피크 6000명
         Instant pastStart = now.minus(5, ChronoUnit.DAYS);
         StreamSessionEntity session2 = new StreamSessionEntity(
             channelId, "sess_2", "과거 방송", "League of Legends", pastStart
         );
         session2.finishSession(pastStart.plusSeconds(20000), 6000, 3000.0);
-        session2.updateSessionFollowerGrowth(50);
 
-        given(streamRepository.findByStreamId(channelId)).willReturn(Optional.of(stream));
-        given(sessionRepository.findSessionsOverlapping(eq(channelId), any(), any()))
-            .willReturn(List.of(session1, session2));
+        streamRepository.addStream(stream);
+        sessionRepository.addSession(session1);
+        sessionRepository.addSession(session2);
+
+        LocalDate today = LocalDate.of(2026, 9, 17);
+        StreamerFollowerSnapshotEntity snapOld = new StreamerFollowerSnapshotEntity(
+            channelId, today.minusDays(30), 49850, 10
+        );
+        StreamerFollowerSnapshotEntity snap7d = new StreamerFollowerSnapshotEntity(
+            channelId, today.minusDays(7), 49900, 20
+        );
+        snapshotRepository.addSnapshot(snapOld);
+        snapshotRepository.addSnapshot(snap7d);
 
         StreamerProfileResponse response = profileQueryService.getProfile(channelId);
 
@@ -92,7 +99,8 @@ class StreamerProfileQueryServiceTest {
         assertThat(response.header().isLive()).isTrue();
         assertThat(response.header().currentFollowers()).isEqualTo(50000);
         assertThat(response.header().followerGrowth30d()).isEqualTo(150);
-        assertThat(response.header().followerGrowth7d()).isEqualTo(150);
+        assertThat(response.header().followerGrowth7d()).isEqualTo(100);
+        assertThat(response.summary().followerGrowth30d()).isEqualTo(150);
 
         assertThat(response.summary().peakViewers()).isEqualTo(6000);
         assertThat(response.summary().totalBroadcastDurationSeconds()).isEqualTo(30000L);
@@ -133,9 +141,9 @@ class StreamerProfileQueryServiceTest {
         activeSession.updatePeakViewers(5000);
         activeSession.updateAverageViewerCount(4000);
 
-        given(streamRepository.findByStreamId(channelId)).willReturn(Optional.of(stream));
-        given(sessionRepository.findSessionsOverlapping(eq(channelId), any(), any()))
-            .willReturn(List.of(pastSession, activeSession));
+        streamRepository.addStream(stream);
+        sessionRepository.addSession(pastSession);
+        sessionRepository.addSession(activeSession);
 
         StreamerProfileResponse response = profileQueryService.getProfile(channelId);
 
@@ -163,9 +171,8 @@ class StreamerProfileQueryServiceTest {
         );
         session.finishSession(sEnd, 1000, 500.0);
 
-        given(streamRepository.findByStreamId(channelId)).willReturn(Optional.of(stream));
-        given(sessionRepository.findSessionsOverlapping(eq(channelId), any(), any()))
-            .willReturn(List.of(session));
+        streamRepository.addStream(stream);
+        sessionRepository.addSession(session);
 
         StreamerProfileResponse response = profileQueryService.getProfile(channelId);
 
@@ -191,9 +198,8 @@ class StreamerProfileQueryServiceTest {
         );
         session.finishSession(sEnd, 2000, 1000.0);
 
-        given(streamRepository.findByStreamId(channelId)).willReturn(Optional.of(stream));
-        given(sessionRepository.findSessionsOverlapping(eq(channelId), any(), any()))
-            .willReturn(List.of(session));
+        streamRepository.addStream(stream);
+        sessionRepository.addSession(session);
 
         StreamerProfileResponse response = profileQueryService.getProfile(channelId);
 
@@ -224,9 +230,9 @@ class StreamerProfileQueryServiceTest {
         );
         noiseSession.finishSession(noiseStart.plusSeconds(120), 2000, 1500.0);
 
-        given(streamRepository.findByStreamId(channelId)).willReturn(Optional.of(stream));
-        given(sessionRepository.findSessionsOverlapping(eq(channelId), any(), any()))
-            .willReturn(List.of(validSession, noiseSession));
+        streamRepository.addStream(stream);
+        sessionRepository.addSession(validSession);
+        sessionRepository.addSession(noiseSession);
 
         StreamerProfileResponse response = profileQueryService.getProfile(channelId);
 
@@ -243,8 +249,6 @@ class StreamerProfileQueryServiceTest {
 
     @Test
     void 존재하지_않는_스트리머인_경우_예외가_발생한다() {
-        given(streamRepository.findByStreamId("non_existing")).willReturn(Optional.empty());
-
         assertThatThrownBy(() -> profileQueryService.getProfile("non_existing"))
             .isInstanceOf(BusinessException.class);
     }
@@ -271,9 +275,9 @@ class StreamerProfileQueryServiceTest {
         );
         zeroViewerSession.finishSession(zeroStart.plusSeconds(10000), 0, 0.0);
 
-        given(streamRepository.findByStreamId(channelId)).willReturn(Optional.of(stream));
-        given(sessionRepository.findSessionsOverlapping(eq(channelId), any(), any()))
-            .willReturn(List.of(validSession, zeroViewerSession));
+        streamRepository.addStream(stream);
+        sessionRepository.addSession(validSession);
+        sessionRepository.addSession(zeroViewerSession);
 
         StreamerProfileResponse response = profileQueryService.getProfile(channelId);
 
@@ -297,14 +301,60 @@ class StreamerProfileQueryServiceTest {
         );
         session.finishSession(validStart.plusSeconds(10000), 20000, 15000.0);
 
-        given(streamRepository.findByStreamId(channelId)).willReturn(Optional.of(stream));
-        given(sessionRepository.findSessionsOverlapping(eq(channelId), any(), any()))
-            .willReturn(List.of(session));
-        given(leaderboardQueryService.getCachedAverageViewers(channelId))
-            .willReturn(Optional.of(14819));
+        streamRepository.addStream(stream);
+        sessionRepository.addSession(session);
+        leaderboardQueryService.setCachedAverageViewers(channelId, 14819);
 
         StreamerProfileResponse response = profileQueryService.getProfile(channelId);
 
         assertThat(response.summary().averageViewers()).isEqualTo(14819);
+    }
+
+    @Test
+    void 스냅샷_데이터가_최근_3일치만_있어도_수집된_기간_기준으로_순증이_계산된다() {
+        String channelId = "ch_partial_snapshots";
+        Instant now = FIXED_NOW;
+
+        StreamEntity stream = new StreamEntity(channelId, "부분수집스트리머");
+        stream.updateChannelMetrics(50000, 100);
+        ReflectionTestUtils.setField(stream, "lastUpdateAt", now.minus(1, ChronoUnit.HOURS));
+
+        LocalDate today = LocalDate.of(2026, 9, 17);
+        // 3일 전 49,000명, 1일 전 49,800명 (총 3일치만 수집됨)
+        StreamerFollowerSnapshotEntity snap3d = new StreamerFollowerSnapshotEntity(
+            channelId, today.minusDays(3), 49000, 500
+        );
+        StreamerFollowerSnapshotEntity snap1d = new StreamerFollowerSnapshotEntity(
+            channelId, today.minusDays(1), 49800, 800
+        );
+
+        streamRepository.addStream(stream);
+        snapshotRepository.addSnapshot(snap3d);
+        snapshotRepository.addSnapshot(snap1d);
+
+        StreamerProfileResponse response = profileQueryService.getProfile(channelId);
+
+        // 현재 50,000 - 3일 전 최초 스냅샷 49,000 = 1,000명 순증
+        assertThat(response.header().followerGrowth30d()).isEqualTo(1000);
+        assertThat(response.header().followerGrowth7d()).isEqualTo(1000);
+        assertThat(response.summary().followerGrowth30d()).isEqualTo(1000);
+    }
+
+    @Test
+    void 스냅샷_데이터가_전혀_없는_경우_팔로워_순증은_0으로_반환된다() {
+        String channelId = "ch_no_snapshots";
+        Instant now = FIXED_NOW;
+
+        StreamEntity stream = new StreamEntity(channelId, "신규스트리머");
+        stream.updateChannelMetrics(1000, 10);
+        ReflectionTestUtils.setField(stream, "lastUpdateAt", now.minus(1, ChronoUnit.HOURS));
+
+        streamRepository.addStream(stream);
+
+        StreamerProfileResponse response = profileQueryService.getProfile(channelId);
+
+        assertThat(response.header().followerGrowth30d()).isZero();
+        assertThat(response.header().followerGrowth7d()).isZero();
+        assertThat(response.summary().followerGrowth30d()).isZero();
     }
 }
