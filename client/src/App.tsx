@@ -8,6 +8,7 @@ import { StreamCardSkeleton } from './components/stream/StreamCardSkeleton';
 import { useStreams } from './hooks/useStreams';
 import Tooltip from './components/Tooltip.jsx'; // 🔥 툴팁 컴포넌트 추가
 import { WeeklyCategoryRanking } from './components/stream/WeeklyCategoryRanking';
+import { usePageTracking } from './hooks/usePageTracking';
 import './css/style.css';
 
 const StreamAnalysisDashboard = lazy(() =>
@@ -64,6 +65,29 @@ const MainPage = () => {
   return (
       <div className="w-full">
         <WeeklyCategoryRanking />
+
+        {/* 실시간 방송 현황 배너 */}
+        <div className="p-4 sm:p-5 my-6 bg-[#141416] border border-[#2A2A2C] rounded-2xl flex items-center justify-between hover:border-[#00FFA3]/30 hover:shadow-[0_0_15px_rgba(0,255,163,0.1)] transition-all">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <span className="text-2xl">📡</span>
+            <div>
+              <p className="text-xs text-gray-100 font-bold uppercase tracking-wider">실시간 방송 현황</p>
+              <h3 className="text-base sm:text-lg font-black text-white">
+                {liveStreams.length}개 방송 중{' '}
+                <span className="text-xs text-gray-100 font-normal">
+                  / Top 300
+                </span>
+              </h3>
+              <p className="text-xs text-gray-100 font-medium">30초 주기 실시간 자동 갱신</p>
+            </div>
+          </div>
+          <div className="text-right font-mono">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#00FFA3]/15 text-[#00FFA3] border border-[#00FFA3]/30">
+              <span className="w-2 h-2 rounded-full bg-[#00FFA3] animate-pulse" />
+              정상 가동
+            </span>
+          </div>
+        </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8 px-1 mt-2 sm:mt-4">
           <div className="flex items-center gap-2 mb-1 sm:mb-0">
@@ -150,6 +174,7 @@ const MainPage = () => {
 };
 
 export default function App() {
+  usePageTracking();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
