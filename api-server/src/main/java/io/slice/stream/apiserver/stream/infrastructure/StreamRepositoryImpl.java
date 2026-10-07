@@ -2,8 +2,10 @@ package io.slice.stream.apiserver.stream.infrastructure;
 
 import io.slice.stream.apiserver.stream.domain.StreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
+import io.slice.stream.apiserver.streamer.domain.repository.StreamerFollowerGrowthProjection;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardProjection;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -80,5 +82,15 @@ public class StreamRepositoryImpl implements StreamRepository {
     @Override
     public int markAllOfflineBefore(Instant threshold) {
         return jpaStreamRepository.markAllOfflineBefore(threshold);
+    }
+
+    @Override
+    public List<StreamEntity> findTopFollowers(Pageable pageable) {
+        return jpaStreamRepository.findTopFollowers(pageable);
+    }
+
+    @Override
+    public List<StreamerFollowerGrowthProjection> findTopFollowerGrowth(LocalDate sinceDate, int limit) {
+        return jpaStreamRepository.findTopFollowerGrowth(sinceDate, limit);
     }
 }

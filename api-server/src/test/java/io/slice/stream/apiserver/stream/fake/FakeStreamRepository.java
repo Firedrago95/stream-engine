@@ -1,9 +1,12 @@
 package io.slice.stream.apiserver.stream.fake;
 
+import io.slice.stream.apiserver.stream.domain.StreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
+import io.slice.stream.apiserver.streamer.domain.repository.StreamerFollowerGrowthProjection;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardProjection;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -20,7 +23,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.repository.query.FluentQuery.FetchableFluentQuery;
 
-public class FakeStreamRepository implements JpaStreamRepository {
+public class FakeStreamRepository implements JpaStreamRepository, StreamRepository {
 
     private final Map<String, StreamEntity> storage = new ConcurrentHashMap<>();
     private final AtomicLong idGenerator = new AtomicLong(1L);
@@ -43,6 +46,11 @@ public class FakeStreamRepository implements JpaStreamRepository {
 
     @Override
     public Optional<StreamEntity> findByStreamId(String streamId) {
+        return Optional.ofNullable(storage.get(streamId));
+    }
+
+    @Override
+    public Optional<StreamEntity> findById(String streamId) {
         return Optional.ofNullable(storage.get(streamId));
     }
 
@@ -88,8 +96,27 @@ public class FakeStreamRepository implements JpaStreamRepository {
             .toList();
     }
 
+    private List<StreamerLeaderboardProjection> customTopStreamersWith30dAvg = new ArrayList<>();
+    private List<StreamerLeaderboardProjection> customSearchTopStreamersWith30dAvg = new ArrayList<>();
+    private List<StreamEntity> customAllStreamersForLeaderboard = new ArrayList<>();
+
+    public void setTopStreamersWith30dAvg(List<StreamerLeaderboardProjection> projections) {
+        this.customTopStreamersWith30dAvg = new ArrayList<>(projections);
+    }
+
+    public void setSearchTopStreamersWith30dAvg(List<StreamerLeaderboardProjection> projections) {
+        this.customSearchTopStreamersWith30dAvg = new ArrayList<>(projections);
+    }
+
+    public void setAllStreamersForLeaderboard(List<StreamEntity> streams) {
+        this.customAllStreamersForLeaderboard = new ArrayList<>(streams);
+    }
+
     @Override
     public List<StreamEntity> findAllStreamersForLeaderboard(Instant since, Pageable pageable) {
+        if (!customAllStreamersForLeaderboard.isEmpty()) {
+            return customAllStreamersForLeaderboard;
+        }
         return List.of();
     }
 
@@ -100,11 +127,40 @@ public class FakeStreamRepository implements JpaStreamRepository {
 
     @Override
     public List<StreamerLeaderboardProjection> findTopStreamersWith30dAvg(Instant since, int minDays, int limit) {
+        if (!customTopStreamersWith30dAvg.isEmpty()) {
+            return customTopStreamersWith30dAvg.stream().limit(limit).toList();
+        }
         return List.of();
     }
 
     @Override
     public List<StreamerLeaderboardProjection> searchTopStreamersWith30dAvg(String keyword, Instant since, int limit) {
+        if (!customSearchTopStreamersWith30dAvg.isEmpty()) {
+            return customSearchTopStreamersWith30dAvg.stream().limit(limit).toList();
+        }
+        return List.of();
+    }
+
+    private List<StreamerFollowerGrowthProjection> customFollowerGrowthProjections = new ArrayList<>();
+
+    public void setFollowerGrowthProjections(List<StreamerFollowerGrowthProjection> projections) {
+        this.customFollowerGrowthProjections = new ArrayList<>(projections);
+    }
+
+    @Override
+    public List<StreamEntity> findTopFollowers(Pageable pageable) {
+        return storage.values().stream()
+            .filter(s -> s.getFollowerCount() != null && s.getFollowerCount() > 0)
+            .sorted(Comparator.comparing(StreamEntity::getFollowerCount, Comparator.reverseOrder()))
+            .limit(pageable.getPageSize())
+            .toList();
+    }
+
+    @Override
+    public List<StreamerFollowerGrowthProjection> findTopFollowerGrowth(LocalDate sinceDate, int limit) {
+        if (!customFollowerGrowthProjections.isEmpty()) {
+            return customFollowerGrowthProjections.stream().limit(limit).toList();
+        }
         return List.of();
     }
 

@@ -1,8 +1,10 @@
 package io.slice.stream.apiserver.stream.infrastructure;
 
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
+import io.slice.stream.apiserver.streamer.domain.repository.StreamerFollowerGrowthProjection;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardProjection;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -173,6 +175,37 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
     List<StreamerLeaderboardProjection> searchTopStreamersWith30dAvg(
         @Param("keyword") String keyword,
         @Param("since") Instant since,
+        @Param("limit") int limit
+    );
+
+    @Query("""
+        SELECT s FROM StreamEntity s
+        WHERE s.followerCount IS NOT NULL AND s.followerCount > 0
+        ORDER BY s.followerCount DESC, s.id DESC
+        """)
+    List<StreamEntity> findTopFollowers(Pageable pageable);
+
+    @Query(value = """
+        SELECT 
+            s.stream_id AS streamId,
+            s.streamer_name AS streamerName,
+            s.live_title AS liveTitle,
+            s.profile_image_url AS profileImageUrl,
+            s.category_name AS categoryName,
+            s.is_live AS isLive,
+            s.concurrent_user_count AS concurrentUserCount,
+            COALESCE(s.follower_count, 0) AS followerCount,
+            CAST(COALESCE(SUM(snp.follower_growth), 0) AS integer) AS weeklyGrowth
+        FROM streamer_follower_snapshots snp
+        INNER JOIN streams s ON s.stream_id = snp.stream_id
+        WHERE snp.snapshot_date >= :sinceDate
+        GROUP BY s.stream_id, s.streamer_name, s.live_title, s.profile_image_url, s.category_name, s.is_live, s.concurrent_user_count, s.follower_count, s.id
+        HAVING COALESCE(SUM(snp.follower_growth), 0) > 0
+        ORDER BY weeklyGrowth DESC, followerCount DESC
+        LIMIT :limit
+        """, nativeQuery = true)
+    List<StreamerFollowerGrowthProjection> findTopFollowerGrowth(
+        @Param("sinceDate") LocalDate sinceDate,
         @Param("limit") int limit
     );
 }
