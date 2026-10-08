@@ -50,9 +50,9 @@ class AdminControllerTest {
         adminAuthService = new AdminAuthService(SECRET_PASSWORD);
         targetStreamerRepository = new FakeTargetStreamerRepository();
         FakeStreamRepository streamRepository = new FakeStreamRepository();
-        targetStreamerService = new TargetStreamerService(targetStreamerRepository, streamRepository);
         systemConfigRepository = new FakeSystemConfigRepository();
         systemConfigService = new SystemConfigService(systemConfigRepository);
+        targetStreamerService = new TargetStreamerService(targetStreamerRepository, streamRepository, systemConfigService);
 
         FakeStringRedisTemplate redisTemplate = new FakeStringRedisTemplate();
         FakeHighlightEventRepository highlightRepository = new FakeHighlightEventRepository();

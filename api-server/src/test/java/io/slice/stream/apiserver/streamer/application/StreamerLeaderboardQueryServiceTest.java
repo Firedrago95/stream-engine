@@ -2,6 +2,8 @@ package io.slice.stream.apiserver.streamer.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.slice.stream.apiserver.admin.config.FakeSystemConfigRepository;
+import io.slice.stream.apiserver.admin.config.SystemConfigService;
 import io.slice.stream.apiserver.stream.domain.StreamStatus;
 import io.slice.stream.apiserver.stream.fake.FakeAnalysisRepository;
 import io.slice.stream.apiserver.stream.fake.FakeStreamRepository;
@@ -34,7 +36,8 @@ class StreamerLeaderboardQueryServiceTest {
         streamRepository = new FakeStreamRepository();
         analysisRepository = new FakeAnalysisRepository();
         targetStreamerRepository = new FakeTargetStreamerRepository();
-        targetStreamerService = new TargetStreamerService(targetStreamerRepository, streamRepository);
+        SystemConfigService systemConfigService = new SystemConfigService(new FakeSystemConfigRepository());
+        targetStreamerService = new TargetStreamerService(targetStreamerRepository, streamRepository, systemConfigService);
         redisTemplate = new FakeStringRedisTemplate();
         jsonMapper = JsonMapper.builder().build();
 

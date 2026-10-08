@@ -30,13 +30,6 @@ public class TargetStreamerService {
     private final StreamRepository streamRepository;
     private final SystemConfigService systemConfigService;
 
-    public TargetStreamerService(
-        TargetStreamerRepository targetStreamerRepository,
-        StreamRepository streamRepository
-    ) {
-        this(targetStreamerRepository, streamRepository, null);
-    }
-
     @Transactional(readOnly = true)
     public Set<String> getExcludedChannelIds() {
         Instant now = Instant.now();
@@ -53,6 +46,7 @@ public class TargetStreamerService {
     @Transactional(readOnly = true)
     @Cacheable(value = "targetChannels", unless = "#result.isEmpty()")
     public List<String> getActiveTargetChannelIds() {
+        Instant now = Instant.now();
         int targetLimit = systemConfigService != null
             ? systemConfigService.getInt(TARGETING_LIMIT_KEY, DEFAULT_TARGET_LIMIT)
             : DEFAULT_TARGET_LIMIT;
@@ -62,7 +56,9 @@ public class TargetStreamerService {
 
         List<TargetStreamerEntity> staticAndCustomTargets = targetStreamerRepository.findAllByIsActiveTrue();
         for (TargetStreamerEntity entity : staticAndCustomTargets) {
-            if (entity.getTargetType() != TargetType.EXCLUDED && !excludedIds.contains(entity.getChannelId())) {
+            TargetType effectiveType = entity.getEffectiveTargetType(now);
+            boolean effectiveActive = entity.isEffectiveActive(now);
+            if (effectiveActive && effectiveType != TargetType.EXCLUDED && !excludedIds.contains(entity.getChannelId())) {
                 targetChannelIds.add(entity.getChannelId());
             }
         }

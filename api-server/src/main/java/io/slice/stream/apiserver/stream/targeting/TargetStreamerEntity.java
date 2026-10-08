@@ -58,8 +58,11 @@ public class TargetStreamerEntity {
     @Column(name = "previous_target_type", length = 20)
     private TargetType previousTargetType;
 
+    @Column(name = "previous_is_active")
+    private Boolean previousIsActive;
+
     public TargetStreamerEntity(String channelId, String streamerName, TargetType targetType, boolean isActive) {
-        this(channelId, streamerName, targetType, isActive, null, null, null);
+        this(channelId, streamerName, targetType, isActive, null, null, null, null);
     }
 
     public TargetStreamerEntity(
@@ -70,7 +73,7 @@ public class TargetStreamerEntity {
         String reason,
         Instant expiresAt
     ) {
-        this(channelId, streamerName, targetType, isActive, reason, expiresAt, null);
+        this(channelId, streamerName, targetType, isActive, reason, expiresAt, null, null);
     }
 
     public TargetStreamerEntity(
@@ -80,7 +83,8 @@ public class TargetStreamerEntity {
         boolean isActive,
         String reason,
         Instant expiresAt,
-        TargetType previousTargetType
+        TargetType previousTargetType,
+        Boolean previousIsActive
     ) {
         this.channelId = channelId;
         this.streamerName = streamerName;
@@ -89,6 +93,7 @@ public class TargetStreamerEntity {
         this.reason = reason;
         this.expiresAt = expiresAt;
         this.previousTargetType = previousTargetType;
+        this.previousIsActive = previousIsActive;
         this.createdAt = Instant.now();
         this.updatedAt = Instant.now();
     }
@@ -96,6 +101,7 @@ public class TargetStreamerEntity {
     public void exclude(String reason, Instant expiresAt) {
         if (this.targetType != TargetType.EXCLUDED) {
             this.previousTargetType = this.targetType;
+            this.previousIsActive = this.isActive;
         }
         this.targetType = TargetType.EXCLUDED;
         this.isActive = true;
@@ -107,8 +113,9 @@ public class TargetStreamerEntity {
     public void restore() {
         if (this.previousTargetType != null) {
             this.targetType = this.previousTargetType;
-            this.isActive = true;
+            this.isActive = this.previousIsActive != null ? this.previousIsActive : true;
             this.previousTargetType = null;
+            this.previousIsActive = null;
         } else {
             this.isActive = false;
         }
@@ -123,5 +130,19 @@ public class TargetStreamerEntity {
 
     public boolean isEffectiveExcluded(Instant now) {
         return targetType == TargetType.EXCLUDED && isActive && !isExpired(now);
+    }
+
+    public TargetType getEffectiveTargetType(Instant now) {
+        if (targetType == TargetType.EXCLUDED && isExpired(now) && previousTargetType != null) {
+            return previousTargetType;
+        }
+        return targetType;
+    }
+
+    public boolean isEffectiveActive(Instant now) {
+        if (targetType == TargetType.EXCLUDED && isExpired(now)) {
+            return previousIsActive != null ? previousIsActive : false;
+        }
+        return isActive;
     }
 }

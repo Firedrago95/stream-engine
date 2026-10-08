@@ -158,6 +158,41 @@ class TargetStreamerServiceTest {
         assertThat(results).containsExactly("ch_top_1", "ch_top_2", "ch_top_3", "ch_top_4", "ch_top_5");
     }
 
+    @Test
+    void 원래_비활성이었던_타겟을_제외했다가_복구하면_비활성_상태를_유지한다() {
+        TargetStreamerEntity inactiveCustom = new TargetStreamerEntity("ch_inactive", "휴식 스트리머", TargetType.CUSTOM, false);
+        targetStreamerRepository.save(inactiveCustom);
+
+        // 제외 등록
+        targetStreamerService.excludeStreamer("ch_inactive", "휴식 스트리머", "임시 격리", Instant.now().plus(10, ChronoUnit.DAYS));
+
+        // 복구 수행
+        targetStreamerService.restoreStreamer("ch_inactive");
+
+        TargetStreamerEntity restored = targetStreamerRepository.findByChannelId("ch_inactive").orElseThrow();
+        assertThat(restored.getTargetType()).isEqualTo(TargetType.CUSTOM);
+        assertThat(restored.isActive()).isFalse(); // 강제로 true가 되지 않고 원래 상태인 false 유지
+        assertThat(restored.getPreviousTargetType()).isNull();
+        assertThat(restored.getPreviousIsActive()).isNull();
+    }
+
+    @Test
+    void 제외_기간이_자연_만료된_STATIC_타겟은_수동_복구_없이도_자동으로_고정_타겟_목록에_복귀한다() {
+        TargetStreamerEntity official = new TargetStreamerEntity("ch_official", "공식 채널", TargetType.STATIC, true);
+        targetStreamerRepository.save(official);
+
+        // 1일 전에 만료된 임시 제외 등록
+        targetStreamerService.excludeStreamer("ch_official", "공식 채널", "과거 이벤트", Instant.now().minus(1, ChronoUnit.DAYS));
+
+        // 동적 조회 결과가 비어있어도, 자연 만료된 STATIC 타겟은 고정 타겟 목록으로 자동 복귀해야 함
+        streamRepository.setTopStreamersWith30dAvg(Collections.emptyList());
+        streamRepository.setTopStreamIdsByConcurrentUserCount(Collections.emptyList());
+
+        List<String> results = targetStreamerService.getActiveTargetChannelIds();
+
+        assertThat(results).contains("ch_official");
+    }
+
     private StreamerLeaderboardProjection createProjection(String streamId) {
         return new StreamerLeaderboardProjection() {
             @Override public String getStreamId() { return streamId; }
