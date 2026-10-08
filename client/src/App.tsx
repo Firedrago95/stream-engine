@@ -23,6 +23,10 @@ const StreamerDetailPage = lazy(() =>
   import('./components/streamer/StreamerDetailPage').then(m => ({ default: m.StreamerDetailPage }))
 );
 
+const AdminDashboard = lazy(() =>
+  import('./components/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard }))
+);
+
 const MainPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { streams, isLoading, error } = useStreams(searchTerm, 30000);
@@ -199,6 +203,7 @@ export default function App() {
                   <Route path="/streamers" element={<StreamerStatsPage />} />
                   <Route path="/streamers/:channelId" element={<StreamerDetailPage />} />
                   <Route path="/streams/:streamId" element={<StreamAnalysisDashboard />} />
+                  <Route path="/admin" element={<AdminDashboard />} />
                 </Routes>
               </Suspense>
             </div>

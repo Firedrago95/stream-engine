@@ -50,6 +50,11 @@ public class FakeStreamRepository implements JpaStreamRepository, StreamReposito
     }
 
     @Override
+    public long countByIsLiveTrue() {
+        return storage.values().stream().filter(StreamEntity::isLive).count();
+    }
+
+    @Override
     public Optional<StreamEntity> findById(String streamId) {
         return Optional.ofNullable(storage.get(streamId));
     }
@@ -80,6 +85,9 @@ public class FakeStreamRepository implements JpaStreamRepository, StreamReposito
 
     @Override
     public List<String> findTopStreamIdsByConcurrentUserCount(Instant since, Pageable pageable) {
+        if (customTopStreamIdsByConcurrentUserCount != null) {
+            return customTopStreamIdsByConcurrentUserCount;
+        }
         return storage.values().stream()
             .filter(s -> !s.getLastUpdateAt().isBefore(since))
             .sorted(Comparator.comparing(StreamEntity::getConcurrentUserCount, Comparator.reverseOrder()))
@@ -99,6 +107,11 @@ public class FakeStreamRepository implements JpaStreamRepository, StreamReposito
     private List<StreamerLeaderboardProjection> customTopStreamersWith30dAvg = new ArrayList<>();
     private List<StreamerLeaderboardProjection> customSearchTopStreamersWith30dAvg = new ArrayList<>();
     private List<StreamEntity> customAllStreamersForLeaderboard = new ArrayList<>();
+    private List<String> customTopStreamIdsByConcurrentUserCount = null;
+
+    public void setTopStreamIdsByConcurrentUserCount(List<String> streamIds) {
+        this.customTopStreamIdsByConcurrentUserCount = new ArrayList<>(streamIds);
+    }
 
     public void setTopStreamersWith30dAvg(List<StreamerLeaderboardProjection> projections) {
         this.customTopStreamersWith30dAvg = new ArrayList<>(projections);

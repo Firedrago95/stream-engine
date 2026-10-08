@@ -1,92 +1,214 @@
 package io.slice.stream.apiserver.stream.targeting;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
-import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
+import io.slice.stream.apiserver.admin.config.FakeSystemConfigRepository;
+import io.slice.stream.apiserver.admin.config.SystemConfigEntity;
+import io.slice.stream.apiserver.admin.config.SystemConfigService;
+import io.slice.stream.apiserver.stream.fake.FakeStreamRepository;
+import io.slice.stream.apiserver.stream.fake.FakeTargetStreamerRepository;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardProjection;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageRequest;
 
-@ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class TargetStreamerServiceTest {
 
-    @Mock
-    private TargetStreamerRepository targetStreamerRepository;
-
-    @Mock
-    private JpaStreamRepository streamRepository;
-
-    @InjectMocks
+    private FakeTargetStreamerRepository targetStreamerRepository;
+    private FakeStreamRepository streamRepository;
+    private FakeSystemConfigRepository systemConfigRepository;
+    private SystemConfigService systemConfigService;
     private TargetStreamerService targetStreamerService;
+
+    @BeforeEach
+    void setUp() {
+        targetStreamerRepository = new FakeTargetStreamerRepository();
+        streamRepository = new FakeStreamRepository();
+        systemConfigRepository = new FakeSystemConfigRepository();
+        systemConfigService = new SystemConfigService(systemConfigRepository);
+        targetStreamerService = new TargetStreamerService(targetStreamerRepository, streamRepository, systemConfigService);
+    }
 
     @Test
     void 활성_수동_공식_채널과_검증된_정규_활동_스트리머로_300명이_채워진_경우_실시간_보충을_호출하지_않는다() {
         TargetStreamerEntity official = new TargetStreamerEntity("ch_official", "공식 채널", TargetType.STATIC, true);
+        targetStreamerRepository.save(official);
+
         List<StreamerLeaderboardProjection> verifiedStreamers = new ArrayList<>();
         for (int i = 1; i <= 299; i++) {
             verifiedStreamers.add(createProjection("ch_trend_" + i));
         }
-
-        when(targetStreamerRepository.findAllByIsActiveTrue()).thenReturn(List.of(official));
-        when(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), eq(5), eq(300)))
-            .thenReturn(verifiedStreamers);
+        streamRepository.setTopStreamersWith30dAvg(verifiedStreamers);
+        streamRepository.setTopStreamIdsByConcurrentUserCount(List.of("ch_should_not_be_included"));
 
         List<String> results = targetStreamerService.getActiveTargetChannelIds();
 
         assertThat(results).hasSize(300);
         assertThat(results).contains("ch_official", "ch_trend_1", "ch_trend_299");
-        verify(streamRepository, never()).findTopStreamIdsByConcurrentUserCount(any(Instant.class), any());
+        assertThat(results).doesNotContain("ch_should_not_be_included");
     }
 
     @Test
     void 정규_활동_스트리머가_300명_미만일_경우_300명이_될_때까지_실시간_시청자수_순으로_보충한다() {
         TargetStreamerEntity official = new TargetStreamerEntity("ch_official", "공식 채널", TargetType.STATIC, true);
+        targetStreamerRepository.save(official);
+
         StreamerLeaderboardProjection p1 = createProjection("ch_trend1");
         StreamerLeaderboardProjection p2 = createProjection("ch_trend2");
-
-        when(targetStreamerRepository.findAllByIsActiveTrue()).thenReturn(List.of(official));
-        when(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), eq(5), eq(300)))
-            .thenReturn(List.of(p1, p2));
-        when(streamRepository.findTopStreamIdsByConcurrentUserCount(any(Instant.class), eq(PageRequest.of(0, 300))))
-            .thenReturn(List.of("ch_realtime1", "ch_trend1", "ch_realtime2"));
+        streamRepository.setTopStreamersWith30dAvg(List.of(p1, p2));
+        streamRepository.setTopStreamIdsByConcurrentUserCount(List.of("ch_realtime1", "ch_trend1", "ch_realtime2"));
 
         List<String> results = targetStreamerService.getActiveTargetChannelIds();
 
         assertThat(results).containsExactly("ch_official", "ch_trend1", "ch_trend2", "ch_realtime1", "ch_realtime2");
-        verify(streamRepository).findTopStreamIdsByConcurrentUserCount(any(Instant.class), eq(PageRequest.of(0, 300)));
     }
 
     @Test
     void 정규_활동_스트리머_데이터가_없을_경우_실시간_시청자수_기반으로_fallback_동작한다() {
         TargetStreamerEntity official = new TargetStreamerEntity("ch_official", "공식 채널", TargetType.STATIC, true);
+        targetStreamerRepository.save(official);
 
-        when(targetStreamerRepository.findAllByIsActiveTrue()).thenReturn(List.of(official));
-        when(streamRepository.findTopStreamersWith30dAvg(any(Instant.class), anyInt(), anyInt()))
-            .thenReturn(Collections.emptyList());
-        when(streamRepository.findTopStreamIdsByConcurrentUserCount(any(Instant.class), eq(PageRequest.of(0, 300))))
-            .thenReturn(List.of("ch_fallback1", "ch_fallback2"));
+        streamRepository.setTopStreamersWith30dAvg(Collections.emptyList());
+        streamRepository.setTopStreamIdsByConcurrentUserCount(List.of("ch_fallback1", "ch_fallback2"));
 
         List<String> results = targetStreamerService.getActiveTargetChannelIds();
 
         assertThat(results).containsExactly("ch_official", "ch_fallback1", "ch_fallback2");
-        verify(streamRepository).findTopStreamIdsByConcurrentUserCount(any(Instant.class), eq(PageRequest.of(0, 300)));
+    }
+
+    @Test
+    void 제외_등록된_스트리머는_정규_활동_스트리머에_포함되어도_타겟_목록에서_제외된다() {
+        TargetStreamerEntity official = new TargetStreamerEntity("ch_official", "공식 채널", TargetType.STATIC, true);
+        targetStreamerRepository.save(official);
+
+        // 아시안게임 채널을 30일 격리 등록
+        targetStreamerService.excludeStreamer("ch_asian_games", "아시안게임 MBC", "대회 종료", Instant.now().plus(30, ChronoUnit.DAYS));
+
+        StreamerLeaderboardProjection p1 = createProjection("ch_asian_games");
+        StreamerLeaderboardProjection p2 = createProjection("ch_normal");
+        streamRepository.setTopStreamersWith30dAvg(List.of(p1, p2));
+
+        List<String> results = targetStreamerService.getActiveTargetChannelIds();
+
+        assertThat(results).contains("ch_official", "ch_normal");
+        assertThat(results).doesNotContain("ch_asian_games");
+    }
+
+    @Test
+    void 임시_격리_만료일이_지난_제외_스트리머는_다시_타겟_목록에_포함된다() {
+        TargetStreamerEntity official = new TargetStreamerEntity("ch_official", "공식 채널", TargetType.STATIC, true);
+        targetStreamerRepository.save(official);
+
+        // 이미 만료된 채널 (어제 만료)
+        targetStreamerService.excludeStreamer("ch_expired_event", "과거 이벤트", "종료", Instant.now().minus(1, ChronoUnit.DAYS));
+
+        StreamerLeaderboardProjection p1 = createProjection("ch_expired_event");
+        streamRepository.setTopStreamersWith30dAvg(List.of(p1));
+
+        List<String> results = targetStreamerService.getActiveTargetChannelIds();
+
+        assertThat(results).contains("ch_official", "ch_expired_event");
+    }
+
+    @Test
+    void 제외된_STATIC_공식_채널을_복구하면_원본_타입과_함께_타겟_목록으로_복귀한다() {
+        TargetStreamerEntity official = new TargetStreamerEntity("ch_official", "공식 채널", TargetType.STATIC, true);
+        targetStreamerRepository.save(official);
+
+        // 1. 제외 처리
+        targetStreamerService.excludeStreamer("ch_official", "공식 채널", "임시 제외", Instant.now().plus(10, ChronoUnit.DAYS));
+        assertThat(targetStreamerService.getActiveTargetChannelIds()).doesNotContain("ch_official");
+
+        // 2. 복구 처리
+        targetStreamerService.restoreStreamer("ch_official");
+
+        // 엔티티 원본 타입 복원 및 사유/만료일 초기화 검증
+        TargetStreamerEntity restored = targetStreamerRepository.findByChannelId("ch_official").orElseThrow();
+        assertThat(restored.getTargetType()).isEqualTo(TargetType.STATIC);
+        assertThat(restored.isActive()).isTrue();
+        assertThat(restored.getPreviousTargetType()).isNull();
+        assertThat(restored.getReason()).isNull();
+        assertThat(restored.getExpiresAt()).isNull();
+
+        // 타겟 목록 재조회 시 포함 확인
+        assertThat(targetStreamerService.getActiveTargetChannelIds()).contains("ch_official");
+    }
+
+    @Test
+    void 복구_요청을_두_번_연속_호출해도_타겟_상태가_비활성화되지_않고_유지된다() {
+        TargetStreamerEntity official = new TargetStreamerEntity("ch_official", "공식 채널", TargetType.STATIC, true);
+        targetStreamerRepository.save(official);
+
+        targetStreamerService.excludeStreamer("ch_official", "공식 채널", "임시 제외", Instant.now().plus(10, ChronoUnit.DAYS));
+
+        // 1번째 복구
+        targetStreamerService.restoreStreamer("ch_official");
+        // 2번째 중복 복구 (네트워크 재시도 또는 더블클릭)
+        targetStreamerService.restoreStreamer("ch_official");
+
+        TargetStreamerEntity restored = targetStreamerRepository.findByChannelId("ch_official").orElseThrow();
+        assertThat(restored.getTargetType()).isEqualTo(TargetType.STATIC);
+        assertThat(restored.isActive()).isTrue();
+        assertThat(targetStreamerService.getActiveTargetChannelIds()).contains("ch_official");
+    }
+
+    @Test
+    void 동적_시스템_설정으로_타겟_인원수가_변경되면_해당_제한에_맞춰_타겟을_수집한다() {
+        systemConfigRepository.save(new SystemConfigEntity("targeting.limit", "5", "목표 인원", "TARGETING"));
+
+        List<StreamerLeaderboardProjection> verifiedStreamers = new ArrayList<>();
+        for (int i = 1; i <= 5; i++) {
+            verifiedStreamers.add(createProjection("ch_top_" + i));
+        }
+        streamRepository.setTopStreamersWith30dAvg(verifiedStreamers);
+        streamRepository.setTopStreamIdsByConcurrentUserCount(List.of("ch_overflow_1", "ch_overflow_2"));
+
+        List<String> results = targetStreamerService.getActiveTargetChannelIds();
+
+        assertThat(results).hasSize(5);
+        assertThat(results).containsExactly("ch_top_1", "ch_top_2", "ch_top_3", "ch_top_4", "ch_top_5");
+    }
+
+    @Test
+    void 원래_비활성이었던_타겟을_제외했다가_복구하면_비활성_상태를_유지한다() {
+        TargetStreamerEntity inactiveCustom = new TargetStreamerEntity("ch_inactive", "휴식 스트리머", TargetType.CUSTOM, false);
+        targetStreamerRepository.save(inactiveCustom);
+
+        // 제외 등록
+        targetStreamerService.excludeStreamer("ch_inactive", "휴식 스트리머", "임시 격리", Instant.now().plus(10, ChronoUnit.DAYS));
+
+        // 복구 수행
+        targetStreamerService.restoreStreamer("ch_inactive");
+
+        TargetStreamerEntity restored = targetStreamerRepository.findByChannelId("ch_inactive").orElseThrow();
+        assertThat(restored.getTargetType()).isEqualTo(TargetType.CUSTOM);
+        assertThat(restored.isActive()).isFalse(); // 강제로 true가 되지 않고 원래 상태인 false 유지
+        assertThat(restored.getPreviousTargetType()).isNull();
+        assertThat(restored.getPreviousIsActive()).isNull();
+    }
+
+    @Test
+    void 제외_기간이_자연_만료된_STATIC_타겟은_수동_복구_없이도_자동으로_고정_타겟_목록에_복귀한다() {
+        TargetStreamerEntity official = new TargetStreamerEntity("ch_official", "공식 채널", TargetType.STATIC, true);
+        targetStreamerRepository.save(official);
+
+        // 1일 전에 만료된 임시 제외 등록
+        targetStreamerService.excludeStreamer("ch_official", "공식 채널", "과거 이벤트", Instant.now().minus(1, ChronoUnit.DAYS));
+
+        // 동적 조회 결과가 비어있어도, 자연 만료된 STATIC 타겟은 고정 타겟 목록으로 자동 복귀해야 함
+        streamRepository.setTopStreamersWith30dAvg(Collections.emptyList());
+        streamRepository.setTopStreamIdsByConcurrentUserCount(Collections.emptyList());
+
+        List<String> results = targetStreamerService.getActiveTargetChannelIds();
+
+        assertThat(results).contains("ch_official");
     }
 
     private StreamerLeaderboardProjection createProjection(String streamId) {

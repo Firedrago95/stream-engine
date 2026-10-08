@@ -33,6 +33,13 @@ public class FakeHighlightEventRepository implements JpaHighlightEventRepository
     }
 
     @Override
+    public long countByStartTimeAfter(Instant threshold) {
+        return storage.values().stream()
+            .filter(h -> h.getStartTime() != null && h.getStartTime().isAfter(threshold))
+            .count();
+    }
+
+    @Override
     public List<HighlightEventEntity> findAllByStreamIdAndSessionId(String streamId, String sessionId) {
         return storage.values().stream()
             .filter(h -> Objects.equals(h.getStreamId(), streamId) && Objects.equals(h.getSessionId(), sessionId))

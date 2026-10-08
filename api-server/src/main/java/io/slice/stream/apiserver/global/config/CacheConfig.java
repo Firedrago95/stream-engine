@@ -24,7 +24,7 @@ public class CacheConfig {
         cacheManager.registerCustomCache("targetChannels",
             Caffeine.newBuilder()
                 .maximumSize(1)
-                .expireAfterWrite(25, TimeUnit.HOURS)
+                .expireAfterWrite(30, TimeUnit.MINUTES)
                 .build());
 
         return cacheManager;

@@ -36,4 +36,6 @@ public interface StreamRepository {
     List<StreamEntity> findTopFollowers(Pageable pageable);
 
     List<StreamerFollowerGrowthProjection> findTopFollowerGrowth(LocalDate sinceDate, int limit);
+
+    List<String> findTopStreamIdsByConcurrentUserCount(Instant since, Pageable pageable);
 }
