@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -97,6 +98,7 @@ public class TargetStreamerService {
     }
 
     @Transactional
+    @CacheEvict(value = "targetChannels", allEntries = true)
     public void excludeStreamer(String channelId, String streamerName, String reason, Instant expiresAt) {
         TargetStreamerEntity entity = targetStreamerRepository.findByChannelId(channelId)
             .orElseGet(() -> new TargetStreamerEntity(
@@ -114,6 +116,7 @@ public class TargetStreamerService {
     }
 
     @Transactional
+    @CacheEvict(value = "targetChannels", allEntries = true)
     public void restoreStreamer(String channelId) {
         targetStreamerRepository.findByChannelId(channelId).ifPresent(entity -> {
             entity.restore();

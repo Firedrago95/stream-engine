@@ -111,6 +111,10 @@ public class TargetStreamerEntity {
     }
 
     public void restore() {
+        if (this.targetType != TargetType.EXCLUDED) {
+            return;
+        }
+
         if (this.previousTargetType != null) {
             this.targetType = this.previousTargetType;
             this.isActive = this.previousIsActive != null ? this.previousIsActive : true;

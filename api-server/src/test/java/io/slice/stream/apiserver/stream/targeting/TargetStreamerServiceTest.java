@@ -142,6 +142,24 @@ class TargetStreamerServiceTest {
     }
 
     @Test
+    void 복구_요청을_두_번_연속_호출해도_타겟_상태가_비활성화되지_않고_유지된다() {
+        TargetStreamerEntity official = new TargetStreamerEntity("ch_official", "공식 채널", TargetType.STATIC, true);
+        targetStreamerRepository.save(official);
+
+        targetStreamerService.excludeStreamer("ch_official", "공식 채널", "임시 제외", Instant.now().plus(10, ChronoUnit.DAYS));
+
+        // 1번째 복구
+        targetStreamerService.restoreStreamer("ch_official");
+        // 2번째 중복 복구 (네트워크 재시도 또는 더블클릭)
+        targetStreamerService.restoreStreamer("ch_official");
+
+        TargetStreamerEntity restored = targetStreamerRepository.findByChannelId("ch_official").orElseThrow();
+        assertThat(restored.getTargetType()).isEqualTo(TargetType.STATIC);
+        assertThat(restored.isActive()).isTrue();
+        assertThat(targetStreamerService.getActiveTargetChannelIds()).contains("ch_official");
+    }
+
+    @Test
     void 동적_시스템_설정으로_타겟_인원수가_변경되면_해당_제한에_맞춰_타겟을_수집한다() {
         systemConfigRepository.save(new SystemConfigEntity("targeting.limit", "5", "목표 인원", "TARGETING"));
 
