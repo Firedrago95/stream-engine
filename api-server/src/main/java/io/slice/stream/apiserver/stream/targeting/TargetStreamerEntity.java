@@ -54,8 +54,12 @@ public class TargetStreamerEntity {
     @Column(name = "expires_at")
     private Instant expiresAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "previous_target_type", length = 20)
+    private TargetType previousTargetType;
+
     public TargetStreamerEntity(String channelId, String streamerName, TargetType targetType, boolean isActive) {
-        this(channelId, streamerName, targetType, isActive, null, null);
+        this(channelId, streamerName, targetType, isActive, null, null, null);
     }
 
     public TargetStreamerEntity(
@@ -66,17 +70,33 @@ public class TargetStreamerEntity {
         String reason,
         Instant expiresAt
     ) {
+        this(channelId, streamerName, targetType, isActive, reason, expiresAt, null);
+    }
+
+    public TargetStreamerEntity(
+        String channelId,
+        String streamerName,
+        TargetType targetType,
+        boolean isActive,
+        String reason,
+        Instant expiresAt,
+        TargetType previousTargetType
+    ) {
         this.channelId = channelId;
         this.streamerName = streamerName;
         this.targetType = targetType;
         this.isActive = isActive;
         this.reason = reason;
         this.expiresAt = expiresAt;
+        this.previousTargetType = previousTargetType;
         this.createdAt = Instant.now();
         this.updatedAt = Instant.now();
     }
 
     public void exclude(String reason, Instant expiresAt) {
+        if (this.targetType != TargetType.EXCLUDED) {
+            this.previousTargetType = this.targetType;
+        }
         this.targetType = TargetType.EXCLUDED;
         this.isActive = true;
         this.reason = reason;
@@ -85,7 +105,15 @@ public class TargetStreamerEntity {
     }
 
     public void restore() {
-        this.isActive = false;
+        if (this.previousTargetType != null) {
+            this.targetType = this.previousTargetType;
+            this.isActive = true;
+            this.previousTargetType = null;
+        } else {
+            this.isActive = false;
+        }
+        this.reason = null;
+        this.expiresAt = null;
         this.updatedAt = Instant.now();
     }
 

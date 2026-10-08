@@ -22,12 +22,17 @@ class SystemConfigServiceTest {
     }
 
     @Test
-    void 설정값이_존재하지_않으면_기본값을_반환한다() {
+    void 설정값이_존재하지_않으면_기본값을_반환하고_기본값은_캐싱되지_않는다() {
         int limit = systemConfigService.getInt("targeting.limit", 300);
         String val = systemConfigService.get("unknown.key", "default_val");
 
         assertThat(limit).isEqualTo(300);
         assertThat(val).isEqualTo("default_val");
+
+        // 기본값 호출 후 DB에 새로 값이 추가되면, 캐시 오염 없이 DB의 최신 값이 조회되어야 한다
+        systemConfigRepository.save(new SystemConfigEntity("unknown.key", "new_db_val", "설명", "COMMON"));
+        String updatedVal = systemConfigService.get("unknown.key", "default_val");
+        assertThat(updatedVal).isEqualTo("new_db_val");
     }
 
     @Test

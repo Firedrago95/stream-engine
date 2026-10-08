@@ -71,4 +71,28 @@ class AdminAuthFilterTest {
 
         assertThat(response.getStatus()).isEqualTo(200);
     }
+
+    @Test
+    void 컨텍스트_패스가_존재해도_미인증_관리자_API_요청은_401로_차단된다() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/app/api/v1/admin/metrics/overview");
+        request.setContextPath("/app");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain filterChain = new MockFilterChain();
+
+        adminAuthFilter.doFilterInternal(request, response, filterChain);
+
+        assertThat(response.getStatus()).isEqualTo(401);
+    }
+
+    @Test
+    void 컨텍스트_패스가_존재해도_로그인_경로는_토큰_없이_통과한다() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/app/api/v1/admin/auth/login");
+        request.setContextPath("/app");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain filterChain = new MockFilterChain();
+
+        adminAuthFilter.doFilterInternal(request, response, filterChain);
+
+        assertThat(response.getStatus()).isEqualTo(200);
+    }
 }

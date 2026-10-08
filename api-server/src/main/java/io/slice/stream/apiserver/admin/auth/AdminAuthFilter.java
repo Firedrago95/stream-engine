@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.UrlPathHelper;
 
 @Slf4j
 @Component
@@ -24,6 +25,7 @@ public class AdminAuthFilter extends OncePerRequestFilter {
 
     private final AdminAuthService adminAuthService;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
+    private final UrlPathHelper urlPathHelper = new UrlPathHelper();
 
     @Override
     protected void doFilterInternal(
@@ -31,7 +33,7 @@ public class AdminAuthFilter extends OncePerRequestFilter {
         HttpServletResponse response,
         FilterChain filterChain
     ) throws ServletException, IOException {
-        String requestPath = request.getRequestURI();
+        String requestPath = urlPathHelper.getPathWithinApplication(request);
 
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             filterChain.doFilter(request, response);

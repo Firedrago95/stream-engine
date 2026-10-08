@@ -1,5 +1,7 @@
 package io.slice.stream.apiserver.admin.auth;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -21,15 +23,16 @@ public class AdminAuthService {
         @Value("${admin.secret-key:${ADMIN_SECRET_KEY:}}") String adminSecretKey
     ) {
         if (adminSecretKey == null || adminSecretKey.isBlank()) {
-            this.adminSecretKey = UUID.randomUUID().toString();
-            log.warn("[Admin] 관리자 시크릿 키(ADMIN_SECRET_KEY)가 설정되지 않아 임의 생성 키가 적용되었습니다: {}", this.adminSecretKey);
-        } else {
-            this.adminSecretKey = adminSecretKey;
+            throw new IllegalStateException("관리자 시크릿 키(admin.secret-key 또는 ADMIN_SECRET_KEY)가 설정되지 않았습니다.");
         }
+        this.adminSecretKey = adminSecretKey.trim();
     }
 
     public String login(String password) {
-        if (password == null || !adminSecretKey.equals(password.trim())) {
+        if (password == null || !MessageDigest.isEqual(
+            adminSecretKey.getBytes(StandardCharsets.UTF_8),
+            password.trim().getBytes(StandardCharsets.UTF_8)
+        )) {
             log.warn("[Admin] 유효하지 않은 관리자 비밀번호 입력 시도");
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
         }
@@ -53,7 +56,7 @@ public class AdminAuthService {
 
         if (Instant.now().isAfter(expiresAt)) {
             tokenStorage.remove(token);
-            log.info("[Admin] 만료된 관리자 세션 토큰 제거: {}", token);
+            log.info("[Admin] 만료된 관리자 세션 토큰 제거 완료");
             return false;
         }
 

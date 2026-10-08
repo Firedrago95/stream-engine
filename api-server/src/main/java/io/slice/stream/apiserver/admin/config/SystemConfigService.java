@@ -7,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 @Service
@@ -30,14 +32,15 @@ public class SystemConfigService {
             return cached;
         }
 
-        String value = systemConfigRepository.findById(key)
-            .map(SystemConfigEntity::getConfigValue)
+        return systemConfigRepository.findById(key)
+            .map(entity -> {
+                String val = entity.getConfigValue();
+                if (val != null) {
+                    cache.put(key, val);
+                }
+                return val;
+            })
             .orElse(defaultValue);
-
-        if (value != null) {
-            cache.put(key, value);
-        }
-        return value;
     }
 
     @Transactional(readOnly = true)
@@ -75,7 +78,18 @@ public class SystemConfigService {
 
         entity.updateValue(newValue);
         systemConfigRepository.save(entity);
-        cache.put(key, newValue);
+
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    cache.remove(key);
+                }
+            });
+        } else {
+            cache.remove(key);
+        }
+
         log.info("[Config] 시스템 파라미터 변경 완료: key={}, newValue={}", key, newValue);
     }
 

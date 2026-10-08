@@ -2,6 +2,9 @@ package io.slice.stream.apiserver.stream.targeting;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.slice.stream.apiserver.admin.config.FakeSystemConfigRepository;
+import io.slice.stream.apiserver.admin.config.SystemConfigEntity;
+import io.slice.stream.apiserver.admin.config.SystemConfigService;
 import io.slice.stream.apiserver.stream.fake.FakeStreamRepository;
 import io.slice.stream.apiserver.stream.fake.FakeTargetStreamerRepository;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardProjection;
@@ -20,13 +23,17 @@ class TargetStreamerServiceTest {
 
     private FakeTargetStreamerRepository targetStreamerRepository;
     private FakeStreamRepository streamRepository;
+    private FakeSystemConfigRepository systemConfigRepository;
+    private SystemConfigService systemConfigService;
     private TargetStreamerService targetStreamerService;
 
     @BeforeEach
     void setUp() {
         targetStreamerRepository = new FakeTargetStreamerRepository();
         streamRepository = new FakeStreamRepository();
-        targetStreamerService = new TargetStreamerService(targetStreamerRepository, streamRepository);
+        systemConfigRepository = new FakeSystemConfigRepository();
+        systemConfigService = new SystemConfigService(systemConfigRepository);
+        targetStreamerService = new TargetStreamerService(targetStreamerRepository, streamRepository, systemConfigService);
     }
 
     @Test
@@ -108,6 +115,47 @@ class TargetStreamerServiceTest {
         List<String> results = targetStreamerService.getActiveTargetChannelIds();
 
         assertThat(results).contains("ch_official", "ch_expired_event");
+    }
+
+    @Test
+    void 제외된_STATIC_공식_채널을_복구하면_원본_타입과_함께_타겟_목록으로_복귀한다() {
+        TargetStreamerEntity official = new TargetStreamerEntity("ch_official", "공식 채널", TargetType.STATIC, true);
+        targetStreamerRepository.save(official);
+
+        // 1. 제외 처리
+        targetStreamerService.excludeStreamer("ch_official", "공식 채널", "임시 제외", Instant.now().plus(10, ChronoUnit.DAYS));
+        assertThat(targetStreamerService.getActiveTargetChannelIds()).doesNotContain("ch_official");
+
+        // 2. 복구 처리
+        targetStreamerService.restoreStreamer("ch_official");
+
+        // 엔티티 원본 타입 복원 및 사유/만료일 초기화 검증
+        TargetStreamerEntity restored = targetStreamerRepository.findByChannelId("ch_official").orElseThrow();
+        assertThat(restored.getTargetType()).isEqualTo(TargetType.STATIC);
+        assertThat(restored.isActive()).isTrue();
+        assertThat(restored.getPreviousTargetType()).isNull();
+        assertThat(restored.getReason()).isNull();
+        assertThat(restored.getExpiresAt()).isNull();
+
+        // 타겟 목록 재조회 시 포함 확인
+        assertThat(targetStreamerService.getActiveTargetChannelIds()).contains("ch_official");
+    }
+
+    @Test
+    void 동적_시스템_설정으로_타겟_인원수가_변경되면_해당_제한에_맞춰_타겟을_수집한다() {
+        systemConfigRepository.save(new SystemConfigEntity("targeting.limit", "5", "목표 인원", "TARGETING"));
+
+        List<StreamerLeaderboardProjection> verifiedStreamers = new ArrayList<>();
+        for (int i = 1; i <= 5; i++) {
+            verifiedStreamers.add(createProjection("ch_top_" + i));
+        }
+        streamRepository.setTopStreamersWith30dAvg(verifiedStreamers);
+        streamRepository.setTopStreamIdsByConcurrentUserCount(List.of("ch_overflow_1", "ch_overflow_2"));
+
+        List<String> results = targetStreamerService.getActiveTargetChannelIds();
+
+        assertThat(results).hasSize(5);
+        assertThat(results).containsExactly("ch_top_1", "ch_top_2", "ch_top_3", "ch_top_4", "ch_top_5");
     }
 
     private StreamerLeaderboardProjection createProjection(String streamId) {
