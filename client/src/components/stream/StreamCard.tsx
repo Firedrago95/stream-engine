@@ -60,15 +60,40 @@ export const StreamCard: React.FC<{ stream: StreamItem }> = ({ stream }) => {
                     {stream.categoryName || '카테고리 없음'}
                   </span>
 
-                  {/* 시청자 수가 1명 이상일 때만 치지직 스타일로 표시 */}
-                  {(stream.concurrentUserCount ?? 0) > 0 && (
-                      <div className="flex items-center gap-1.5 ml-auto shrink-0">
+                  {/* 시청자 수 및 치지직 라이브 바로가기 링크 */}
+                  <div className="flex items-center gap-2 ml-auto shrink-0">
+                    {(stream.concurrentUserCount ?? 0) > 0 && (
+                      <div className="flex items-center gap-1.5">
                         <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
                         <span className="text-red-500 text-[11px] sm:text-sm font-black tracking-tight">
-                        {stream.concurrentUserCount?.toLocaleString()}
-                      </span>
+                          {stream.concurrentUserCount?.toLocaleString()}
+                        </span>
                       </div>
-                  )}
+                    )}
+
+                    <a
+                      href={`https://chzzk.naver.com/live/${stream.streamId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      title="치지직 라이브 바로가기 (새 탭)"
+                      className="p-1 sm:p-1.5 rounded-lg bg-[#141416] hover:bg-[#00FFA3]/15 border border-gray-700 hover:border-[#00FFA3]/60 text-gray-400 hover:text-[#00FFA3] transition-all flex items-center justify-center group/btn"
+                    >
+                      <svg
+                        className="w-3.5 h-3.5 transform group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                        />
+                      </svg>
+                    </a>
+                  </div>
                 </>
             )}
           </div>

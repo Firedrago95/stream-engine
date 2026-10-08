@@ -80,16 +80,43 @@ export const StreamProfileHeader: React.FC<Props> = ({
         </div>
       </div>
 
-      <button
-        onClick={() => navigate(`/streamers/${streamId}`)}
-        className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-[#26262b] hover:bg-[#00FFA3]/15 text-gray-200 hover:text-[#00FFA3] border border-gray-700 hover:border-[#00FFA3]/40 rounded-xl text-xs font-bold transition-all shrink-0 group"
-        title={`${streamerName || '스트리머'} 리포트로 이동`}
-      >
-        <span>📊 스트리머 리포트</span>
-        <svg className="w-3.5 h-3.5 transform group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-      </button>
+      <div className="flex items-center gap-2 shrink-0">
+        {isLive && (
+          <a
+            href={`https://chzzk.naver.com/live/${streamId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 sm:py-2.5 bg-[#00FFA3]/10 hover:bg-[#00FFA3]/20 text-[#00FFA3] border border-[#00FFA3]/40 hover:border-[#00FFA3] rounded-xl text-xs font-bold transition-all shadow-[0_0_12px_rgba(0,255,163,0.1)] group"
+            title="치지직 공식 라이브 방송 시청하기 (새 탭)"
+          >
+            <span>📺 치지직 바로보기</span>
+            <svg
+              className="w-3.5 h-3.5 transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+              />
+            </svg>
+          </a>
+        )}
+
+        <button
+          onClick={() => navigate(`/streamers/${streamId}`)}
+          className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-[#26262b] hover:bg-[#00FFA3]/15 text-gray-200 hover:text-[#00FFA3] border border-gray-700 hover:border-[#00FFA3]/40 rounded-xl text-xs font-bold transition-all shrink-0 group"
+          title={`${streamerName || '스트리머'} 리포트로 이동`}
+        >
+          <span>📊 스트리머 리포트</span>
+          <svg className="w-3.5 h-3.5 transform group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 };
