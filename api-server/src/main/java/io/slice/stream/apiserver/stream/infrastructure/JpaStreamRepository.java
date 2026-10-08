@@ -19,6 +19,8 @@ public interface JpaStreamRepository extends JpaRepository<StreamEntity, Long> {
 
     Optional<StreamEntity> findByStreamId(String streamId);
 
+    long countByIsLiveTrue();
+
     @Modifying
     @Query("""
         UPDATE StreamEntity s 

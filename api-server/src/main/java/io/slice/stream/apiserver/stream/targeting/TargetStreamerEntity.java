@@ -48,12 +48,52 @@ public class TargetStreamerEntity {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
+    @Column(name = "reason", length = 255)
+    private String reason;
+
+    @Column(name = "expires_at")
+    private Instant expiresAt;
+
     public TargetStreamerEntity(String channelId, String streamerName, TargetType targetType, boolean isActive) {
+        this(channelId, streamerName, targetType, isActive, null, null);
+    }
+
+    public TargetStreamerEntity(
+        String channelId,
+        String streamerName,
+        TargetType targetType,
+        boolean isActive,
+        String reason,
+        Instant expiresAt
+    ) {
         this.channelId = channelId;
         this.streamerName = streamerName;
         this.targetType = targetType;
         this.isActive = isActive;
+        this.reason = reason;
+        this.expiresAt = expiresAt;
         this.createdAt = Instant.now();
         this.updatedAt = Instant.now();
+    }
+
+    public void exclude(String reason, Instant expiresAt) {
+        this.targetType = TargetType.EXCLUDED;
+        this.isActive = true;
+        this.reason = reason;
+        this.expiresAt = expiresAt;
+        this.updatedAt = Instant.now();
+    }
+
+    public void restore() {
+        this.isActive = false;
+        this.updatedAt = Instant.now();
+    }
+
+    public boolean isExpired(Instant now) {
+        return expiresAt != null && expiresAt.isBefore(now);
+    }
+
+    public boolean isEffectiveExcluded(Instant now) {
+        return targetType == TargetType.EXCLUDED && isActive && !isExpired(now);
     }
 }

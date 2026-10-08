@@ -93,4 +93,9 @@ public class StreamRepositoryImpl implements StreamRepository {
     public List<StreamerFollowerGrowthProjection> findTopFollowerGrowth(LocalDate sinceDate, int limit) {
         return jpaStreamRepository.findTopFollowerGrowth(sinceDate, limit);
     }
+
+    @Override
+    public List<String> findTopStreamIdsByConcurrentUserCount(Instant since, Pageable pageable) {
+        return jpaStreamRepository.findTopStreamIdsByConcurrentUserCount(since, pageable);
+    }
 }
