@@ -17,6 +17,8 @@ public interface JpaHighlightEventRepository extends JpaRepository<HighlightEven
         @Param("status") String status
     );
 
+    long countByStartTimeAfter(Instant threshold);
+
     @Query("SELECT h FROM HighlightEventEntity h WHERE h.streamId = :streamId AND h.sessionId = :sessionId")
     List<HighlightEventEntity> findAllByStreamIdAndSessionId(@Param("streamId") String streamId, @Param("sessionId") String sessionId);
 

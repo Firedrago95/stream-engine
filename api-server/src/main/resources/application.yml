@@ -89,5 +89,9 @@ session:
   noise-threshold: 5m           # 유효 방송 최소 지속 시간 (미만 노이즈 필터링)
   recent-fetch-limit: 50        # 연관 세션 탐색 한도
 
+admin:
+  secret-key: ${ADMIN_SECRET_KEY:}
+
+
 
 

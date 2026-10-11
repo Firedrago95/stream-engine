@@ -2,41 +2,33 @@ package io.slice.stream.apiserver.streamer.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
 
 import io.slice.stream.apiserver.global.error.BusinessException;
 import io.slice.stream.apiserver.global.error.ErrorCode;
-import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
+import io.slice.stream.apiserver.stream.fake.FakeStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerCalendarResponse;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerCalendarResponse.CalendarSessionDto;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class StreamerCalendarQueryServiceTest {
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final Instant FIXED_NOW = Instant.parse("2026-09-18T10:00:00Z");
 
-    @Mock
-    private JpaStreamSessionRepository sessionRepository;
-
+    private FakeStreamSessionRepository sessionRepository;
     private StreamerCalendarQueryService calendarQueryService;
 
     @BeforeEach
     void setUp() {
+        sessionRepository = new FakeStreamSessionRepository();
         Clock fixedClock = Clock.fixed(FIXED_NOW, KST);
         calendarQueryService = new StreamerCalendarQueryService(sessionRepository, fixedClock);
     }
@@ -47,17 +39,13 @@ class StreamerCalendarQueryServiceTest {
         int year = 2026;
         int month = 9;
 
-        Instant rangeStart = Instant.parse("2026-08-31T15:00:00Z"); // 2026-09-01 00:00:00 KST
-        Instant rangeEnd = Instant.parse("2026-09-30T15:00:00Z");   // 2026-10-01 00:00:00 KST
-
         StreamSessionEntity session = new StreamSessionEntity(
             channelId, "sess-1", "정규 방송", "리그 오브 레전드",
             Instant.parse("2026-09-10T11:23:00Z")
         );
         session.finishSession(Instant.parse("2026-09-10T21:59:00Z"), 5000, 3000.0);
 
-        when(sessionRepository.findSessionsOverlapping(eq(channelId), eq(rangeStart), eq(rangeEnd)))
-            .thenReturn(List.of(session));
+        sessionRepository.addSession(session);
 
         StreamerCalendarResponse response = calendarQueryService.getMonthlyCalendar(channelId, year, month);
 
@@ -82,9 +70,6 @@ class StreamerCalendarQueryServiceTest {
         int year = 2026;
         int month = 9;
 
-        Instant rangeStart = Instant.parse("2026-08-31T15:00:00Z");
-        Instant rangeEnd = Instant.parse("2026-09-30T15:00:00Z");
-
         // 290초 (4분 50초) 방송 후 종료된 노이즈 세션
         StreamSessionEntity noiseSession = new StreamSessionEntity(
             channelId, "noise-sess", "잠깐 킴", "Just Chatting",
@@ -99,8 +84,8 @@ class StreamerCalendarQueryServiceTest {
         );
         validSession.finishSession(Instant.parse("2026-09-11T06:05:00Z"), 200, 100.0);
 
-        when(sessionRepository.findSessionsOverlapping(eq(channelId), eq(rangeStart), eq(rangeEnd)))
-            .thenReturn(List.of(noiseSession, validSession));
+        sessionRepository.addSession(noiseSession);
+        sessionRepository.addSession(validSession);
 
         StreamerCalendarResponse response = calendarQueryService.getMonthlyCalendar(channelId, year, month);
 
@@ -114,17 +99,13 @@ class StreamerCalendarQueryServiceTest {
         int year = 2026;
         int month = 9;
 
-        Instant rangeStart = Instant.parse("2026-08-31T15:00:00Z");
-        Instant rangeEnd = Instant.parse("2026-09-30T15:00:00Z");
-
         // 방금 1분 전에 켜서 아직 진행 중인 라이브 세션 (endedAt == null)
         StreamSessionEntity liveSession = new StreamSessionEntity(
             channelId, "live-sess", "방금 킨 방송", "파이어 엠블렘",
             FIXED_NOW.minusSeconds(60)
         );
 
-        when(sessionRepository.findSessionsOverlapping(eq(channelId), eq(rangeStart), eq(rangeEnd)))
-            .thenReturn(List.of(liveSession));
+        sessionRepository.addSession(liveSession);
 
         StreamerCalendarResponse response = calendarQueryService.getMonthlyCalendar(channelId, year, month);
 
@@ -167,9 +148,6 @@ class StreamerCalendarQueryServiceTest {
         int year = 2026;
         int month = 9;
 
-        Instant rangeStart = Instant.parse("2026-08-31T15:00:00Z");
-        Instant rangeEnd = Instant.parse("2026-09-30T15:00:00Z");
-
         Instant t1 = Instant.parse("2026-09-15T10:00:00Z");
         Instant t1End = t1.plusSeconds(30); // 30초 방송 후 튕김
         Instant t2 = t1End.plusSeconds(120); // 2분 뒤 리방 (6분 이내)
@@ -180,8 +158,8 @@ class StreamerCalendarQueryServiceTest {
         StreamSessionEntity session2 = new StreamSessionEntity(channelId, "sess-2", "2차 리방 방제", "종합게임", t2);
         session2.finishSession(t2.plusSeconds(3600), 3000, 2500.0);
 
-        when(sessionRepository.findSessionsOverlapping(eq(channelId), eq(rangeStart), eq(rangeEnd)))
-            .thenReturn(List.of(session1, session2));
+        sessionRepository.addSession(session1);
+        sessionRepository.addSession(session2);
 
         StreamerCalendarResponse response = calendarQueryService.getMonthlyCalendar(channelId, year, month);
 

@@ -7,6 +7,8 @@ import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
+import io.slice.stream.apiserver.streamer.domain.repository.StreamerFollowerSnapshotRepository;
+import io.slice.stream.apiserver.streamer.infrastructure.entity.StreamerFollowerSnapshotEntity;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerProfileResponse;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerProfileResponse.StreamerCategoryDto;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerProfileResponse.StreamerHeaderDto;
@@ -41,6 +43,7 @@ public class StreamerProfileQueryService {
 
     private final JpaStreamRepository streamRepository;
     private final JpaStreamSessionRepository sessionRepository;
+    private final StreamerFollowerSnapshotRepository snapshotRepository;
     private final StreamerLeaderboardQueryService leaderboardQueryService;
     private final SessionProperties sessionProperties;
     private final Clock clock;
@@ -49,7 +52,7 @@ public class StreamerProfileQueryService {
         JpaStreamRepository streamRepository,
         JpaStreamSessionRepository sessionRepository
     ) {
-        this(streamRepository, sessionRepository, null, new SessionProperties(null, null, 50), Clock.system(KST));
+        this(streamRepository, sessionRepository, null, null, new SessionProperties(null, null, 50), Clock.system(KST));
     }
 
     public StreamerProfileQueryService(
@@ -57,15 +60,16 @@ public class StreamerProfileQueryService {
         JpaStreamSessionRepository sessionRepository,
         Clock clock
     ) {
-        this(streamRepository, sessionRepository, null, new SessionProperties(null, null, 50), clock);
+        this(streamRepository, sessionRepository, null, null, new SessionProperties(null, null, 50), clock);
     }
 
     public StreamerProfileQueryService(
         JpaStreamRepository streamRepository,
         JpaStreamSessionRepository sessionRepository,
-        StreamerLeaderboardQueryService leaderboardQueryService
+        StreamerFollowerSnapshotRepository snapshotRepository,
+        Clock clock
     ) {
-        this(streamRepository, sessionRepository, leaderboardQueryService, new SessionProperties(null, null, 50), Clock.system(KST));
+        this(streamRepository, sessionRepository, snapshotRepository, null, new SessionProperties(null, null, 50), clock);
     }
 
     public StreamerProfileQueryService(
@@ -74,19 +78,31 @@ public class StreamerProfileQueryService {
         StreamerLeaderboardQueryService leaderboardQueryService,
         Clock clock
     ) {
-        this(streamRepository, sessionRepository, leaderboardQueryService, new SessionProperties(null, null, 50), clock);
+        this(streamRepository, sessionRepository, null, leaderboardQueryService, new SessionProperties(null, null, 50), clock);
+    }
+
+    public StreamerProfileQueryService(
+        JpaStreamRepository streamRepository,
+        JpaStreamSessionRepository sessionRepository,
+        StreamerFollowerSnapshotRepository snapshotRepository,
+        StreamerLeaderboardQueryService leaderboardQueryService,
+        Clock clock
+    ) {
+        this(streamRepository, sessionRepository, snapshotRepository, leaderboardQueryService, new SessionProperties(null, null, 50), clock);
     }
 
     @Autowired
     public StreamerProfileQueryService(
         JpaStreamRepository streamRepository,
         JpaStreamSessionRepository sessionRepository,
+        StreamerFollowerSnapshotRepository snapshotRepository,
         StreamerLeaderboardQueryService leaderboardQueryService,
         SessionProperties sessionProperties,
         Clock clock
     ) {
         this.streamRepository = streamRepository;
         this.sessionRepository = sessionRepository;
+        this.snapshotRepository = snapshotRepository;
         this.leaderboardQueryService = leaderboardQueryService;
         this.sessionProperties = sessionProperties;
         this.clock = clock;
@@ -99,19 +115,20 @@ public class StreamerProfileQueryService {
         LocalDate today = LocalDate.now(clock.withZone(KST));
         LocalDate start30d = today.minusDays(DAYS_30 - 1L);
         Instant start30dInstant = start30d.atStartOfDay(KST).toInstant();
-        Instant start7dInstant = today.minusDays(DAYS_7 - 1L).atStartOfDay(KST).toInstant();
 
         List<StreamSessionEntity> sessions30d = sessionRepository.findSessionsOverlapping(channelId, start30dInstant, now);
 
         boolean isLive = isStreamLive(stream, now);
-        SessionKpiAccumulator kpi = aggregateSessions(sessions30d, start30dInstant, start7dInstant, start30d, today, now, isLive);
+        SessionKpiAccumulator kpi = aggregateSessions(sessions30d, start30dInstant, start30d, today, now, isLive);
 
         Optional<Integer> cachedAverageViewers = leaderboardQueryService != null
             ? leaderboardQueryService.getCachedAverageViewers(channelId)
             : Optional.empty();
 
-        StreamerHeaderDto header = buildHeader(stream, isLive, kpi.followerGrowth7d(), kpi.followerGrowth30d());
-        StreamerKpiSummaryDto summary = buildKpiSummary(kpi, cachedAverageViewers);
+        FollowerGrowthDto followerGrowth = calculateFollowerGrowth(channelId, stream, today);
+
+        StreamerHeaderDto header = buildHeader(stream, isLive, followerGrowth.growth7d(), followerGrowth.growth30d());
+        StreamerKpiSummaryDto summary = buildKpiSummary(kpi, followerGrowth.growth30d(), cachedAverageViewers);
         List<StreamerCategoryDto> mostPlayedCategories = calculateMostPlayedCategories(sessions30d, start30dInstant, now);
 
         log.debug("스트리머 프로필 및 요약 통계 조회 완료: channelId={}", channelId);
@@ -131,14 +148,11 @@ public class StreamerProfileQueryService {
     private SessionKpiAccumulator aggregateSessions(
         List<StreamSessionEntity> sessions,
         Instant start30dInstant,
-        Instant start7dInstant,
         LocalDate start30d,
         LocalDate today,
         Instant now,
         boolean isLive
     ) {
-        int followerGrowth30d = 0;
-        int followerGrowth7d = 0;
         Set<LocalDate> broadcastDates = new HashSet<>();
         long totalDuration = 0L;
         long totalWeightedDurationSeconds = 0L;
@@ -167,14 +181,6 @@ public class StreamerProfileQueryService {
                 totalWeightedDurationSeconds += dur;
             }
 
-            Integer fGrowth = session.getSessionFollowerGrowth();
-            if (fGrowth != null) {
-                followerGrowth30d += fGrowth;
-                if (!sStart.isBefore(start7dInstant)) {
-                    followerGrowth7d += fGrowth;
-                }
-            }
-
             accumulateBroadcastDates(broadcastDates, effectiveStart, sEnd, session.getEndedAt() != null, start30d, today);
         }
 
@@ -187,10 +193,59 @@ public class StreamerProfileQueryService {
             totalWeightedDurationSeconds,
             totalWeightedViewerSeconds,
             peakViewers,
-            followerGrowth30d,
-            followerGrowth7d,
             broadcastDates
         );
+    }
+
+    private FollowerGrowthDto calculateFollowerGrowth(String channelId, StreamEntity stream, LocalDate today) {
+        if (snapshotRepository == null) {
+            return new FollowerGrowthDto(0, 0);
+        }
+
+        LocalDate baseline30dDate = today.minusDays(DAYS_30);
+        LocalDate start30d = today.minusDays(DAYS_30 - 1L);
+        LocalDate baseline7dDate = today.minusDays(DAYS_7);
+        LocalDate start7d = today.minusDays(DAYS_7 - 1L);
+
+        List<StreamerFollowerSnapshotEntity> snapshots =
+            snapshotRepository.findAllByStreamIdAndSnapshotDateGreaterThanEqualOrderBySnapshotDateAsc(channelId, baseline30dDate);
+
+        if (snapshots.isEmpty()) {
+            return new FollowerGrowthDto(0, 0);
+        }
+
+        int currentFollowers = stream.getFollowerCount() != null
+            ? stream.getFollowerCount()
+            : snapshots.get(snapshots.size() - 1).getFollowerCount();
+
+        int baseline30dFollowers = resolveBaselineFollowers(snapshots, baseline30dDate, start30d, currentFollowers);
+        int growth30d = currentFollowers - baseline30dFollowers;
+
+        int baseline7dFollowers = resolveBaselineFollowers(snapshots, baseline7dDate, start7d, currentFollowers);
+        int growth7d = currentFollowers - baseline7dFollowers;
+
+        return new FollowerGrowthDto(growth7d, growth30d);
+    }
+
+    private int resolveBaselineFollowers(
+        List<StreamerFollowerSnapshotEntity> snapshots,
+        LocalDate baselineDate,
+        LocalDate periodStartDate,
+        int fallbackFollowers
+    ) {
+        for (StreamerFollowerSnapshotEntity snapshot : snapshots) {
+            if (snapshot.getSnapshotDate().equals(baselineDate)) {
+                return snapshot.getFollowerCount();
+            }
+        }
+
+        for (StreamerFollowerSnapshotEntity snapshot : snapshots) {
+            if (!snapshot.getSnapshotDate().isBefore(periodStartDate)) {
+                return snapshot.getFollowerCount();
+            }
+        }
+
+        return fallbackFollowers;
     }
 
     private void accumulateBroadcastDates(
@@ -229,7 +284,11 @@ public class StreamerProfileQueryService {
         );
     }
 
-    private StreamerKpiSummaryDto buildKpiSummary(SessionKpiAccumulator kpi, Optional<Integer> cachedAverageViewers) {
+    private StreamerKpiSummaryDto buildKpiSummary(
+        SessionKpiAccumulator kpi,
+        int followerGrowth30d,
+        Optional<Integer> cachedAverageViewers
+    ) {
         int broadcastDays30d = kpi.broadcastDates().size();
         double attendanceRate30d = Math.round(((double) broadcastDays30d / DAYS_30 * 100.0) * 10.0) / 10.0;
 
@@ -246,7 +305,7 @@ public class StreamerProfileQueryService {
             kpi.peakViewers(),
             kpi.totalBroadcastDurationSeconds(),
             totalHoursWatched,
-            kpi.followerGrowth30d(),
+            followerGrowth30d,
             broadcastDays30d,
             attendanceRate30d
         );
@@ -320,8 +379,8 @@ public class StreamerProfileQueryService {
         long totalWeightedDurationSeconds,
         double totalWeightedViewerSeconds,
         int peakViewers,
-        int followerGrowth30d,
-        int followerGrowth7d,
         Set<LocalDate> broadcastDates
     ) {}
+
+    private record FollowerGrowthDto(int growth7d, int growth30d) {}
 }

@@ -72,7 +72,15 @@ public class StreamerLeaderboardQueryService {
             return bindRealtimeLiveStatus(searched);
         }
 
-        return cacheRefreshed ? cached : syncRealtimeStatusForCached(cached);
+        Set<String> excludedIds = targetStreamerService.getExcludedChannelIds();
+        List<StreamResponse> nonExcluded = cached;
+        if (!excludedIds.isEmpty()) {
+            nonExcluded = cached.stream()
+                .filter(item -> !excludedIds.contains(item.streamId()))
+                .toList();
+        }
+
+        return cacheRefreshed ? nonExcluded : syncRealtimeStatusForCached(nonExcluded);
     }
 
     public Optional<Integer> getCachedAverageViewers(String channelId) {
@@ -97,6 +105,13 @@ public class StreamerLeaderboardQueryService {
         List<StreamerLeaderboardProjection> topStreamers =
             streamRepository.findTopStreamersWith30dAvg(since, MIN_DAYS, DEFAULT_TOP_LIMIT);
 
+        Set<String> excludedIds = targetStreamerService.getExcludedChannelIds();
+        if (!excludedIds.isEmpty() && topStreamers != null) {
+            topStreamers = topStreamers.stream()
+                .filter(item -> !excludedIds.contains(item.getStreamId()))
+                .toList();
+        }
+
         List<StreamResponse> calculated = new ArrayList<>(bindRealtimeLiveStatus(topStreamers));
 
         if (calculated.size() < DEFAULT_TOP_LIMIT) {
@@ -115,6 +130,8 @@ public class StreamerLeaderboardQueryService {
         Set<String> existingIds = calculated.stream()
             .map(StreamResponse::streamId)
             .collect(Collectors.toSet());
+        Set<String> excludedIds = targetStreamerService.getExcludedChannelIds();
+        existingIds.addAll(excludedIds);
 
         Instant threshold = Instant.now().minus(3, ChronoUnit.MINUTES);
         Instant signalThreshold = Instant.now().minus(5, ChronoUnit.MINUTES);

@@ -43,7 +43,7 @@ const formatDate = (isoString: string) => {
     const hours = d.getHours().toString().padStart(2, '0');
     const mins = d.getMinutes().toString().padStart(2, '0');
     return `${m}.${day} ${hours}:${mins}`;
-  } catch (e) {
+  } catch {
     return '--';
   }
 };
@@ -127,19 +127,12 @@ export const StreamerSessionList: React.FC<StreamerSessionListProps> = ({
               <div className="text-right">
                 <p className="text-[10.5px] text-gray-100 font-medium">평균 / 최고</p>
                 <p className="font-bold text-gray-100">
-                  <span className="text-[#67BFFF]">{sess.avgViewers.toLocaleString()}</span> /{' '}
+                  <span className="text-[#67BFFF]">
+                    {!sess.endedAt ? '-' : sess.avgViewers > 0 ? sess.avgViewers.toLocaleString() : '-'}
+                  </span> /{' '}
                   <span className="text-[#A78BFA]">{sess.peakViewers.toLocaleString()}</span>
                 </p>
               </div>
-
-              {sess.followerGrowth !== null && sess.followerGrowth !== undefined && (
-                <div className="text-right">
-                  <p className="text-[10.5px] text-gray-100 font-medium">팔로워</p>
-                  <p className={`font-bold ${sess.followerGrowth >= 0 ? 'text-[#00FFA3]' : 'text-rose-400'}`}>
-                    {sess.followerGrowth >= 0 ? `+${sess.followerGrowth}` : sess.followerGrowth}
-                  </p>
-                </div>
-              )}
 
               {sess.subscriberChatRatio !== null && sess.subscriberChatRatio !== undefined && (
                 <div className="text-right">

@@ -1,6 +1,8 @@
 package io.slice.stream.apiserver.streamer.presentation;
 
 import io.slice.stream.apiserver.streamer.application.StreamerFollowerQueryService;
+import io.slice.stream.apiserver.streamer.application.dto.FollowerRankingResponse;
+import io.slice.stream.apiserver.streamer.application.dto.FollowerRankingType;
 import io.slice.stream.apiserver.streamer.application.dto.FollowerTrendResponse;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -28,5 +30,15 @@ public class StreamerFollowerQueryController {
         log.info("[Streamer Follower] 팔로워 추이 조회 요청. channelId: {}, days: {}", channelId, days);
         List<FollowerTrendResponse> trend = followerQueryService.getFollowerTrend(channelId, days);
         return ResponseEntity.ok(trend);
+    }
+
+    @GetMapping("/leaderboard/followers")
+    public ResponseEntity<List<FollowerRankingResponse>> getFollowerLeaderboard(
+        @RequestParam(required = false, defaultValue = "GROWTH") FollowerRankingType type,
+        @RequestParam(required = false, defaultValue = "20") int limit
+    ) {
+        log.info("[Streamer Follower] 팔로워 랭킹 리더보드 조회 요청. type: {}, limit: {}", type, limit);
+        List<FollowerRankingResponse> leaderboard = followerQueryService.getFollowerLeaderboard(type, limit);
+        return ResponseEntity.ok(leaderboard);
     }
 }

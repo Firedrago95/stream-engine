@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="cheeseTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FACC15" />
+      <stop offset="100%" stop-color="#EAB308" />
+    </linearGradient>
+    <linearGradient id="neonPick" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00FFA3" />
+      <stop offset="100%" stop-color="#10B981" />
+    </linearGradient>
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- 다크 라운드 사각 배경 -->
+  <rect width="512" height="512" rx="112" fill="#141416" />
+
+  <!-- 치즈 웨지 본체 -->
+  <!-- 윗면 -->
+  <polygon points="100,310 270,150 410,220 230,350" fill="url(#cheeseTop)" />
+  <!-- 앞면 -->
+  <polygon points="100,310 230,350 230,395 100,355" fill="#CA8A04" />
+  <!-- 옆면 -->
+  <polygon points="230,350 410,220 410,265 230,395" fill="#A16207" />
+
+  <!-- 치즈 구멍들 -->
+  <circle cx="210" cy="270" r="32" fill="#1F2937" opacity="0.85" />
+  <circle cx="320" cy="230" r="24" fill="#1F2937" opacity="0.85" />
+  <circle cx="280" cy="305" r="20" fill="#1F2937" opacity="0.85" />
+  <circle cx="160" cy="335" r="14" fill="#1F2937" opacity="0.85" />
+
+  <!-- 네온 그린 PICK 심볼 (스트림 엔진/재생 마크) -->
+  <polygon points="300,110 435,185 325,235" fill="url(#neonPick)" filter="url(#neonGlow)" />
+</svg>
