@@ -1,7 +1,4 @@
 <div align="center">
-  <h1>
-    <img src="./client/public/cheese-pick-logo.png" alt="치즈픽 로고" width="60" align="absmiddle" />치즈픽 (Cheese-Pick)
-  </h1>
   <p>
     <b>🚀 실시간 스트림 시계열 종합 통계 및 분석 엔진</b> <br/>
     <a href="https://cheesepick.me">cheesepick.me 바로가기</a>
