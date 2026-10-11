@@ -4,6 +4,7 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -40,6 +41,13 @@ public class CollectorConfig {
     @Primary
     public Executor virtualThreadExecutor() {
         return Executors.newVirtualThreadPerTaskExecutor();
+    }
+
+    @Bean(destroyMethod = "shutdown")
+    public ScheduledExecutorService pingScheduler() {
+        return Executors.newSingleThreadScheduledExecutor(
+            runnable -> Thread.ofPlatform().name("ping-scheduler-", 1).daemon().unstarted(runnable)
+        );
     }
 
     @Bean
