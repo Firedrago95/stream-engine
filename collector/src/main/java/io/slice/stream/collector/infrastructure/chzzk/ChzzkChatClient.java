@@ -9,7 +9,7 @@ import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.json.JsonMapper;
@@ -25,7 +25,7 @@ public class ChzzkChatClient implements ChatClient {
     private final JsonMapper jsonMapper;
     private final ChzzkMessageConverter messageConverter;
     private final AtomicReference<WebSocket> webSocketRef = new AtomicReference<>();
-    private final Executor executor;
+    private final ScheduledExecutorService pingScheduler;
     private final String webSocketUrl;
 
     public ChzzkChatClient(
@@ -33,9 +33,9 @@ public class ChzzkChatClient implements ChatClient {
         HttpClient httpClient,
         JsonMapper jsonMapper,
         ChzzkMessageConverter messageConverter,
-        Executor executor
+        ScheduledExecutorService pingScheduler
     ) {
-        this(chzzkApiClient, httpClient, jsonMapper, messageConverter, executor, DEFAULT_WS_URL);
+        this(chzzkApiClient, httpClient, jsonMapper, messageConverter, pingScheduler, DEFAULT_WS_URL);
     }
 
     public ChzzkChatClient(
@@ -43,14 +43,14 @@ public class ChzzkChatClient implements ChatClient {
         HttpClient httpClient,
         JsonMapper jsonMapper,
         ChzzkMessageConverter messageConverter,
-        Executor executor,
+        ScheduledExecutorService pingScheduler,
         String webSocketUrl
     ) {
         this.chzzkApiClient = chzzkApiClient;
         this.httpClient = httpClient;
         this.jsonMapper = jsonMapper;
         this.messageConverter = messageConverter;
-        this.executor = executor;
+        this.pingScheduler = pingScheduler;
         this.webSocketUrl = webSocketUrl != null && !webSocketUrl.isBlank() ? webSocketUrl : DEFAULT_WS_URL;
     }
 
@@ -64,7 +64,7 @@ public class ChzzkChatClient implements ChatClient {
 
         URI uri = new URI(webSocketUrl);
         ChzzkWebSocketListener webSocketListener = new ChzzkWebSocketListener(
-            listener, channelId, chatChannelId, accessToken, jsonMapper, messageConverter, executor
+            listener, channelId, chatChannelId, accessToken, jsonMapper, messageConverter, pingScheduler
         );
 
         httpClient.newWebSocketBuilder()

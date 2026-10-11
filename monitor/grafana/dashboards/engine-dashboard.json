@@ -1060,12 +1060,24 @@
           "editorMode": "code",
           "expr": "jvm_threads_live_threads{job=\"engine-home\"}",
           "instant": false,
-          "legendFormat": "활성 스레드 수",
+          "legendFormat": "Engine",
           "range": true,
-          "refId": "Total Threads"
+          "refId": "Engine"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "grafanacloud-prom"
+          },
+          "editorMode": "code",
+          "expr": "jvm_threads_live_threads{job=\"collector-home\"}",
+          "instant": false,
+          "legendFormat": "Collector",
+          "range": true,
+          "refId": "Collector"
         }
       ],
-      "title": "[JVM] 현재 활성 스레드 전체 수",
+      "title": "[JVM] 현재 활성 스레드 전체 수 (Engine vs Collector)",
       "type": "timeseries"
     },
     {
@@ -1137,12 +1149,24 @@
           "editorMode": "code",
           "expr": "sum by (state) (jvm_threads_states_threads{job=\"engine-home\"})",
           "instant": false,
-          "legendFormat": "__auto",
+          "legendFormat": "Engine - {{state}}",
           "range": true,
-          "refId": "A"
+          "refId": "Engine"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "grafanacloud-prom"
+          },
+          "editorMode": "code",
+          "expr": "sum by (state) (jvm_threads_states_threads{job=\"collector-home\"})",
+          "instant": false,
+          "legendFormat": "Collector - {{state}}",
+          "range": true,
+          "refId": "Collector"
         }
       ],
-      "title": "[JVM] 스레드 상태별 분포",
+      "title": "[JVM] 스레드 상태별 분포 (Engine & Collector)",
       "type": "bargauge"
     },
     {

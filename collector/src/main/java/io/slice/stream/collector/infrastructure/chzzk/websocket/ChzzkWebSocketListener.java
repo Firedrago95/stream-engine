@@ -8,7 +8,9 @@ import java.net.http.WebSocket;
 import java.net.http.WebSocket.Listener;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -23,10 +25,10 @@ public class ChzzkWebSocketListener implements Listener {
     private final JsonMapper jsonMapper;
     private final ChzzkMessageConverter messageConverter;
     private final StringBuilder textBuffer = new StringBuilder();
-    private final Executor executor;
+    private final ScheduledExecutorService pingScheduler;
 
     private WebSocket webSocket;
-    private volatile boolean isRunning = true;
+    private ScheduledFuture<?> pingTask;
 
     public ChzzkWebSocketListener(
         ChatMessageListener messageListener,
@@ -35,7 +37,7 @@ public class ChzzkWebSocketListener implements Listener {
         String accessToken,
         JsonMapper jsonMapper,
         ChzzkMessageConverter messageConverter,
-        Executor executor
+        ScheduledExecutorService pingScheduler
     ) {
         this.messageListener = messageListener;
         this.channelId = channelId;
@@ -43,7 +45,7 @@ public class ChzzkWebSocketListener implements Listener {
         this.accessToken = accessToken;
         this.jsonMapper = jsonMapper;
         this.messageConverter = messageConverter;
-        this.executor = executor;
+        this.pingScheduler = pingScheduler;
     }
 
     @Override
@@ -55,7 +57,7 @@ public class ChzzkWebSocketListener implements Listener {
         log.info("[{}] 웹소켓 연결 성공. 서버 신호 대기 중...", chatChannelId);
 
         requestAuthentication();
-        executor.execute(this::runPingLoop);
+        schedulePing();
     }
 
     @Override
@@ -124,7 +126,7 @@ public class ChzzkWebSocketListener implements Listener {
     @Override
     public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
         log.info("[{}] 웹소켓 연결 종료. 코드: {}, 이유: {}", chatChannelId, statusCode, reason);
-        shutdownScheduler();
+        cancelPing();
         this.messageListener.onDisconnected();
         return Listener.super.onClose(webSocket, statusCode, reason);
     }
@@ -132,28 +134,30 @@ public class ChzzkWebSocketListener implements Listener {
     @Override
     public void onError(WebSocket webSocket, Throwable error) {
         log.error("[{}] 웹소켓 에러 발생: {}", chatChannelId, error.getMessage());
-        shutdownScheduler();
+        cancelPing();
         this.messageListener.onError(error);
         Listener.super.onError(webSocket, error);
     }
 
-    public void runPingLoop() {
-        while (isRunning && !Thread.currentThread().isInterrupted()) {
-            try {
-                Thread.sleep(20_000);
-                sendPing();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
+    private void schedulePing() {
+        this.pingTask = pingScheduler.scheduleAtFixedRate(
+            this::sendPing,
+            20,
+            20,
+            TimeUnit.SECONDS
+        );
+    }
+
+    private void cancelPing() {
+        if (pingTask != null) {
+            pingTask.cancel(true);
         }
     }
 
-    private void shutdownScheduler() {
-        this.isRunning = false;
-    }
-
-    private void sendPing() {
+    void sendPing() {
+        if (webSocket == null) {
+            return;
+        }
         try {
             String pingPacket = "{\"cmd\": 0, \"ver\": 2}";
             this.webSocket.sendText(pingPacket, true);

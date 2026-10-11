@@ -11,6 +11,7 @@ import io.slice.stream.core.model.ChatMessage;
 import io.slice.stream.core.model.StreamTarget;
 import java.net.http.HttpClient;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -25,6 +26,7 @@ public class ChzzkChatCollectorFactory implements ChatCollectorFactory {
     private final JsonMapper jsonMapper;
     private final KafkaTemplate<String, ChatMessage> kafkaTemplate;
     private final Executor executor;
+    private final ScheduledExecutorService pingScheduler;
     private final String mockWebSocketUrl;
     private final String kafkaTopic;
 
@@ -35,6 +37,7 @@ public class ChzzkChatCollectorFactory implements ChatCollectorFactory {
         JsonMapper jsonMapper,
         KafkaTemplate<String, ChatMessage> kafkaTemplate,
         Executor executor,
+        ScheduledExecutorService pingScheduler,
         @Value("${chzzk.websocket.url:}") String mockWebSocketUrl,
         @Value("${kafka.topic.chat:chat-messages}") String kafkaTopic
     ) {
@@ -44,6 +47,7 @@ public class ChzzkChatCollectorFactory implements ChatCollectorFactory {
         this.jsonMapper = jsonMapper;
         this.kafkaTemplate = kafkaTemplate;
         this.executor = executor;
+        this.pingScheduler = pingScheduler;
         this.mockWebSocketUrl = mockWebSocketUrl;
         this.kafkaTopic = kafkaTopic;
     }
@@ -51,7 +55,7 @@ public class ChzzkChatCollectorFactory implements ChatCollectorFactory {
     @Override
     public ChatCollector start(StreamTarget streamTarget) {
         ChatClient chatClient = new ChzzkChatClient(
-            chzzkApiClient, httpClient, jsonMapper, chzzkMessageConverter, executor, mockWebSocketUrl
+            chzzkApiClient, httpClient, jsonMapper, chzzkMessageConverter, pingScheduler, mockWebSocketUrl
         );
 
         ChatMessageListener messageListener = new ChzzkChatCollector(
