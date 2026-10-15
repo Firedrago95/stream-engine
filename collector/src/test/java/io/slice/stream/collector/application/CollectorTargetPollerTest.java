@@ -254,4 +254,48 @@ class CollectorTargetPollerTest {
         FakeChatCollector reconnected = fakeCollectorFactory.getCollector("ch_target_dynamic");
         assertThat(reconnected.isConnected()).isTrue();
     }
+
+    @Test
+    @DisplayName("치지직 API 호출 실패(Timeout 등) 시 기존 활성 수집기를 종료하지 않고 안전하게 유지한다")
+    void preserveActiveCollectorWhenLiveStatusCallFails() {
+        fakeTargetStreamReader.addTarget("ch_target_1");
+        StreamTarget liveTarget = new StreamTarget("ch_target_1", "침착맨", "chat_room_1", 100L, "제목1", 500, "thumb1.jpg", "소통", Instant.now());
+        fakeLiveStatusClient.setOpenStream(liveTarget);
+        poller.pollTargets();
+        assertThat(chatManager.getActiveChannelIds()).contains("ch_target_1");
+        FakeChatCollector collector = fakeCollectorFactory.getCollector("ch_target_1");
+        assertThat(collector.isConnected()).isTrue();
+
+        fakeLiveStatusClient.setFailedChannel("ch_target_1");
+        poller.pollTargets();
+
+        assertThat(chatManager.getActiveChannelIds()).contains("ch_target_1");
+        assertThat(collector.isConnected()).isTrue();
+    }
+
+    @Test
+    @DisplayName("치지직 API가 명시적으로 CLOSE 응답한 채널만 수집기를 정상 종료한다")
+    void stopCollectorOnlyWhenStreamIsExplicitlyClosed() {
+        fakeTargetStreamReader.addTarget("ch_target_1");
+        fakeTargetStreamReader.addTarget("ch_target_2");
+
+        StreamTarget live1 = new StreamTarget("ch_target_1", "침착맨", "chat_room_1", 100L, "제목1", 500, null, "소통", Instant.now());
+        StreamTarget live2 = new StreamTarget("ch_target_2", "풍월량", "chat_room_2", 200L, "제목2", 600, null, "게임", Instant.now());
+        fakeLiveStatusClient.setOpenStream(live1);
+        fakeLiveStatusClient.setOpenStream(live2);
+        poller.pollTargets();
+
+        assertThat(chatManager.getActiveChannelIds()).containsExactlyInAnyOrder("ch_target_1", "ch_target_2");
+
+        fakeLiveStatusClient.removeOpenStream("ch_target_1");
+        fakeLiveStatusClient.setFailedChannel("ch_target_2");
+        poller.pollTargets();
+
+        assertThat(chatManager.getActiveChannelIds()).doesNotContain("ch_target_1");
+        assertThat(fakeCollectorFactory.getCollector("ch_target_1").isConnected()).isFalse();
+
+        assertThat(chatManager.getActiveChannelIds()).contains("ch_target_2");
+        assertThat(fakeCollectorFactory.getCollector("ch_target_2").isConnected()).isTrue();
+    }
 }
+
