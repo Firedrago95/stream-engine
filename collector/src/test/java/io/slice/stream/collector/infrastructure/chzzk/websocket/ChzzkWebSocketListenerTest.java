@@ -95,4 +95,41 @@ class ChzzkWebSocketListenerTest {
         verify(scheduledFuture, times(1)).cancel(true);
         verify(messageListener, times(1)).onError(any(Throwable.class));
     }
+
+    @Test
+    @DisplayName("지정된 타임아웃(60초) 동안 PONG 응답이 없으면 소켓을 abort하고 에러를 전파한다")
+    void pongTimeoutAbortsWebSocketAndTriggersOnError() {
+        ArgumentCaptor<Runnable> runnableCaptor = ArgumentCaptor.forClass(Runnable.class);
+        listener.onOpen(webSocket);
+
+        verify(pingScheduler, times(1)).scheduleAtFixedRate(
+            runnableCaptor.capture(),
+            eq(20L),
+            eq(20L),
+            eq(TimeUnit.SECONDS)
+        );
+
+        // 마지막 PONG 수신 시각을 61초 전으로 설정
+        listener.setLastPongReceivedAt(System.currentTimeMillis() - 61_000L);
+
+        Runnable pingTask = runnableCaptor.getValue();
+        pingTask.run();
+
+        verify(webSocket, times(1)).abort();
+        verify(scheduledFuture, times(1)).cancel(true);
+        verify(messageListener, times(1)).onError(any(Throwable.class));
+    }
+
+    @Test
+    @DisplayName("서버로부터 PONG(cmd 10000)을 수신하면 마지막 PONG 시각이 정상 갱신된다")
+    void receivePongUpdatesLastPongTime() {
+        listener.onOpen(webSocket);
+        long oldTime = System.currentTimeMillis() - 50_000L;
+        listener.setLastPongReceivedAt(oldTime);
+
+        String pongPacket = "{\"ver\":\"2\",\"cmd\":10000}";
+        listener.onText(webSocket, pongPacket, true);
+
+        assertThat(listener.getLastPongReceivedAt()).isGreaterThan(oldTime);
+    }
 }
