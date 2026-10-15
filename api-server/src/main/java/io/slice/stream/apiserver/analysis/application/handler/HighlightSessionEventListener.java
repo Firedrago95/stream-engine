@@ -6,10 +6,9 @@ import io.micrometer.core.instrument.Timer;
 import io.slice.stream.apiserver.analysis.application.service.HighlightSessionService;
 import io.slice.stream.apiserver.analysis.domain.event.SignalSavedEvent;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 
 @Slf4j
 @Service
@@ -31,7 +30,7 @@ public class HighlightSessionEventListener {
     }
 
     @Async
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @EventListener
     public void onSignalSaved(SignalSavedEvent event) {
         try {
             processTimer.record(() -> highlightSessionService.handleSignal(event.signal()));
