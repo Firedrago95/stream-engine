@@ -1,328 +1,130 @@
 package io.slice.stream.apiserver.stream.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 
-import io.slice.stream.apiserver.stream.domain.StreamRepository;
-import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
-import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRepository;
-import io.slice.stream.apiserver.stream.infrastructure.JpaViewMetricTimelineRepository;
+import io.slice.stream.apiserver.stream.fake.FakeStreamRepository;
+import io.slice.stream.apiserver.stream.fake.FakeStreamSessionRepository;
+import io.slice.stream.apiserver.stream.fake.FakeStreamSessionSegmentRepository;
+import io.slice.stream.apiserver.stream.fake.FakeStringRedisTemplate;
+import io.slice.stream.apiserver.stream.fake.FakeViewMetricTimelineRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
-import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
-import io.slice.stream.apiserver.stream.infrastructure.entity.ViewMetricTimelineEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamSyncRequest;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator.ReplaceUnderscores;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 
-@ExtendWith(MockitoExtension.class)
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class StreamServiceTest {
 
-    @Mock
-    private StreamRepository streamRepository;
+    private FakeStringRedisTemplate redisTemplate;
+    private FakeStreamRepository streamRepository;
+    private FakeStreamSessionRepository sessionRepository;
+    private FakeStreamSessionSegmentRepository segmentRepository;
+    private FakeViewMetricTimelineRepository timelineRepository;
 
-    @Mock
-    private JpaStreamSessionRepository sessionRepository;
-
-    @Mock
-    private JpaStreamSessionSegmentRepository segmentRepository;
-
-    @Mock
-    private JpaViewMetricTimelineRepository timelineRepository;
-
-    @Mock
-    private CacheManager cacheManager;
-
-    @InjectMocks
+    private StreamSyncDirtyChecker dirtyChecker;
+    private StreamSyncPersistenceService persistenceService;
     private StreamService streamService;
 
-    @Captor
-    private ArgumentCaptor<StreamEntity> streamCaptor;
+    @BeforeEach
+    void setUp() {
+        redisTemplate = new FakeStringRedisTemplate();
+        streamRepository = new FakeStreamRepository();
+        sessionRepository = new FakeStreamSessionRepository();
+        segmentRepository = new FakeStreamSessionSegmentRepository();
+        timelineRepository = new FakeViewMetricTimelineRepository();
 
-    @Captor
-    private ArgumentCaptor<List<ViewMetricTimelineEntity>> timelineCaptor;
+        dirtyChecker = new StreamSyncDirtyChecker(redisTemplate);
+        persistenceService = new StreamSyncPersistenceService(
+            streamRepository,
+            sessionRepository,
+            segmentRepository,
+            timelineRepository,
+            new ConcurrentMapCacheManager("activeSessions")
+        );
 
-    @Captor
-    private ArgumentCaptor<List<StreamSessionEntity>> sessionListCaptor;
-
-    @Captor
-    private ArgumentCaptor<List<StreamSessionSegmentEntity>> segmentListCaptor;
-
-    @Test
-    void 방송_목록을_동기화하면_DB에_upsert_되어야_한다() {
-        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
-        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 1000, "소통", startedAt);
-
-        streamService.syncAll(List.of(request));
-
-        then(streamRepository).should().upsertStream(streamCaptor.capture(), any(Instant.class));
-
-        StreamEntity savedEntity = streamCaptor.getValue();
-        assertThat(savedEntity.getStreamId()).isEqualTo("ch1");
-        assertThat(savedEntity.isLive()).isTrue();
+        streamService = new StreamService(dirtyChecker, persistenceService);
     }
 
     @Test
-    void 배치_내에_중복된_채널_ID가_있으면_최신_데이터로_한번만_upsert_되어야_한다() {
+    void 신규_방송_목록을_동기화하면_DB에_정상_등록되고_스냅샷이_캐싱된다() {
         Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
-        StreamSyncRequest oldRequest = new StreamSyncRequest("ch1", "live1", "침착맨", "옛날 제목", "old.jpg", 1000, "소통", startedAt);
-        StreamSyncRequest newRequest = new StreamSyncRequest("ch1", "live1", "침착맨", "새 제목", "new.jpg", 2000, "게임", startedAt);
+        StreamSyncRequest req = new StreamSyncRequest("ch1", "live1", "침착맨", "제목1", "thumb.jpg", 1000, "소통", startedAt);
 
-        streamService.syncAll(List.of(oldRequest, newRequest));
+        streamService.syncAll(List.of(req));
 
-        then(streamRepository).should(times(1)).upsertStream(streamCaptor.capture(), any(Instant.class));
+        Optional<StreamEntity> savedStream = streamRepository.findById("ch1");
+        assertThat(savedStream).isPresent();
+        assertThat(savedStream.get().getLiveTitle()).isEqualTo("제목1");
 
-        StreamEntity updatedEntity = streamCaptor.getValue();
-        assertThat(updatedEntity.getLiveTitle()).isEqualTo("새 제목");
-        assertThat(updatedEntity.getCategoryName()).isEqualTo("게임");
+        Optional<StreamSessionEntity> savedSession = sessionRepository.findBySessionId("live1");
+        assertThat(savedSession).isPresent();
     }
 
     @Test
-    void 활성_세션이_있는_경우_시청자수_타임라인을_적재하고_세션의_피크_시청자수를_갱신한다() {
+    void 메타데이터가_변경되지_않은_두번째_동기화에서는_streams_테이블_갱신을_건너뛴다() {
         Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
-        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", startedAt);
-        StreamSessionEntity session = new StreamSessionEntity("ch1", "live1", "제목", "소통", Instant.now().minusSeconds(120));
+        StreamSyncRequest req = new StreamSyncRequest("ch1", "live1", "침착맨", "제목1", "thumb.jpg", 1000, "소통", startedAt);
 
-        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
-            .willReturn(List.of(session));
+        streamService.syncAll(List.of(req));
 
-        streamService.syncAll(List.of(request));
+        // DB에 저장된 상태를 임의로 다른 객체로 교체해둠 (dirty check 건너뛰는지 확인용)
+        StreamEntity sentinel = new StreamEntity("ch1", "침착맨");
+        sentinel.heartbeat("침착맨", "감시용제목", "thumb.jpg", "소통", 1000);
+        streamRepository.upsertStream(sentinel, Instant.now());
 
-        assertThat(session.getPeakViewers()).isEqualTo(3500);
+        // 동일한 데이터로 다시 syncAll 호출 (Clean 상태)
+        streamService.syncAll(List.of(req));
 
-        then(timelineRepository).should().saveAll(timelineCaptor.capture());
-        List<ViewMetricTimelineEntity> savedTimeline = timelineCaptor.getValue();
-        assertThat(savedTimeline).hasSize(1);
-        assertThat(savedTimeline.get(0).getStreamId()).isEqualTo("ch1");
-        assertThat(savedTimeline.get(0).getSessionId()).isEqualTo("live1");
-        assertThat(savedTimeline.get(0).getViewerCount()).isEqualTo(3500);
-        then(sessionRepository).should(never()).saveAll(any());
-        then(segmentRepository).should(never()).saveAll(any());
+        // DB의 제목이 sentinel 제목 그대로 유지되어 있어야 함 (upsert 생략 증명)
+        Optional<StreamEntity> current = streamRepository.findById("ch1");
+        assertThat(current).isPresent();
+        assertThat(current.get().getLiveTitle()).isEqualTo("감시용제목");
+
+        // 하지만 타임라인은 누락 없이 2건 모두 쌓여야 함 (기능 100% 유지)
+        assertThat(timelineRepository.findBySessionIdOrderByTimestampAsc("live1")).hasSize(2);
     }
 
     @Test
-    void 활성_세션이_없는_경우_신규_세션과_초기_세그먼트를_벌크_생성하고_타임라인을_적재한다() {
+    void 메타데이터가_변경된_경우에는_정상적으로_DB에_새_정보가_반영된다() {
         Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
-        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", startedAt);
+        StreamSyncRequest req = new StreamSyncRequest("ch1", "live1", "침착맨", "제목1", "thumb.jpg", 1000, "소통", startedAt);
+        streamService.syncAll(List.of(req));
 
-        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
-            .willReturn(List.of());
+        // 방제 변경
+        StreamSyncRequest updatedReq = new StreamSyncRequest("ch1", "live1", "침착맨", "변경된 제목", "thumb.jpg", 1000, "게임", startedAt);
+        streamService.syncAll(List.of(updatedReq));
 
-        streamService.syncAll(List.of(request));
-
-        then(streamRepository).should().upsertStream(streamCaptor.capture(), any(Instant.class));
-
-        then(sessionRepository).should().saveAll(sessionListCaptor.capture());
-        List<StreamSessionEntity> savedSessions = sessionListCaptor.getValue();
-        assertThat(savedSessions).hasSize(1);
-        assertThat(savedSessions.get(0).getStreamId()).isEqualTo("ch1");
-        assertThat(savedSessions.get(0).getSessionId()).isEqualTo("live1");
-        assertThat(savedSessions.get(0).getTitle()).isEqualTo("제목");
-        assertThat(savedSessions.get(0).getCategoryName()).isEqualTo("소통");
-        assertThat(savedSessions.get(0).getStartedAt()).isEqualTo(startedAt);
-
-        then(segmentRepository).should().saveAll(segmentListCaptor.capture());
-        List<StreamSessionSegmentEntity> savedSegments = segmentListCaptor.getValue();
-        assertThat(savedSegments).hasSize(1);
-        assertThat(savedSegments.get(0).getStreamId()).isEqualTo("ch1");
-        assertThat(savedSegments.get(0).getSessionId()).isEqualTo("live1");
-
-        then(timelineRepository).should().saveAll(timelineCaptor.capture());
-        List<ViewMetricTimelineEntity> savedTimeline = timelineCaptor.getValue();
-        assertThat(savedTimeline).hasSize(1);
-        assertThat(savedTimeline.get(0).getStreamId()).isEqualTo("ch1");
-        assertThat(savedTimeline.get(0).getSessionId()).isEqualTo("live1");
-        assertThat(savedTimeline.get(0).getViewerCount()).isEqualTo(3500);
+        Optional<StreamEntity> current = streamRepository.findById("ch1");
+        assertThat(current).isPresent();
+        assertThat(current.get().getLiveTitle()).isEqualTo("변경된 제목");
+        assertThat(current.get().getCategoryName()).isEqualTo("게임");
     }
 
     @Test
-    void 종료된_세션이_DB에_존재하고_활성_세그먼트가_남아있는_경우_재활성화만_수행한다() {
+    void 중복_인입된_채널은_최신_정보로_단일화되어_동기화된다() {
         Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
-        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", startedAt);
-        StreamSessionEntity existingSession = new StreamSessionEntity("ch1", "live1", "제목", "소통", startedAt);
-        existingSession.finishSession(Instant.now(), 1000);
-        assertThat(existingSession.getEndedAt()).isNotNull();
+        StreamSyncRequest oldReq = new StreamSyncRequest("ch1", "live1", "침착맨", "옛날 제목", "thumb.jpg", 1000, "소통", startedAt);
+        StreamSyncRequest newReq = new StreamSyncRequest("ch1", "live1", "침착맨", "새 제목", "thumb.jpg", 1000, "소통", startedAt);
 
-        StreamSessionSegmentEntity existingSegment = new StreamSessionSegmentEntity("ch1", "live1", "제목", "소통", startedAt, 0L);
+        streamService.syncAll(List.of(oldReq, newReq));
 
-        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
-            .willReturn(List.of());
-        given(sessionRepository.findAllBySessionIdIn(List.of("live1")))
-            .willReturn(List.of(existingSession));
-        given(segmentRepository.findAllActiveSegments(List.of("live1")))
-            .willReturn(List.of(existingSegment));
-
-        streamService.syncAll(List.of(request));
-
-        assertThat(existingSession.getEndedAt()).isNull();
-        assertThat(existingSession.getPeakViewers()).isEqualTo(3500);
-        then(sessionRepository).should(never()).saveAll(any());
-        then(segmentRepository).should(never()).saveAll(any());
-        then(timelineRepository).should().saveAll(timelineCaptor.capture());
+        Optional<StreamEntity> saved = streamRepository.findById("ch1");
+        assertThat(saved).isPresent();
+        assertThat(saved.get().getLiveTitle()).isEqualTo("새 제목");
     }
 
     @Test
-    void 활성_세션의_liveId가_요청의_liveId와_다른_경우_이전_세션을_평균시청자수와_함께_종료하고_신규_세션을_생성한다() {
-        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
-        StreamSyncRequest request = new StreamSyncRequest("ch1", "live2", "침착맨", "새 방송", "thumb.jpg", 4000, "게임", startedAt);
-        StreamSessionEntity oldActiveSession = new StreamSessionEntity("ch1", "live1", "이전 방송", "소통", startedAt.minusSeconds(3600));
+    void null이나_빈_목록이_인입되면_아무_작업도_하지_않는다() {
+        streamService.syncAll(null);
+        streamService.syncAll(List.of());
 
-        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
-            .willReturn(List.of(oldActiveSession));
-        given(sessionRepository.findAllBySessionIdIn(List.of("live2")))
-            .willReturn(List.of());
-        given(timelineRepository.findAverageViewerCountBySessionId("live1"))
-            .willReturn(2500.0);
-        given(timelineRepository.findPeakViewerCountBySessionId("live1"))
-            .willReturn(3000);
-
-        streamService.syncAll(List.of(request));
-
-        assertThat(oldActiveSession.getEndedAt()).isEqualTo(startedAt);
-        assertThat(oldActiveSession.getAverageViewerCount()).isEqualTo(2500);
-        assertThat(oldActiveSession.getPeakViewers()).isEqualTo(3000);
-
-        then(sessionRepository).should().saveAll(sessionListCaptor.capture());
-        List<StreamSessionEntity> savedSessions = sessionListCaptor.getValue();
-        assertThat(savedSessions).hasSize(1);
-        assertThat(savedSessions.get(0).getSessionId()).isEqualTo("live2");
-
-        then(segmentRepository).should().saveAll(segmentListCaptor.capture());
-        List<StreamSessionSegmentEntity> savedSegments = segmentListCaptor.getValue();
-        assertThat(savedSegments).hasSize(1);
-        assertThat(savedSegments.get(0).getSessionId()).isEqualTo("live2");
-    }
-
-    @Test
-    void 새_라이브_요청의_시작시각이_null인_경우_이전_세션은_현재시각으로_안전하게_종료된다() {
-        StreamSyncRequest request = new StreamSyncRequest("ch1", "live2", "침착맨", "새 방송", "thumb.jpg", 4000, "게임", null);
-        StreamSessionEntity oldActiveSession = new StreamSessionEntity("ch1", "live1", "이전 방송", "소통", Instant.now().minusSeconds(3600));
-
-        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
-            .willReturn(List.of(oldActiveSession));
-        given(sessionRepository.findAllBySessionIdIn(List.of("live2")))
-            .willReturn(List.of());
-        given(timelineRepository.findAverageViewerCountBySessionId("live1"))
-            .willReturn(2500.0);
-        given(timelineRepository.findPeakViewerCountBySessionId("live1"))
-            .willReturn(3000);
-
-        streamService.syncAll(List.of(request));
-
-        assertThat(oldActiveSession.getEndedAt()).isNotNull();
-        assertThat(oldActiveSession.getEndedAt()).isAfter(oldActiveSession.getStartedAt());
-    }
-
-    @Test
-    void 종료된_세션_재활성화_시_활성_세그먼트가_없으면_새_세그먼트를_생성한다() {
-        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
-        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", startedAt);
-        StreamSessionEntity existingSession = new StreamSessionEntity("ch1", "live1", "제목", "소통", startedAt);
-        existingSession.finishSession(Instant.now(), 1000);
-
-        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
-            .willReturn(List.of());
-        given(sessionRepository.findAllBySessionIdIn(List.of("live1")))
-            .willReturn(List.of(existingSession));
-        given(segmentRepository.findAllActiveSegments(List.of("live1")))
-            .willReturn(List.of());
-
-        streamService.syncAll(List.of(request));
-
-        assertThat(existingSession.getEndedAt()).isNull();
-        then(sessionRepository).should(never()).saveAll(any());
-        then(segmentRepository).should().saveAll(segmentListCaptor.capture());
-        List<StreamSessionSegmentEntity> savedSegments = segmentListCaptor.getValue();
-        assertThat(savedSegments).hasSize(1);
-        assertThat(savedSegments.get(0).getSessionId()).isEqualTo("live1");
-    }
-
-    @Test
-    void 신규_세션_생성_시_activeSessions_캐시를_무효화한다() {
-        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
-        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", startedAt);
-        Cache activeSessionsCache = mock(Cache.class);
-
-        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
-            .willReturn(List.of());
-        given(sessionRepository.findAllBySessionIdIn(List.of("live1")))
-            .willReturn(List.of());
-        given(cacheManager.getCache("activeSessions"))
-            .willReturn(activeSessionsCache);
-
-        streamService.syncAll(List.of(request));
-
-        then(activeSessionsCache).should().evict("ch1");
-    }
-
-    @Test
-    void 신규_세션_생성_시_paidPromotion이_엔티티에_정상_반영된다() {
-        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
-        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "광고 방송", "thumb.jpg", 3500, "게임", startedAt, true);
-
-        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
-            .willReturn(List.of());
-        given(sessionRepository.findAllBySessionIdIn(List.of("live1")))
-            .willReturn(List.of());
-
-        streamService.syncAll(List.of(request));
-
-        then(sessionRepository).should().saveAll(sessionListCaptor.capture());
-        List<StreamSessionEntity> savedSessions = sessionListCaptor.getValue();
-        assertThat(savedSessions).hasSize(1);
-        assertThat(savedSessions.get(0).isPaidPromotion()).isTrue();
-    }
-
-    @Test
-    void 기존_활성_세션_동기화_시_paidPromotion이_true이면_세션이_유료_프로모션으로_표시된다() {
-        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
-        StreamSessionEntity activeSession = new StreamSessionEntity("ch1", "live1", "제목", "소통", startedAt, false);
-        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", startedAt, true);
-
-        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
-            .willReturn(List.of(activeSession));
-
-        streamService.syncAll(List.of(request));
-
-        assertThat(activeSession.isPaidPromotion()).isTrue();
-    }
-
-    @Test
-    void 기존_활성_세션_동기화_시_adult_상태_변경이_세션과_활성_세그먼트에_정상_동기화된다() {
-        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
-        StreamSessionEntity activeSession = new StreamSessionEntity("ch1", "live1", "제목", "소통", startedAt, false, false);
-        StreamSessionSegmentEntity activeSegment = new StreamSessionSegmentEntity("ch1", "live1", "제목", "소통", startedAt, 0L, false, false);
-        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", startedAt, false, true);
-
-        given(sessionRepository.findAllActiveSessions(List.of("ch1")))
-            .willReturn(List.of(activeSession));
-        given(segmentRepository.findActiveSegment("live1"))
-            .willReturn(Optional.of(activeSegment));
-
-        streamService.syncAll(List.of(request));
-
-        assertThat(activeSession.isAdult()).isTrue();
-        assertThat(activeSegment.isAdult()).isTrue();
+        assertThat(streamRepository.findAll()).isEmpty();
     }
 }

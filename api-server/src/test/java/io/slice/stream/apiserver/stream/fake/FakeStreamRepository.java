@@ -77,6 +77,15 @@ public class FakeStreamRepository implements JpaStreamRepository, StreamReposito
     }
 
     @Override
+    public void batchUpsertStreams(List<StreamEntity> streams, Instant currentTime) {
+        if (streams != null) {
+            for (StreamEntity s : streams) {
+                storage.put(s.getStreamId(), s);
+            }
+        }
+    }
+
+    @Override
     public List<StreamEntity> searchByStreamerName(String keyword, Instant threshold) {
         return storage.values().stream()
             .filter(s -> s.getStreamerName() != null && s.getStreamerName().contains(keyword))

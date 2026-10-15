@@ -6,6 +6,7 @@ import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardProjection;
 import io.slice.stream.apiserver.testcontainer.postgres.PostgresTestSupport;
+import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -37,6 +38,9 @@ class StreamRepositoryImplTest implements PostgresTestSupport {
 
     @Autowired
     private JpaStreamSessionRepository jpaStreamSessionRepository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @Test
     void 임계값_이후에_업데이트된_활성_방송만_시청자순으로_조회한다() {
@@ -207,6 +211,50 @@ class StreamRepositoryImplTest implements PostgresTestSupport {
 
         // 데이터 개수가 1개로 유지되었는지 검증 (Insert가 아닌 Update 동작)
         assertThat(jpaStreamRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void 여러_방송을_batchUpsertStreams로_일괄_등록_및_갱신한다() {
+        // given
+        Instant now = Instant.now();
+        StreamEntity stream1 = new StreamEntity("batch-stream-1", "스트리머1");
+        stream1.heartbeat("스트리머1", "방송1", "url1", "게임", 100);
+
+        StreamEntity stream2 = new StreamEntity("batch-stream-2", "스트리머2");
+        stream2.heartbeat("스트리머2", "방송2", "url2", "소통", 200);
+
+        // when 1: 일괄 초기 등록
+        repository.batchUpsertStreams(List.of(stream1, stream2), now);
+
+        // then 1
+        assertThat(repository.findById("batch-stream-1")).isPresent();
+        assertThat(repository.findById("batch-stream-2")).isPresent();
+
+        // when 2: stream1 정보 변경 및 stream3 신규 추가
+        StreamEntity stream1Updated = new StreamEntity("batch-stream-1", "스트리머1");
+        stream1Updated.heartbeat("스트리머1", "방송1 변경", "url1", "음악", 300);
+
+        StreamEntity stream3 = new StreamEntity("batch-stream-3", "스트리머3");
+        stream3.heartbeat("스트리머3", "방송3", "url3", "토크", 400);
+
+        repository.batchUpsertStreams(List.of(stream1Updated, stream3), now.plusSeconds(30));
+        entityManager.clear();
+
+        // then 2
+        Optional<StreamEntity> result1 = repository.findById("batch-stream-1");
+        assertThat(result1).isPresent();
+        assertThat(result1.get().getLiveTitle()).isEqualTo("방송1 변경");
+        assertThat(result1.get().getCategoryName()).isEqualTo("음악");
+        assertThat(result1.get().getConcurrentUserCount()).isEqualTo(300);
+
+        assertThat(repository.findById("batch-stream-3")).isPresent();
+        assertThat(jpaStreamRepository.count()).isEqualTo(3);
+    }
+
+    @Test
+    void batchUpsertStreams에_빈_목록이_전달되면_아무_작업도_하지_않는다() {
+        repository.batchUpsertStreams(null, Instant.now());
+        repository.batchUpsertStreams(List.of(), Instant.now());
     }
 
     @Test
