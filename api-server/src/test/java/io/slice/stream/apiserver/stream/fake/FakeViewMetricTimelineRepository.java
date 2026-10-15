@@ -1,6 +1,7 @@
 package io.slice.stream.apiserver.stream.fake;
 
 import io.slice.stream.apiserver.stream.infrastructure.JpaViewMetricTimelineRepository;
+import io.slice.stream.apiserver.stream.infrastructure.SessionViewerMetricsProjection;
 import io.slice.stream.apiserver.stream.infrastructure.entity.ViewMetricTimelineEntity;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -72,6 +73,38 @@ public class FakeViewMetricTimelineRepository implements JpaViewMetricTimelineRe
             .mapToInt(ViewMetricTimelineEntity::getViewerCount)
             .max()
             .orElse(0);
+    }
+
+    @Override
+    public List<SessionViewerMetricsProjection> findViewerMetricsBySessionIds(Collection<String> sessionIds) {
+        List<SessionViewerMetricsProjection> result = new ArrayList<>();
+        for (String sessionId : sessionIds) {
+            Double avg = findAverageViewerCountBySessionId(sessionId);
+            Integer peak = findPeakViewerCountBySessionId(sessionId);
+            result.add(new SimpleSessionViewerMetrics(sessionId, avg, peak));
+        }
+        return result;
+    }
+
+    public record SimpleSessionViewerMetrics(
+        String sessionId,
+        Double avgViewers,
+        Integer peakViewers
+    ) implements SessionViewerMetricsProjection {
+        @Override
+        public String getSessionId() {
+            return sessionId;
+        }
+
+        @Override
+        public Double getAvgViewers() {
+            return avgViewers;
+        }
+
+        @Override
+        public Integer getPeakViewers() {
+            return peakViewers;
+        }
     }
 
     @Override

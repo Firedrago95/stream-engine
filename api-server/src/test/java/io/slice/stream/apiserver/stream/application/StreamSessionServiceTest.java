@@ -128,6 +128,52 @@ class StreamSessionServiceTest {
     }
 
     @Test
+    void 여러_오프라인_세션이_동시에_종료될_때_벌크_조회로_각_세션의_지표와_세그먼트가_정상_마감된다() {
+        String sId1 = "stream-bulk-1";
+        String sId2 = "stream-bulk-2";
+        String sessId1 = "session-bulk-1";
+        String sessId2 = "session-bulk-2";
+
+        Instant started1 = Instant.parse("2026-02-13T10:00:00Z");
+        Instant ended1 = Instant.parse("2026-02-13T11:00:00Z");
+        Instant started2 = Instant.parse("2026-02-13T10:30:00Z");
+        Instant ended2 = Instant.parse("2026-02-13T11:30:00Z");
+
+        StreamSessionEntity session1 = new StreamSessionEntity(sId1, sessId1, "방제1", "게임", started1);
+        StreamSessionEntity session2 = new StreamSessionEntity(sId2, sessId2, "방제2", "토크", started2);
+        StreamSessionSegmentEntity seg1 = new StreamSessionSegmentEntity(sId1, sessId1, "방제1", "게임", started1, 0L);
+        StreamSessionSegmentEntity seg2 = new StreamSessionSegmentEntity(sId2, sessId2, "방제2", "토크", started2, 0L);
+        StreamEntity stream1 = new StreamEntity(sId1, "스트리머1", ended1);
+        StreamEntity stream2 = new StreamEntity(sId2, "스트리머2", ended2);
+
+        sessionRepository.addSession(session1);
+        sessionRepository.addSession(session2);
+        sessionRepository.setSessionsToClose(List.of(session1, session2));
+        segmentRepository.addSegment(seg1);
+        segmentRepository.addSegment(seg2);
+        streamRepository.addStream(stream1);
+        streamRepository.addStream(stream2);
+        timelineRepository.setAverageViewerCount(sessId1, 150.0);
+        timelineRepository.setPeakViewerCount(sessId1, 300);
+        timelineRepository.setAverageViewerCount(sessId2, 250.0);
+        timelineRepository.setPeakViewerCount(sessId2, 500);
+
+        streamSessionService.closeOfflineSessions();
+
+        assertThat(session1.getEndedAt()).isEqualTo(ended1);
+        assertThat(session1.getAverageViewerCount()).isEqualTo(150);
+        assertThat(session1.getPeakViewers()).isEqualTo(300);
+        assertThat(seg1.getEndedAt()).isEqualTo(ended1);
+        assertThat(seg1.getEndOffsetMs()).isEqualTo(3600000L);
+
+        assertThat(session2.getEndedAt()).isEqualTo(ended2);
+        assertThat(session2.getAverageViewerCount()).isEqualTo(250);
+        assertThat(session2.getPeakViewers()).isEqualTo(500);
+        assertThat(seg2.getEndedAt()).isEqualTo(ended2);
+        assertThat(seg2.getEndOffsetMs()).isEqualTo(3600000L);
+    }
+
+    @Test
     void 방제나_카테고리가_변경되면_기존_세그먼트를_종료하고_새로운_세그먼트를_저장한다() {
         String streamId = "stream-1";
         String sessionId = "session-1";
