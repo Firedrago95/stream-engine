@@ -179,6 +179,9 @@ export const AnalysisChart: React.FC<Props> = ({
 
   const mergedSegments = React.useMemo(() => {
     if (!segments || segments.length === 0) return [];
+    const sorted = [...segments].sort(
+      (a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
+    );
     const merged: Array<{
       id: any;
       categoryName: string;
@@ -188,7 +191,7 @@ export const AnalysisChart: React.FC<Props> = ({
       isAdult?: boolean;
     }> = [];
 
-    for (const seg of segments) {
+    for (const seg of sorted) {
       const cat = seg.categoryName || '기타';
       const last = merged[merged.length - 1];
       if (last && last.categoryName === cat && Boolean(last.isAdult) === Boolean(seg.isAdult)) {
@@ -258,49 +261,74 @@ export const AnalysisChart: React.FC<Props> = ({
     const normalize = (ts: number) => (ts < 10000000000 ? ts * 1000 : ts);
 
     if (chartData.length > 0) {
-      const totalSlots = chartData.length;
       const chartStartTs = normalize(chartData[0].timestamp);
       const chartEndTs = normalize(chartData[chartData.length - 1].timestamp);
+      const chartDuration = Math.max(1, chartEndTs - chartStartTs);
 
-      const validSegments = [];
-      for (let sIdx = 0; sIdx < mergedSegments.length; sIdx++) {
-        const seg = mergedSegments[sIdx];
+      const overlapping = [];
+      for (const seg of mergedSegments) {
         const segStartMs = new Date(seg.startedAt).getTime();
         const segEndMs = seg.endedAt ? new Date(seg.endedAt).getTime() : now;
 
         if (segEndMs <= chartStartTs || segStartMs >= chartEndTs) continue;
 
-        let startSlot = 0;
-        if (sIdx > 0 && segStartMs > chartStartTs) {
-          const foundIdx = chartData.findIndex(d => d.timestamp && normalize(d.timestamp) >= segStartMs);
-          startSlot = foundIdx !== -1 ? foundIdx : 0;
-        }
+        const clampedStart = Math.max(chartStartTs, segStartMs);
+        const clampedEnd = Math.min(chartEndTs, segEndMs);
+        if (clampedEnd <= clampedStart) continue;
 
-        let endSlot = totalSlots;
-        if (seg.endedAt && segEndMs < chartEndTs && sIdx < mergedSegments.length - 1) {
-          const foundEndIdx = chartData.findIndex(d => d.timestamp && normalize(d.timestamp) >= segEndMs);
-          endSlot = foundEndIdx !== -1 ? foundEndIdx : totalSlots;
-        }
-
-        const slotCount = Math.max(1, endSlot - startSlot);
-        const duration = Math.max(0, segEndMs - segStartMs);
-
-        validSegments.push({
+        overlapping.push({
           ...seg,
-          startMs: segStartMs,
-          endMs: segEndMs,
-          durationMs: duration,
-          startSlot,
-          endSlot,
-          leftPercent: (startSlot / totalSlots) * 100,
-          widthPercent: (slotCount / totalSlots) * 100,
-          color: categoryColorMap.get(seg.categoryName) || '#8B5CF6',
-          timeRangeLabel: `${formatClockTime(seg.startedAt)} ~ ${seg.endedAt ? formatClockTime(seg.endedAt) : '현재'}`,
-          durationLabel: formatDuration(duration)
+          rawStartMs: segStartMs,
+          rawEndMs: segEndMs,
+          clampedStart,
+          clampedEnd,
+          durationMs: clampedEnd - clampedStart,
         });
       }
 
-      return validSegments;
+      if (overlapping.length === 0) {
+        const fallback = mergedSegments[mergedSegments.length - 1];
+        return [{
+          ...fallback,
+          startMs: chartStartTs,
+          endMs: chartEndTs,
+          durationMs: chartDuration,
+          leftPercent: 0,
+          widthPercent: 100,
+          color: categoryColorMap.get(fallback.categoryName) || '#8B5CF6',
+          timeRangeLabel: `${formatClockTime(fallback.startedAt)} ~ ${fallback.endedAt ? formatClockTime(fallback.endedAt) : '현재'}`,
+          durationLabel: formatDuration(chartDuration)
+        }];
+      }
+
+      const result = [];
+      for (let i = 0; i < overlapping.length; i++) {
+        const seg = overlapping[i];
+        const rawLeft = ((seg.clampedStart - chartStartTs) / chartDuration) * 100;
+        const rawRight = ((seg.clampedEnd - chartStartTs) / chartDuration) * 100;
+
+        const leftPercent = i === 0 ? 0 : rawLeft;
+        const rightPercent = i === overlapping.length - 1 ? 100 : rawRight;
+        const widthPercent = Math.max(0.1, rightPercent - leftPercent);
+
+        result.push({
+          ...seg,
+          startMs: seg.rawStartMs,
+          endMs: seg.rawEndMs,
+          leftPercent,
+          widthPercent,
+          color: categoryColorMap.get(seg.categoryName) || '#8B5CF6',
+          timeRangeLabel: `${formatClockTime(seg.startedAt)} ~ ${seg.endedAt ? formatClockTime(seg.endedAt) : '현재'}`,
+          durationLabel: formatDuration(seg.durationMs)
+        });
+      }
+
+      for (let i = 0; i < result.length - 1; i++) {
+        const nextLeft = result[i + 1].leftPercent;
+        result[i].widthPercent = Math.max(0.1, nextLeft - result[i].leftPercent);
+      }
+
+      return result;
     }
 
     const parsed = mergedSegments.map(seg => {
@@ -322,9 +350,9 @@ export const AnalysisChart: React.FC<Props> = ({
     if (totalDuration <= 0) return [];
 
     let accumulatedMs = 0;
-    return parsed.map(s => {
+    return parsed.map((s, idx) => {
       const leftPercent = (accumulatedMs / totalDuration) * 100;
-      const widthPercent = (s.durationMs / totalDuration) * 100;
+      const widthPercent = idx === parsed.length - 1 ? (100 - leftPercent) : (s.durationMs / totalDuration) * 100;
       accumulatedMs += s.durationMs;
       return {
         ...s,
@@ -333,6 +361,18 @@ export const AnalysisChart: React.FC<Props> = ({
       };
     });
   }, [mergedSegments, chartData, categoryColorMap]);
+
+  const xTicks = React.useMemo(() => {
+    if (!chartData || chartData.length === 0) return [];
+    if (chartData.length <= 6) return chartData.map((_, i) => i);
+    const tickCount = 6;
+    const step = (chartData.length - 1) / (tickCount - 1);
+    const ticks: number[] = [];
+    for (let i = 0; i < tickCount; i++) {
+      ticks.push(Math.min(chartData.length - 1, Math.round(i * step)));
+    }
+    return Array.from(new Set(ticks));
+  }, [chartData]);
 
 
   return (
@@ -505,13 +545,13 @@ export const AnalysisChart: React.FC<Props> = ({
             })}
             <XAxis
               dataKey="slotIndex"
+              ticks={xTicks}
+              interval={0}
               tickFormatter={(idx) => {
                 const ts = chartData[idx]?.timestamp;
                 if (!ts) return "";
                 return formatShortTime(ts);
               }}
-              interval="preserveStartEnd"
-              minTickGap={80}
               stroke="#475569"
               fontSize={10}
               tickMargin={15}
