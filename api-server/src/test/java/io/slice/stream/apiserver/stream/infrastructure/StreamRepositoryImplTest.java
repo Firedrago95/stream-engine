@@ -341,7 +341,7 @@ class StreamRepositoryImplTest implements PostgresTestSupport {
 
     @Test
     void 최근_30일간_5일_이상_방송한_정규_스트리머만_리더보드에_조회된다() {
-        Instant now = Instant.now();
+        Instant now = Instant.parse("2026-10-15T03:00:00Z"); // 낮 12시(KST)로 고정하여 자정 걸침 방지
         Instant since = now.minus(30, ChronoUnit.DAYS);
 
         StreamEntity regularA = new StreamEntity("reg-a", "정규스트리머A");
