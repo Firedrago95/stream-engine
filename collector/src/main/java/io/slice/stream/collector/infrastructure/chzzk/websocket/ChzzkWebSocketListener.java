@@ -4,6 +4,7 @@ import io.slice.stream.collector.domain.ChatMessageListener;
 import io.slice.stream.collector.infrastructure.chzzk.ChzzkMessageConverter;
 import io.slice.stream.collector.infrastructure.chzzk.dto.request.ChzzkAuthRequest;
 import io.slice.stream.core.model.ChatMessage;
+import java.net.SocketTimeoutException;
 import java.net.http.WebSocket;
 import java.net.http.WebSocket.Listener;
 import java.util.List;
@@ -18,6 +19,8 @@ import tools.jackson.databind.json.JsonMapper;
 @Slf4j
 public class ChzzkWebSocketListener implements Listener {
 
+    private static final long PONG_TIMEOUT_MS = 60_000L;
+
     private final ChatMessageListener messageListener;
     private final String channelId;
     private final String chatChannelId;
@@ -29,6 +32,7 @@ public class ChzzkWebSocketListener implements Listener {
 
     private WebSocket webSocket;
     private ScheduledFuture<?> pingTask;
+    private volatile long lastPongReceivedAt;
 
     public ChzzkWebSocketListener(
         ChatMessageListener messageListener,
@@ -52,6 +56,7 @@ public class ChzzkWebSocketListener implements Listener {
     public void onOpen(WebSocket webSocket) {
         Listener.super.onOpen(webSocket);
         this.webSocket = webSocket;
+        this.lastPongReceivedAt = System.currentTimeMillis();
         this.messageListener.onConnected();
 
         log.info("[{}] 웹소켓 연결 성공. 서버 신호 대기 중...", chatChannelId);
@@ -97,7 +102,10 @@ public class ChzzkWebSocketListener implements Listener {
             case CHAT, DONATION -> handleChatMessage(rootNode);
             case PING -> handlePing();
             case CONNECT_ACK -> log.info("[{}] 웹소켓 인증 완료 확인", chatChannelId);
-            case PONG -> log.debug("[{}] 서버로부터 pong 응답 수신", chatChannelId);
+            case PONG -> {
+                this.lastPongReceivedAt = System.currentTimeMillis();
+                log.debug("[{}] 서버로부터 pong 응답 수신", chatChannelId);
+            }
             case BLIND, PARTICIPATION -> {}
             default -> log.debug("[{}] 기타 명령어 수신: {}", chatChannelId, type);
         }
@@ -158,12 +166,31 @@ public class ChzzkWebSocketListener implements Listener {
         if (webSocket == null) {
             return;
         }
+
+        long elapsedSinceLastPong = System.currentTimeMillis() - lastPongReceivedAt;
+        if (elapsedSinceLastPong > PONG_TIMEOUT_MS) {
+            log.warn("[{}] 치지직 하트비트 PONG 타임아웃 감지 ({}ms간 무응답 좀비 소켓). 강제 종료 후 재연결을 시도합니다.",
+                chatChannelId, elapsedSinceLastPong);
+            cancelPing();
+            webSocket.abort();
+            messageListener.onError(new SocketTimeoutException("치지직 하트비트 PONG 응답 없음: " + elapsedSinceLastPong + "ms"));
+            return;
+        }
+
         try {
             String pingPacket = "{\"cmd\": 0, \"ver\": 2}";
             this.webSocket.sendText(pingPacket, true);
         } catch (Exception e) {
             log.error("[{}] ping 전송 실패: {}", chatChannelId, e.getMessage());
         }
+    }
+
+    void setLastPongReceivedAt(long time) {
+        this.lastPongReceivedAt = time;
+    }
+
+    long getLastPongReceivedAt() {
+        return this.lastPongReceivedAt;
     }
 
     private String createAuthPacket(String chatChannelId, String accessToken) {
