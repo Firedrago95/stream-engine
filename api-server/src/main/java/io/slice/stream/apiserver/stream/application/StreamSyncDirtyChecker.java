@@ -79,21 +79,29 @@ public class StreamSyncDirtyChecker {
         }
 
         String[] parts = cachedSnapshot.split(DELIMITER, -1);
-        if (parts.length < 6) {
+        if (parts.length < 8) {
             return true;
         }
 
         String cachedLiveId = parts[0];
-        String cachedTitle = parts[1];
-        String cachedCategory = parts[2];
-        boolean cachedAdult = Boolean.parseBoolean(parts[3]);
-        boolean cachedPaid = Boolean.parseBoolean(parts[4]);
-        int cachedViewers = parseViewers(parts[5]);
+        String cachedStreamerName = parts[1];
+        String cachedTitle = parts[2];
+        String cachedProfileImageUrl = parts[3];
+        String cachedCategory = parts[4];
+        boolean cachedAdult = Boolean.parseBoolean(parts[5]);
+        boolean cachedPaid = Boolean.parseBoolean(parts[6]);
+        int cachedViewers = parseViewers(parts[7]);
 
         if (!Objects.equals(req.liveId(), cachedLiveId)) {
             return true;
         }
+        if (!Objects.equals(req.streamerName(), cachedStreamerName)) {
+            return true;
+        }
         if (!Objects.equals(req.liveTitle(), cachedTitle)) {
+            return true;
+        }
+        if (!Objects.equals(req.profileImageUrl(), cachedProfileImageUrl)) {
             return true;
         }
         if (!Objects.equals(req.categoryName(), cachedCategory)) {
@@ -129,7 +137,9 @@ public class StreamSyncDirtyChecker {
     private String serializeSnapshot(StreamSyncRequest req) {
         return String.join(DELIMITER,
             req.liveId() != null ? req.liveId() : "",
+            req.streamerName() != null ? req.streamerName() : "",
             req.liveTitle() != null ? req.liveTitle() : "",
+            req.profileImageUrl() != null ? req.profileImageUrl() : "",
             req.categoryName() != null ? req.categoryName() : "",
             String.valueOf(req.adult()),
             String.valueOf(req.paidPromotion()),

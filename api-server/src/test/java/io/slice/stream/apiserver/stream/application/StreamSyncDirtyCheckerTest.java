@@ -130,6 +130,34 @@ class StreamSyncDirtyCheckerTest {
     }
 
     @Test
+    @DisplayName("스트리머 닉네임만 변경되어도 Dirty로 판정되어야 한다")
+    void streamerNameChangeIsDirty() {
+        Instant now = Instant.now();
+        StreamSyncRequest initial = new StreamSyncRequest("ch1", "live1", "이전닉네임", "제목", "img.png", 1000, "소통", now);
+        dirtyChecker.updateSnapshots(List.of(initial));
+
+        StreamSyncRequest changedName = new StreamSyncRequest("ch1", "live1", "새로운닉네임", "제목", "img.png", 1000, "소통", now);
+        List<StreamSyncRequest> dirty = dirtyChecker.filterDirtyRequests(List.of(changedName));
+
+        assertThat(dirty).hasSize(1);
+        assertThat(dirty.get(0).streamerName()).isEqualTo("새로운닉네임");
+    }
+
+    @Test
+    @DisplayName("프로필 이미지만 변경되어도 Dirty로 판정되어야 한다")
+    void profileImageUrlChangeIsDirty() {
+        Instant now = Instant.now();
+        StreamSyncRequest initial = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "https://old-image.png", 1000, "소통", now);
+        dirtyChecker.updateSnapshots(List.of(initial));
+
+        StreamSyncRequest changedImage = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "https://new-image.png", 1000, "소통", now);
+        List<StreamSyncRequest> dirty = dirtyChecker.filterDirtyRequests(List.of(changedImage));
+
+        assertThat(dirty).hasSize(1);
+        assertThat(dirty.get(0).profileImageUrl()).isEqualTo("https://new-image.png");
+    }
+
+    @Test
     @DisplayName("null 또는 빈 리스트 입력 시 예외 없이 빈 목록을 반환해야 한다")
     void emptyOrNullRequestsReturnEmptyList() {
         assertThat(dirtyChecker.filterDirtyRequests(null)).isEmpty();
