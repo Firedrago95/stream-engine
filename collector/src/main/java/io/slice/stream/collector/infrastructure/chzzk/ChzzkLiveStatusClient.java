@@ -1,12 +1,14 @@
 package io.slice.stream.collector.infrastructure.chzzk;
 
 import io.slice.stream.collector.domain.LiveStatusClient;
+import io.slice.stream.collector.domain.LiveStatusResult;
 import io.slice.stream.collector.infrastructure.chzzk.dto.response.ChzzkLiveStatusResponse;
 import io.slice.stream.core.model.StreamTarget;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -28,22 +30,39 @@ public class ChzzkLiveStatusClient implements LiveStatusClient {
     private String liveStatusPollingUri = "/polling/v2/channels/{channelId}/live-status";
 
     @Override
-    public List<StreamTarget> fetchOpenStreams(Set<String> channelIds) {
+    public LiveStatusResult fetchLiveStatuses(Set<String> channelIds) {
         if (channelIds == null || channelIds.isEmpty()) {
-            return List.of();
+            return LiveStatusResult.empty();
         }
 
-        List<CompletableFuture<StreamTarget>> futures = channelIds.stream()
+        List<CompletableFuture<SingleStatusResult>> futures = channelIds.stream()
             .map(channelId -> CompletableFuture.supplyAsync(() -> fetchSingleStatus(channelId), executor))
             .toList();
 
-        return futures.stream()
+        List<SingleStatusResult> results = futures.stream()
             .map(CompletableFuture::join)
-            .filter(Objects::nonNull)
             .toList();
+
+        return aggregateResults(results);
     }
 
-    private StreamTarget fetchSingleStatus(String channelId) {
+    private LiveStatusResult aggregateResults(List<SingleStatusResult> results) {
+        List<StreamTarget> openStreams = new ArrayList<>();
+        Set<String> closedChannelIds = new HashSet<>();
+        Set<String> failedChannelIds = new HashSet<>();
+
+        for (SingleStatusResult result : results) {
+            switch (result) {
+                case SingleStatusResult.Open open -> openStreams.add(open.target());
+                case SingleStatusResult.Closed closed -> closedChannelIds.add(closed.channelId());
+                case SingleStatusResult.Failed failed -> failedChannelIds.add(failed.channelId());
+            }
+        }
+
+        return new LiveStatusResult(openStreams, closedChannelIds, failedChannelIds);
+    }
+
+    private SingleStatusResult fetchSingleStatus(String channelId) {
         try {
             ChzzkLiveStatusResponse response = restClient.get()
                 .uri(liveStatusPollingUri, channelId)
@@ -51,17 +70,17 @@ public class ChzzkLiveStatusClient implements LiveStatusClient {
                 .body(ChzzkLiveStatusResponse.class);
 
             if (response == null || response.content() == null) {
-                return null;
+                return new SingleStatusResult.Closed(channelId);
             }
 
             ChzzkLiveStatusResponse.Content content = response.content();
             if (!"OPEN".equals(content.status())) {
-                return null;
+                return new SingleStatusResult.Closed(channelId);
             }
 
             String chatChannelId = content.chatChannelId();
             if (chatChannelId == null || chatChannelId.isBlank()) {
-                return null;
+                return new SingleStatusResult.Closed(channelId);
             }
 
             Instant startedAt = content.openDate() != null
@@ -69,10 +88,9 @@ public class ChzzkLiveStatusClient implements LiveStatusClient {
                 : Instant.now();
 
             long liveId = content.liveId() != null ? content.liveId() : 0L;
-
             boolean adult = Boolean.TRUE.equals(content.adult());
 
-            return new StreamTarget(
+            StreamTarget target = new StreamTarget(
                 channelId,
                 channelId,
                 chatChannelId,
@@ -84,9 +102,17 @@ public class ChzzkLiveStatusClient implements LiveStatusClient {
                 startedAt,
                 adult
             );
+
+            return new SingleStatusResult.Open(target);
         } catch (Exception e) {
             log.warn("[상태 조회 실패] 채널 ID: {}, 사유: {}", channelId, e.getMessage());
-            return null;
+            return new SingleStatusResult.Failed(channelId, e.getMessage());
         }
+    }
+
+    private sealed interface SingleStatusResult {
+        record Open(StreamTarget target) implements SingleStatusResult {}
+        record Closed(String channelId) implements SingleStatusResult {}
+        record Failed(String channelId, String reason) implements SingleStatusResult {}
     }
 }
