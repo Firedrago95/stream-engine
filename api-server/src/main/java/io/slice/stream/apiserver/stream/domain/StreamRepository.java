@@ -19,6 +19,8 @@ public interface StreamRepository {
 
     void upsertStream(StreamEntity request, Instant currentTime);
 
+    void batchUpsertStreams(List<StreamEntity> streams, Instant currentTime);
+
     Optional<StreamEntity> findById(String streamId);
 
     List<StreamEntity> findAllStreamersForLeaderboard(Instant since, Pageable pageable);

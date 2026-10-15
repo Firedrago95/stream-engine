@@ -1,63 +1,72 @@
 package io.slice.stream.apiserver.analysis.application.handler;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
+import io.slice.stream.apiserver.analysis.application.service.AnalysisSignalBufferService;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import io.slice.stream.apiserver.analysis.domain.event.SignalSavedEvent;
-import java.time.Instant;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
-
-import static org.mockito.Mockito.times;
-
 import io.slice.stream.apiserver.analysis.domain.event.SignalsReceivedEvent;
+import io.slice.stream.apiserver.analysis.infrastructure.AnalysisRedisKeyManager;
+import io.slice.stream.apiserver.stream.fake.FakeAnalysisSignalSummaryJdbcRepository;
+import io.slice.stream.apiserver.stream.fake.FakeApplicationEventPublisher;
+import io.slice.stream.apiserver.stream.fake.FakeStringRedisTemplate;
+import java.time.Instant;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
-@ExtendWith(MockitoExtension.class)
 class AnalysisStorageHandlerTest {
 
-    @Mock
-    private AnalysisRepository analysisRepository;
-
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
-
-    @InjectMocks
+    private FakeStringRedisTemplate redisTemplate;
+    private FakeAnalysisSignalSummaryJdbcRepository summaryRepository;
+    private FakeApplicationEventPublisher eventPublisher;
+    private AnalysisRedisKeyManager keyManager;
+    private AnalysisSignalBufferService bufferService;
     private AnalysisStorageHandler analysisStorageHandler;
 
-    @Test
-    void 이벤트가_방생하면_저장소_저장_메서드가_호출된다() {
-        // given
-        AnalysisSignal signal = AnalysisSignal.of("test-stream", "sessionId", "NORMAL", Instant.now(), 100L, 1000L);
-
-        // when
-        analysisStorageHandler.handleAnalysisSignal(signal);
-
-        // then
-        verify(analysisRepository).save(signal);
-        verify(eventPublisher).publishEvent(any(SignalSavedEvent.class));
+    @BeforeEach
+    void setUp() {
+        redisTemplate = new FakeStringRedisTemplate();
+        summaryRepository = new FakeAnalysisSignalSummaryJdbcRepository();
+        eventPublisher = new FakeApplicationEventPublisher();
+        keyManager = new AnalysisRedisKeyManager();
+        bufferService = new AnalysisSignalBufferService(redisTemplate, summaryRepository, keyManager);
+        analysisStorageHandler = new AnalysisStorageHandler(bufferService, eventPublisher);
     }
 
     @Test
-    void 일괄_신호_수신_이벤트가_발생하면_일괄_저장소_메서드가_호출되고_각_신호의_저장_완료_이벤트가_발행된다() {
-        // given
+    @DisplayName("단건 분석 신호 수신 시 Redis 버퍼에 적재되고 SignalSavedEvent가 발행된다")
+    void shouldBufferSignalAndPublishEventOnSingleSignal() {
+        AnalysisSignal signal = AnalysisSignal.of("test-stream", "sessionId", "NORMAL", Instant.now(), 100L, 1000L);
+
+        analysisStorageHandler.handleAnalysisSignal(signal);
+
+        List<String> buffered = redisTemplate.opsForList().range("analysis:signals:buffer", 0, -1);
+        assertThat(buffered).hasSize(1);
+
+        List<SignalSavedEvent> events = eventPublisher.getEventsOfType(SignalSavedEvent.class);
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).signal()).isEqualTo(signal);
+    }
+
+    @Test
+    @DisplayName("일괄 신호 수신 시 Redis 버퍼에 전건 적재되고 각 신호별 SignalSavedEvent가 발행된다")
+    void shouldBufferAllSignalsAndPublishEventsOnBatchSignals() {
         List<AnalysisSignal> signals = List.of(
             AnalysisSignal.of("stream1", "sessionId1", "NORMAL", Instant.now(), 100L, 1000L),
             AnalysisSignal.of("stream2", "sessionId2", "PEAK", Instant.now(), 500L, 2000L)
         );
         SignalsReceivedEvent event = new SignalsReceivedEvent(signals);
 
-        // when
         analysisStorageHandler.handleSignalsReceived(event);
 
-        // then
-        verify(analysisRepository).saveAll(signals);
-        verify(eventPublisher, times(2)).publishEvent(any(SignalSavedEvent.class));
+        List<String> buffered = redisTemplate.opsForList().range("analysis:signals:buffer", 0, -1);
+        assertThat(buffered).hasSize(2);
+
+        List<SignalSavedEvent> events = eventPublisher.getEventsOfType(SignalSavedEvent.class);
+        assertThat(events).hasSize(2);
+        assertThat(events.get(0).signal()).isEqualTo(signals.get(0));
+        assertThat(events.get(1).signal()).isEqualTo(signals.get(1));
     }
 }

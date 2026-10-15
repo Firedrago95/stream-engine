@@ -1,13 +1,19 @@
 package io.slice.stream.apiserver.stream.fake;
 
+import java.lang.reflect.Proxy;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.ListOperations;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -15,7 +21,47 @@ import org.springframework.data.redis.core.ValueOperations;
 public class FakeStringRedisTemplate extends StringRedisTemplate {
 
     private final Map<String, String> memoryStore = new ConcurrentHashMap<>();
+    private final Map<String, List<String>> listStore = new ConcurrentHashMap<>();
     private final ValueOperations<String, String> fakeValueOperations = new FakeValueOperations(memoryStore);
+    @SuppressWarnings("unchecked")
+    private final ListOperations<String, String> fakeListOperations = (ListOperations<String, String>) Proxy.newProxyInstance(
+            ListOperations.class.getClassLoader(),
+            new Class<?>[]{ListOperations.class},
+            (proxy, method, args) -> {
+                String methodName = method.getName();
+                if ("rightPushAll".equals(methodName)) {
+                    String key = (String) args[0];
+                    if (args[1] instanceof Collection<?> col) {
+                        List<String> list = listStore.computeIfAbsent(key, k -> Collections.synchronizedList(new ArrayList<>()));
+                        for (Object o : col) {
+                            list.add(String.valueOf(o));
+                        }
+                        return (long) list.size();
+                    }
+                }
+                if ("range".equals(methodName)) {
+                    String key = (String) args[0];
+                    long start = (Long) args[1];
+                    long end = (Long) args[2];
+                    List<String> list = listStore.get(key);
+                    if (list == null || list.isEmpty()) {
+                        return Collections.emptyList();
+                    }
+                    int s = Math.max(0, (int) start);
+                    int e = end == -1 ? list.size() : Math.min(list.size(), (int) end + 1);
+                    if (s >= list.size() || s >= e) {
+                        return Collections.emptyList();
+                    }
+                    return new ArrayList<>(list.subList(s, e));
+                }
+                if ("size".equals(methodName)) {
+                    String key = (String) args[0];
+                    List<String> list = listStore.get(key);
+                    return list != null ? (long) list.size() : 0L;
+                }
+                return null;
+            }
+    );
 
     public FakeStringRedisTemplate() {
         super();
@@ -26,12 +72,62 @@ public class FakeStringRedisTemplate extends StringRedisTemplate {
         return fakeValueOperations;
     }
 
+    @Override
+    public ListOperations<String, String> opsForList() {
+        return fakeListOperations;
+    }
+
+    @Override
+    public Boolean delete(String key) {
+        boolean removedMemory = memoryStore.remove(key) != null;
+        boolean removedList = listStore.remove(key) != null;
+        return removedMemory || removedList;
+    }
+
+    @Override
+    public void rename(String oldKey, String newKey) {
+        if (memoryStore.containsKey(oldKey)) {
+            memoryStore.put(newKey, memoryStore.remove(oldKey));
+        }
+        if (listStore.containsKey(oldKey)) {
+            listStore.put(newKey, listStore.remove(oldKey));
+        }
+    }
+
+    @Override
+    public Boolean expire(String key, Duration timeout) {
+        return memoryStore.containsKey(key) || listStore.containsKey(key);
+    }
+
+    @Override
+    public Boolean expire(String key, long timeout, TimeUnit unit) {
+        return memoryStore.containsKey(key) || listStore.containsKey(key);
+    }
+
+    @Override
+    public Set<String> keys(String pattern) {
+        String regex = pattern.replace("*", ".*");
+        Set<String> matched = new HashSet<>();
+        for (String k : memoryStore.keySet()) {
+            if (k.matches(regex)) matched.add(k);
+        }
+        for (String k : listStore.keySet()) {
+            if (k.matches(regex)) matched.add(k);
+        }
+        return matched;
+    }
+
     public void clear() {
         memoryStore.clear();
+        listStore.clear();
     }
 
     public Map<String, String> getMemoryStore() {
         return memoryStore;
+    }
+
+    public Map<String, List<String>> getListStore() {
+        return listStore;
     }
 
     private static class FakeValueOperations implements ValueOperations<String, String> {

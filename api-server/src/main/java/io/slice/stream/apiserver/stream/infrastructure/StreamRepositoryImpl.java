@@ -4,6 +4,9 @@ import io.slice.stream.apiserver.stream.domain.StreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerFollowerGrowthProjection;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerLeaderboardProjection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collections;
@@ -11,13 +14,29 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
 public class StreamRepositoryImpl implements StreamRepository {
 
+    private static final String BATCH_UPSERT_STREAMS_SQL = """
+        INSERT INTO streams (stream_id, streamer_name, live_title, profile_image_url, category_name, concurrent_user_count, is_live, last_update_at)
+        VALUES (?, ?, ?, ?, ?, ?, true, ?)
+        ON CONFLICT (stream_id)
+        DO UPDATE SET
+            streamer_name = EXCLUDED.streamer_name,
+            live_title = EXCLUDED.live_title,
+            profile_image_url = EXCLUDED.profile_image_url,
+            category_name = EXCLUDED.category_name,
+            concurrent_user_count = EXCLUDED.concurrent_user_count,
+            is_live = true,
+            last_update_at = EXCLUDED.last_update_at
+        """;
+
     private final JpaStreamRepository jpaStreamRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     @Override
     public List<StreamEntity> findActiveStreams(Instant threshold) {
@@ -40,6 +59,29 @@ public class StreamRepositoryImpl implements StreamRepository {
     @Override
     public void upsertStream(StreamEntity request, Instant currentTime) {
         jpaStreamRepository.upsertStream(request, currentTime);
+    }
+
+    @Override
+    public void batchUpsertStreams(List<StreamEntity> streams, Instant currentTime) {
+        if (streams == null || streams.isEmpty()) {
+            return;
+        }
+
+        Timestamp lastUpdateTimestamp = Timestamp.from(currentTime);
+        jdbcTemplate.batchUpdate(
+            BATCH_UPSERT_STREAMS_SQL,
+            streams,
+            streams.size(),
+            (PreparedStatement ps, StreamEntity s) -> {
+                ps.setString(1, s.getStreamId());
+                ps.setString(2, s.getStreamerName());
+                ps.setString(3, s.getLiveTitle());
+                ps.setString(4, s.getProfileImageUrl());
+                ps.setString(5, s.getCategoryName());
+                ps.setInt(6, s.getConcurrentUserCount());
+                ps.setTimestamp(7, lastUpdateTimestamp);
+            }
+        );
     }
 
     @Override
