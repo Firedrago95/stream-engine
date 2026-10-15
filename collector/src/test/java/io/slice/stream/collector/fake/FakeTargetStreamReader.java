@@ -1,26 +1,27 @@
 package io.slice.stream.collector.fake;
 
 import io.slice.stream.collector.domain.TargetStreamReader;
-import java.util.Collections;
-import java.util.Set;
+import io.slice.stream.core.model.StreamTarget;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class FakeTargetStreamReader implements TargetStreamReader {
 
-    private final Set<String> targetChannels = ConcurrentHashMap.newKeySet();
+    private final Map<String, StreamTarget> targets = new ConcurrentHashMap<>();
     private boolean throwOnRead = false;
 
-    public void addTarget(String channelId) {
-        targetChannels.add(channelId);
+    public void addTarget(StreamTarget target) {
+        targets.put(target.channelId(), target);
     }
 
     public void removeTarget(String channelId) {
-        targetChannels.remove(channelId);
+        targets.remove(channelId);
     }
 
-    public void setTargets(Set<String> channels) {
-        targetChannels.clear();
-        targetChannels.addAll(channels);
+    public void clear() {
+        targets.clear();
     }
 
     public void setThrowOnRead(boolean throwOnRead) {
@@ -28,10 +29,10 @@ public class FakeTargetStreamReader implements TargetStreamReader {
     }
 
     @Override
-    public Set<String> getTargetChannels() {
+    public List<StreamTarget> getTargetStreams() {
         if (throwOnRead) {
-            throw new IllegalStateException("[Redis 오류] 타겟 풀 조회 실패");
+            throw new IllegalStateException("Redis connection failure simulation");
         }
-        return Collections.unmodifiableSet(targetChannels);
+        return new ArrayList<>(targets.values());
     }
 }

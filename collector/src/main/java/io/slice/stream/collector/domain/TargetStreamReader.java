@@ -1,8 +1,9 @@
 package io.slice.stream.collector.domain;
 
-import java.util.Set;
+import io.slice.stream.core.model.StreamTarget;
+import java.util.List;
 
 public interface TargetStreamReader {
 
-    Set<String> getTargetChannels();
+    List<StreamTarget> getTargetStreams();
 }

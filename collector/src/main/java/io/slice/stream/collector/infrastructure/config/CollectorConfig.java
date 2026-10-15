@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
 @Configuration
@@ -34,7 +35,9 @@ public class CollectorConfig {
 
     @Bean
     public JsonMapper jsonMapper() {
-        return JsonMapper.builder().build();
+        return JsonMapper.builder()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            .build();
     }
 
     @Bean
