@@ -66,6 +66,21 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
     };
   }, [data]);
 
+  const xTicks = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    if (data.length <= 7) return data.map((d) => d.date);
+    const tickCount = 6;
+    const step = (data.length - 1) / (tickCount - 1);
+    const ticks: string[] = [];
+    for (let i = 0; i < tickCount; i++) {
+      const idx = Math.min(data.length - 1, Math.round(i * step));
+      if (!ticks.includes(data[idx].date)) {
+        ticks.push(data[idx].date);
+      }
+    }
+    return ticks;
+  }, [data]);
+
   const formatDateLabel = (dateStr: string) => {
     if (!dateStr) return '';
     const parts = dateStr.split('-');
@@ -213,12 +228,13 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
                 <CartesianGrid strokeDasharray="3 3" stroke="#262628" vertical={false} />
                 <XAxis
                   dataKey="date"
+                  ticks={xTicks}
+                  interval={0}
                   tickFormatter={formatDateLabel}
                   stroke="#52525B"
                   tick={{ fill: '#E4E4E7', fontSize: 10 }}
                   tickLine={false}
                   axisLine={{ stroke: '#27272A' }}
-                  minTickGap={20}
                 />
                 <YAxis
                   width={42}
@@ -266,12 +282,13 @@ export const StreamerFollowerTrendChart: React.FC<StreamerFollowerTrendChartProp
                 <CartesianGrid strokeDasharray="3 3" stroke="#262628" vertical={false} />
                 <XAxis
                   dataKey="date"
+                  ticks={xTicks}
+                  interval={0}
                   tickFormatter={formatDateLabel}
                   stroke="#52525B"
                   tick={{ fill: '#E4E4E7', fontSize: 10 }}
                   tickLine={false}
                   axisLine={{ stroke: '#27272A' }}
-                  minTickGap={20}
                 />
                 <YAxis
                   width={42}

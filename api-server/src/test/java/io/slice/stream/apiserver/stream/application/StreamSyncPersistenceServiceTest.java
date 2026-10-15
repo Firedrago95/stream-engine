@@ -155,4 +155,31 @@ class StreamSyncPersistenceServiceTest {
         assertThat(newSession).isPresent();
         assertThat(newSession.get().getTitle()).isEqualTo("새 방송");
     }
+
+    @Test
+    void 종료된_세션이_DB에_존재하고_활성_세그먼트가_없는_경우_재활성화하고_현재시각_기준의_신규_세그먼트를_생성한다() {
+        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
+        Instant currentTime = Instant.parse("2026-02-13T12:00:00Z");
+        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "소통 방송", "thumb.jpg", 3500, "소통", startedAt);
+        StreamSessionEntity existingSession = new StreamSessionEntity("ch1", "live1", "소통 방송", "소통", startedAt);
+        existingSession.finishSession(Instant.parse("2026-02-13T11:00:00Z"), 2000);
+
+        StreamSessionSegmentEntity oldClosedSegment = new StreamSessionSegmentEntity(
+            "ch1", "live1", "소통 방송", "소통", startedAt, 0L
+        );
+        oldClosedSegment.endSegment(Instant.parse("2026-02-13T11:00:00Z"), 3600000L);
+
+        sessionRepository.addSession(existingSession);
+        segmentRepository.addSegment(oldClosedSegment);
+
+        Map<String, StreamSyncRequest> map = Map.of("ch1", request);
+        persistenceService.persistSync(map, currentTime);
+
+        assertThat(existingSession.getEndedAt()).isNull();
+
+        Optional<StreamSessionSegmentEntity> activeSegment = segmentRepository.findActiveSegment("live1");
+        assertThat(activeSegment).isPresent();
+        assertThat(activeSegment.get().getStartedAt()).isEqualTo(currentTime);
+        assertThat(activeSegment.get().getStartOffsetMs()).isEqualTo(7200000L);
+    }
 }
