@@ -190,13 +190,14 @@ public class StreamSyncPersistenceService {
                 sessionMap.put(req.streamId(), existing);
 
                 if (!activeSegmentSessionIds.contains(existing.getSessionId())) {
+                    Instant sessionStartedAt = req.startedAt() != null ? req.startedAt() : currentTime;
                     long startOffset = Duration.between(existing.getStartedAt(), currentTime).toMillis();
                     StreamSessionSegmentEntity segment = new StreamSessionSegmentEntity(
                         req.streamId(),
                         req.liveId(),
                         req.liveTitle(),
                         req.categoryName(),
-                        currentTime,
+                        sessionStartedAt,
                         Math.max(0L, startOffset),
                         req.paidPromotion(),
                         req.adult()

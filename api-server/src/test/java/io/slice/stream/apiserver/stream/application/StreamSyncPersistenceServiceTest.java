@@ -157,7 +157,7 @@ class StreamSyncPersistenceServiceTest {
     }
 
     @Test
-    void 종료된_세션이_DB에_존재하고_활성_세그먼트가_없는_경우_재활성화하고_현재시각_기준의_신규_세그먼트를_생성한다() {
+    void 종료된_세션이_DB에_존재하고_활성_세그먼트가_없는_경우_재활성화하고_치지직_시작시각_기준의_신규_세그먼트를_생성한다() {
         Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
         Instant currentTime = Instant.parse("2026-02-13T12:00:00Z");
         StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "소통 방송", "thumb.jpg", 3500, "소통", startedAt);
@@ -179,7 +179,7 @@ class StreamSyncPersistenceServiceTest {
 
         Optional<StreamSessionSegmentEntity> activeSegment = segmentRepository.findActiveSegment("live1");
         assertThat(activeSegment).isPresent();
-        assertThat(activeSegment.get().getStartedAt()).isEqualTo(currentTime);
+        assertThat(activeSegment.get().getStartedAt()).isEqualTo(startedAt);
         assertThat(activeSegment.get().getStartOffsetMs()).isEqualTo(7200000L);
     }
 }
