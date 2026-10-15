@@ -5,6 +5,7 @@ import io.slice.stream.apiserver.analysis.infrastructure.JpaHighlightEventReposi
 import io.slice.stream.apiserver.analysis.infrastructure.entity.HighlightEventEntity;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -52,8 +53,9 @@ public class HighlightSessionPersistenceService {
     }
 
     @Transactional
-    public void cleanUpZombieSessions(Instant zombieThreshold, Duration trailingBuffer) {
+    public List<String> cleanUpZombieSessions(Instant zombieThreshold, Duration trailingBuffer) {
         List<HighlightEventEntity> zombies = repository.findZombieSessions(zombieThreshold);
+        List<String> finishedStreamIds = new ArrayList<>(zombies.size());
 
         for (HighlightEventEntity session : zombies) {
             Instant finalEndTime = session.getLastPeakTime().plus(trailingBuffer);
@@ -61,8 +63,10 @@ public class HighlightSessionPersistenceService {
             long endOffset = lastOffset + trailingBuffer.toMillis();
 
             session.finish(finalEndTime, endOffset);
+            finishedStreamIds.add(session.getStreamId());
             log.info("[Session-Cleanup] 방치된 좀비 하이라이트 세션 강제 종료 Stream: {}", session.getStreamId());
         }
+        return finishedStreamIds;
     }
 
     private void extendSession(AnalysisSignal signal, HighlightEventEntity session) {

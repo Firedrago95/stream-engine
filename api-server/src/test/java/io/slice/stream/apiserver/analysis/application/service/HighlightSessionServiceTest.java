@@ -197,4 +197,36 @@ class HighlightSessionServiceTest {
 
         assertThat(repository.findAll()).isEmpty();
     }
+
+    @Test
+    @DisplayName("좀비 세션 정리 시 종료된 좀비 스트림만 활성 캐시에서 제거되고 다른 활성 스트림은 보존된다")
+    void shouldRemoveOnlyFinishedZombieStreamsWithoutAffectingActiveStreams() {
+        Instant now = Instant.now();
+        highlightSessionService.handleSignal(AnalysisSignal.of("active-stream", "session-active", "PEAK", now, 100L, 50000L));
+
+        Instant peakTime = now.minus(Duration.ofMinutes(4));
+        HighlightEventEntity zombie = new HighlightEventEntity(
+            "zombie-stream", "session-zombie", peakTime, 10000L, peakTime, 10000L, 100L
+        );
+        repository.save(zombie);
+
+        highlightSessionService.cleanUpZombieSessions();
+
+        assertThat(zombie.getStatus()).isEqualTo("FINISHED");
+
+        @SuppressWarnings("unchecked")
+        Cache<String, Long> cache = (Cache<String, Long>) ReflectionTestUtils.getField(highlightSessionService, "nmsCache");
+        if (cache != null) {
+            cache.invalidateAll();
+        }
+
+        AnalysisSignal normalSignal = AnalysisSignal.of("active-stream", "session-active", "NORMAL", now.plusSeconds(65), 10L, 115000L);
+        highlightSessionService.handleSignal(normalSignal);
+
+        HighlightEventEntity activeSession = repository.findAll().stream()
+            .filter(h -> "active-stream".equals(h.getStreamId()))
+            .findFirst()
+            .orElseThrow();
+        assertThat(activeSession.getStatus()).isEqualTo("FINISHED");
+    }
 }

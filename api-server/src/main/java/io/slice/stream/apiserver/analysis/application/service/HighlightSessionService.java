@@ -8,6 +8,7 @@ import io.slice.stream.apiserver.global.config.HighlightProperties;
 import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -56,8 +57,8 @@ public class HighlightSessionService {
 
     public void cleanUpZombieSessions() {
         Instant zombieThreshold = Instant.now().minus(Duration.ofMinutes(3));
-        persistenceService.cleanUpZombieSessions(zombieThreshold, properties.trailingBuffer());
-        activeSessionStreams.retainAll(repository.findOngoingStreamIds());
+        List<String> finishedStreamIds = persistenceService.cleanUpZombieSessions(zombieThreshold, properties.trailingBuffer());
+        finishedStreamIds.forEach(activeSessionStreams::remove);
     }
 
     private void processPeakSignal(AnalysisSignal signal, String streamId) {
