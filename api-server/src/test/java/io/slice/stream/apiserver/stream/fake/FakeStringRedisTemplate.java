@@ -5,8 +5,10 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import org.springframework.data.redis.connection.BitFieldSubCommands;
@@ -90,6 +92,29 @@ public class FakeStringRedisTemplate extends StringRedisTemplate {
         if (listStore.containsKey(oldKey)) {
             listStore.put(newKey, listStore.remove(oldKey));
         }
+    }
+
+    @Override
+    public Boolean expire(String key, Duration timeout) {
+        return memoryStore.containsKey(key) || listStore.containsKey(key);
+    }
+
+    @Override
+    public Boolean expire(String key, long timeout, TimeUnit unit) {
+        return memoryStore.containsKey(key) || listStore.containsKey(key);
+    }
+
+    @Override
+    public Set<String> keys(String pattern) {
+        String regex = pattern.replace("*", ".*");
+        Set<String> matched = new HashSet<>();
+        for (String k : memoryStore.keySet()) {
+            if (k.matches(regex)) matched.add(k);
+        }
+        for (String k : listStore.keySet()) {
+            if (k.matches(regex)) matched.add(k);
+        }
+        return matched;
     }
 
     public void clear() {

@@ -6,6 +6,7 @@ import io.slice.stream.apiserver.analysis.application.service.AnalysisSignalBuff
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import io.slice.stream.apiserver.analysis.domain.event.SignalSavedEvent;
 import io.slice.stream.apiserver.analysis.domain.event.SignalsReceivedEvent;
+import io.slice.stream.apiserver.analysis.infrastructure.AnalysisRedisKeyManager;
 import io.slice.stream.apiserver.stream.fake.FakeAnalysisSignalSummaryJdbcRepository;
 import io.slice.stream.apiserver.stream.fake.FakeApplicationEventPublisher;
 import io.slice.stream.apiserver.stream.fake.FakeStringRedisTemplate;
@@ -20,6 +21,7 @@ class AnalysisStorageHandlerTest {
     private FakeStringRedisTemplate redisTemplate;
     private FakeAnalysisSignalSummaryJdbcRepository summaryRepository;
     private FakeApplicationEventPublisher eventPublisher;
+    private AnalysisRedisKeyManager keyManager;
     private AnalysisSignalBufferService bufferService;
     private AnalysisStorageHandler analysisStorageHandler;
 
@@ -28,7 +30,8 @@ class AnalysisStorageHandlerTest {
         redisTemplate = new FakeStringRedisTemplate();
         summaryRepository = new FakeAnalysisSignalSummaryJdbcRepository();
         eventPublisher = new FakeApplicationEventPublisher();
-        bufferService = new AnalysisSignalBufferService(redisTemplate, summaryRepository);
+        keyManager = new AnalysisRedisKeyManager();
+        bufferService = new AnalysisSignalBufferService(redisTemplate, summaryRepository, keyManager);
         analysisStorageHandler = new AnalysisStorageHandler(bufferService, eventPublisher);
     }
 
