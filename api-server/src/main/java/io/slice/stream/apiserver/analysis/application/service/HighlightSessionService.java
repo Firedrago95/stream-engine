@@ -58,7 +58,7 @@ public class HighlightSessionService {
     public void cleanUpZombieSessions() {
         Instant zombieThreshold = Instant.now().minus(Duration.ofMinutes(3));
         List<String> finishedStreamIds = persistenceService.cleanUpZombieSessions(zombieThreshold, properties.trailingBuffer());
-        finishedStreamIds.forEach(activeSessionStreams::remove);
+        activeSessionStreams.removeAll(finishedStreamIds);
     }
 
     private void processPeakSignal(AnalysisSignal signal, String streamId) {
