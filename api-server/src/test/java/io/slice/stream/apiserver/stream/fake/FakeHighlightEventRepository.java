@@ -10,9 +10,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Example;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +26,15 @@ public class FakeHighlightEventRepository implements JpaHighlightEventRepository
 
     private final Map<Long, HighlightEventEntity> storage = new ConcurrentHashMap<>();
     private final AtomicLong idGenerator = new AtomicLong(1L);
+
+    @Override
+    public Set<String> findOngoingStreamIds() {
+        return storage.values().stream()
+            .filter(h -> "ONGOING".equals(h.getStatus()))
+            .map(HighlightEventEntity::getStreamId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+    }
 
     @Override
     public Optional<HighlightEventEntity> findFirstByStreamIdAndStatusOrderByStartTimeDesc(String streamId, String status) {
