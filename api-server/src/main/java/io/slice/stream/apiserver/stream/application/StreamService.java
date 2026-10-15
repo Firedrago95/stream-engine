@@ -2,7 +2,6 @@ package io.slice.stream.apiserver.stream.application;
 
 import io.slice.stream.apiserver.stream.presentation.dto.StreamSyncRequest;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -15,7 +14,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class StreamService {
 
-    private final StreamSyncDirtyChecker dirtyChecker;
     private final StreamSyncPersistenceService persistenceService;
 
     public void syncAll(List<StreamSyncRequest> requests) {
@@ -24,14 +22,8 @@ public class StreamService {
         }
 
         Map<String, StreamSyncRequest> uniqueRequests = deduplicateRequests(requests);
-        List<StreamSyncRequest> requestList = new ArrayList<>(uniqueRequests.values());
-
-        List<StreamSyncRequest> dirtyRequests = dirtyChecker.filterDirtyRequests(requestList);
-
         Instant currentTime = Instant.now();
-        persistenceService.persistSync(dirtyRequests, uniqueRequests, currentTime);
-
-        dirtyChecker.updateSnapshots(dirtyRequests);
+        persistenceService.persistSync(uniqueRequests, currentTime);
     }
 
     private Map<String, StreamSyncRequest> deduplicateRequests(List<StreamSyncRequest> requests) {

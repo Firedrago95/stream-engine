@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.slice.stream.apiserver.stream.fake.FakeStreamRepository;
 import io.slice.stream.apiserver.stream.fake.FakeStreamSessionRepository;
 import io.slice.stream.apiserver.stream.fake.FakeStreamSessionSegmentRepository;
-import io.slice.stream.apiserver.stream.fake.FakeStringRedisTemplate;
 import io.slice.stream.apiserver.stream.fake.FakeViewMetricTimelineRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
@@ -22,25 +21,21 @@ import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 @DisplayNameGeneration(ReplaceUnderscores.class)
 class StreamServiceTest {
 
-    private FakeStringRedisTemplate redisTemplate;
     private FakeStreamRepository streamRepository;
     private FakeStreamSessionRepository sessionRepository;
     private FakeStreamSessionSegmentRepository segmentRepository;
     private FakeViewMetricTimelineRepository timelineRepository;
 
-    private StreamSyncDirtyChecker dirtyChecker;
     private StreamSyncPersistenceService persistenceService;
     private StreamService streamService;
 
     @BeforeEach
     void setUp() {
-        redisTemplate = new FakeStringRedisTemplate();
         streamRepository = new FakeStreamRepository();
         sessionRepository = new FakeStreamSessionRepository();
         segmentRepository = new FakeStreamSessionSegmentRepository();
         timelineRepository = new FakeViewMetricTimelineRepository();
 
-        dirtyChecker = new StreamSyncDirtyChecker(redisTemplate);
         persistenceService = new StreamSyncPersistenceService(
             streamRepository,
             sessionRepository,
@@ -49,11 +44,11 @@ class StreamServiceTest {
             new ConcurrentMapCacheManager("activeSessions")
         );
 
-        streamService = new StreamService(dirtyChecker, persistenceService);
+        streamService = new StreamService(persistenceService);
     }
 
     @Test
-    void 신규_방송_목록을_동기화하면_DB에_정상_등록되고_스냅샷이_캐싱된다() {
+    void 신규_방송_목록을_동기화하면_DB에_정상_등록된다() {
         Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
         StreamSyncRequest req = new StreamSyncRequest("ch1", "live1", "침착맨", "제목1", "thumb.jpg", 1000, "소통", startedAt);
 
@@ -62,32 +57,28 @@ class StreamServiceTest {
         Optional<StreamEntity> savedStream = streamRepository.findById("ch1");
         assertThat(savedStream).isPresent();
         assertThat(savedStream.get().getLiveTitle()).isEqualTo("제목1");
+        assertThat(savedStream.get().getConcurrentUserCount()).isEqualTo(1000);
 
         Optional<StreamSessionEntity> savedSession = sessionRepository.findBySessionId("live1");
         assertThat(savedSession).isPresent();
     }
 
     @Test
-    void 메타데이터가_변경되지_않은_두번째_동기화에서는_streams_테이블_갱신을_건너뛴다() {
+    void 연속_동기화_시_최신_시청자수와_lastUpdateAt이_누락_없이_갱신된다() {
         Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
-        StreamSyncRequest req = new StreamSyncRequest("ch1", "live1", "침착맨", "제목1", "thumb.jpg", 1000, "소통", startedAt);
+        StreamSyncRequest req1 = new StreamSyncRequest("ch1", "live1", "침착맨", "제목1", "thumb.jpg", 1000, "소통", startedAt);
+        streamService.syncAll(List.of(req1));
 
-        streamService.syncAll(List.of(req));
+        // 시청자 수가 1000명에서 1050명으로 약간 변동한 경우 (과거 dirty check 기준 미달이어도 정상 반영 검증)
+        StreamSyncRequest req2 = new StreamSyncRequest("ch1", "live1", "침착맨", "제목1", "thumb.jpg", 1050, "소통", startedAt);
+        streamService.syncAll(List.of(req2));
 
-        // DB에 저장된 상태를 임의로 다른 객체로 교체해둠 (dirty check 건너뛰는지 확인용)
-        StreamEntity sentinel = new StreamEntity("ch1", "침착맨");
-        sentinel.heartbeat("침착맨", "감시용제목", "thumb.jpg", "소통", 1000);
-        streamRepository.upsertStream(sentinel, Instant.now());
-
-        // 동일한 데이터로 다시 syncAll 호출 (Clean 상태)
-        streamService.syncAll(List.of(req));
-
-        // DB의 제목이 sentinel 제목 그대로 유지되어 있어야 함 (upsert 생략 증명)
         Optional<StreamEntity> current = streamRepository.findById("ch1");
         assertThat(current).isPresent();
-        assertThat(current.get().getLiveTitle()).isEqualTo("감시용제목");
+        assertThat(current.get().getConcurrentUserCount()).isEqualTo(1050);
+        assertThat(current.get().isLive()).isTrue();
 
-        // 하지만 타임라인은 누락 없이 2건 모두 쌓여야 함 (기능 100% 유지)
+        // 타임라인 역시 2건 모두 기록되어야 함
         assertThat(timelineRepository.findBySessionIdOrderByTimestampAsc("live1")).hasSize(2);
     }
 

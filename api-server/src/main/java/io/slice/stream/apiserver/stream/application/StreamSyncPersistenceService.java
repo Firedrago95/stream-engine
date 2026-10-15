@@ -40,24 +40,22 @@ public class StreamSyncPersistenceService {
 
     @Transactional
     public void persistSync(
-        List<StreamSyncRequest> dirtyRequests,
         Map<String, StreamSyncRequest> allUniqueRequests,
         Instant currentTime
     ) {
-        if (!dirtyRequests.isEmpty()) {
-            upsertDirtyStreams(dirtyRequests, currentTime);
+        if (!allUniqueRequests.isEmpty()) {
+            upsertStreams(new ArrayList<>(allUniqueRequests.values()), currentTime);
         }
 
         Map<String, StreamSessionEntity> sessionMap = resolveSessions(allUniqueRequests, currentTime);
         recordViewMetricTimelines(allUniqueRequests, sessionMap, currentTime);
 
-        log.info("[Sync] DB 영속화 완료 - 변경 대상: {}건, 전체 대상: {}건",
-            dirtyRequests.size(), allUniqueRequests.size());
+        log.info("[Sync] DB 영속화 완료 - 대상 스트림: {}건", allUniqueRequests.size());
     }
 
-    private void upsertDirtyStreams(List<StreamSyncRequest> dirtyRequests, Instant currentTime) {
-        List<StreamEntity> entities = new ArrayList<>(dirtyRequests.size());
-        for (StreamSyncRequest req : dirtyRequests) {
+    private void upsertStreams(List<StreamSyncRequest> requests, Instant currentTime) {
+        List<StreamEntity> entities = new ArrayList<>(requests.size());
+        for (StreamSyncRequest req : requests) {
             StreamEntity entity = new StreamEntity(req.streamId(), req.streamerName());
             entity.heartbeat(
                 req.streamerName(),

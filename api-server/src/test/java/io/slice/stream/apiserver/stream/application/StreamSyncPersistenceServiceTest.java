@@ -50,18 +50,18 @@ class StreamSyncPersistenceServiceTest {
         );
     }
 
-    private void invokePersist(List<StreamSyncRequest> dirtyRequests, List<StreamSyncRequest> allRequests) {
+    private void invokePersist(List<StreamSyncRequest> allRequests) {
         Map<String, StreamSyncRequest> map = allRequests.stream()
             .collect(Collectors.toMap(StreamSyncRequest::streamId, Function.identity(), (a, b) -> b));
-        persistenceService.persistSync(dirtyRequests, map, Instant.now());
+        persistenceService.persistSync(map, Instant.now());
     }
 
     @Test
-    void 변경된_방송_목록만_DB에_batchUpsert_되어야_한다() {
+    void 인입된_방송_목록이_DB에_정상_batchUpsert_되어야_한다() {
         Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
         StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 1000, "소통", startedAt);
 
-        invokePersist(List.of(request), List.of(request));
+        invokePersist(List.of(request));
 
         Optional<StreamEntity> saved = streamRepository.findById("ch1");
         assertThat(saved).isPresent();
@@ -70,11 +70,8 @@ class StreamSyncPersistenceServiceTest {
     }
 
     @Test
-    void dirtyRequests가_비어있으면_streams_테이블_업서트는_수행되지_않아야_한다() {
-        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
-        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 1000, "소통", startedAt);
-
-        invokePersist(List.of(), List.of(request));
+    void 빈_목록이_인입되면_streams_테이블_업서트는_수행되지_않아야_한다() {
+        invokePersist(List.of());
 
         assertThat(streamRepository.findById("ch1")).isEmpty();
     }
@@ -86,7 +83,7 @@ class StreamSyncPersistenceServiceTest {
         StreamSessionEntity session = new StreamSessionEntity("ch1", "live1", "제목", "소통", Instant.now().minusSeconds(120));
         sessionRepository.addSession(session);
 
-        invokePersist(List.of(request), List.of(request));
+        invokePersist(List.of(request));
 
         assertThat(session.getPeakViewers()).isEqualTo(3500);
 
@@ -101,7 +98,7 @@ class StreamSyncPersistenceServiceTest {
         Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
         StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "제목", "thumb.jpg", 3500, "소통", startedAt);
 
-        invokePersist(List.of(request), List.of(request));
+        invokePersist(List.of(request));
 
         Optional<StreamSessionEntity> createdSession = sessionRepository.findBySessionId("live1");
         assertThat(createdSession).isPresent();
@@ -132,7 +129,7 @@ class StreamSyncPersistenceServiceTest {
         sessionRepository.addSession(existingSession);
         segmentRepository.addSegment(existingSegment);
 
-        invokePersist(List.of(request), List.of(request));
+        invokePersist(List.of(request));
 
         assertThat(existingSession.getEndedAt()).isNull();
         assertThat(existingSession.getPeakViewers()).isEqualTo(3500);
@@ -148,7 +145,7 @@ class StreamSyncPersistenceServiceTest {
         timelineRepository.setAverageViewerCount("live1", 2500.0);
         timelineRepository.setPeakViewerCount("live1", 3000);
 
-        invokePersist(List.of(request), List.of(request));
+        invokePersist(List.of(request));
 
         assertThat(oldActiveSession.getEndedAt()).isNotNull();
         assertThat(oldActiveSession.getAverageViewerCount()).isEqualTo(2500);
