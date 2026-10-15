@@ -18,5 +18,15 @@ public interface JpaViewMetricTimelineRepository extends JpaRepository<ViewMetri
 
     @Query("SELECT MAX(v.viewerCount) FROM ViewMetricTimelineEntity v WHERE v.sessionId = :sessionId")
     Integer findPeakViewerCountBySessionId(@Param("sessionId") String sessionId);
+
+    @Query("""
+        SELECT v.sessionId AS sessionId,
+               AVG(v.viewerCount) AS avgViewers,
+               MAX(v.viewerCount) AS peakViewers
+        FROM ViewMetricTimelineEntity v
+        WHERE v.sessionId IN :sessionIds
+        GROUP BY v.sessionId
+        """)
+    List<SessionViewerMetricsProjection> findViewerMetricsBySessionIds(@Param("sessionIds") Collection<String> sessionIds);
 }
 

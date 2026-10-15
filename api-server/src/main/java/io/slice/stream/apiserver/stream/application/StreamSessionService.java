@@ -7,6 +7,7 @@ import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaViewMetricTimelineRepository;
+import io.slice.stream.apiserver.stream.infrastructure.SessionViewerMetricsProjection;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
@@ -188,21 +190,35 @@ public class StreamSessionService {
         Instant offlineThreshold = Instant.now().minus(Duration.ofMinutes(6));
         List<StreamSessionEntity> sessionsToClose = sessionRepository.findSessionsToClose(offlineThreshold);
 
-        if (!sessionsToClose.isEmpty()) {
-            zombieSessionsClosedCounter.increment(sessionsToClose.size());
+        if (sessionsToClose.isEmpty()) {
+            streamRepository.markAllOfflineBefore(offlineThreshold);
+            return;
         }
+
+        zombieSessionsClosedCounter.increment(sessionsToClose.size());
 
         List<String> streamIds = sessionsToClose.stream()
             .map(StreamSessionEntity::getStreamId)
             .distinct()
             .toList();
 
+        List<String> sessionIds = sessionsToClose.stream()
+            .map(StreamSessionEntity::getSessionId)
+            .toList();
+
         Map<String, Instant> streamLastUpdateMap = streamRepository.findAllByStreamIdIn(streamIds).stream()
             .collect(Collectors.toMap(StreamEntity::getStreamId, StreamEntity::getLastUpdateAt, (existing, replacement) -> existing));
 
+        Map<String, SessionViewerMetricsProjection> viewerMetricsMap = timelineRepository.findViewerMetricsBySessionIds(sessionIds).stream()
+            .collect(Collectors.toMap(SessionViewerMetricsProjection::getSessionId, Function.identity(), (existing, replacement) -> existing));
+
+        Map<String, StreamSessionSegmentEntity> activeSegmentMap = segmentRepository.findAllActiveSegments(sessionIds).stream()
+            .collect(Collectors.toMap(StreamSessionSegmentEntity::getSessionId, Function.identity(), (existing, replacement) -> existing));
+
         for (StreamSessionEntity session : sessionsToClose) {
-            Double avgViewers = timelineRepository.findAverageViewerCountBySessionId(session.getSessionId());
-            Integer peakViewers = timelineRepository.findPeakViewerCountBySessionId(session.getSessionId());
+            SessionViewerMetricsProjection metrics = viewerMetricsMap.get(session.getSessionId());
+            Double avgViewers = metrics != null ? metrics.getAvgViewers() : null;
+            Integer peakViewers = metrics != null ? metrics.getPeakViewers() : null;
             int finalPeak = peakViewers != null ? Math.max(peakViewers, session.getPeakViewers()) : session.getPeakViewers();
 
             Instant rawEndedAt = streamLastUpdateMap.getOrDefault(session.getStreamId(), session.getStartedAt());
@@ -210,11 +226,11 @@ public class StreamSessionService {
 
             session.finishSession(endedAt, finalPeak, avgViewers);
 
-            segmentRepository.findActiveSegment(session.getSessionId())
-                .ifPresent(segment -> {
-                    long endOffset = Math.max(0L, Duration.between(session.getStartedAt(), endedAt).toMillis());
-                    segment.endSegment(endedAt, endOffset);
-                });
+            StreamSessionSegmentEntity segment = activeSegmentMap.get(session.getSessionId());
+            if (segment != null) {
+                long endOffset = Math.max(0L, Duration.between(session.getStartedAt(), endedAt).toMillis());
+                segment.endSegment(endedAt, endOffset);
+            }
 
             evictActiveSessionAfterCommit(session.getStreamId());
             log.info("[Session-Manager] 방송 종료 감지, 세션 마감 - Stream: {}, SessionId: {}", session.getStreamId(), session.getSessionId());

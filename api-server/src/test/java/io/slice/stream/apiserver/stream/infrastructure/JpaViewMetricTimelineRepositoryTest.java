@@ -72,4 +72,29 @@ class JpaViewMetricTimelineRepositoryTest implements PostgresTestSupport {
         assertThat(avgViewers).isNull();
         assertThat(peakViewers).isNull();
     }
+
+    @Test
+    void 여러_세션_ID로_한번에_평균_시청자수와_피크_시청자수를_벌크_집계한다() {
+        String s1 = "session-bulk-1";
+        String s2 = "session-bulk-2";
+        Instant now = Instant.now();
+
+        ViewMetricTimelineEntity p1 = new ViewMetricTimelineEntity("stream-1", s1, now.minusSeconds(60), 100);
+        ViewMetricTimelineEntity p2 = new ViewMetricTimelineEntity("stream-1", s1, now, 300);
+        ViewMetricTimelineEntity p3 = new ViewMetricTimelineEntity("stream-2", s2, now.minusSeconds(60), 500);
+        ViewMetricTimelineEntity p4 = new ViewMetricTimelineEntity("stream-2", s2, now, 700);
+
+        timelineRepository.saveAll(List.of(p1, p2, p3, p4));
+
+        List<SessionViewerMetricsProjection> results = timelineRepository.findViewerMetricsBySessionIds(List.of(s1, s2));
+
+        assertThat(results).hasSize(2);
+        SessionViewerMetricsProjection m1 = results.stream().filter(r -> r.getSessionId().equals(s1)).findFirst().orElseThrow();
+        assertThat(m1.getAvgViewers()).isEqualTo(200.0);
+        assertThat(m1.getPeakViewers()).isEqualTo(300);
+
+        SessionViewerMetricsProjection m2 = results.stream().filter(r -> r.getSessionId().equals(s2)).findFirst().orElseThrow();
+        assertThat(m2.getAvgViewers()).isEqualTo(600.0);
+        assertThat(m2.getPeakViewers()).isEqualTo(700);
+    }
 }
