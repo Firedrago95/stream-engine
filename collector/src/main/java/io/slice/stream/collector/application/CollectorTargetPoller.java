@@ -1,7 +1,5 @@
 package io.slice.stream.collector.application;
 
-import io.slice.stream.collector.domain.LiveStatusClient;
-import io.slice.stream.collector.domain.LiveStatusResult;
 import io.slice.stream.collector.domain.TargetStreamReader;
 import io.slice.stream.core.model.StreamTarget;
 import java.util.List;
@@ -18,20 +16,18 @@ import org.springframework.stereotype.Component;
 public class CollectorTargetPoller {
 
     private final TargetStreamReader targetStreamReader;
-    private final LiveStatusClient liveStatusClient;
     private final ChatManager chatManager;
 
     @Scheduled(fixedRateString = "${collector.polling.interval-ms:15000}")
     public void pollTargets() {
         try {
-            Set<String> targetChannels = targetStreamReader.getTargetChannels();
-            if (targetChannels.isEmpty()) {
+            List<StreamTarget> targetStreams = targetStreamReader.getTargetStreams();
+            if (targetStreams.isEmpty()) {
                 handleEmptyTargets();
                 return;
             }
 
-            LiveStatusResult liveStatusResult = liveStatusClient.fetchLiveStatuses(targetChannels);
-            syncCollectorStreams(targetChannels, liveStatusResult);
+            syncCollectorStreams(targetStreams);
         } catch (Exception e) {
             log.error("[타겟 동기화 오류] 타겟 스트림 상태 확인 중 예외 발생: {}", e.getMessage(), e);
         }
@@ -46,23 +42,22 @@ public class CollectorTargetPoller {
         }
     }
 
-    private void syncCollectorStreams(Set<String> targetChannels, LiveStatusResult liveStatusResult) {
-        List<StreamTarget> collectableStreams = liveStatusResult.openStreams().stream()
-            .filter(target -> !Boolean.TRUE.equals(target.adult()))
+    private void syncCollectorStreams(List<StreamTarget> targetStreams) {
+        List<StreamTarget> collectableStreams = targetStreams.stream()
+            .filter(this::isCollectable)
             .toList();
 
         Set<StreamTarget> missingTargets = collectableStreams.stream()
             .filter(target -> !chatManager.isCollecting(target.channelId(), target.chatChannelId()))
             .collect(Collectors.toSet());
 
-        Set<String> adultChannelIds = liveStatusResult.openStreams().stream()
-            .filter(target -> Boolean.TRUE.equals(target.adult()))
+        Set<String> collectableChannelIds = collectableStreams.stream()
             .map(StreamTarget::channelId)
             .collect(Collectors.toSet());
 
         Set<String> activeChannelIds = chatManager.getActiveChannelIds();
         Set<String> closedChannelIds = activeChannelIds.stream()
-            .filter(channelId -> shouldCloseChannel(channelId, targetChannels, liveStatusResult, adultChannelIds))
+            .filter(channelId -> !collectableChannelIds.contains(channelId))
             .collect(Collectors.toSet());
 
         Set<StreamTarget> closedTargets = toClosedTargets(closedChannelIds);
@@ -73,19 +68,14 @@ public class CollectorTargetPoller {
         }
     }
 
-    private boolean shouldCloseChannel(
-        String channelId,
-        Set<String> targetChannels,
-        LiveStatusResult liveStatusResult,
-        Set<String> adultChannelIds
-    ) {
-        if (!targetChannels.contains(channelId)) {
-            return true;
+    private boolean isCollectable(StreamTarget target) {
+        if (target == null) {
+            return false;
         }
-        if (liveStatusResult.closedChannelIds().contains(channelId)) {
-            return true;
+        if (Boolean.TRUE.equals(target.adult())) {
+            return false;
         }
-        return adultChannelIds.contains(channelId);
+        return target.chatChannelId() != null && !target.chatChannelId().isBlank();
     }
 
     private Set<StreamTarget> toClosedTargets(Set<String> channelIds) {
