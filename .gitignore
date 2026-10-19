@@ -87,3 +87,9 @@ Thumbs.db
 
 # Node.js
 **/node_modules/
+
+# Airflow runtime directories
+airflow/logs/
+airflow/config/
+airflow/plugins/
+

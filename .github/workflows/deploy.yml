@@ -16,6 +16,7 @@ jobs:
       api_server: ${{ steps.filter.outputs.api_server == 'true' || github.event_name == 'workflow_dispatch' }}
       engine: ${{ steps.filter.outputs.engine == 'true' || github.event_name == 'workflow_dispatch' }}
       collector: ${{ steps.filter.outputs.collector == 'true' || github.event_name == 'workflow_dispatch' }}
+      airflow: ${{ steps.filter.outputs.airflow == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -55,6 +56,12 @@ jobs:
             echo "collector=true" >> $GITHUB_OUTPUT
           else
             echo "collector=false" >> $GITHUB_OUTPUT
+          fi
+
+          if echo "$CHANGED_FILES" | grep -q '^airflow/'; then
+            echo "airflow=true" >> $GITHUB_OUTPUT
+          else
+            echo "airflow=false" >> $GITHUB_OUTPUT
           fi
 
   # ---------------------------------------------------
@@ -218,4 +225,31 @@ jobs:
           docker compose up -d --no-deps collector
           docker image prune -af --filter "until=24h"
           docker builder prune -f --filter "until=48h"
+
+  # ---------------------------------------------------
+  # 4. Airflow 구성 및 DAG 동기화 배포 (홈서버 - AMD64)
+  # ---------------------------------------------------
+  deploy-airflow:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.airflow == 'true'
+    concurrency:
+      group: cheese-pick-airflow-deploy
+      cancel-in-progress: false
+    runs-on: [self-hosted, X64]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Sync Airflow Compose & DAGs
+        run: |
+          mkdir -p /home/ubuntu/cheese-pick/airflow/{dags,logs,config,plugins}
+          cp ./airflow/docker-compose.airflow.yml /home/ubuntu/cheese-pick/airflow/
+          ln -sf /home/ubuntu/cheese-pick/.env /home/ubuntu/cheese-pick/airflow/.env
+          rsync -av --delete ./airflow/dags/ /home/ubuntu/cheese-pick/airflow/dags/
+
+      - name: Start or Update Airflow Containers
+        working-directory: /home/ubuntu/cheese-pick/airflow
+        run: |
+          docker compose -f docker-compose.airflow.yml up -d
+
 
