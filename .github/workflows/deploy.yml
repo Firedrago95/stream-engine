@@ -250,6 +250,6 @@ jobs:
       - name: Start or Update Airflow Containers
         working-directory: /home/ubuntu/cheese-pick/airflow
         run: |
-          docker compose -f docker-compose.airflow.yml up -d
+          docker compose -f docker-compose.airflow.yml up -d --wait --wait-timeout 180
 
 

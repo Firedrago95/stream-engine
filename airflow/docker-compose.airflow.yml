@@ -1,14 +1,12 @@
 x-airflow-common:
   &airflow-common
   image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.1.5}
-  env_file:
-    - .env
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@airflow-postgres:5432/${AIRFLOW_DB_NAME:-airflow}
-    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:?AIRFLOW_DB_USER is required}:${AIRFLOW_DB_PASSWORD:?AIRFLOW_DB_PASSWORD is required}@airflow-postgres:5432/${AIRFLOW_DB_NAME:-airflow}
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:?AIRFLOW_FERNET_KEY is required}
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__CORE__DEFAULT_TIMEZONE: Asia/Seoul
@@ -34,11 +32,9 @@ services:
   airflow-postgres:
     image: postgres:17-alpine
     container_name: slice-airflow-postgres
-    env_file:
-      - .env
     environment:
-      POSTGRES_USER: ${AIRFLOW_DB_USER}
-      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD}
+      POSTGRES_USER: ${AIRFLOW_DB_USER:?AIRFLOW_DB_USER is required}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:?AIRFLOW_DB_PASSWORD is required}
       POSTGRES_DB: ${AIRFLOW_DB_NAME:-airflow}
       TZ: Asia/Seoul
     volumes:
@@ -65,18 +61,27 @@ services:
     command:
       - -c
       - |
+        set -euo pipefail
+        if [[ -z "$${_AIRFLOW_WWW_USER_USERNAME:-}" || -z "$${_AIRFLOW_WWW_USER_PASSWORD:-}" ]]; then
+          echo "ERROR: _AIRFLOW_WWW_USER_USERNAME and _AIRFLOW_WWW_USER_PASSWORD must be set." >&2
+          exit 1
+        fi
         mkdir -v -p /opt/airflow/{logs,dags,plugins,config}
         chown -R "${AIRFLOW_UID:-50000}:0" /opt/airflow/{logs,dags,plugins,config}
         /entrypoint airflow db migrate
-        /entrypoint airflow users create \
-          --username "${_AIRFLOW_WWW_USER_USERNAME}" \
-          --password "${_AIRFLOW_WWW_USER_PASSWORD}" \
-          --firstname Admin \
-          --lastname User \
-          --role Admin \
-          --email admin@cheesepick.me || true
+        if ! /entrypoint airflow users list | awk '{print $$2}' | grep -Fxq "$${_AIRFLOW_WWW_USER_USERNAME}"; then
+          /entrypoint airflow users create \
+            --username "$${_AIRFLOW_WWW_USER_USERNAME}" \
+            --password "$${_AIRFLOW_WWW_USER_PASSWORD}" \
+            --firstname Admin \
+            --lastname User \
+            --role Admin \
+            --email admin@cheesepick.me
+        fi
     environment:
       <<: *airflow-common-env
+      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:?_AIRFLOW_WWW_USER_USERNAME is required}
+      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:?_AIRFLOW_WWW_USER_PASSWORD is required}
     user: "0:0"
 
   airflow-apiserver:
