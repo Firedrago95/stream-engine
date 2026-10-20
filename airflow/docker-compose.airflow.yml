@@ -54,6 +54,43 @@ services:
           cpus: '0.5'
           memory: 256M
 
+  dw-postgres:
+    image: postgres:17-alpine
+    container_name: slice-dw-postgres
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "work_mem=32MB"
+      - "-c"
+      - "maintenance_work_mem=128MB"
+      - "-c"
+      - "effective_cache_size=768MB"
+    ports:
+      - "${DW_POSTGRES_PORT:-5433}:5432"
+    environment:
+      POSTGRES_USER: ${DW_DB_USER:?DW_DB_USER is required}
+      POSTGRES_PASSWORD: ${DW_DB_PASSWORD:?DW_DB_PASSWORD is required}
+      POSTGRES_DB: ${DW_DB_NAME:-cheesepick_dw}
+      TZ: Asia/Seoul
+    volumes:
+      - dw_postgres_data:/var/lib/postgresql/data
+    networks:
+      - slice-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+
   airflow-init:
     <<: *airflow-common
     container_name: slice-airflow-init
@@ -151,6 +188,7 @@ services:
 
 volumes:
   airflow_postgres_data:
+  dw_postgres_data:
 
 networks:
   slice-network:
