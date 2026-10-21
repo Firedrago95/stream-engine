@@ -242,14 +242,16 @@ jobs:
 
       - name: Sync Airflow Compose & DAGs
         run: |
-          mkdir -p /home/ubuntu/cheese-pick/airflow/{dags,logs,config,plugins}
+          mkdir -p /home/ubuntu/cheese-pick/airflow/{dags,logs,config,plugins,migrations}
           cp ./airflow/docker-compose.airflow.yml /home/ubuntu/cheese-pick/airflow/
           ln -sf /home/ubuntu/cheese-pick/.env /home/ubuntu/cheese-pick/airflow/.env
           rsync -av --delete ./airflow/dags/ /home/ubuntu/cheese-pick/airflow/dags/
+          rsync -av --delete ./airflow/migrations/ /home/ubuntu/cheese-pick/airflow/migrations/
 
       - name: Start or Update Airflow Containers
         working-directory: /home/ubuntu/cheese-pick/airflow
         run: |
+          docker compose -f docker-compose.airflow.yml run --rm dw-flyway
           docker compose -f docker-compose.airflow.yml up -d --wait --wait-timeout 180
 
 

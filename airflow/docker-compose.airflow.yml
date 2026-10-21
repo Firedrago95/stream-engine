@@ -91,6 +91,23 @@ services:
           cpus: '2.0'
           memory: 1G
 
+  dw-flyway:
+    image: flyway/flyway:10-alpine
+    container_name: slice-dw-flyway
+    command: ["migrate"]
+    environment:
+      FLYWAY_URL: jdbc:postgresql://dw-postgres:5432/${DW_DB_NAME:-cheesepick_dw}
+      FLYWAY_USER: ${DW_DB_USER:?DW_DB_USER is required}
+      FLYWAY_PASSWORD: ${DW_DB_PASSWORD:?DW_DB_PASSWORD is required}
+      FLYWAY_CONNECT_RETRIES: 10
+    volumes:
+      - ${AIRFLOW_PROJ_DIR:-.}/migrations:/flyway/sql:ro
+    networks:
+      - slice-network
+    depends_on:
+      dw-postgres:
+        condition: service_healthy
+
   airflow-init:
     <<: *airflow-common
     container_name: slice-airflow-init
@@ -138,6 +155,8 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+      dw-flyway:
+        condition: service_completed_successfully
     deploy:
       resources:
         limits:
@@ -159,6 +178,8 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+      dw-flyway:
+        condition: service_completed_successfully
     deploy:
       resources:
         limits:
@@ -179,6 +200,8 @@ services:
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
+        condition: service_completed_successfully
+      dw-flyway:
         condition: service_completed_successfully
     deploy:
       resources:
