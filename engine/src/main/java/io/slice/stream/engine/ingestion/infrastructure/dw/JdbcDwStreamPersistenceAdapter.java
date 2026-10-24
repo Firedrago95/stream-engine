@@ -256,12 +256,13 @@ public class JdbcDwStreamPersistenceAdapter implements DwStreamPersistencePort {
                     long startOffsetMs = lastSegment != null
                         ? Math.max(0L, Duration.between(sessionStartedAt, recordedAt).toMillis())
                         : 0L;
+                    Instant segmentStartedAt = lastSegment != null ? recordedAt : sessionStartedAt;
                     newSegments.add(new NewSegmentParam(
                         sessionId,
                         target.channelId(),
                         target.liveTitle(),
                         target.categoryName(),
-                        sessionStartedAt,
+                        segmentStartedAt,
                         startOffsetMs,
                         paid,
                         adult

@@ -224,6 +224,7 @@ class JdbcDwStreamPersistenceAdapterTest implements DwPostgresTestSupport {
 
         assertThat(segments.get(1).get("title")).isEqualTo("2부 게임");
         assertThat(segments.get(1).get("start_offset_ms")).isEqualTo(120_000L);
+        assertThat(((Timestamp) segments.get(1).get("started_at")).toInstant()).isEqualTo(tReopened);
         assertThat(segments.get(1).get("ended_at")).isNull();
     }
 

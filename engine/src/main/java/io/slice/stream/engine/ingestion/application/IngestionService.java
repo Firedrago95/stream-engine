@@ -127,8 +127,8 @@ public class IngestionService {
     ) {
         ingestionSyncExecutor.execute(() -> {
             List<StreamTarget> mergedTargets = mergeLiveTargets(allLiveTargets, detailedTargets);
-            syncToDwSafely(mergedTargets, results, now);
             syncToApiServerSafely(mergedTargets, results);
+            syncToDwSafely(mergedTargets, results, now);
         });
     }
 
