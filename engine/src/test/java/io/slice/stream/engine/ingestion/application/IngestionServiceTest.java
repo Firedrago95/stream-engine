@@ -13,6 +13,7 @@ import io.slice.stream.engine.ingestion.domain.service.StreamUpdateAnalyzer;
 import io.slice.stream.engine.ingestion.fake.FakeApiServerClient;
 import io.slice.stream.engine.ingestion.fake.FakeApplicationEventPublisher;
 import io.slice.stream.engine.ingestion.fake.FakeAsyncPromotionInspector;
+import io.slice.stream.engine.ingestion.fake.FakeDwStreamPersistencePort;
 import io.slice.stream.engine.ingestion.fake.FakeStreamDiscoveryClient;
 import io.slice.stream.engine.ingestion.fake.FakeStreamRepository;
 import io.slice.stream.engine.ingestion.fake.FakeTargetStreamPool;
@@ -36,6 +37,7 @@ class IngestionServiceTest {
     private StreamUpdateAnalyzer streamUpdateAnalyzer;
     private FakeTargetStreamPool targetStreamPool;
     private FakeAsyncPromotionInspector asyncPromotionInspector;
+    private FakeDwStreamPersistencePort dwStreamPersistencePort;
     private ExecutorService ingestionSyncExecutor;
 
     private IngestionService ingestionService;
@@ -49,6 +51,7 @@ class IngestionServiceTest {
         streamUpdateAnalyzer = new StreamUpdateAnalyzer();
         targetStreamPool = new FakeTargetStreamPool();
         asyncPromotionInspector = new FakeAsyncPromotionInspector();
+        dwStreamPersistencePort = new FakeDwStreamPersistencePort();
         ingestionSyncExecutor = mock(ExecutorService.class);
         doAnswer(invocation -> {
             Runnable task = invocation.getArgument(0);
@@ -64,6 +67,7 @@ class IngestionServiceTest {
             streamUpdateAnalyzer,
             targetStreamPool,
             asyncPromotionInspector,
+            dwStreamPersistencePort,
             ingestionSyncExecutor
         );
     }
@@ -348,5 +352,20 @@ class IngestionServiceTest {
         // then
         assertThat(apiServerClient.getCallOrder())
             .containsExactly("syncStreams", "recordNewSegments");
+        assertThat(dwStreamPersistencePort.getPersistCallCount()).isEqualTo(1);
+    }
+
+    @Test
+    void 홈서버_DW_적재_중_예외가_발생하더라도_외부_API_서버_동기화와_이벤트_발행은_정상_수행되어야_한다() {
+        StreamTarget target = new StreamTarget("ch1", "침착맨", "chat1", 100L, "방제", 500, "thumb.jpg", "소통", Instant.EPOCH);
+        discoveryClient.setTopLiveStreams(List.of(target));
+        discoveryClient.addDetailedStream(target);
+        targetStreamPool.setTargetChannels(Set.of("ch1"));
+        dwStreamPersistencePort.setThrowOnPersist(true);
+
+        assertDoesNotThrow(() -> ingestionService.ingest());
+
+        assertThat(apiServerClient.getSyncStreamsCallCount()).isEqualTo(1);
+        assertThat(eventPublisher.getEventsOfType(StreamChangedEvent.class)).hasSize(1);
     }
 }
