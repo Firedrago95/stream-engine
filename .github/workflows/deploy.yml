@@ -245,8 +245,8 @@ jobs:
           mkdir -p /home/ubuntu/cheese-pick/airflow/{dags,logs,config,plugins,migrations}
           cp ./airflow/docker-compose.airflow.yml /home/ubuntu/cheese-pick/airflow/
           ln -sf /home/ubuntu/cheese-pick/.env /home/ubuntu/cheese-pick/airflow/.env
-          rsync -av --delete ./airflow/dags/ /home/ubuntu/cheese-pick/airflow/dags/
-          rsync -av --delete ./airflow/migrations/ /home/ubuntu/cheese-pick/airflow/migrations/
+          rsync -rlDv --no-perms --no-owner --no-group --delete ./airflow/dags/ /home/ubuntu/cheese-pick/airflow/dags/
+          rsync -rlDv --no-perms --no-owner --no-group --delete ./airflow/migrations/ /home/ubuntu/cheese-pick/airflow/migrations/
 
       - name: Start or Update Airflow Containers
         working-directory: /home/ubuntu/cheese-pick/airflow

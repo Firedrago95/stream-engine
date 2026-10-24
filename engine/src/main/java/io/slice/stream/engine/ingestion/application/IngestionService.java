@@ -4,6 +4,7 @@ import io.slice.stream.engine.core.event.StreamChangedEvent;
 import io.slice.stream.core.model.StreamTarget;
 import io.slice.stream.engine.ingestion.domain.client.StreamDiscoveryClient;
 import io.slice.stream.engine.ingestion.domain.model.StreamUpdateResults;
+import io.slice.stream.engine.ingestion.domain.repository.DwStreamPersistencePort;
 import io.slice.stream.engine.ingestion.domain.repository.StreamRepository;
 import io.slice.stream.engine.ingestion.domain.service.StreamUpdateAnalyzer;
 import io.slice.stream.engine.ingestion.domain.targeting.TargetStreamPool;
@@ -38,6 +39,7 @@ public class IngestionService {
     private final StreamUpdateAnalyzer streamUpdateAnalyzer;
     private final TargetStreamPool targetStreamPool;
     private final AsyncPromotionInspector asyncPromotionInspector;
+    private final DwStreamPersistencePort dwStreamPersistencePort;
     @Qualifier("ingestionSyncExecutor")
     private final ExecutorService ingestionSyncExecutor;
 
@@ -75,7 +77,7 @@ public class IngestionService {
 
             streamRepository.sync(updateResults.closedStreamIds(), currentTargetStreams);
 
-            handleExternalSync(topLiveStreams, currentTargetStreams, updateResults);
+            handleExternalSync(topLiveStreams, currentTargetStreams, updateResults, now);
             handleEvents(updateResults);
         } catch (Exception e) {
             log.error("[Ingestion] 수집 주기 중 오류 발생: {}", e.getMessage(), e);
@@ -117,26 +119,57 @@ public class IngestionService {
             && !oldTarget.chatChannelId().isBlank();
     }
 
-    private void handleExternalSync(List<StreamTarget> allLiveTargets, List<StreamTarget> detailedTargets, StreamUpdateResults results) {
+    private void handleExternalSync(
+        List<StreamTarget> allLiveTargets,
+        List<StreamTarget> detailedTargets,
+        StreamUpdateResults results,
+        Instant now
+    ) {
         ingestionSyncExecutor.execute(() -> {
-            try {
-                Map<String, StreamTarget> detailedMap = detailedTargets.stream()
-                    .collect(Collectors.toMap(StreamTarget::channelId, t -> t, (a, b) -> a));
-
-                List<StreamTarget> mergedTargets = allLiveTargets.stream()
-                    .map(live -> detailedMap.getOrDefault(live.channelId(), live))
-                    .toList();
-
-                apiServerClient.syncStreams(mergedTargets.stream().map(StreamSyncRequest::from).toList());
-
-                if (!results.changedStreams().isEmpty()) {
-                    apiServerClient.recordNewSegments(new ArrayList<>(results.changedStreams()));
-                    asyncPromotionInspector.inspectChangedStreamsAsync(results.changedStreams());
-                }
-            } catch (Exception e) {
-                log.error("[Sync Error] 외부 API 서버 동기화 작업 실패: {}", e.getMessage(), e);
-            }
+            List<StreamTarget> mergedTargets = mergeLiveTargets(allLiveTargets, detailedTargets);
+            syncToApiServerSafely(mergedTargets, results);
+            syncToDwSafely(mergedTargets, results, now);
         });
+    }
+
+    private List<StreamTarget> mergeLiveTargets(
+        List<StreamTarget> allLiveTargets,
+        List<StreamTarget> detailedTargets
+    ) {
+        Map<String, StreamTarget> detailedMap = detailedTargets.stream()
+            .collect(Collectors.toMap(StreamTarget::channelId, t -> t, (a, b) -> a));
+
+        return allLiveTargets.stream()
+            .map(live -> detailedMap.getOrDefault(live.channelId(), live))
+            .toList();
+    }
+
+    private void syncToDwSafely(
+        List<StreamTarget> mergedTargets,
+        StreamUpdateResults results,
+        Instant now
+    ) {
+        try {
+            dwStreamPersistencePort.persistSnapshot(mergedTargets, results, now);
+        } catch (Exception e) {
+            log.error("[DW Sync Error] 홈서버 DW 동기화 작업 실패: {}", e.getMessage(), e);
+        }
+    }
+
+    private void syncToApiServerSafely(
+        List<StreamTarget> mergedTargets,
+        StreamUpdateResults results
+    ) {
+        try {
+            apiServerClient.syncStreams(mergedTargets.stream().map(StreamSyncRequest::from).toList());
+
+            if (!results.changedStreams().isEmpty()) {
+                apiServerClient.recordNewSegments(new ArrayList<>(results.changedStreams()));
+                asyncPromotionInspector.inspectChangedStreamsAsync(results.changedStreams());
+            }
+        } catch (Exception e) {
+            log.error("[Sync Error] 외부 API 서버 동기화 작업 실패: {}", e.getMessage(), e);
+        }
     }
 
     private void handleEvents(StreamUpdateResults results) {

@@ -121,7 +121,7 @@ services:
           exit 1
         fi
         mkdir -v -p /opt/airflow/{logs,dags,plugins,config}
-        chown -R "${AIRFLOW_UID:-50000}:0" /opt/airflow/{logs,dags,plugins,config}
+        chown -R "${AIRFLOW_UID:-50000}:0" /opt/airflow/logs
         /entrypoint airflow db migrate
         if ! /entrypoint airflow users list | awk '{print $$2}' | grep -Fxq "$${_AIRFLOW_WWW_USER_USERNAME}"; then
           /entrypoint airflow users create \

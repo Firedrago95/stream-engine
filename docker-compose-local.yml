@@ -114,6 +114,11 @@ services:
       SERVER_HEADER: ${SERVER_HEADER}
       SIGNAL_PATH: ${SIGNAL_PATH}
       SYNC_PATH: ${SYNC_PATH}
+      DW_DB_HOST: ${DW_DB_HOST:-dw-postgres}
+      DW_DB_PORT: ${DW_DB_PORT:-5432}
+      DW_DB_NAME: ${DW_DB_NAME:-cheesepick_dw}
+      DW_DB_USER: ${DW_DB_USER:-sliceuser}
+      DW_DB_PASSWORD: ${DW_DB_PASSWORD:-slicepass}
     depends_on:
       kafka:
         condition: service_healthy

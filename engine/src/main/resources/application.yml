@@ -9,6 +9,16 @@ spring:
     virtual:
       enabled: true
 
+  datasource:
+    url: jdbc:postgresql://${DW_DB_HOST:dw-postgres}:${DW_DB_PORT:5432}/${DW_DB_NAME:cheesepick_dw}?reWriteBatchedInserts=true&connectTimeout=3&socketTimeout=5
+    username: ${DW_DB_USER:sliceuser}
+    password: ${DW_DB_PASSWORD:slicepass}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 3000
+
   data:
     redis:
       host: redis
