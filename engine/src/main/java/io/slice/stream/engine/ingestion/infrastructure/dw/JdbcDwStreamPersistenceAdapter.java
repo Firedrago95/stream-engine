@@ -32,6 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class JdbcDwStreamPersistenceAdapter implements DwStreamPersistencePort {
 
     private static final Duration OFFLINE_THRESHOLD = Duration.ofMinutes(6);
+    private static final Duration LAST_RECORDED_LOOKBACK_CAP = Duration.ofHours(1);
+    private static final Duration LAST_RECORDED_UPPER_MARGIN = Duration.ofMinutes(1);
 
     private static final String SELECT_OPEN_SESSIONS_SQL = """
         SELECT session_id, stream_id, started_at
@@ -42,7 +44,7 @@ public class JdbcDwStreamPersistenceAdapter implements DwStreamPersistencePort {
     private static final String SELECT_LAST_RECORDED_AT_SQL = """
         SELECT session_id, MAX(recorded_at) AS last_recorded_at
         FROM view_metric_timelines
-        WHERE recorded_at >= ? AND session_id = ANY(?)
+        WHERE recorded_at >= ? AND recorded_at <= ? AND session_id = ANY(?)
         GROUP BY session_id
         """;
 
@@ -175,10 +177,13 @@ public class JdbcDwStreamPersistenceAdapter implements DwStreamPersistencePort {
             .map(OpenSession::startedAt)
             .min(Instant::compareTo)
             .orElse(recordedAt);
+        Instant lookbackFloor = recordedAt.minus(LAST_RECORDED_LOOKBACK_CAP);
+        Instant queryFrom = minStartedAt.isAfter(lookbackFloor) ? minStartedAt : lookbackFloor;
+        Instant queryTo = recordedAt.plus(LAST_RECORDED_UPPER_MARGIN);
         List<String> openSessionIds = openSessions.stream()
             .map(OpenSession::sessionId)
             .toList();
-        Map<String, Instant> lastRecordedMap = fetchLastRecordedAtBySessions(openSessionIds, minStartedAt);
+        Map<String, Instant> lastRecordedMap = fetchLastRecordedAtBySessions(openSessionIds, queryFrom, queryTo);
 
         Set<String> explicitClosedIds = extractClosedChannelIds(updateResults);
         Instant offlineCutoff = recordedAt.minus(OFFLINE_THRESHOLD);
@@ -345,12 +350,17 @@ public class JdbcDwStreamPersistenceAdapter implements DwStreamPersistencePort {
         ));
     }
 
-    private Map<String, Instant> fetchLastRecordedAtBySessions(List<String> sessionIds, Instant minStartedAt) {
+    private Map<String, Instant> fetchLastRecordedAtBySessions(
+        List<String> sessionIds,
+        Instant queryFrom,
+        Instant queryTo
+    ) {
         return jdbcTemplate.execute((Connection con) -> {
             Array sqlArray = con.createArrayOf("varchar", sessionIds.toArray(String[]::new));
             try (PreparedStatement ps = con.prepareStatement(SELECT_LAST_RECORDED_AT_SQL)) {
-                ps.setObject(1, toOffsetDateTime(minStartedAt));
-                ps.setArray(2, sqlArray);
+                ps.setObject(1, toOffsetDateTime(queryFrom));
+                ps.setObject(2, toOffsetDateTime(queryTo));
+                ps.setArray(3, sqlArray);
                 try (ResultSet rs = ps.executeQuery()) {
                     Map<String, Instant> result = new HashMap<>();
                     while (rs.next()) {
