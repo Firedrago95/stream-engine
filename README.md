@@ -1,64 +1,95 @@
-## 📖 프로젝트 소개
-수 시간 분량의 라이브 방송에서 재미있는 클라이맥스를 빠르게 찾기 위한 **'하이라이트 타임스탬프 자동 추출'에서 출발하여, 방송의 전 주기를 입체적으로 분석하는 '종합 방송 통계 플랫폼'으로 발전한 프로젝트**입니다.  
+# 🧀 치즈픽 (Cheese-Pick)
 
-실시간 채팅 데이터의 폭발적인 화력(건/초)을 알고리즘으로 감지해 핵심 순간을 짚어내는 것은 물론, **동시 시청자 수 변동 추이, 방송 카테고리 전환 세그먼트, 주간 누적 시청 트렌드**까지 통합 집계하여 스트리머와 시청자 모두에게 데이터 기반의 종합 분석 리포트를 제공합니다.
+치즈픽은 수 시간 분량의 라이브 방송에서 재미있는 클라이맥스를 빠르게 찾기 위한 **'하이라이트 타임스탬프 자동 추출'**에서 출발하여, 방송의 전 주기를 입체적으로 분석하는 **'종합 방송 통계 및 데이터 분석 플랫폼'**입니다.
 
+실시간 수집된 채팅 트래픽과 시청자 수 데이터를 바탕으로 방송의 핵심 순간(피크)을 짚어내고, **동시 시청자 변동 추이, 카테고리 전환 구간, 주간 인기 카테고리 및 스트리머 랭킹**을 한눈에 볼 수 있는 리포트를 제공합니다.
 
+---
 
 ## ✨ 핵심 기능
-- **실시간 데이터 파이프라인**: API 및 WebSocket을 통한 스트림 상태, 시청자 수 및 채팅 로그 실시간 수집
-- **비동기 메시징 처리**: Apache Kafka를 이용한 채팅 트래픽 버퍼링 및 분산 처리
-- **시계열 기반 종합 통계 분석**: RedisTimeSeries 및 커스텀 Lua 스크립트를 활용한 초당 채팅 화력(msg/s)과 동시 시청자 수 동기화 분석
-- **알고리즘 기반 하이라이트 감지**: 동적 윈도우와 통계적 이상치(Peak) 탐지를 통한 클라이맥스 구간 자동 추출 및 치지직 다시보기 연결
-- **과거 방송 세션 아카이빙**: 방송별 하이라이트 및 시계열 타임라인 영속화와 30일 데이터 수명주기(Lifecycle) 관리
-- **하이브리드 인프라 아키텍처**: 비용 최적화와 고가용성을 위해 On-Premise(엔진)와 Cloud(API 서버)로 모듈 분리 운영
 
+- **실시간 무손실 수집**: 수백 개 채널의 실시간 채팅과 방송 메타데이터를 압축 스트림(`.jsonl.gz`)으로 누락 없이 로컬에 기록
+- **Airflow 기반 사후 하이라이트 추출**: 방송 종료 후 수학적 통계 알고리즘을 통해 채팅 화력 폭발 구간(하이라이트)과 핵심 키워드(태그)를 자동 탐지
+- **하이브리드 데이터 분리 (DW & Hot DB)**: 1억 건 이상의 대용량 시계열은 홈서버 DW(PostgreSQL 17)에 분리 보관하고, 클라우드 DB는 1초 미만 응답을 위한 가벼운 서빙 마트만 유지
+- **주간 통합 통계 & 리더보드**: 스트리머 평균 시청자 랭킹과 카테고리별 누적 시청 시간을 매주 월요일 06:00 KST에 자동 집계하여 최신 트렌드 제공
+- **클라우드 데이터 레이크 아카이빙**: 분석 완료된 원본 데이터는 클라우드 오브젝트 스토리지(OCI Data Lake)로 자동 백업(60일 보관)하여 스토리지 비용 최적화
 
+---
 
 ## 🛠️ 기술 스택
 
-### Backend (Core & API)
-- **Language**: Java 25 (Virtual Threads)
-- **Framework**: Spring Boot 4.0.1
-- **Data & Messaging**: Spring Data JPA, Spring Data Redis, Spring Kafka
-- **Utils**: Spring Scheduling, Jackson, SLF4J
+### Data Pipeline & Backend
+- **Data Pipeline**: Apache Airflow 3.1.5, Python 3.12
+- **Backend Core**: Java 25 (Virtual Threads), Spring Boot 4.0.1
+- **Database & Storage**: PostgreSQL 17 (DW & Hot DB), Redis 7.2 (캐시 & 메타데이터)
+- **Object Storage**: OCI Object Storage (AWS S3 호환 데이터 레이크)
+- **Database Migration**: Flyway
 
-### Infrastructure
-- **Database / Cache**: PostgreSQL 17, Redis 7.4 (Redis Stack / TimeSeries 내장)
-- **Message Broker**: Apache Kafka (Kraft Mode)
-- **Monitoring**: Grafana Alloy, Grafana Cloud
-- **Security**: Cloudflare Tunnel (Zero Trust)
+### Infrastructure & Operations
+- **Hybrid Infra**: On-Premise 홈서버 (수집·분석 DW) + Oracle Cloud ARM (API 서빙 Hot DB)
+- **Networking**: Reverse SSH Tunnel Sidecar, Cloudflare Tunnel (Zero Trust)
+- **Container**: Docker & Docker Compose
+- **Client**: React, TypeScript, Tailwind CSS
 
+---
 
+## 🏗️ 시스템 아키텍처
 
-## 🏗️ 아키텍처
-![architecture.png](client/public/architecture.png)
-시스템은 역할에 따라 **Engine**, **API Server**, **Client**로 명확히 분리되어 동작합니다.
+```mermaid
+flowchart LR
+    subgraph Chzzk["치지직 라이브 플랫폼"]
+        WS["WebSocket 채팅"]
+        API["방송 메타 API"]
+    end
 
-- **`engine` (On-Premise)**: 외부 API 개입 없이 순수하게 백그라운드에서 데이터를 수집하고 분석하는 헤드리스(Headless) 워커. 무거운 연산과 메모리 요구사항을 로컬 환경에서 처리하여 인프라 비용 최소화.
-- **`api-server` (Oracle Cloud)**: 클라이언트가 접근하는 관문. Engine이 보내는 신호를 받아 검증 및 PostgreSQL에 영속화하고, 유저 트래픽과 과거 방송 데이터를 24시간 안정적으로 서빙.
-- **`client`**: 수집된 하이라이트 데이터를 시각화하는 관리자/사용자용 웹 대시보드 (React, TypeScript).
+    subgraph HomeServer["홈서버 (수집 & 데이터 웨어하우스)"]
+        direction TB
+        Collector["collector (Java 25)<br/>채팅 직접 수집"]
+        Disk["로컬 디스크<br/>.jsonl.gz 압축 기록"]
+        Engine["engine (Spring Boot)<br/>메타데이터 수집"]
+        DW["PostgreSQL 17 DW<br/>대용량 시계열 보관"]
+        Airflow["Airflow 3.1.5<br/>사후 하이라이트 분석"]
+        Tunnel["SSH Tunnel 사이드카<br/>안전한 아웃바운드 전송"]
 
+        WS --> Collector --> Disk --> Airflow
+        API --> Engine --> DW
+        DW <--> Airflow
+        Airflow --> Tunnel
+    end
 
+    subgraph CloudStorage["클라우드 데이터 레이크"]
+        DataLake[("OCI Object Storage<br/>60일 보관 원본 백업")]
+        Airflow -. 자동 아카이빙 .-> DataLake
+    end
 
-## 💡 트러블슈팅 및 기술적 의사결정
+    subgraph CloudServer["오라클 클라우드 (API 서빙 인프라)"]
+        direction TB
+        ServingDB[("PostgreSQL 17 Hot DB<br/>경량 서빙 마트")]
+        APIServer["api-server (Spring Boot)<br/>인메모리 통계 & REST API"]
+        Tunnel --> ServingDB
+        APIServer <--> ServingDB
+    end
 
-### 1. JFR 실측 기반 스레드 고갈 병목 해결 (가상 스레드 도입)
-200개 방송(2,000TPS) 모의 부하 테스트 중 CPU 사용률은 13%로 낮았으나 P95 지연시간이 1.2초까지 치솟고 221개의 스레드가 `TIMED_WAITING`에 빠지는 병목을 겪었습니다.
-- **원인 규명**: JFR(Java Flight Recorder) 프로파일링을 통해 API Rate Limit 지연(0.6초)과 Keep-Alive Ping 루프의 `Thread.sleep`이 플랫폼 스레드를 점유하는 블로킹 원인임을 특정.
-- **가상 스레드 전환**: 가상 스레드를 도입하여 동기식 코드 흐름을 유지하면서 블로킹 I/O를 비차단으로 전환. 3,000TPS 부하에서도 P95 지연시간을 32ms로 단축(97% 개선)하고 활성 스레드 점유율을 80% 감소(244개 ➔ 48개).
+    subgraph User["사용자"]
+        Client["Web Client (React)"]
+        Client <--> APIServer
+    end
+```
 
-### 2. 이벤트 기반 비동기 파이프라인 구축 (Apache Kafka & Redis TimeSeries)
-수집과 분석 로직이 동기적으로 묶여 있어 트래픽 스파이크 시 전체 세션이 끊어질 위험과 DB 쓰기 병목을 해결했습니다.
-- **도메인 격리 및 배압 제어**: 수집(Ingestion)과 분석(Analysis) 계층 사이에 Kafka를 배치하여 트래픽 스파이크를 흡수하는 완충 구조 설계.
-- **메모리 1차 압축 및 시계열 집계**: Caffeine Cache와 AtomicLong을 활용해 로컬 메모리에서 채팅 빈도를 1차 압축하고, 3초 주기로 Redis TimeSeries에 Lua 스크립트로 일괄 저장하여 Redis 초당 쓰기 부하를 약 93% 감축하고 3,000TPS 환경에서도 Kafka Lag 0을 유지.
+시스템은 비용 최적화와 안정성을 위해 **홈서버(무거운 수집·DW 연산)**와 **클라우드(24시간 가벼운 웹 서빙)**로 역할을 명확히 분리하여 운영합니다.
 
-### 3. 모니터링 기반 Redis 데이터 누수 및 부하 장애 해결
-3주 무중단 운영 중 Redis 초당 요청수(1,645 TPS)와 스레드 대기(401개)가 폭증하는 장애를 Grafana 메트릭과 실시간 경고 로그 교차 분석을 통해 5분 만에 진단했습니다.
-- **상태 동기화 결함 교정**: 수집 모듈(`IngestionService`)이 종료 방송을 판별할 때 살아있는 방송 목록으로 과거 데이터를 조회하던 인자 오류를 수정하고, `ArgumentCaptor` 기반 TDD로 검증을 보강.
-- **상태 덮어쓰기 정합성 보장**: Redis Lua 스크립트에 분석 인덱스 초기화(`DEL`) 처리를 추가하여, 수집 주기마다 최신 활성 방송과 1:1 동기화되도록 보장하고 초당 조회 부하를 88% 이상 감축(1,645 ➔ 200 미만).
+---
 
-### 4. 사용자 피드백 기반 하이라이트 추출 로직 고도화
-고정 임계치나 단순 Z-Score 알고리즘에서 발생하는 오탐지와 피크 누락 문제를 사용자 피드백을 바탕으로 개선했습니다.
-- **동적 체급 분류 및 갭 윈도우**: 최근 채팅량에 따라 윈도우 크기(1분/2분)를 동적으로 분리하고, 직전 10초 예열 데이터를 연산에서 배제(Gap 윈도우)하여 1차 피크가 기준선을 오염시키는 현상 해결.
-- **세션 병합 및 타임라인 보정**: Caffeine Cache 기반 60초 쿨다운 세션 병합과 `-20초 ~ +5초` 버퍼링 로직을 적용해 파편화 없는 쇼츠형 타임스탬프 추출 완성.
+## 💡 기술적 의사결정
+
+### 1. 가상 스레드(Virtual Threads) 도입으로 대규모 I/O 병목 해결
+수백 개 채널의 웹소켓 연결 유지와 API 호출 과정에서 기존 OS 스레드 풀이 고갈되어 응답이 지연되던 문제가 있었습니다. Java 25 가상 스레드를 적용하여 복잡한 비동기 리액티브 코드 없이도 수천 건의 네트워크 I/O를 논블로킹으로 처리했고, 시스템 자원 점유율을 80% 이상 절감했습니다.
+
+### 2. 사후 배치 분석 전환과 Kafka 제거를 통한 홈서버 리소스 절감
+실시간 분석 엔진과 무거운 메시지 브로커(Kafka)를 상시 운영하는 방식 대신, 방송 종료 후 수집된 압축 채팅 파일(`.jsonl.gz`)을 Airflow가 일괄 분석하는 사후 파이프라인으로 전환했습니다. 불필요해진 Kafka와 실시간 분석기를 제거하여 홈서버 메모리를 8GB 이상 확보했고, 일시적인 트래픽 폭증에도 데이터 유실 위험이 사라졌습니다.
+
+### 3. 무중단 Hot DB 다이어트 (26GB 디스크 회수 & 인메모리 점진 평균)
+클라우드 서빙 DB에 1억 건 이상 쌓이던 대용량 시계열 데이터를 홈서버 DW로 완전히 분리했습니다. 클라우드로의 실시간 쓰기를 차단하고, 방종 시점의 평균 시청자 수를 $O(1)$ 점진적 평균 공식으로 메모리에서 즉시 계산하도록 개선했습니다. 이를 통해 서비스 중단 없이 클라우드 DB 용량을 40GB에서 15GB(점유율 10%)로 60% 이상 대폭 줄였습니다.
+
+### 4. 폐쇄망 홈서버와 클라우드를 잇는 보안 역방향 SSH 터널 사이드카
+외부 공인 IP가 없고 포트 개방이 어려운 홈서버의 Airflow가 클라우드 DB로 분석 결과를 안전하게 전달할 수 있도록, 도커 기반 SSH 아웃바운드 터널 사이드카(`slice-oci-db-tunnel`)를 구축했습니다. 외부 침입 위협 없이 안전하게 폐쇄망에서 클라우드로 서빙 데이터를 동기화하는 구조를 완성했습니다.
