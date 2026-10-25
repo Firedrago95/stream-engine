@@ -1,13 +1,17 @@
 import gzip
 import hashlib
+import hmac
 import json
 import logging
 import math
 import os
 import re
+import shutil
 import time
+import urllib.parse
+import urllib.request
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from statistics import median
 from zoneinfo import ZoneInfo
@@ -20,6 +24,13 @@ logger = logging.getLogger(__name__)
 KST = ZoneInfo("Asia/Seoul")
 
 CHAT_DATA_DIR = os.getenv("CHAT_SAMPLE_DIR", "/opt/airflow/data/chat_samples")
+CHAT_QUARANTINE_DIR = os.getenv("CHAT_QUARANTINE_DIR", os.path.join(CHAT_DATA_DIR, "quarantine"))
+CHAT_ARCHIVE_DIR = os.getenv("CHAT_ARCHIVE_DIR", "")
+OCI_NAMESPACE = os.getenv("OCI_NAMESPACE", "")
+OCI_REGION = os.getenv("OCI_REGION", "ap-chuncheon-1")
+OCI_BUCKET_NAME = os.getenv("OCI_BUCKET_NAME", "slice-data-lake")
+OCI_ACCESS_KEY_ID = os.getenv("OCI_ACCESS_KEY_ID", "")
+OCI_SECRET_ACCESS_KEY = os.getenv("OCI_SECRET_ACCESS_KEY", "")
 STOPWORDS_CONFIG_PATH = os.getenv(
     "HIGHLIGHT_STOPWORDS_PATH",
     str(Path(__file__).resolve().parent / "highlight_stopwords.json"),
@@ -30,6 +41,8 @@ SIGMA_ALGO_VERSION = "v2.1"
 NO_CHAT_FILE_VERSION = "no-chat-file"
 MAX_ANALYSIS_ATTEMPTS = 5
 ORPHAN_FILE_AGE_SECONDS = 7200
+MAX_TIMELINE_BUCKETS = 25920
+SESSION_BUCKET_MARGIN = timedelta(hours=2)
 
 EMOTE_REGEX = re.compile(r"\{:([^:]+):\}")
 WORD_REGEX = re.compile(r"[가-힣a-zA-Z0-9]{2,10}")
@@ -149,6 +162,18 @@ def post_broadcast_pipeline():
                         stopwords=session_stopwords,
                     )
 
+                    started_at_dt = _parse_timestamp(started_at)
+                    ended_at_dt = _parse_timestamp(s.get("ended_at"))
+                    if buckets and (started_at_dt or ended_at_dt):
+                        lower_bound = (started_at_dt - SESSION_BUCKET_MARGIN) if started_at_dt else None
+                        upper_bound = (ended_at_dt + SESSION_BUCKET_MARGIN) if ended_at_dt else None
+                        buckets = {
+                            bt: bval
+                            for bt, bval in buckets.items()
+                            if (lower_bound is None or bt >= lower_bound)
+                            and (upper_bound is None or bt <= upper_bound)
+                        }
+
                     highlights, sigma_session, valid_bucket_count = _detect_highlights_v2(
                         buckets=buckets,
                         session_started_at=started_at,
@@ -180,13 +205,47 @@ def post_broadcast_pipeline():
                     processed_session_ids.append(session_id)
 
                     try:
-                        os.remove(target_file)
-                        logger.info(
-                            f"[사후분석] 세션 처리 및 원본 파일 파기 완료: session_id={session_id}, "
-                            f"하이라이트={len(highlights)}개, sigma_session={sigma_session}, truncated={truncated_input}"
-                        )
+                        if truncated_input:
+                            _upload_to_oci_object_storage(target_file, prefix="chat-quarantine")
+                            os.makedirs(CHAT_QUARANTINE_DIR, exist_ok=True)
+                            quarantine_path = os.path.join(CHAT_QUARANTINE_DIR, os.path.basename(target_file))
+                            shutil.move(target_file, quarantine_path)
+                            logger.warning(
+                                f"[사후분석] 절단된 원본 파일을 격리 디렉터리로 이동 완료: "
+                                f"session_id={session_id}, dest={quarantine_path}"
+                            )
+                        elif _is_oci_configured():
+                            if _upload_to_oci_object_storage(target_file, prefix="chat-archive"):
+                                os.remove(target_file)
+                                logger.info(
+                                    f"[사후분석] 세션 처리 및 OCI 스토리지 이관 후 로컬 파일 삭제 완료: "
+                                    f"session_id={session_id}, 하이라이트={len(highlights)}개"
+                                )
+                            else:
+                                fallback_dir = CHAT_ARCHIVE_DIR or os.path.join(CHAT_DATA_DIR, "archive")
+                                os.makedirs(fallback_dir, exist_ok=True)
+                                fallback_path = os.path.join(fallback_dir, os.path.basename(target_file))
+                                shutil.move(target_file, fallback_path)
+                                logger.warning(
+                                    f"[사후분석] OCI 업로드 실패로 로컬 아카이브 폴더에 임시 보관: "
+                                    f"session_id={session_id}, dest={fallback_path}"
+                                )
+                        elif CHAT_ARCHIVE_DIR:
+                            os.makedirs(CHAT_ARCHIVE_DIR, exist_ok=True)
+                            archive_path = os.path.join(CHAT_ARCHIVE_DIR, os.path.basename(target_file))
+                            shutil.move(target_file, archive_path)
+                            logger.info(
+                                f"[사후분석] 세션 처리 및 아카이브 이동 완료: session_id={session_id}, "
+                                f"하이라이트={len(highlights)}개, dest={archive_path}"
+                            )
+                        else:
+                            os.remove(target_file)
+                            logger.info(
+                                f"[사후분석] 세션 처리 및 원본 파일 파기 완료: session_id={session_id}, "
+                                f"하이라이트={len(highlights)}개, sigma_session={sigma_session}"
+                            )
                     except OSError as rm_err:
-                        logger.warning(f"[사후분석] DB 커밋 성공 후 원본 파일 삭제 실패: file={target_file}, 오류={rm_err}")
+                        logger.warning(f"[사후분석] DB 커밋 성공 후 원본 파일 후처리 실패: file={target_file}, 오류={rm_err}")
 
                 except Exception as e:
                     conn.rollback()
@@ -201,6 +260,78 @@ def post_broadcast_pipeline():
 
     pending = get_pending_sessions()
     process_chat_to_dw(pending)
+
+
+def _is_oci_configured() -> bool:
+    return bool(OCI_NAMESPACE and OCI_BUCKET_NAME and OCI_ACCESS_KEY_ID and OCI_SECRET_ACCESS_KEY)
+
+
+def _hmac_sha256(key: bytes, msg: str) -> bytes:
+    return hmac.new(key, msg.encode("utf-8"), hashlib.sha256).digest()
+
+
+def _upload_to_oci_object_storage(file_path: str, prefix: str = "chat-archive") -> bool:
+    if not _is_oci_configured():
+        return False
+    try:
+        payload = Path(file_path).read_bytes()
+        payload_hash = hashlib.sha256(payload).hexdigest()
+
+        now_utc = datetime.now(timezone.utc)
+        amz_date = now_utc.strftime("%Y%m%dT%H%M%SZ")
+        datestamp = now_utc.strftime("%Y%m%d")
+        date_folder = datetime.now(KST).strftime("%Y-%m-%d")
+
+        filename = urllib.parse.quote(os.path.basename(file_path), safe="-_.~")
+        object_key = f"{prefix}/{date_folder}/{filename}"
+        canonical_uri = f"/{OCI_BUCKET_NAME}/{object_key}"
+        host = f"{OCI_NAMESPACE}.compat.objectstorage.{OCI_REGION}.oraclecloud.com"
+        endpoint = f"https://{host}{canonical_uri}"
+
+        content_type = "application/gzip"
+        canonical_headers = (
+            f"content-type:{content_type}\n"
+            f"host:{host}\n"
+            f"x-amz-content-sha256:{payload_hash}\n"
+            f"x-amz-date:{amz_date}\n"
+        )
+        signed_headers = "content-type;host;x-amz-content-sha256;x-amz-date"
+        canonical_request = f"PUT\n{canonical_uri}\n\n{canonical_headers}\n{signed_headers}\n{payload_hash}"
+
+        credential_scope = f"{datestamp}/{OCI_REGION}/s3/aws4_request"
+        string_to_sign = (
+            f"AWS4-HMAC-SHA256\n{amz_date}\n{credential_scope}\n"
+            f"{hashlib.sha256(canonical_request.encode('utf-8')).hexdigest()}"
+        )
+
+        k_date = _hmac_sha256(f"AWS4{OCI_SECRET_ACCESS_KEY}".encode("utf-8"), datestamp)
+        k_region = _hmac_sha256(k_date, OCI_REGION)
+        k_service = _hmac_sha256(k_region, "s3")
+        k_signing = _hmac_sha256(k_service, "aws4_request")
+        signature = hmac.new(k_signing, string_to_sign.encode("utf-8"), hashlib.sha256).hexdigest()
+
+        auth_header = (
+            f"AWS4-HMAC-SHA256 Credential={OCI_ACCESS_KEY_ID}/{credential_scope}, "
+            f"SignedHeaders={signed_headers}, Signature={signature}"
+        )
+
+        req = urllib.request.Request(
+            endpoint,
+            data=payload,
+            method="PUT",
+            headers={
+                "Content-Type": content_type,
+                "Host": host,
+                "x-amz-content-sha256": payload_hash,
+                "x-amz-date": amz_date,
+                "Authorization": auth_header,
+            },
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return 200 <= resp.status < 300
+    except Exception as e:
+        logger.warning(f"[사후분석] OCI Object Storage 업로드 실패: file={file_path}, 오류={e}")
+        return False
 
 
 def _load_stopwords() -> tuple[set[str], str, str]:
@@ -275,10 +406,12 @@ def _find_chat_file(
     if not files:
         return None
 
-    # 1순위: 고유 session_id 매칭
-    for fname in files:
-        if session_id in fname:
-            return os.path.join(CHAT_DATA_DIR, fname)
+    # 1순위: 고유 session_id 매칭 (구분자 경계 확인으로 부분 문자열 오매칭 방지)
+    if session_id:
+        session_pattern = re.compile(rf"(?:^|[_.-]){re.escape(session_id)}(?:[_.-]|\.jsonl\.gz$)")
+        for fname in files:
+            if session_pattern.search(fname):
+                return os.path.join(CHAT_DATA_DIR, fname)
 
     # 2순위: streamer_name + 시작일시(yyyyMMdd_HH) 폴백 매칭 (후보 파일이 정확히 1개일 때만 허용)
     if streamer_name and started_at:
@@ -312,9 +445,11 @@ def _parse_and_aggregate_chat(file_path: str, stopwords: set[str] | None = None)
     session_tokens = Counter()
     truncated_input = False
 
-    try:
-        with gzip.open(file_path, "rt", encoding="utf-8") as f:
+    lines_read = 0
+    with gzip.open(file_path, "rt", encoding="utf-8") as f:
+        try:
             for line_idx, line in enumerate(f):
+                lines_read += 1
                 if not line.strip():
                     continue
                 try:
@@ -359,9 +494,11 @@ def _parse_and_aggregate_chat(file_path: str, stopwords: set[str] | None = None)
                 for w_tok in unique_words_in_msg:
                     b["word_users"][w_tok].add(user_key)
                     session_tokens[w_tok] += 1
-    except (EOFError, OSError) as e:
-        truncated_input = True
-        logger.warning(f"[사후분석] 손상/절단된 gzip 파일 감지, 읽은 구간까지만 분석 진행: file={file_path}, 오류={e}")
+        except (EOFError, OSError) as e:
+            if lines_read == 0 or not buckets:
+                raise
+            truncated_input = True
+            logger.warning(f"[사후분석] 손상/절단된 gzip 파일 감지, 읽은 구간까지만 분석 진행: file={file_path}, 오류={e}")
 
     for b in buckets.values():
         user_df_counter = Counter()
@@ -630,6 +767,11 @@ def _detect_highlights_v2(
     n = int((max_time - min_time).total_seconds() // 10) + 1
     if n <= 0:
         return [], None, 0
+    if n > MAX_TIMELINE_BUCKETS:
+        logger.warning(
+            f"[사후분석] 타임라인 버킷 수({n})가 상한({MAX_TIMELINE_BUCKETS})을 초과하여 상한으로 제한합니다."
+        )
+        n = MAX_TIMELINE_BUCKETS
 
     session_start_dt = _parse_timestamp(session_started_at) or min_time
 
