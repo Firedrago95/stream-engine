@@ -6,14 +6,12 @@ import io.slice.stream.collector.domain.ChatCollector;
 import io.slice.stream.collector.domain.ChatCollectorFactory;
 import io.slice.stream.collector.domain.ChatMessageListener;
 import io.slice.stream.collector.infrastructure.chzzk.api.ChzzkApiClient;
-import io.slice.stream.collector.infrastructure.kafka.ChzzkChatCollector;
-import io.slice.stream.core.model.ChatMessage;
+import io.slice.stream.collector.infrastructure.file.JsonlFileChatCollector;
 import io.slice.stream.core.model.StreamTarget;
 import java.net.http.HttpClient;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -24,32 +22,29 @@ public class ChzzkChatCollectorFactory implements ChatCollectorFactory {
     private final HttpClient httpClient;
     private final ChzzkMessageConverter chzzkMessageConverter;
     private final JsonMapper jsonMapper;
-    private final KafkaTemplate<String, ChatMessage> kafkaTemplate;
     private final Executor executor;
     private final ScheduledExecutorService pingScheduler;
     private final String mockWebSocketUrl;
-    private final String kafkaTopic;
+    private final String chatStorageDir;
 
     public ChzzkChatCollectorFactory(
         ChzzkApiClient chzzkApiClient,
         HttpClient httpClient,
         ChzzkMessageConverter chzzkMessageConverter,
         JsonMapper jsonMapper,
-        KafkaTemplate<String, ChatMessage> kafkaTemplate,
         Executor executor,
         ScheduledExecutorService pingScheduler,
         @Value("${chzzk.websocket.url:}") String mockWebSocketUrl,
-        @Value("${kafka.topic.chat:chat-messages}") String kafkaTopic
+        @Value("${collector.chat-storage.dir:data/chat-samples}") String chatStorageDir
     ) {
         this.chzzkApiClient = chzzkApiClient;
         this.httpClient = httpClient;
         this.chzzkMessageConverter = chzzkMessageConverter;
         this.jsonMapper = jsonMapper;
-        this.kafkaTemplate = kafkaTemplate;
         this.executor = executor;
         this.pingScheduler = pingScheduler;
         this.mockWebSocketUrl = mockWebSocketUrl;
-        this.kafkaTopic = kafkaTopic;
+        this.chatStorageDir = chatStorageDir;
     }
 
     @Override
@@ -58,8 +53,8 @@ public class ChzzkChatCollectorFactory implements ChatCollectorFactory {
             chzzkApiClient, httpClient, jsonMapper, chzzkMessageConverter, pingScheduler, mockWebSocketUrl
         );
 
-        ChatMessageListener messageListener = new ChzzkChatCollector(
-            streamTarget.channelId(), kafkaTemplate, kafkaTopic
+        ChatMessageListener messageListener = new JsonlFileChatCollector(
+            streamTarget, chatStorageDir, jsonMapper
         );
 
         ChatCollector connectionManager = new ChatConnectionManager(

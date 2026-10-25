@@ -5,6 +5,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.slice.stream.collector.domain.ChatCollector;
 import io.slice.stream.collector.domain.ChatCollectorFactory;
 import io.slice.stream.core.model.StreamTarget;
+import jakarta.annotation.PreDestroy;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -120,6 +121,19 @@ public class ChatManager {
 
     public boolean isCollecting(String channelId) {
         return chatCollectors.containsKey(channelId);
+    }
+
+    @PreDestroy
+    public void shutdownAll() {
+        chatCollectors.forEach((channelId, activeCollector) -> {
+            try {
+                activeCollector.collector().disconnect();
+                log.info("[수집기 종료 정산] 컨테이너 종료로 파일 마감 처리: 채널 ID={}", channelId);
+            } catch (Exception e) {
+                log.error("[수집기 종료 오류] 채널 ID={}", channelId, e);
+            }
+        });
+        chatCollectors.clear();
     }
 
     private record ActiveCollector(String chatChannelId, ChatCollector collector) {}
