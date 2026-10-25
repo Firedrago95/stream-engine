@@ -118,37 +118,72 @@ public class JsonlFileChatCollector implements ChatMessageListener {
         }
     }
 
+    BufferedWriter createRecoveryWriter(File recoveredFile) throws IOException {
+        FileOutputStream fos = new FileOutputStream(recoveredFile, false);
+        try {
+            GZIPOutputStream gzos = new GZIPOutputStream(fos, true);
+            return new BufferedWriter(new OutputStreamWriter(gzos, StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            closeQuietly(fos);
+            throw e;
+        }
+    }
+
     private void recoverTmpFileIfNeeded() throws IOException {
         File recoveredFile = new File(storageDirFile, sessionId + ".jsonl.gz.recovered");
         long validLines = 0;
 
-        try (
-            FileOutputStream fos = new FileOutputStream(recoveredFile, false);
-            GZIPOutputStream gzos = new GZIPOutputStream(fos, true);
-            BufferedWriter recoveryWriter = new BufferedWriter(new OutputStreamWriter(gzos, StandardCharsets.UTF_8))
-        ) {
-            try (
-                FileInputStream fis = new FileInputStream(tmpFile);
-                GZIPInputStream gzis = new GZIPInputStream(fis);
-                BufferedReader reader = new BufferedReader(new InputStreamReader(gzis, StandardCharsets.UTF_8))
-            ) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    recoveryWriter.write(line);
-                    recoveryWriter.newLine();
-                    validLines++;
+        try {
+            try (BufferedWriter recoveryWriter = createRecoveryWriter(recoveredFile)) {
+                FileInputStream fis = null;
+                GZIPInputStream gzis = null;
+                BufferedReader reader = null;
+                try {
+                    fis = new FileInputStream(tmpFile);
+                    gzis = new GZIPInputStream(fis);
+                    reader = new BufferedReader(new InputStreamReader(gzis, StandardCharsets.UTF_8));
+                    while (true) {
+                        String line;
+                        try {
+                            line = reader.readLine();
+                        } catch (IOException readEx) {
+                            log.warn("[임시 채팅 파일 복구] 비정상 종료된 GZIP 스트림 감지, 정상 라인({}줄)까지만 복구합니다: 파일={}",
+                                validLines, tmpFile.getName());
+                            break;
+                        }
+                        if (line == null) {
+                            break;
+                        }
+                        recoveryWriter.write(line);
+                        recoveryWriter.newLine();
+                        validLines++;
+                    }
+                } catch (IOException initReadEx) {
+                    if (reader == null) {
+                        log.warn("[임시 채팅 파일 복구] GZIP 헤더 손상 감지, 빈 파일로 초기화합니다: 파일={}", tmpFile.getName());
+                    } else {
+                        throw initReadEx;
+                    }
+                } finally {
+                    closeQuietly(reader);
+                    closeQuietly(gzis);
+                    closeQuietly(fis);
                 }
-            } catch (IOException truncatedEx) {
-                log.warn("[임시 채팅 파일 복구] 비정상 종료된 GZIP 스트림 감지, 정상 라인({}줄)까지만 복구합니다: 파일={}",
-                    validLines, tmpFile.getName());
+                recoveryWriter.flush();
             }
-            recoveryWriter.flush();
+        } catch (IOException writeEx) {
+            if (recoveredFile.isFile()) {
+                Files.deleteIfExists(recoveredFile.toPath());
+            }
+            throw writeEx;
         }
 
         if (validLines > 0) {
             moveAtomically(recoveredFile, tmpFile);
         } else {
-            Files.deleteIfExists(recoveredFile.toPath());
+            if (recoveredFile.isFile()) {
+                Files.deleteIfExists(recoveredFile.toPath());
+            }
             Files.deleteIfExists(tmpFile.toPath());
         }
     }
