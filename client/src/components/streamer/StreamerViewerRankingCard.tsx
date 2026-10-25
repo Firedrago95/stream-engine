@@ -23,23 +23,23 @@ export const StreamerViewerRankingCard: React.FC<Props> = ({ streamers, isLoadin
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
-                  30일 평균 시청자 순위
+                  주간 평균 시청자 순위
                 </h3>
                 <div className="relative group/tip flex items-center">
                   <button
                     type="button"
                     className="w-4 h-4 rounded-full border border-gray-600 flex items-center justify-center text-[10px] font-bold text-gray-400 hover:text-[#00FFA3] hover:border-[#00FFA3] transition-colors focus:outline-none"
-                    aria-label="30일 평균 시청자 순위 산출 방식 안내"
+                    aria-label="주간 평균 시청자 순위 산출 방식 안내"
                   >
                     i
                   </button>
                   <div className="absolute left-0 bottom-full mb-2 hidden group-hover/tip:block w-72 p-3 bg-[#18181c] border border-gray-700 text-xs text-gray-300 rounded-xl shadow-2xl z-50 font-normal leading-relaxed text-left backdrop-blur-md pointer-events-none break-keep">
                     <p className="font-semibold text-white mb-1">📊 산출 기준</p>
                     <p className="text-gray-300">
-                      최근 30일간 방송의 길이를 반영한 <span className="text-white font-medium">시간 가중 평균 시청자 수</span>를 기준으로 순위를 산정합니다.
+                      최근 7일간 방송의 길이를 반영한 <span className="text-white font-medium">시간 가중 평균 시청자 수</span>를 기준으로 순위를 산정합니다.
                     </p>
                     <p className="text-[11px] text-gray-400 pt-1 mt-1 border-t border-gray-800">
-                      • 5분 미만 방송 집계 제외 / 매일 04:00 일괄 갱신
+                      • 5분 미만 방송 제외 / 주 2일 이상 방송 / 매주 월요일 06:00 갱신
                     </p>
                   </div>
                 </div>
