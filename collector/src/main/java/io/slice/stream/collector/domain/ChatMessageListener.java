@@ -12,4 +12,7 @@ public interface ChatMessageListener {
     void onDisconnected();
 
     void onError(Throwable error);
+
+    default void onClosed() {
+    }
 }

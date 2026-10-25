@@ -62,6 +62,7 @@ public class ChatConnectionManager implements ChatCollector, ChatMessageListener
     public void disconnect() {
         isManualDisconnect = true;
         chatClient.disconnect();
+        downstreamListener.onClosed();
         log.info("[채팅 연결 종료] 채널 ID: {}, 채팅방: {}", channelId, chatChannelId);
     }
 

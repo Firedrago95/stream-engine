@@ -14,12 +14,6 @@ spring:
       host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: ${SPRING_DATA_REDIS_PORT:6379}
 
-  kafka:
-    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-
 management:
   server:
     port: ${MANAGEMENT_SERVER_PORT:9090}
@@ -44,15 +38,12 @@ chzzk:
 collector:
   polling:
     interval-ms: 15000
+  chat-storage:
+    dir: ${CHAT_STORAGE_DIR:data/chat-samples}
 
 targeting:
   trend-redis-key: "stream:targets"
 
-kafka:
-  topic:
-    chat: "chat-messages"
-
 logging:
   level:
     io.slice.stream.collector.infrastructure.chzzk.websocket.ChzzkWebSocketListener: WARN
-    io.slice.stream.collector.infrastructure.kafka.ChzzkChatCollector: WARN

@@ -27,7 +27,6 @@ dependencies {
 
     // Data & Messaging
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-    implementation 'org.springframework.boot:spring-boot-starter-kafka'
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     runtimeOnly 'org.postgresql:postgresql'
 
@@ -51,10 +50,8 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-data-redis-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-jdbc-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-kafka-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
-    testImplementation "org.testcontainers:testcontainers-kafka:2.0.2"
     testImplementation 'org.testcontainers:testcontainers-postgresql'
     testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

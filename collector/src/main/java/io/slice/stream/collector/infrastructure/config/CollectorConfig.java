@@ -5,13 +5,11 @@ import java.time.Duration;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
-import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.json.JsonMapper;
@@ -21,9 +19,6 @@ public class CollectorConfig {
 
     @Value("${chzzk.api.base-url:https://api.chzzk.naver.com}")
     private String chzzkApiBaseUrl;
-
-    @Value("${kafka.topic.chat:chat-messages}")
-    private String chatTopic;
 
     @Bean
     public HttpClient httpClient() {
@@ -59,14 +54,6 @@ public class CollectorConfig {
             .requestFactory(new JdkClientHttpRequestFactory(httpClient))
             .baseUrl(chzzkApiBaseUrl)
             .defaultHeader("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)")
-            .build();
-    }
-
-    @Bean
-    public NewTopic chatTopic() {
-        return TopicBuilder.name(chatTopic)
-            .partitions(3)
-            .replicas(1)
             .build();
     }
 }
