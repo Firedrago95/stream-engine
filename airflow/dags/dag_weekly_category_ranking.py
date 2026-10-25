@@ -120,6 +120,7 @@ def weekly_category_ranking_pipeline():
                AND v.recorded_at >= s.started_at
                AND (s.ended_at IS NULL OR v.recorded_at < s.ended_at)
             WHERE v.recorded_at >= %s
+              AND (s.ended_at IS NULL OR s.ended_at >= %s)
               AND s.category_name IS NOT NULL
               AND s.category_name != ''
               AND LOWER(s.category_name) != 'talk'
@@ -128,7 +129,7 @@ def weekly_category_ranking_pipeline():
             ORDER BY exact_hours DESC
             LIMIT %s;
         """
-        records = dw_hook.get_records(dw_sql, parameters=(SAMPLES_PER_HOUR, since_dt, DEFAULT_TOP_LIMIT))
+        records = dw_hook.get_records(dw_sql, parameters=(SAMPLES_PER_HOUR, since_dt, since_dt, DEFAULT_TOP_LIMIT))
         current_metrics = [(str(r[0]), int(r[1])) for r in records if r[0]]
         if not current_metrics:
             logger.warning("[주간카테고리] 최근 7일간 집계된 카테고리 시청 지표가 없습니다.")

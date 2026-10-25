@@ -65,6 +65,7 @@ services:
   dw-postgres:
     image: postgres:17-alpine
     container_name: slice-dw-postgres
+    shm_size: 512m
     command:
       - "postgres"
       - "-c"
