@@ -72,6 +72,13 @@ public class JdbcDwStreamPersistenceAdapter implements DwStreamPersistencePort {
             paid_promotion = stream_sessions.paid_promotion OR EXCLUDED.paid_promotion,
             is_adult = EXCLUDED.is_adult,
             ended_at = NULL
+        WHERE stream_sessions.streamer_name IS DISTINCT FROM EXCLUDED.streamer_name
+           OR stream_sessions.title IS DISTINCT FROM EXCLUDED.title
+           OR stream_sessions.category_name IS DISTINCT FROM EXCLUDED.category_name
+           OR EXCLUDED.peak_viewers > stream_sessions.peak_viewers
+           OR (EXCLUDED.paid_promotion = TRUE AND stream_sessions.paid_promotion = FALSE)
+           OR stream_sessions.is_adult IS DISTINCT FROM EXCLUDED.is_adult
+           OR stream_sessions.ended_at IS NOT NULL
         """;
 
     private static final String SELECT_OPEN_SEGMENTS_SQL = """
