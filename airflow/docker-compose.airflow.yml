@@ -15,12 +15,18 @@ x-airflow-common:
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
     AIRFLOW__CORE__PARALLELISM: 8
     AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG: 4
+    OCI_NAMESPACE: ${OCI_NAMESPACE:-}
+    OCI_REGION: ${OCI_REGION:-ap-chuncheon-1}
+    OCI_BUCKET_NAME: ${OCI_BUCKET_NAME:-slice-data-lake}
+    OCI_ACCESS_KEY_ID: ${OCI_ACCESS_KEY_ID:-}
+    OCI_SECRET_ACCESS_KEY: ${OCI_SECRET_ACCESS_KEY:-}
     TZ: Asia/Seoul
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
+    - /home/ubuntu/cheese-pick/chat-samples:/opt/airflow/data/chat_samples
   user: "${AIRFLOW_UID:-50000}:0"
   networks:
     - slice-network
