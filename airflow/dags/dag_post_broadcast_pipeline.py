@@ -1,12 +1,17 @@
 import gzip
 import json
+import logging
 import os
 import re
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from airflow.sdk import dag, task
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from collections import defaultdict, Counter
 from psycopg2.extras import execute_values
+
+logger = logging.getLogger(__name__)
+KST = ZoneInfo("Asia/Seoul")
 
 # 채팅 파일이 저장되는 디렉토리 경로
 CHAT_DATA_DIR = os.getenv("CHAT_SAMPLE_DIR", "/opt/airflow/data/chat_samples")
@@ -71,29 +76,31 @@ def post_broadcast_pipeline():
         try:
             for s in sessions:
                 session_id = s["session_id"]
-                stream_id = s["stream_id"]
-                streamer_name = s["streamer_name"]
+                streamer_name = s.get("streamer_name")
+                started_at = s.get("started_at")
                 
-                # 1. 파일 찾기
-                target_file = _find_chat_file(session_id, stream_id, streamer_name)
-                if not target_file or not os.path.exists(target_file):
-                    # 파일이 없는 방송은 완료 처리하고 스킵
+                try:
+                    # 1. 파일 찾기 (고유 session_id 우선 + 스트리머명 & 방송시작시각 교차 검증)
+                    target_file = _find_chat_file(session_id, streamer_name, started_at)
+                    if not target_file or not os.path.exists(target_file):
+                        # 파일이 없는 방송은 완료 처리하고 스킵 (쿼리 기아 방지)
+                        processed_session_ids.append(session_id)
+                        continue
+
+                    # 2. 10초 집계 및 토큰 추출
+                    buckets, session_tokens = _parse_and_aggregate_chat(target_file)
+
+                    # 3. DW 적재 (10초 시그널 & 세션 토큰 요약 벌크 적재)
+                    if buckets:
+                        _insert_chat_signals(conn, session_id, buckets)
+                    _insert_token_summary(conn, session_id, session_tokens)
+
+                    # 세션 단위 원자적 커밋 (배치 성능 유지 & 단일 실패 격리)
+                    conn.commit()
                     processed_session_ids.append(session_id)
-                    continue
-
-                # 2. 10초 집계 및 토큰 추출
-                buckets, session_tokens = _parse_and_aggregate_chat(target_file)
-
-                # 3. DW 적재 (10초 시그널 & 세션 토큰 요약)
-                if buckets:
-                    _insert_chat_signals(conn, session_id, buckets)
-                _insert_token_summary(conn, session_id, session_tokens)
-
-                processed_session_ids.append(session_id)
-            conn.commit()
-        except Exception as e:
-            conn.rollback()
-            raise e
+                except Exception as e:
+                    conn.rollback()
+                    logger.error(f"[사후분석] 세션 {session_id} ({streamer_name}) 처리 중 오류 발생, 단독 롤백: {e}")
         finally:
             conn.close()
             
@@ -123,14 +130,34 @@ def post_broadcast_pipeline():
 # 순수 파이썬 헬퍼 함수들 (단일 책임 원칙)
 # ==============================================================================
 
-def _find_chat_file(session_id: str, stream_id: str, streamer_name: str) -> str | None:
-    """디렉터리 내에서 세션에 맞는 .jsonl.gz 파일을 탐색한다."""
+def _find_chat_file(session_id: str, streamer_name: str | None = None, started_at: str | None = None) -> str | None:
+    """
+    디렉터리 내에서 세션에 맞는 .jsonl.gz 파일을 탐색한다.
+    1순위: 파일명에 고유한 session_id가 포함된 파일
+    2순위: 스트리머 이름과 방송 시작 시각(yyyyMMdd_HHmm)이 둘 다 일치하는 파일 (1부/2부 방송 오탐 방지)
+    """
     if not os.path.exists(CHAT_DATA_DIR):
         return None
 
-    for fname in os.listdir(CHAT_DATA_DIR):
-        if fname.endswith(".jsonl.gz") and (stream_id in fname or streamer_name in fname or session_id in fname):
+    files = [f for f in os.listdir(CHAT_DATA_DIR) if f.endswith(".jsonl.gz")]
+
+    # 1순위: 고유 session_id 매칭
+    for fname in files:
+        if session_id in fname:
             return os.path.join(CHAT_DATA_DIR, fname)
+
+    # 2순위: streamer_name + 시작일시 매칭 (KST 기준 yyyyMMdd_HH)
+    if streamer_name and started_at:
+        try:
+            dt = datetime.fromisoformat(started_at)
+            dt_kst = dt.astimezone(KST) if dt.tzinfo else dt
+            time_tag = dt_kst.strftime("%Y%m%d_%H")
+            for fname in files:
+                if streamer_name in fname and time_tag in fname:
+                    return os.path.join(CHAT_DATA_DIR, fname)
+        except Exception:
+            pass
+
     return None
 
 

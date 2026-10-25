@@ -155,17 +155,27 @@ def test_insert_token_summary():
 
 
 def test_find_chat_file(tmp_path, monkeypatch):
-    """채팅 파일 탐색 로직 검증."""
+    """채팅 파일 탐색 로직 검증: session_id 우선 매칭 및 streamer_name + 시간 교차 검증."""
     monkeypatch.setattr(dag_post_broadcast_pipeline, "CHAT_DATA_DIR", str(tmp_path))
 
-    # 테스트용 파일 생성
-    target_file = tmp_path / "stream_1234_session_5678.jsonl.gz"
-    target_file.touch()
+    # 1. session_id 포함 파일 생성
+    file_with_session = tmp_path / "sample_침착맨_session_5678.jsonl.gz"
+    file_with_session.touch()
 
-    # 존재하는 세션 탐색
-    found = _find_chat_file("5678", "1234", "streamer_name")
-    assert found == str(target_file)
+    # 2. 동일 스트리머의 어제 방송(10/23)과 오늘 방송(10/24) 파일 생성
+    yesterday_file = tmp_path / "sample_침착맨_20261023_190000.jsonl.gz"
+    today_file = tmp_path / "sample_침착맨_20261024_190000.jsonl.gz"
+    yesterday_file.touch()
+    today_file.touch()
 
-    # 없는 세션 탐색
-    not_found = _find_chat_file("9999", "9999", "unknown")
+    # 1순위: session_id로 정확히 탐색
+    found = _find_chat_file("5678", "침착맨", "2026-10-24T19:00:00+09:00")
+    assert found == str(file_with_session)
+
+    # 2순위: session_id가 파일명에 없을 때, 오늘 시작 시각(10/24 19시)과 스트리머명으로 오늘 파일만 매칭 (어제 파일 오탐 방어)
+    found_today = _find_chat_file("unknown_id", "침착맨", "2026-10-24T19:00:00+09:00")
+    assert found_today == str(today_file)
+
+    # 3. 없는 세션 탐색 시 None 반환
+    not_found = _find_chat_file("9999", "풍월량", "2026-10-24T19:00:00+09:00")
     assert not_found is None
