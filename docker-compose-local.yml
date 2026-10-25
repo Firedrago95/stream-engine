@@ -7,7 +7,7 @@ services:
       - "${REDIS_EXTERNAL_PORT}:6379"
       - "${REDIS_INSIGHT_EXTERNAL_PORT}:8001"
     environment:
-      REDIS_ARGS: "--appendonly yes"
+      REDIS_ARGS: "--save '' --appendonly no"
     volumes:
       - redis_data:/data
     healthcheck:

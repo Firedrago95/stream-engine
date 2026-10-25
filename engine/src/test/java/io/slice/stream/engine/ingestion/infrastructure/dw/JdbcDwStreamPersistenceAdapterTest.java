@@ -102,6 +102,28 @@ class JdbcDwStreamPersistenceAdapterTest implements DwPostgresTestSupport {
     }
 
     @Test
+    void 동일한_메타데이터와_피크_이하_시청자수로_재적재_시_불필요한_세션_튜플_갱신이_발생하지_않는다() {
+        Instant startedAt = Instant.parse("2026-10-24T03:00:00Z");
+        Instant t1 = Instant.parse("2026-10-24T03:00:30Z");
+        Instant t2 = Instant.parse("2026-10-24T03:01:00Z");
+
+        StreamTarget first = new StreamTarget("ch_1", "침착맨", "chat_1", 1001L, "소통 방송", 3000, "thumb.jpg", "Talk", startedAt);
+        StreamTarget second = new StreamTarget("ch_1", "침착맨", "chat_1", 1001L, "소통 방송", 2800, "thumb.jpg", "Talk", startedAt);
+
+        adapter.persistSnapshot(List.of(first), emptyResults(t1), t1);
+        String ctidBefore = jdbcTemplate.queryForObject(
+            "SELECT ctid::text FROM stream_sessions WHERE session_id = '1001'", String.class
+        );
+
+        adapter.persistSnapshot(List.of(second), emptyResults(t2), t2);
+        String ctidAfter = jdbcTemplate.queryForObject(
+            "SELECT ctid::text FROM stream_sessions WHERE session_id = '1001'", String.class
+        );
+
+        assertThat(ctidAfter).isEqualTo(ctidBefore);
+    }
+
+    @Test
     void 방제나_카테고리가_변경되면_이전_세그먼트를_마감하고_새_세그먼트를_생성한다() {
         Instant startedAt = Instant.parse("2026-10-24T03:00:00Z");
         Instant t1 = Instant.parse("2026-10-24T03:00:30Z");
