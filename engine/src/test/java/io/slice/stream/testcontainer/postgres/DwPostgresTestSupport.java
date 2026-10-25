@@ -40,6 +40,8 @@ public interface DwPostgresTestSupport {
         ) {
             stmt.execute(readMigrationSql("V1__init_dw_schema.sql"));
             stmt.execute(readMigrationSql("V2__add_active_sessions_index.sql"));
+            stmt.execute(readMigrationSql("V3__add_highlights_and_session_profile.sql"));
+            stmt.execute(readMigrationSql("V4__add_sep_partition_and_leaderboard_index.sql"));
         } catch (Exception e) {
             throw new IllegalStateException("DW 테스트 스키마 초기화 실패", e);
         }
