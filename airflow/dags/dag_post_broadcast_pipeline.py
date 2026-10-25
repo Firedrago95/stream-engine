@@ -41,7 +41,7 @@ SIGMA_ALGO_VERSION = "v2.1"
 NO_CHAT_FILE_VERSION = "no-chat-file"
 MAX_ANALYSIS_ATTEMPTS = 5
 ORPHAN_FILE_AGE_SECONDS = 7200
-MAX_TIMELINE_BUCKETS = 25920
+MAX_TIMELINE_BUCKETS = 86400
 SESSION_BUCKET_MARGIN = timedelta(hours=2)
 
 EMOTE_REGEX = re.compile(r"\{:([^:]+):\}")
@@ -120,14 +120,15 @@ def post_broadcast_pipeline():
             started_at = s.get("started_at")
             ended_at_dt = _parse_timestamp(s.get("ended_at"))
 
-            target_file = _find_chat_file(
+            target_files = _find_chat_files(
                 session_id=session_id,
                 streamer_name=streamer_name,
                 started_at=started_at,
                 available_files=available_files,
             )
-            if target_file and os.path.exists(target_file):
-                sessions_with_files.append((s, target_file))
+            existing_files = [f for f in target_files if os.path.exists(f)]
+            if existing_files:
+                sessions_with_files.append((s, existing_files))
             else:
                 # 파일이 없는 세션은 방종 후 1시간이 지난 경우에만 'no-chat-file'로 벌크 마감 (지연 도착 보호)
                 if ended_at_dt and (now_kst - ended_at_dt) >= timedelta(hours=1):
@@ -144,7 +145,7 @@ def post_broadcast_pipeline():
                 processed_session_ids.extend(stale_no_file_ids)
                 logger.info(f"[사후분석] 1시간 경과 미수집(비타겟) 세션 일괄 마감 완료: {len(stale_no_file_ids)}건")
 
-            for s, target_file in sessions_with_files[:10]:
+            for s, target_files in sessions_with_files[:10]:
                 session_id = s["session_id"]
                 stream_id = s["stream_id"]
                 streamer_name = s.get("streamer_name")
@@ -158,7 +159,7 @@ def post_broadcast_pipeline():
 
                 try:
                     buckets, session_tokens, truncated_input = _parse_and_aggregate_chat(
-                        file_path=target_file,
+                        file_path=target_files,
                         stopwords=session_stopwords,
                     )
 
@@ -204,32 +205,33 @@ def post_broadcast_pipeline():
                     conn.commit()
                     processed_session_ids.append(session_id)
 
-                    try:
-                        if truncated_input:
-                            _upload_to_oci_object_storage(target_file, prefix="chat-quarantine")
-                            os.makedirs(CHAT_QUARANTINE_DIR, exist_ok=True)
-                            quarantine_path = os.path.join(CHAT_QUARANTINE_DIR, os.path.basename(target_file))
-                            shutil.move(target_file, quarantine_path)
-                            logger.warning(
-                                f"[사후분석] 절단된 원본 파일을 격리 디렉터리로 이동 완료: "
-                                f"session_id={session_id}, dest={quarantine_path}"
-                            )
-                        elif _upload_to_oci_object_storage(target_file, prefix="chat-archive"):
-                            os.remove(target_file)
-                            logger.info(
-                                f"[사후분석] 세션 처리 및 OCI 스토리지 이관 후 로컬 파일 삭제 완료: "
-                                f"session_id={session_id}, 하이라이트={len(highlights)}개"
-                            )
-                        else:
-                            os.makedirs(CHAT_ARCHIVE_DIR, exist_ok=True)
-                            archive_path = os.path.join(CHAT_ARCHIVE_DIR, os.path.basename(target_file))
-                            shutil.move(target_file, archive_path)
-                            logger.warning(
-                                f"[사후분석] OCI 미설정 또는 업로드 실패로 로컬 아카이브 폴더에 보관: "
-                                f"session_id={session_id}, dest={archive_path}"
-                            )
-                    except OSError as rm_err:
-                        logger.warning(f"[사후분석] DB 커밋 성공 후 원본 파일 후처리 실패: file={target_file}, 오류={rm_err}")
+                    for target_file in target_files:
+                        try:
+                            if truncated_input:
+                                _upload_to_oci_object_storage(target_file, prefix="chat-quarantine")
+                                os.makedirs(CHAT_QUARANTINE_DIR, exist_ok=True)
+                                quarantine_path = os.path.join(CHAT_QUARANTINE_DIR, os.path.basename(target_file))
+                                shutil.move(target_file, quarantine_path)
+                                logger.warning(
+                                    f"[사후분석] 절단된 원본 파일을 격리 디렉터리로 이동 완료: "
+                                    f"session_id={session_id}, dest={quarantine_path}"
+                                )
+                            elif _upload_to_oci_object_storage(target_file, prefix="chat-archive"):
+                                os.remove(target_file)
+                                logger.info(
+                                    f"[사후분석] 세션 처리 및 OCI 스토리지 이관 후 로컬 파일 삭제 완료: "
+                                    f"session_id={session_id}, file={os.path.basename(target_file)}, 하이라이트={len(highlights)}개"
+                                )
+                            else:
+                                os.makedirs(CHAT_ARCHIVE_DIR, exist_ok=True)
+                                archive_path = os.path.join(CHAT_ARCHIVE_DIR, os.path.basename(target_file))
+                                shutil.move(target_file, archive_path)
+                                logger.warning(
+                                    f"[사후분석] OCI 미설정 또는 업로드 실패로 로컬 아카이브 폴더에 보관: "
+                                    f"session_id={session_id}, dest={archive_path}"
+                                )
+                        except OSError as rm_err:
+                            logger.warning(f"[사후분석] DB 커밋 성공 후 원본 파일 후처리 실패: file={target_file}, 오류={rm_err}")
 
                 except Exception as e:
                     conn.rollback()
@@ -380,22 +382,27 @@ def _warn_orphan_files(data_dir: str):
         )
 
 
-def _find_chat_file(
+def _find_chat_files(
     session_id: str,
     streamer_name: str | None = None,
     started_at: str | None = None,
     available_files: list[str] | None = None,
-) -> str | None:
+) -> list[str]:
     files = available_files if available_files is not None else _list_available_gz_files(CHAT_DATA_DIR)
     if not files:
-        return None
+        return []
 
-    # 1순위: 고유 session_id 매칭 (구분자 경계 확인으로 부분 문자열 오매칭 방지)
+    # 1순위: 고유 session_id 매칭 (청크 파트 파일 _part001 등 포함, 마지막 마감 본 파일이 맨 뒤에 오도록 정렬)
     if session_id:
-        session_pattern = re.compile(rf"(?:^|[_.-]){re.escape(session_id)}(?:[_.-]|\.jsonl\.gz$)")
-        for fname in files:
-            if session_pattern.search(fname):
-                return os.path.join(CHAT_DATA_DIR, fname)
+        session_pattern = re.compile(rf"(?:^|[_.-]){re.escape(session_id)}(?:_part\d+)?(?:[_.-]|\.jsonl\.gz$)")
+        matched_session_files = [
+            os.path.join(CHAT_DATA_DIR, fname)
+            for fname in files
+            if session_pattern.search(fname)
+        ]
+        if matched_session_files:
+            matched_session_files.sort(key=lambda p: ("_part" not in os.path.basename(p), os.path.basename(p)))
+            return matched_session_files
 
     # 2순위: streamer_name + 시작일시(yyyyMMdd_HH) 폴백 매칭 (후보 파일이 정확히 1개일 때만 허용)
     if streamer_name and started_at:
@@ -404,18 +411,29 @@ def _find_chat_file(
             time_tag = dt.strftime("%Y%m%d_%H")
             matched = [f for f in files if streamer_name in f and time_tag in f]
             if len(matched) == 1:
-                return os.path.join(CHAT_DATA_DIR, matched[0])
+                return [os.path.join(CHAT_DATA_DIR, matched[0])]
             if len(matched) > 1:
                 logger.warning(
                     f"[사후분석] 폴백 파일 매칭 모호성 감지 (스킵): session_id={session_id}, "
                     f"streamer={streamer_name}, 후보={matched}"
                 )
 
-    return None
+    return []
 
 
-def _parse_and_aggregate_chat(file_path: str, stopwords: set[str] | None = None):
+def _find_chat_file(
+    session_id: str,
+    streamer_name: str | None = None,
+    started_at: str | None = None,
+    available_files: list[str] | None = None,
+) -> str | None:
+    found = _find_chat_files(session_id, streamer_name, started_at, available_files)
+    return found[0] if found else None
+
+
+def _parse_and_aggregate_chat(file_path: str | list[str], stopwords: set[str] | None = None):
     active_stopwords = {w.lower() for w in (stopwords if stopwords is not None else DEFAULT_STOPWORDS)}
+    file_paths = [file_path] if isinstance(file_path, str) else list(file_path)
 
     buckets = defaultdict(lambda: {
         "chat_count": 0,
@@ -430,59 +448,60 @@ def _parse_and_aggregate_chat(file_path: str, stopwords: set[str] | None = None)
     truncated_input = False
 
     lines_read = 0
-    with gzip.open(file_path, "rt", encoding="utf-8") as f:
-        try:
-            for line_idx, line in enumerate(f):
-                lines_read += 1
-                if not line.strip():
-                    continue
-                try:
-                    msg = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
+    for single_path in file_paths:
+        with gzip.open(single_path, "rt", encoding="utf-8") as f:
+            try:
+                for line_idx, line in enumerate(f):
+                    lines_read += 1
+                    if not line.strip():
+                        continue
+                    try:
+                        msg = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
 
-                if msg.get("type") == "METADATA":
-                    continue
+                    if msg.get("type") == "METADATA":
+                        continue
 
-                dt = _parse_timestamp(msg.get("timestamp"))
-                if not dt:
-                    continue
+                    dt = _parse_timestamp(msg.get("timestamp"))
+                    if not dt:
+                        continue
 
-                bucket_second = (dt.second // 10) * 10
-                bucket_time = dt.replace(second=bucket_second, microsecond=0)
+                    bucket_second = (dt.second // 10) * 10
+                    bucket_time = dt.replace(second=bucket_second, microsecond=0)
 
-                content = str(msg.get("content", ""))
-                raw_author = msg.get("authorId") or msg.get("userId")
-                user_key = str(raw_author) if raw_author else f"anon_{line_idx}"
+                    content = str(msg.get("content", ""))
+                    raw_author = msg.get("authorId") or msg.get("userId")
+                    user_key = str(raw_author) if raw_author else f"anon_{lines_read}_{line_idx}"
 
-                b = buckets[bucket_time]
-                b["chat_count"] += 1
-                if raw_author:
-                    b["unique_chatters"].add(str(raw_author))
+                    b = buckets[bucket_time]
+                    b["chat_count"] += 1
+                    if raw_author:
+                        b["unique_chatters"].add(str(raw_author))
 
-                raw_emotes = EMOTE_REGEX.findall(content)
-                b["emote_count"] += len(raw_emotes)
-                unique_emotes_in_msg = {f":{em}:" for em in raw_emotes}
+                    raw_emotes = EMOTE_REGEX.findall(content)
+                    b["emote_count"] += len(raw_emotes)
+                    unique_emotes_in_msg = {f":{em}:" for em in raw_emotes}
 
-                clean_text = EMOTE_REGEX.sub(" ", content)
-                unique_words_in_msg = set()
-                for raw_w in WORD_REGEX.findall(clean_text):
-                    nw = _normalize_word(raw_w)
-                    if len(nw) >= 2 and nw not in active_stopwords and not NOISE_TOKEN_REGEX.match(nw):
-                        unique_words_in_msg.add(nw)
+                    clean_text = EMOTE_REGEX.sub(" ", content)
+                    unique_words_in_msg = set()
+                    for raw_w in WORD_REGEX.findall(clean_text):
+                        nw = _normalize_word(raw_w)
+                        if len(nw) >= 2 and nw not in active_stopwords and not NOISE_TOKEN_REGEX.match(nw):
+                            unique_words_in_msg.add(nw)
 
-                for em_tok in unique_emotes_in_msg:
-                    b["emote_users"][em_tok].add(user_key)
-                    session_tokens[em_tok] += 1
+                    for em_tok in unique_emotes_in_msg:
+                        b["emote_users"][em_tok].add(user_key)
+                        session_tokens[em_tok] += 1
 
-                for w_tok in unique_words_in_msg:
-                    b["word_users"][w_tok].add(user_key)
-                    session_tokens[w_tok] += 1
-        except (EOFError, OSError) as e:
-            if lines_read == 0 or not buckets:
-                raise
-            truncated_input = True
-            logger.warning(f"[사후분석] 손상/절단된 gzip 파일 감지, 읽은 구간까지만 분석 진행: file={file_path}, 오류={e}")
+                    for w_tok in unique_words_in_msg:
+                        b["word_users"][w_tok].add(user_key)
+                        session_tokens[w_tok] += 1
+            except (EOFError, OSError) as e:
+                if lines_read == 0 or not buckets:
+                    raise
+                truncated_input = True
+                logger.warning(f"[사후분석] 손상/절단된 gzip 파일 감지, 읽은 구간까지만 분석 진행: file={single_path}, 오류={e}")
 
     for b in buckets.values():
         user_df_counter = Counter()
