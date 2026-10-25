@@ -5,7 +5,7 @@ import { StreamerViewerRankingCard } from './StreamerViewerRankingCard';
 import { StreamerFollowerRankingCard } from './StreamerFollowerRankingCard';
 
 export const StreamerStatsPage: React.FC = () => {
-  // 전체 리더보드 스트리머 목록 (30일 평균 시청자 순위용)
+  // 전체 리더보드 스트리머 목록 (주간 평균 시청자 순위용)
   const { streamers, isLoading } = useStreamers('', 30000);
 
   return (
@@ -28,9 +28,9 @@ export const StreamerStatsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 2분할 랭킹 대시보드 (좌측: 30일 평균 시청자 순위 / 우측: 팔로워 랭킹) */}
+      {/* 2분할 랭킹 대시보드 (좌측: 주간 평균 시청자 순위 / 우측: 팔로워 랭킹) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* 좌측: 30일 평균 시청자 체급 순위 (TOP 20 -> 100위 확장) */}
+        {/* 좌측: 주간 평균 시청자 체급 순위 (TOP 20 -> 100위 확장) */}
         <StreamerViewerRankingCard streamers={streamers} isLoading={isLoading} />
 
         {/* 우측: 팔로워 랭킹 (기본: 주간 급상승, 토글: 누적 팔로워, TOP 20 -> 100위 확장) */}

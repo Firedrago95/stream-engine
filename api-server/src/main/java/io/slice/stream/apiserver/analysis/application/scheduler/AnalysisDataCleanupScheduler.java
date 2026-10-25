@@ -7,8 +7,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component; // Service보다는 Component가 적절합니다.
+import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
@@ -19,7 +18,6 @@ public class AnalysisDataCleanupScheduler {
 
     private final AnalysisDataCleanupService cleanupService;
 
-    @Scheduled(cron = "0 0 7 * * *", zone = "Asia/Seoul")
     public void runDataCleanUp() {
         log.info("[Cleanup] 3일 주기 데이터 요약 및 정리 작업을 시작합니다.");
 

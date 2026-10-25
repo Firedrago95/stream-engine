@@ -15,6 +15,7 @@ x-airflow-common:
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
     AIRFLOW__CORE__PARALLELISM: 8
     AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG: 4
+    AIRFLOW_CONN_SLICE_OCI_POSTGRES: postgresql+psycopg2://${OCI_DB_USER:-sliceuser}:${OCI_DB_PASSWORD:-slicepass}@oci-db-tunnel:5432/${OCI_DB_NAME:-slicedb}
     OCI_NAMESPACE: ${OCI_NAMESPACE:-}
     OCI_REGION: ${OCI_REGION:-ap-chuncheon-1}
     OCI_BUCKET_NAME: ${OCI_BUCKET_NAME:-slice-data-lake}
@@ -114,6 +115,35 @@ services:
     depends_on:
       dw-postgres:
         condition: service_healthy
+
+  oci-db-tunnel:
+    image: alpine:3.20
+    container_name: slice-oci-db-tunnel
+    command:
+      - /bin/sh
+      - -c
+      - |
+        apk add --no-cache openssh-client
+        cp /tmp/oci_ssh_key /root/oci_key
+        chmod 600 /root/oci_key
+        exec ssh -i /root/oci_key \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          -o ExitOnForwardFailure=yes \
+          -o ServerAliveInterval=15 \
+          -o ServerAliveCountMax=3 \
+          -N -L 0.0.0.0:5432:127.0.0.1:5432 \
+          ${OCI_SSH_USER:-ubuntu}@${OCI_SSH_HOST:-140.245.72.152}
+    volumes:
+      - ${OCI_SSH_KEY_PATH:-/home/ubuntu/.ssh/oci_api_server.key}:/tmp/oci_ssh_key:ro
+    networks:
+      - slice-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 64M
 
   airflow-init:
     <<: *airflow-common

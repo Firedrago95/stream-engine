@@ -3,6 +3,7 @@ package io.slice.stream.apiserver.stream.fake;
 import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
+import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.TimelineDataPoint;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -16,6 +17,7 @@ public class FakeAnalysisRepository implements AnalysisRepository {
 
     private final Map<String, List<AnalysisDataPoint>> rawHistoryStorage = new ConcurrentHashMap<>();
     private final Map<String, List<AnalysisDataPoint>> summaryHistoryStorage = new ConcurrentHashMap<>();
+    private final Map<String, List<TimelineDataPoint>> summaryTimelineStorage = new ConcurrentHashMap<>();
 
     public void setRawHistory(String streamId, String sessionId, List<AnalysisDataPoint> points) {
         rawHistoryStorage.put(key(streamId, sessionId), new ArrayList<>(points));
@@ -23,6 +25,10 @@ public class FakeAnalysisRepository implements AnalysisRepository {
 
     public void setSummaryHistory(String streamId, String sessionId, List<AnalysisDataPoint> points) {
         summaryHistoryStorage.put(key(streamId, sessionId), new ArrayList<>(points));
+    }
+
+    public void setSummaryTimeline(String streamId, String sessionId, List<TimelineDataPoint> points) {
+        summaryTimelineStorage.put(key(streamId, sessionId), new ArrayList<>(points));
     }
 
     @Override
@@ -44,6 +50,11 @@ public class FakeAnalysisRepository implements AnalysisRepository {
     @Override
     public List<AnalysisDataPoint> findSummaryHistory(String streamId, String sessionId) {
         return summaryHistoryStorage.getOrDefault(key(streamId, sessionId), List.of());
+    }
+
+    @Override
+    public List<TimelineDataPoint> findSummaryTimeline(String streamId, String sessionId) {
+        return summaryTimelineStorage.getOrDefault(key(streamId, sessionId), List.of());
     }
 
     private String key(String streamId, String sessionId) {

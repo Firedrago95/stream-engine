@@ -193,6 +193,12 @@ def post_broadcast_pipeline():
                         algo_version=ALGO_VERSION,
                         highlights=highlights,
                     )
+                    avg_viewers, peak_viewers, minute_viewers = _load_session_viewer_metrics(
+                        conn=conn,
+                        session_id=session_id,
+                        started_at_dt=started_at_dt,
+                        ended_at_dt=ended_at_dt,
+                    )
                     _update_session_analysis_state(
                         conn=conn,
                         session_id=session_id,
@@ -200,10 +206,23 @@ def post_broadcast_pipeline():
                         valid_bucket_count=valid_bucket_count,
                         sigma_algo_version=SIGMA_ALGO_VERSION,
                         highlights_algo_version=ALGO_VERSION,
+                        avg_viewers=avg_viewers,
+                        peak_viewers=peak_viewers,
                     )
 
                     conn.commit()
                     processed_session_ids.append(session_id)
+
+                    _sync_analyzed_session_to_oci(
+                        session_id=session_id,
+                        stream_id=stream_id,
+                        started_at_dt=started_at_dt,
+                        buckets=buckets,
+                        highlights=highlights,
+                        avg_viewers=avg_viewers,
+                        peak_viewers=peak_viewers,
+                        minute_viewers=minute_viewers,
+                    )
 
                     for target_file in target_files:
                         try:
@@ -869,15 +888,31 @@ def _detect_highlights_v2(
 
 def _bulk_close_no_file_sessions(conn, session_ids: list[str]):
     sql = """
-        UPDATE stream_sessions
+        WITH metrics AS (
+            SELECT
+                v.session_id,
+                CAST(ROUND(AVG(v.viewer_count)) AS INT) AS avg_v,
+                MAX(v.viewer_count) AS peak_v
+            FROM view_metric_timelines v
+            INNER JOIN stream_sessions s ON s.session_id = v.session_id
+            WHERE v.session_id = ANY(%s)
+              AND v.recorded_at >= s.started_at - INTERVAL '1 hour'
+              AND v.recorded_at <= COALESCE(s.ended_at, NOW()) + INTERVAL '1 hour'
+            GROUP BY v.session_id
+        )
+        UPDATE stream_sessions ss
         SET is_analyzed = TRUE,
-            highlights_algo_version = %s
-        WHERE session_id = ANY(%s)
-          AND ended_at IS NOT NULL
-          AND is_analyzed = FALSE;
+            highlights_algo_version = %s,
+            average_viewer_count = COALESCE(m.avg_v, ss.average_viewer_count),
+            peak_viewers = GREATEST(COALESCE(ss.peak_viewers, 0), COALESCE(m.peak_v, 0))
+        FROM (SELECT UNNEST(%s::varchar[]) AS session_id) target
+        LEFT JOIN metrics m ON m.session_id = target.session_id
+        WHERE ss.session_id = target.session_id
+          AND ss.ended_at IS NOT NULL
+          AND ss.is_analyzed = FALSE;
     """
     with conn.cursor() as cur:
-        cur.execute(sql, (NO_CHAT_FILE_VERSION, session_ids))
+        cur.execute(sql, (session_ids, NO_CHAT_FILE_VERSION, session_ids))
 
 
 def _increment_analysis_attempts(conn, session_id: str):
@@ -985,6 +1020,59 @@ def _replace_session_highlights(
         execute_values(cur, insert_sql, records, page_size=500)
 
 
+def _load_session_viewer_metrics(
+    conn,
+    session_id: str,
+    started_at_dt: datetime | None = None,
+    ended_at_dt: datetime | None = None,
+) -> tuple[int | None, int | None, dict[datetime, int]]:
+    where_clauses = ["session_id = %s"]
+    params: list = [session_id]
+    if started_at_dt:
+        where_clauses.append("recorded_at >= %s")
+        params.append(started_at_dt - SESSION_BUCKET_MARGIN)
+    if ended_at_dt:
+        where_clauses.append("recorded_at <= %s")
+        params.append(ended_at_dt + SESSION_BUCKET_MARGIN)
+
+    where_sql = " AND ".join(where_clauses)
+    sql = f"""
+        SELECT date_trunc('minute', recorded_at) AS minute_ts,
+               CAST(ROUND(AVG(viewer_count)) AS INT) AS avg_v,
+               MAX(viewer_count) AS max_v,
+               COUNT(*) AS sample_cnt
+        FROM view_metric_timelines
+        WHERE {where_sql}
+        GROUP BY date_trunc('minute', recorded_at)
+        ORDER BY minute_ts ASC;
+    """
+    minute_viewers: dict[datetime, int] = {}
+    total_weighted = 0
+    total_samples = 0
+    peak_viewers = 0
+
+    with conn.cursor() as cur:
+        cur.execute(sql, tuple(params))
+        for minute_ts, avg_v, max_v, sample_cnt in cur.fetchall():
+            if minute_ts is None:
+                continue
+            dt_kst = minute_ts.astimezone(KST) if minute_ts.tzinfo else minute_ts.replace(tzinfo=KST)
+            v_int = int(avg_v or 0)
+            m_int = int(max_v or 0)
+            cnt_int = int(sample_cnt or 0)
+            minute_viewers[dt_kst] = v_int
+            total_weighted += v_int * cnt_int
+            total_samples += cnt_int
+            if m_int > peak_viewers:
+                peak_viewers = m_int
+
+    if total_samples == 0:
+        return None, None, {}
+
+    avg_viewers = int(round(total_weighted / total_samples))
+    return avg_viewers, peak_viewers, minute_viewers
+
+
 def _update_session_analysis_state(
     conn,
     session_id: str,
@@ -992,6 +1080,8 @@ def _update_session_analysis_state(
     valid_bucket_count: int,
     sigma_algo_version: str,
     highlights_algo_version: str,
+    avg_viewers: int | None = None,
+    peak_viewers: int | None = None,
 ):
     sql = """
         UPDATE stream_sessions
@@ -999,15 +1089,196 @@ def _update_session_analysis_state(
             sigma_session = %s,
             valid_bucket_count = %s,
             sigma_algo_version = %s,
-            highlights_algo_version = %s
+            highlights_algo_version = %s,
+            average_viewer_count = COALESCE(%s, average_viewer_count),
+            peak_viewers = GREATEST(COALESCE(peak_viewers, 0), COALESCE(%s, 0))
         WHERE session_id = %s
           AND ended_at IS NOT NULL;
     """
     with conn.cursor() as cur:
         cur.execute(
             sql,
-            (sigma_session, valid_bucket_count, sigma_algo_version, highlights_algo_version, session_id),
+            (
+                sigma_session,
+                valid_bucket_count,
+                sigma_algo_version,
+                highlights_algo_version,
+                avg_viewers,
+                peak_viewers,
+                session_id,
+            ),
         )
+
+
+def _build_one_minute_summaries(
+    session_id: str,
+    stream_id: str,
+    started_at_dt: datetime | None,
+    buckets: dict,
+    highlights: list[dict],
+    minute_viewers: dict[datetime, int],
+) -> list[tuple]:
+    minute_chats: dict[datetime, list[int]] = defaultdict(list)
+    for b_time, b in buckets.items():
+        m_dt = b_time.astimezone(KST).replace(second=0, microsecond=0)
+        minute_chats[m_dt].append(int(b.get("chat_count", 0)))
+
+    all_minutes = sorted(set(minute_chats.keys()) | set(minute_viewers.keys()))
+    if not all_minutes:
+        return []
+
+    base_dt = started_at_dt.astimezone(KST) if started_at_dt else all_minutes[0]
+
+    peak_minutes = set()
+    for h in highlights:
+        h_start = h["start_time"].astimezone(KST).replace(second=0, microsecond=0)
+        h_end = h["end_time"].astimezone(KST).replace(second=0, microsecond=0)
+        cur_m = h_start
+        while cur_m <= h_end:
+            peak_minutes.add(cur_m)
+            cur_m += timedelta(minutes=1)
+
+    summary_rows = []
+    for m_dt in all_minutes:
+        chat_vals = minute_chats.get(m_dt, [])
+        if chat_vals:
+            fp_avg = int(round(sum(chat_vals) / len(chat_vals)))
+            fp_max = int(max(chat_vals))
+        else:
+            fp_avg = 0
+            fp_max = 0
+
+        viewer_cnt = int(minute_viewers.get(m_dt, 0))
+        status = "PEAK" if m_dt in peak_minutes else "NORMAL"
+        offset_ms = max(0, int((m_dt - base_dt).total_seconds() // 60) * 60000)
+
+        summary_rows.append((
+            stream_id,
+            session_id,
+            status,
+            fp_avg,
+            fp_max,
+            m_dt,
+            offset_ms,
+            viewer_cnt,
+        ))
+
+    return summary_rows
+
+
+def _resolve_highlight_category(h: dict) -> str:
+    top_tags = h.get("top_tags") or {}
+    words = top_tags.get("words") or []
+    if words and isinstance(words[0], dict) and words[0].get("w"):
+        return str(words[0]["w"])[:50]
+    emotes = top_tags.get("emotes") or []
+    if emotes and isinstance(emotes[0], dict) and emotes[0].get("w"):
+        return str(emotes[0]["w"])[:50]
+    return "GENERAL"
+
+
+def _sync_analyzed_session_to_oci(
+    session_id: str,
+    stream_id: str,
+    started_at_dt: datetime | None,
+    buckets: dict,
+    highlights: list[dict],
+    avg_viewers: int | None,
+    peak_viewers: int | None,
+    minute_viewers: dict[datetime, int],
+) -> bool:
+    try:
+        oci_hook = PostgresHook(postgres_conn_id="slice_oci_postgres")
+        oci_conn = oci_hook.get_conn()
+    except Exception as conn_err:
+        logger.warning(f"[OCI-Sync] OCI 서빙 DB 연결 실패 (스킵): session_id={session_id}, 오류={conn_err}")
+        return False
+
+    try:
+        with oci_conn.cursor() as cur:
+            if avg_viewers is not None or peak_viewers is not None:
+                cur.execute(
+                    """
+                    UPDATE stream_sessions
+                    SET average_viewer_count = COALESCE(%s, average_viewer_count),
+                        peak_viewers = GREATEST(COALESCE(peak_viewers, 0), COALESCE(%s, 0))
+                    WHERE session_id = %s;
+                    """,
+                    (avg_viewers, peak_viewers, session_id),
+                )
+
+            cur.execute("DELETE FROM highlight_events WHERE session_id = %s;", (session_id,))
+            if highlights:
+                hl_records = [
+                    (
+                        stream_id,
+                        session_id,
+                        _resolve_highlight_category(h),
+                        h["start_time"],
+                        h["peak_time"],
+                        h["end_time"],
+                        h["start_offset_ms"],
+                        h["peak_offset_ms"],
+                        h["end_offset_ms"],
+                        h["peak_chats"],
+                        "FINISHED",
+                    )
+                    for h in highlights
+                ]
+                execute_values(
+                    cur,
+                    """
+                    INSERT INTO highlight_events (
+                        stream_id, session_id, category,
+                        start_time, last_peak_time, end_time,
+                        start_time_offset, last_peak_offset, end_time_offset,
+                        peak_firepower, status
+                    ) VALUES %s;
+                    """,
+                    hl_records,
+                    page_size=500,
+                )
+
+            summary_rows = _build_one_minute_summaries(
+                session_id=session_id,
+                stream_id=stream_id,
+                started_at_dt=started_at_dt,
+                buckets=buckets,
+                highlights=highlights,
+                minute_viewers=minute_viewers,
+            )
+            cur.execute("DELETE FROM analysis_signals_summary WHERE session_id = %s;", (session_id,))
+            if summary_rows:
+                execute_values(
+                    cur,
+                    """
+                    INSERT INTO analysis_signals_summary (
+                        stream_id, session_id, status,
+                        firepower_avg, firepower_max, timestamp_minute,
+                        offset_ms, viewer_count
+                    ) VALUES %s
+                    ON CONFLICT (session_id, status, offset_ms) DO UPDATE
+                    SET firepower_avg = EXCLUDED.firepower_avg,
+                        firepower_max = EXCLUDED.firepower_max,
+                        timestamp_minute = LEAST(analysis_signals_summary.timestamp_minute, EXCLUDED.timestamp_minute),
+                        viewer_count = EXCLUDED.viewer_count;
+                    """,
+                    summary_rows,
+                    page_size=1000,
+                )
+
+        oci_conn.commit()
+        logger.info(
+            f"[OCI-Sync] 서빙 DB 동기화 완료: session_id={session_id}, "
+            f"하이라이트={len(highlights)}건, 1분요약={len(summary_rows)}건"
+        )
+        return True
+    except Exception as sync_err:
+        oci_conn.rollback()
+        logger.warning(f"[OCI-Sync] 서빙 DB 동기화 중 오류 발생: session_id={session_id}, 오류={sync_err}")
+        return False
+    finally:
+        oci_conn.close()
 
 
 post_broadcast_pipeline()

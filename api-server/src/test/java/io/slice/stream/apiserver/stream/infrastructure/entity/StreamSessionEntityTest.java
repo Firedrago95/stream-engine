@@ -55,7 +55,7 @@ class StreamSessionEntityTest {
     }
 
     @Test
-    void 세션_재활성화_시_종료_시각과_평균_시청자_구독자_채팅비율을_초기화한다() {
+    void 세션_재활성화_시_종료_시각과_구독자_채팅비율을_초기화하고_기존_누적_평균과_피크는_보존한다() {
         // given
         Instant now = Instant.now();
         StreamSessionEntity session = new StreamSessionEntity("streamId", "sessionId", "방제", "카테고리", now.minusSeconds(3600));
@@ -67,7 +67,7 @@ class StreamSessionEntityTest {
 
         // then
         assertThat(session.getEndedAt()).isNull();
-        assertThat(session.getAverageViewerCount()).isNull();
+        assertThat(session.getAverageViewerCount()).isEqualTo(1000);
         assertThat(session.getSubscriberChatRatio()).isNull();
         assertThat(session.getPeakViewers()).isEqualTo(1500);
     }

@@ -3,7 +3,6 @@ package io.slice.stream.apiserver.analysis.application.scheduler;
 import io.slice.stream.apiserver.analysis.application.service.AnalysisSignalBufferService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -13,7 +12,6 @@ public class AnalysisSignalBufferScheduler {
 
     private final AnalysisSignalBufferService bufferService;
 
-    @Scheduled(fixedRate = 60_000)
     public void flushBufferedSignals() {
         try {
             int flushedCount = bufferService.flushAndPersist();

@@ -1,6 +1,7 @@
 package io.slice.stream.apiserver.analysis.domain;
 
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
+import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.TimelineDataPoint;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -17,4 +18,8 @@ public interface AnalysisRepository {
     List<AnalysisDataPoint> findRawHistory(String streamId, String sessionId);
 
     List<AnalysisDataPoint> findSummaryHistory(String streamId, String sessionId);
+
+    default List<TimelineDataPoint> findSummaryTimeline(String streamId, String sessionId) {
+        return List.of();
+    }
 }

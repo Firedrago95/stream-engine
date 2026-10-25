@@ -35,11 +35,11 @@ import tools.jackson.databind.json.JsonMapper;
 @Transactional(readOnly = true)
 public class StreamerLeaderboardQueryService {
 
-    public static final String REDIS_LEADERBOARD_KEY = "streamer:leaderboard:daily:top100";
-    private static final Duration CACHE_TTL = Duration.ofHours(36);
+    public static final String REDIS_LEADERBOARD_KEY = "streamer:leaderboard:weekly:top100";
+    private static final Duration CACHE_TTL = Duration.ofDays(8);
     private static final int DEFAULT_TOP_LIMIT = 100;
-    private static final int DAYS_30 = 30;
-    private static final int MIN_DAYS = 5;
+    private static final int DAYS_7 = 7;
+    private static final int MIN_DAYS = 2;
 
     private final StreamRepository streamRepository;
     private final AnalysisRepository analysisRepository;
@@ -66,7 +66,7 @@ public class StreamerLeaderboardQueryService {
                 return cacheRefreshed ? matchedInCache : syncRealtimeStatusForCached(matchedInCache);
             }
 
-            Instant since = Instant.now().minus(DAYS_30, ChronoUnit.DAYS);
+            Instant since = Instant.now().minus(DAYS_7, ChronoUnit.DAYS);
             List<StreamerLeaderboardProjection> searched =
                 streamRepository.searchTopStreamersWith30dAvg(keyword.trim(), since, 50);
             return bindRealtimeLiveStatus(searched);
@@ -101,7 +101,7 @@ public class StreamerLeaderboardQueryService {
     )
     @Transactional
     public List<StreamResponse> refreshDailyLeaderboard() {
-        Instant since = Instant.now().minus(DAYS_30, ChronoUnit.DAYS);
+        Instant since = Instant.now().minus(DAYS_7, ChronoUnit.DAYS);
         List<StreamerLeaderboardProjection> topStreamers =
             streamRepository.findTopStreamersWith30dAvg(since, MIN_DAYS, DEFAULT_TOP_LIMIT);
 
@@ -122,7 +122,7 @@ public class StreamerLeaderboardQueryService {
             writeToRedis(calculated);
         }
 
-        log.info("[Leaderboard] 일일 스트리머 순수 체급 리더보드 정산 완료 (총 {}명)", calculated.size());
+        log.info("[Leaderboard] 주간 스트리머 순수 체급 리더보드 정산 완료 (총 {}명)", calculated.size());
         return calculated;
     }
 

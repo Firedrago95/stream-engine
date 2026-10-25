@@ -57,10 +57,11 @@ public interface JpaAnalysisSignalRepository extends JpaRepository<AnalysisSigna
         Long getFirepowerMax();
         String getStatus();
         Long getOffsetMs();
+        Integer getViewerCount();
     }
 
     @Query(value = """
-    SELECT timestamp_minute AS timestampMinute, firepower_max AS firepowerMax, status AS status, offset_ms AS offsetMs 
+    SELECT timestamp_minute AS timestampMinute, firepower_max AS firepowerMax, status AS status, offset_ms AS offsetMs, COALESCE(viewer_count, 0) AS viewerCount 
     FROM analysis_signals_summary 
     WHERE stream_id = :streamId AND session_id = :sessionId 
     ORDER BY timestamp_minute ASC

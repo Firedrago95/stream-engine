@@ -4,6 +4,7 @@ import io.slice.stream.apiserver.analysis.domain.AnalysisRepository;
 import io.slice.stream.apiserver.analysis.domain.AnalysisSignal;
 import io.slice.stream.apiserver.analysis.infrastructure.entity.AnalysisSignalEntity;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
+import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.TimelineDataPoint;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -95,6 +96,22 @@ public class AnalysisRepositoryImpl implements AnalysisRepository {
                     p.getFirepowerMax(),
                     p.getStatus(),
                     p.getOffsetMs()
+                );
+            })
+            .filter(Objects::nonNull)
+            .toList();
+    }
+
+    @Override
+    public List<TimelineDataPoint> findSummaryTimeline(String streamId, String sessionId) {
+        return jpaRepository.findSummaryHistoryBySession(streamId, sessionId).stream()
+            .map(p -> {
+                if (p.getTimestampMinute() == null) return null;
+                int viewers = p.getViewerCount() != null ? p.getViewerCount() : 0;
+                if (viewers <= 0) return null;
+                return new TimelineDataPoint(
+                    p.getTimestampMinute().toEpochMilli(),
+                    viewers
                 );
             })
             .filter(Objects::nonNull)

@@ -45,6 +45,9 @@ public class StreamSessionEntity {
     @Column(name = "average_viewer_count")
     private Integer averageViewerCount;
 
+    @Column(name = "viewer_sample_count", nullable = false)
+    private int viewerSampleCount = 0;
+
     @Column(name = "session_follower_growth")
     private Integer sessionFollowerGrowth;
 
@@ -98,14 +101,22 @@ public class StreamSessionEntity {
     }
 
     public void updatePeakViewers(int viewers) {
-        if (viewers > this.peakViewers) {
+        if (this.peakViewers == null || viewers > this.peakViewers) {
             this.peakViewers = viewers;
         }
     }
 
+    public void recordViewerSample(int currentViewers) {
+        updatePeakViewers(currentViewers);
+        int currentAvg = this.averageViewerCount != null ? this.averageViewerCount : 0;
+        int prevCount = Math.max(0, this.viewerSampleCount);
+        this.viewerSampleCount = prevCount + 1;
+        this.averageViewerCount = (int) Math.round(((long) currentAvg * prevCount + currentViewers) / (double) this.viewerSampleCount);
+    }
+
     public void finishSession(Instant endedAt, Integer finalPeakViewers) {
         this.endedAt = endedAt;
-        if (finalPeakViewers != null && finalPeakViewers > this.peakViewers) {
+        if (finalPeakViewers != null && (this.peakViewers == null || finalPeakViewers > this.peakViewers)) {
             this.peakViewers = finalPeakViewers;
         }
     }
@@ -123,7 +134,6 @@ public class StreamSessionEntity {
 
     public void reopen() {
         this.endedAt = null;
-        this.averageViewerCount = null;
         this.subscriberChatRatio = null;
     }
 

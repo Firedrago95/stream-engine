@@ -85,7 +85,7 @@ class CategoryQueryServiceTest {
 
         assertThat(results).hasSize(1);
         assertThat(results.get(0).categoryName()).isEqualTo("리그 오브 레전드");
-        then(valueOps).should().set(eq(CategoryRankingBatchService.REDIS_WEEKLY_KEY), anyString(), eq(Duration.ofDays(8)));
+        then(valueOps).should().set(eq(CategoryRankingBatchService.REDIS_WEEKLY_KEY), anyString(), eq(Duration.ofHours(1)));
         then(batchService).should(never()).refreshWeeklyRanking();
     }
 

@@ -13,11 +13,11 @@ public class StreamerLeaderboardScheduler {
 
     private final StreamerLeaderboardQueryService leaderboardQueryService;
 
-    @Scheduled(cron = "${streamer.leaderboard.cron:0 0 4 * * *}", zone = "Asia/Seoul")
+    @Scheduled(cron = "${streamer.leaderboard.cron:0 0 6 * * MON}", zone = "Asia/Seoul")
     public void scheduleDailyLeaderboardCalculation() {
-        log.info("[Leaderboard-Scheduler] 정기 스트리머 체급 리더보드 정산 시작");
+        log.info("[Leaderboard-Scheduler] 정기 주간 스트리머 체급 리더보드 정산 시작");
         leaderboardQueryService.refreshDailyLeaderboard();
-        log.info("[Leaderboard-Scheduler] 정기 스트리머 체급 리더보드 정산 완료");
+        log.info("[Leaderboard-Scheduler] 정기 주간 스트리머 체급 리더보드 정산 완료");
     }
 }
 

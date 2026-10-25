@@ -5,14 +5,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.AnalysisDataPoint;
 import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.SegmentResponse;
+import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.TimelineDataPoint;
 import io.slice.stream.apiserver.analysis.presentation.dto.SessionResponse;
 import io.slice.stream.apiserver.stream.fake.FakeAnalysisRepository;
 import io.slice.stream.apiserver.stream.fake.FakeStreamSessionRepository;
 import io.slice.stream.apiserver.stream.fake.FakeStreamSessionSegmentRepository;
-import io.slice.stream.apiserver.stream.fake.FakeViewMetricTimelineRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
-import io.slice.stream.apiserver.stream.infrastructure.entity.ViewMetricTimelineEntity;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +25,6 @@ class AnalysisQueryServiceTest {
     private FakeAnalysisRepository analysisRepository;
     private FakeStreamSessionRepository sessionRepository;
     private FakeStreamSessionSegmentRepository segmentRepository;
-    private FakeViewMetricTimelineRepository timelineRepository;
     private ReLiveSessionMerger reLiveSessionMerger;
     private AnalysisQueryService analysisQueryService;
 
@@ -35,19 +33,17 @@ class AnalysisQueryServiceTest {
         analysisRepository = new FakeAnalysisRepository();
         sessionRepository = new FakeStreamSessionRepository();
         segmentRepository = new FakeStreamSessionSegmentRepository();
-        timelineRepository = new FakeViewMetricTimelineRepository();
         reLiveSessionMerger = new ReLiveSessionMerger();
         analysisQueryService = new AnalysisQueryService(
             analysisRepository,
             sessionRepository,
             segmentRepository,
-            timelineRepository,
             reLiveSessionMerger
         );
     }
 
     @Test
-    void 과거_데이터_조회_시_요약_데이터와_원본_데이터를_시간순으로_병합하여_반환한다() {
+    void 과거_데이터_조회_시_요약_데이터를_시간순으로_정렬하여_반환한다() {
         String streamId = "test-stream";
         String sessionId = "target-session";
         Instant sessionStart = Instant.ofEpochMilli(0L);
@@ -57,10 +53,8 @@ class AnalysisQueryServiceTest {
         sessionRepository.save(session);
 
         analysisRepository.setSummaryHistory(streamId, sessionId, List.of(
+            new AnalysisDataPoint(60000L, 200L, "PEAK", 60000L),
             new AnalysisDataPoint(0L, 150L, "NORMAL", 0L)
-        ));
-        analysisRepository.setRawHistory(streamId, sessionId, List.of(
-            new AnalysisDataPoint(60000L, 200L, "PEAK", 60000L)
         ));
 
         AnalysisResponse response = analysisQueryService.getHistoryAnalysis(streamId, sessionId);
@@ -70,38 +64,6 @@ class AnalysisQueryServiceTest {
         assertThat(response.dataPoints().get(0).value()).isEqualTo(150L);
         assertThat(response.dataPoints().get(1).timestamp()).isEqualTo(60000L);
         assertThat(response.dataPoints().get(1).value()).isEqualTo(200L);
-        assertThat(response.segments()).isEmpty();
-    }
-
-    @Test
-    void 과거_데이터_조회_시_요약_데이터가_비어있으면_원본_데이터를_1분_단위로_압축하여_반환한다() {
-        String streamId = "test-stream";
-        String sessionId = "target-session";
-        Instant sessionStart = Instant.ofEpochMilli(0L);
-
-        StreamSessionEntity session = new StreamSessionEntity(streamId, sessionId, "방제", "게임", sessionStart);
-        session.finishSession(sessionStart.plusSeconds(3600), 300, 150.0);
-        sessionRepository.save(session);
-
-        List<AnalysisDataPoint> rawPoints = List.of(
-            new AnalysisDataPoint(1000L, 200L, "NORMAL", 1000L),
-            new AnalysisDataPoint(1500L, 300L, "PEAK", 1500L),
-            new AnalysisDataPoint(65000L, 50L, "NORMAL", 65000L)
-        );
-        analysisRepository.setRawHistory(streamId, sessionId, rawPoints);
-
-        AnalysisResponse response = analysisQueryService.getHistoryAnalysis(streamId, sessionId);
-
-        List<AnalysisDataPoint> points = response.dataPoints();
-        assertThat(points).hasSize(2);
-
-        assertThat(points.get(0).timestamp()).isEqualTo(0L);
-        assertThat(points.get(0).value()).isEqualTo(250L);
-        assertThat(points.get(0).status()).isEqualTo("PEAK");
-
-        assertThat(points.get(1).timestamp()).isEqualTo(60000L);
-        assertThat(points.get(1).value()).isEqualTo(50L);
-        assertThat(points.get(1).status()).isEqualTo("NORMAL");
         assertThat(response.segments()).isEmpty();
     }
 
@@ -147,8 +109,9 @@ class AnalysisQueryServiceTest {
         segmentEntity.endSegment(segmentStart.plusSeconds(30), 30000L);
         segmentRepository.addSegment(segmentEntity);
 
-        ViewMetricTimelineEntity timelineEntity = new ViewMetricTimelineEntity(streamId, sessionId, segmentStart, 2000);
-        timelineRepository.save(timelineEntity);
+        analysisRepository.setSummaryTimeline(streamId, sessionId, List.of(
+            new TimelineDataPoint(segmentStart.toEpochMilli(), 2000)
+        ));
 
         analysisRepository.setSummaryHistory(streamId, sessionId, List.of(
             new AnalysisDataPoint(1000L, 100L, "NORMAL", 0L)
@@ -192,12 +155,12 @@ class AnalysisQueryServiceTest {
         );
         analysisRepository.setSummaryHistory(streamId, sessionId, summaryPoints);
 
-        List<ViewMetricTimelineEntity> timelines = List.of(
-            new ViewMetricTimelineEntity(streamId, sessionId, sessionStart, 1000),
-            new ViewMetricTimelineEntity(streamId, sessionId, sessionStart.plusSeconds(60), 2000),
-            new ViewMetricTimelineEntity(streamId, sessionId, sessionStart.plusSeconds(120), 3000)
+        List<TimelineDataPoint> timelines = List.of(
+            new TimelineDataPoint(startMs, 1000),
+            new TimelineDataPoint(startMs + 60_000L, 2000),
+            new TimelineDataPoint(startMs + 120_000L, 3000)
         );
-        timelineRepository.saveAll(timelines);
+        analysisRepository.setSummaryTimeline(streamId, sessionId, timelines);
 
         AnalysisResponse response = analysisQueryService.getHistoryAnalysis(streamId, sessionId);
 
@@ -227,11 +190,11 @@ class AnalysisQueryServiceTest {
         );
         analysisRepository.setSummaryHistory(streamId, sessionId, summaryPoints);
 
-        List<ViewMetricTimelineEntity> timelines = List.of(
-            new ViewMetricTimelineEntity(streamId, sessionId, sessionStart, 4000),
-            new ViewMetricTimelineEntity(streamId, sessionId, sessionStart.plusSeconds(1800), 6000)
+        List<TimelineDataPoint> timelines = List.of(
+            new TimelineDataPoint(startMs, 4000),
+            new TimelineDataPoint(startMs + 1_800_000L, 6000)
         );
-        timelineRepository.saveAll(timelines);
+        analysisRepository.setSummaryTimeline(streamId, sessionId, timelines);
 
         AnalysisResponse response = analysisQueryService.getHistoryAnalysis(streamId, sessionId);
 
@@ -297,8 +260,12 @@ class AnalysisQueryServiceTest {
         segmentRepository.addSegment(seg2);
 
         // 시청자수 타임라인 (s1 1개, s2 1개)
-        timelineRepository.save(new ViewMetricTimelineEntity(streamId, "sess-1", t1.plusSeconds(30), 1800));
-        timelineRepository.save(new ViewMetricTimelineEntity(streamId, "sess-2", t2.plusSeconds(30), 3600));
+        analysisRepository.setSummaryTimeline(streamId, "sess-1", List.of(
+            new TimelineDataPoint(t1.plusSeconds(30).toEpochMilli(), 1800)
+        ));
+        analysisRepository.setSummaryTimeline(streamId, "sess-2", List.of(
+            new TimelineDataPoint(t2.plusSeconds(30).toEpochMilli(), 3600)
+        ));
 
         // 화력 데이터 (s1 1개, s2 1개)
         analysisRepository.setSummaryHistory(streamId, "sess-1", List.of(

@@ -9,10 +9,8 @@ import io.slice.stream.apiserver.analysis.presentation.dto.AnalysisResponse.Time
 import io.slice.stream.apiserver.analysis.presentation.dto.SessionResponse;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRepository;
-import io.slice.stream.apiserver.stream.infrastructure.JpaViewMetricTimelineRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
-import io.slice.stream.apiserver.stream.infrastructure.entity.ViewMetricTimelineEntity;
 import io.slice.stream.apiserver.global.config.SessionProperties;
 import java.time.Duration;
 import java.time.Instant;
@@ -21,7 +19,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +38,6 @@ public class AnalysisQueryService {
     private final AnalysisRepository analysisRepository;
     private final JpaStreamSessionRepository sessionRepository;
     private final JpaStreamSessionSegmentRepository segmentRepository;
-    private final JpaViewMetricTimelineRepository timelineRepository;
     private final ReLiveSessionMerger reLiveSessionMerger;
     private final SessionProperties sessionProperties;
 
@@ -49,14 +45,12 @@ public class AnalysisQueryService {
         AnalysisRepository analysisRepository,
         JpaStreamSessionRepository sessionRepository,
         JpaStreamSessionSegmentRepository segmentRepository,
-        JpaViewMetricTimelineRepository timelineRepository,
         ReLiveSessionMerger reLiveSessionMerger
     ) {
         this(
             analysisRepository,
             sessionRepository,
             segmentRepository,
-            timelineRepository,
             reLiveSessionMerger,
             new SessionProperties(null, null, 50)
         );
@@ -67,14 +61,12 @@ public class AnalysisQueryService {
         AnalysisRepository analysisRepository,
         JpaStreamSessionRepository sessionRepository,
         JpaStreamSessionSegmentRepository segmentRepository,
-        JpaViewMetricTimelineRepository timelineRepository,
         ReLiveSessionMerger reLiveSessionMerger,
         SessionProperties sessionProperties
     ) {
         this.analysisRepository = analysisRepository;
         this.sessionRepository = sessionRepository;
         this.segmentRepository = segmentRepository;
-        this.timelineRepository = timelineRepository;
         this.reLiveSessionMerger = reLiveSessionMerger;
         this.sessionProperties = sessionProperties;
     }
@@ -112,8 +104,6 @@ public class AnalysisQueryService {
 
         List<SegmentResponse> segmentResponses = fetchSegments(linkedSessionIds, baseStartedAt);
 
-        List<ViewMetricTimelineEntity> timelines = timelineRepository.findBySessionIdInOrderByTimestampAsc(linkedSessionIds);
-
         SessionSummaryResponse summaryResponse = !linkedGroup.isEmpty()
             ? reLiveSessionMerger.mergeToSessionSummary(linkedGroup)
             : sessionRepository.findBySessionId(sessionId)
@@ -131,10 +121,11 @@ public class AnalysisQueryService {
                 .orElse(null);
 
         List<AnalysisDataPoint> mergedOneMinutePoints = loadMergedHistoryPoints(streamId, linkedSessionIds, baseStartedAt);
+        List<TimelineDataPoint> mergedTimelinePoints = loadMergedTimelinePoints(streamId, linkedSessionIds);
         long bucketIntervalMs = determineBucketIntervalMs(summaryResponse, mergedOneMinutePoints);
 
         List<AnalysisDataPoint> downsampledPoints = downsampleDataPoints(mergedOneMinutePoints, bucketIntervalMs);
-        List<TimelineDataPoint> downsampledTimelines = downsampleTimeline(timelines, bucketIntervalMs);
+        List<TimelineDataPoint> downsampledTimelines = downsampleTimeline(mergedTimelinePoints, bucketIntervalMs);
 
         return new AnalysisResponse(streamId, downsampledPoints, segmentResponses, downsampledTimelines, summaryResponse);
     }
@@ -169,13 +160,8 @@ public class AnalysisQueryService {
 
         for (String sid : sessionIds) {
             List<AnalysisDataPoint> summaryDataPoints = analysisRepository.findSummaryHistory(streamId, sid);
-            List<AnalysisDataPoint> rawDataPoints = aggregateToOneMinuteIntervals(analysisRepository.findRawHistory(streamId, sid));
-
             for (AnalysisDataPoint p : summaryDataPoints) {
                 merged.put(p.timestamp(), p);
-            }
-            for (AnalysisDataPoint p : rawDataPoints) {
-                merged.putIfAbsent(p.timestamp(), p);
             }
         }
 
@@ -192,6 +178,19 @@ public class AnalysisQueryService {
                 Math.max(0L, p.timestamp() - baseEpochMs)
             ))
             .toList();
+    }
+
+    private List<TimelineDataPoint> loadMergedTimelinePoints(String streamId, List<String> sessionIds) {
+        Map<Long, TimelineDataPoint> merged = new TreeMap<>();
+
+        for (String sid : sessionIds) {
+            List<TimelineDataPoint> timelinePoints = analysisRepository.findSummaryTimeline(streamId, sid);
+            for (TimelineDataPoint t : timelinePoints) {
+                merged.put(t.timestamp(), t);
+            }
+        }
+
+        return new ArrayList<>(merged.values());
     }
 
     private long determineBucketIntervalMs(SessionSummaryResponse summary, List<AnalysisDataPoint> points) {
@@ -259,19 +258,17 @@ public class AnalysisQueryService {
             .toList();
     }
 
-    private List<TimelineDataPoint> downsampleTimeline(List<ViewMetricTimelineEntity> timelines, long bucketIntervalMs) {
+    private List<TimelineDataPoint> downsampleTimeline(List<TimelineDataPoint> timelines, long bucketIntervalMs) {
         if (timelines == null || timelines.isEmpty()) {
             return List.of();
         }
         if (bucketIntervalMs <= ONE_MINUTE_MS) {
-            return timelines.stream()
-                .map(t -> new TimelineDataPoint(t.getTimestamp().toEpochMilli(), t.getViewerCount()))
-                .toList();
+            return timelines;
         }
 
-        Map<Long, List<ViewMetricTimelineEntity>> grouped = timelines.stream()
+        Map<Long, List<TimelineDataPoint>> grouped = timelines.stream()
             .collect(Collectors.groupingBy(
-                t -> (t.getTimestamp().toEpochMilli() / bucketIntervalMs) * bucketIntervalMs,
+                t -> (t.timestamp() / bucketIntervalMs) * bucketIntervalMs,
                 TreeMap::new,
                 Collectors.toList()
             ));
@@ -279,46 +276,14 @@ public class AnalysisQueryService {
         return grouped.entrySet().stream()
             .map(entry -> {
                 Long bucketTs = entry.getKey();
-                List<ViewMetricTimelineEntity> bucketTimelines = entry.getValue();
+                List<TimelineDataPoint> bucketTimelines = entry.getValue();
 
                 int avgViewers = (int) Math.round(bucketTimelines.stream()
-                    .mapToInt(ViewMetricTimelineEntity::getViewerCount)
+                    .mapToInt(TimelineDataPoint::viewerCount)
                     .average()
                     .orElse(0.0));
 
                 return new TimelineDataPoint(bucketTs, avgViewers);
-            })
-            .toList();
-    }
-
-    private List<AnalysisDataPoint> aggregateToOneMinuteIntervals(List<AnalysisDataPoint> rawDataPoints) {
-        if (rawDataPoints == null || rawDataPoints.isEmpty()) {
-            return List.of();
-        }
-
-        Map<Long, List<AnalysisDataPoint>> groupedByMinute = rawDataPoints.stream()
-            .collect(Collectors.groupingBy(
-                p -> (p.timestamp() / ONE_MINUTE_MS) * ONE_MINUTE_MS,
-                TreeMap::new,
-                Collectors.toList()
-            ));
-
-        return groupedByMinute.entrySet().stream()
-            .map(entry -> {
-                Long minuteTimestamp = entry.getKey();
-                List<AnalysisDataPoint> points = entry.getValue();
-
-                long avgValue = (long) points.stream()
-                    .mapToLong(AnalysisDataPoint::value)
-                    .average()
-                    .orElse(0.0);
-
-                Long firstOffsetMs = points.getFirst().offsetMs();
-
-                String status = points.stream()
-                    .anyMatch(p -> "PEAK".equals(p.status())) ? "PEAK" : "NORMAL";
-
-                return new AnalysisDataPoint(minuteTimestamp, avgValue, status, firstOffsetMs);
             })
             .toList();
     }
