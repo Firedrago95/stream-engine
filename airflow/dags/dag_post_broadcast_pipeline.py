@@ -25,7 +25,7 @@ KST = ZoneInfo("Asia/Seoul")
 
 CHAT_DATA_DIR = os.getenv("CHAT_SAMPLE_DIR", "/opt/airflow/data/chat_samples")
 CHAT_QUARANTINE_DIR = os.getenv("CHAT_QUARANTINE_DIR", os.path.join(CHAT_DATA_DIR, "quarantine"))
-CHAT_ARCHIVE_DIR = os.getenv("CHAT_ARCHIVE_DIR", "")
+CHAT_ARCHIVE_DIR = os.getenv("CHAT_ARCHIVE_DIR", os.path.join(CHAT_DATA_DIR, "archive"))
 OCI_NAMESPACE = os.getenv("OCI_NAMESPACE", "")
 OCI_REGION = os.getenv("OCI_REGION", "ap-chuncheon-1")
 OCI_BUCKET_NAME = os.getenv("OCI_BUCKET_NAME", "slice-data-lake")
@@ -214,35 +214,19 @@ def post_broadcast_pipeline():
                                 f"[사후분석] 절단된 원본 파일을 격리 디렉터리로 이동 완료: "
                                 f"session_id={session_id}, dest={quarantine_path}"
                             )
-                        elif _is_oci_configured():
-                            if _upload_to_oci_object_storage(target_file, prefix="chat-archive"):
-                                os.remove(target_file)
-                                logger.info(
-                                    f"[사후분석] 세션 처리 및 OCI 스토리지 이관 후 로컬 파일 삭제 완료: "
-                                    f"session_id={session_id}, 하이라이트={len(highlights)}개"
-                                )
-                            else:
-                                fallback_dir = CHAT_ARCHIVE_DIR or os.path.join(CHAT_DATA_DIR, "archive")
-                                os.makedirs(fallback_dir, exist_ok=True)
-                                fallback_path = os.path.join(fallback_dir, os.path.basename(target_file))
-                                shutil.move(target_file, fallback_path)
-                                logger.warning(
-                                    f"[사후분석] OCI 업로드 실패로 로컬 아카이브 폴더에 임시 보관: "
-                                    f"session_id={session_id}, dest={fallback_path}"
-                                )
-                        elif CHAT_ARCHIVE_DIR:
+                        elif _upload_to_oci_object_storage(target_file, prefix="chat-archive"):
+                            os.remove(target_file)
+                            logger.info(
+                                f"[사후분석] 세션 처리 및 OCI 스토리지 이관 후 로컬 파일 삭제 완료: "
+                                f"session_id={session_id}, 하이라이트={len(highlights)}개"
+                            )
+                        else:
                             os.makedirs(CHAT_ARCHIVE_DIR, exist_ok=True)
                             archive_path = os.path.join(CHAT_ARCHIVE_DIR, os.path.basename(target_file))
                             shutil.move(target_file, archive_path)
-                            logger.info(
-                                f"[사후분석] 세션 처리 및 아카이브 이동 완료: session_id={session_id}, "
-                                f"하이라이트={len(highlights)}개, dest={archive_path}"
-                            )
-                        else:
-                            os.remove(target_file)
-                            logger.info(
-                                f"[사후분석] 세션 처리 및 원본 파일 파기 완료: session_id={session_id}, "
-                                f"하이라이트={len(highlights)}개, sigma_session={sigma_session}"
+                            logger.warning(
+                                f"[사후분석] OCI 미설정 또는 업로드 실패로 로컬 아카이브 폴더에 보관: "
+                                f"session_id={session_id}, dest={archive_path}"
                             )
                     except OSError as rm_err:
                         logger.warning(f"[사후분석] DB 커밋 성공 후 원본 파일 후처리 실패: file={target_file}, 오류={rm_err}")
