@@ -12,6 +12,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Phaser;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +26,8 @@ public class ChatManager {
     private final Map<String, ActiveCollector> chatCollectors = new ConcurrentHashMap<>();
     private final ChatCollectorFactory chatCollectorFactory;
     private final Executor executor;
+    private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
+    private final Phaser pendingConnectTasks = new Phaser(1);
 
     public ChatManager(
         ChatCollectorFactory chatCollectorFactory,
@@ -62,7 +68,7 @@ public class ChatManager {
     }
 
     private void openStreams(Set<StreamTarget> newStreamTargets) {
-        if (newStreamTargets == null || newStreamTargets.isEmpty()) {
+        if (shuttingDown.get() || newStreamTargets == null || newStreamTargets.isEmpty()) {
             return;
         }
 
@@ -71,21 +77,46 @@ public class ChatManager {
             .toList();
 
         for (int i = 0; i < targets.size(); i++) {
+            if (shuttingDown.get()) {
+                return;
+            }
             int index = i;
             StreamTarget streamTarget = targets.get(i);
+            pendingConnectTasks.register();
 
-            executor.execute(() -> {
-                connectWithDelay(streamTarget, index);
-            });
+            try {
+                executor.execute(() -> {
+                    try {
+                        connectWithDelay(streamTarget, index);
+                    } finally {
+                        pendingConnectTasks.arriveAndDeregister();
+                    }
+                });
+            } catch (RuntimeException e) {
+                pendingConnectTasks.arriveAndDeregister();
+                throw e;
+            }
         }
     }
 
     private void connectWithDelay(StreamTarget streamTarget, int index) {
         try {
+            if (shuttingDown.get()) {
+                return;
+            }
             if (index > 0) {
                 Thread.sleep(index * 600L);
             }
+            if (shuttingDown.get()) {
+                return;
+            }
             chatCollectors.compute(streamTarget.channelId(), (id, existing) -> {
+                if (shuttingDown.get()) {
+                    if (existing != null) {
+                        existing.collector().disconnect();
+                    }
+                    return null;
+                }
                 if (existing != null) {
                     if (existing.chatChannelId().equals(streamTarget.chatChannelId())) {
                         return existing;
@@ -97,6 +128,10 @@ public class ChatManager {
                 log.info("[수집기 시작] 채널 ID: {}, 스트리머: {}, 채팅방: {}",
                     streamTarget.channelId(), streamTarget.channelName(), streamTarget.chatChannelId());
                 ChatCollector newCollector = chatCollectorFactory.start(streamTarget);
+                if (shuttingDown.get()) {
+                    newCollector.disconnect();
+                    return null;
+                }
                 return new ActiveCollector(streamTarget.chatChannelId(), newCollector);
             });
         } catch (InterruptedException e) {
@@ -125,6 +160,18 @@ public class ChatManager {
 
     @PreDestroy
     public void shutdownAll() {
+        if (!shuttingDown.compareAndSet(false, true)) {
+            return;
+        }
+        int phase = pendingConnectTasks.arrive();
+        try {
+            pendingConnectTasks.awaitAdvanceInterruptibly(phase, 10, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (TimeoutException e) {
+            log.warn("[수집기 종료 대기 시간 초과] 진행 중인 연결 작업을 기다리던 중 타임아웃이 발생했습니다.");
+        }
+
         chatCollectors.forEach((channelId, activeCollector) -> {
             try {
                 activeCollector.collector().disconnect();
