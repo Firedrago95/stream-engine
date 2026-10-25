@@ -9,7 +9,6 @@ import io.slice.stream.apiserver.stream.application.dto.ChangedStreamRequest;
 import io.slice.stream.apiserver.stream.fake.FakeStreamRepository;
 import io.slice.stream.apiserver.stream.fake.FakeStreamSessionRepository;
 import io.slice.stream.apiserver.stream.fake.FakeStreamSessionSegmentRepository;
-import io.slice.stream.apiserver.stream.fake.FakeViewMetricTimelineRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
@@ -30,7 +29,6 @@ class StreamSessionServiceTest {
     private FakeStreamSessionRepository sessionRepository;
     private FakeStreamRepository streamRepository;
     private FakeStreamSessionSegmentRepository segmentRepository;
-    private FakeViewMetricTimelineRepository timelineRepository;
     private ConcurrentMapCacheManager cacheManager;
     private MeterRegistry meterRegistry;
     private StreamSessionService streamSessionService;
@@ -40,7 +38,6 @@ class StreamSessionServiceTest {
         sessionRepository = new FakeStreamSessionRepository();
         streamRepository = new FakeStreamRepository();
         segmentRepository = new FakeStreamSessionSegmentRepository();
-        timelineRepository = new FakeViewMetricTimelineRepository();
         cacheManager = new ConcurrentMapCacheManager("activeSessions");
         meterRegistry = new SimpleMeterRegistry();
 
@@ -48,7 +45,6 @@ class StreamSessionServiceTest {
             sessionRepository,
             streamRepository,
             segmentRepository,
-            timelineRepository,
             cacheManager,
             meterRegistry
         );
@@ -60,10 +56,10 @@ class StreamSessionServiceTest {
         StreamSessionEntity zombieSession = new StreamSessionEntity(
             streamId, "zombie-session-id", "방제", "카테고리", Instant.now().minusSeconds(3600)
         );
+        zombieSession.recordViewerSample(300);
+        zombieSession.updateAverageViewerCount(150);
         sessionRepository.addSession(zombieSession);
         sessionRepository.setSessionsToClose(List.of(zombieSession));
-        timelineRepository.setAverageViewerCount("zombie-session-id", 150.0);
-        timelineRepository.setPeakViewerCount("zombie-session-id", 300);
 
         Cache cache = cacheManager.getCache("activeSessions");
         assertThat(cache).isNotNull();
@@ -92,8 +88,6 @@ class StreamSessionServiceTest {
         sessionRepository.setSessionsToClose(List.of(zombieSession));
         segmentRepository.addSegment(activeSegment);
         streamRepository.addStream(streamEntity);
-        timelineRepository.setAverageViewerCount(sessionId, 100.0);
-        timelineRepository.setPeakViewerCount(sessionId, 200);
 
         streamSessionService.closeOfflineSessions();
 
@@ -117,8 +111,6 @@ class StreamSessionServiceTest {
         sessionRepository.setSessionsToClose(List.of(zombieSession));
         segmentRepository.addSegment(activeSegment);
         streamRepository.addStream(streamEntity);
-        timelineRepository.setAverageViewerCount(sessionId, 0.0);
-        timelineRepository.setPeakViewerCount(sessionId, 0);
 
         streamSessionService.closeOfflineSessions();
 
@@ -140,7 +132,11 @@ class StreamSessionServiceTest {
         Instant ended2 = Instant.parse("2026-02-13T11:30:00Z");
 
         StreamSessionEntity session1 = new StreamSessionEntity(sId1, sessId1, "방제1", "게임", started1);
+        session1.updatePeakViewers(300);
+        session1.updateAverageViewerCount(150);
         StreamSessionEntity session2 = new StreamSessionEntity(sId2, sessId2, "방제2", "토크", started2);
+        session2.updatePeakViewers(500);
+        session2.updateAverageViewerCount(250);
         StreamSessionSegmentEntity seg1 = new StreamSessionSegmentEntity(sId1, sessId1, "방제1", "게임", started1, 0L);
         StreamSessionSegmentEntity seg2 = new StreamSessionSegmentEntity(sId2, sessId2, "방제2", "토크", started2, 0L);
         StreamEntity stream1 = new StreamEntity(sId1, "스트리머1", ended1);
@@ -153,10 +149,6 @@ class StreamSessionServiceTest {
         segmentRepository.addSegment(seg2);
         streamRepository.addStream(stream1);
         streamRepository.addStream(stream2);
-        timelineRepository.setAverageViewerCount(sessId1, 150.0);
-        timelineRepository.setPeakViewerCount(sessId1, 300);
-        timelineRepository.setAverageViewerCount(sessId2, 250.0);
-        timelineRepository.setPeakViewerCount(sessId2, 500);
 
         streamSessionService.closeOfflineSessions();
 
@@ -299,12 +291,12 @@ class StreamSessionServiceTest {
         Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
         Instant endedAt = Instant.parse("2026-02-13T12:00:00Z");
         StreamSessionEntity session = new StreamSessionEntity(streamId, "test-live-id", "방제", "카테고리", startedAt);
+        session.updatePeakViewers(850);
+        session.updateAverageViewerCount(520);
         StreamSessionSegmentEntity activeSegment = new StreamSessionSegmentEntity(streamId, "test-live-id", "방제", "카테고리", startedAt, 0L);
 
         sessionRepository.addSession(session);
         segmentRepository.addSegment(activeSegment);
-        timelineRepository.setAverageViewerCount("test-live-id", 520.4);
-        timelineRepository.setPeakViewerCount("test-live-id", 850);
 
         StreamSessionSummaryRequest request =
             new StreamSessionSummaryRequest(45.5, "test-live-id", endedAt);
@@ -339,8 +331,6 @@ class StreamSessionServiceTest {
 
         sessionRepository.addSession(session);
         segmentRepository.addSegment(activeSegment);
-        timelineRepository.setAverageViewerCount("null-ended-id", 100.0);
-        timelineRepository.setPeakViewerCount("null-ended-id", 200);
 
         StreamSessionSummaryRequest request =
             new StreamSessionSummaryRequest(30.0, "null-ended-id", null);
@@ -363,8 +353,6 @@ class StreamSessionServiceTest {
 
         sessionRepository.addSession(session);
         segmentRepository.addSegment(activeSegment);
-        timelineRepository.setAverageViewerCount("invalid-ended-id", 100.0);
-        timelineRepository.setPeakViewerCount("invalid-ended-id", 200);
 
         StreamSessionSummaryRequest request =
             new StreamSessionSummaryRequest(30.0, "invalid-ended-id", pastEndedAt);
@@ -384,11 +372,9 @@ class StreamSessionServiceTest {
         Instant accurateEndedAt = Instant.parse("2026-02-13T12:00:00Z");
 
         StreamSessionEntity session = new StreamSessionEntity(streamId, "test-live-id", "방제", "카테고리", startedAt);
-        session.finishSession(oldEndedAt, 800, 500);
+        session.finishSession(oldEndedAt, 850, 520);
 
         sessionRepository.addSession(session);
-        timelineRepository.setAverageViewerCount("test-live-id", 520.4);
-        timelineRepository.setPeakViewerCount("test-live-id", 850);
 
         StreamSessionSummaryRequest request =
             new StreamSessionSummaryRequest(50.0, "test-live-id", accurateEndedAt);

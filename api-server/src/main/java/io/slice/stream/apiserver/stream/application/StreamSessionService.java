@@ -6,8 +6,6 @@ import io.slice.stream.apiserver.stream.application.dto.ChangedStreamRequest;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRepository;
-import io.slice.stream.apiserver.stream.infrastructure.JpaViewMetricTimelineRepository;
-import io.slice.stream.apiserver.stream.infrastructure.SessionViewerMetricsProjection;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
@@ -26,7 +24,6 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -37,7 +34,6 @@ public class StreamSessionService {
     private final JpaStreamSessionRepository sessionRepository;
     private final JpaStreamRepository streamRepository;
     private final JpaStreamSessionSegmentRepository segmentRepository;
-    private final JpaViewMetricTimelineRepository timelineRepository;
     private final CacheManager cacheManager;
     private final Counter zombieSessionsClosedCounter;
 
@@ -45,14 +41,12 @@ public class StreamSessionService {
         JpaStreamSessionRepository sessionRepository,
         JpaStreamRepository streamRepository,
         JpaStreamSessionSegmentRepository segmentRepository,
-        JpaViewMetricTimelineRepository timelineRepository,
         CacheManager cacheManager,
         MeterRegistry meterRegistry
     ) {
         this.sessionRepository = sessionRepository;
         this.streamRepository = streamRepository;
         this.segmentRepository = segmentRepository;
-        this.timelineRepository = timelineRepository;
         this.cacheManager = cacheManager;
         this.zombieSessionsClosedCounter = Counter.builder("apiserver.zombie.sessions.closed")
             .description("마감 처리된 오프라인 세션 누적 수")
@@ -209,22 +203,14 @@ public class StreamSessionService {
         Map<String, Instant> streamLastUpdateMap = streamRepository.findAllByStreamIdIn(streamIds).stream()
             .collect(Collectors.toMap(StreamEntity::getStreamId, StreamEntity::getLastUpdateAt, (existing, replacement) -> existing));
 
-        Map<String, SessionViewerMetricsProjection> viewerMetricsMap = timelineRepository.findViewerMetricsBySessionIds(sessionIds).stream()
-            .collect(Collectors.toMap(SessionViewerMetricsProjection::getSessionId, Function.identity(), (existing, replacement) -> existing));
-
         Map<String, StreamSessionSegmentEntity> activeSegmentMap = segmentRepository.findAllActiveSegments(sessionIds).stream()
             .collect(Collectors.toMap(StreamSessionSegmentEntity::getSessionId, Function.identity(), (existing, replacement) -> existing));
 
         for (StreamSessionEntity session : sessionsToClose) {
-            SessionViewerMetricsProjection metrics = viewerMetricsMap.get(session.getSessionId());
-            Double avgViewers = metrics != null ? metrics.getAvgViewers() : null;
-            Integer peakViewers = metrics != null ? metrics.getPeakViewers() : null;
-            int finalPeak = peakViewers != null ? Math.max(peakViewers, session.getPeakViewers()) : session.getPeakViewers();
-
             Instant rawEndedAt = streamLastUpdateMap.getOrDefault(session.getStreamId(), session.getStartedAt());
             Instant endedAt = rawEndedAt.isBefore(session.getStartedAt()) ? session.getStartedAt() : rawEndedAt;
 
-            session.finishSession(endedAt, finalPeak, avgViewers);
+            session.finishSession(endedAt, session.getPeakViewers(), session.getAverageViewerCount());
 
             StreamSessionSegmentEntity segment = activeSegmentMap.get(session.getSessionId());
             if (segment != null) {
@@ -264,13 +250,8 @@ public class StreamSessionService {
     }
 
     private void finishSessionWithMetrics(StreamSessionEntity session, Instant requestEndedAt) {
-        Double avgViewers = timelineRepository.findAverageViewerCountBySessionId(session.getSessionId());
-        Integer peakViewers = timelineRepository.findPeakViewerCountBySessionId(session.getSessionId());
-        int finalPeak = peakViewers != null ? Math.max(peakViewers, session.getPeakViewers()) : session.getPeakViewers();
-        Integer finalAvg = avgViewers != null ? (int) Math.round(avgViewers) : session.getAverageViewerCount();
-
         Instant validEndedAt = determineEndedAt(session, requestEndedAt);
-        session.finishSession(validEndedAt, finalPeak, finalAvg);
+        session.finishSession(validEndedAt, session.getPeakViewers(), session.getAverageViewerCount());
 
         segmentRepository.findActiveSegment(session.getSessionId())
             .ifPresent(segment -> {

@@ -17,7 +17,7 @@ import tools.jackson.databind.json.JsonMapper;
 @RequiredArgsConstructor
 public class CategoryQueryService {
 
-    private static final Duration CACHE_TTL = Duration.ofDays(8);
+    private static final Duration CACHE_TTL = Duration.ofHours(1);
 
     private final StringRedisTemplate redisTemplate;
     private final JsonMapper jsonMapper;

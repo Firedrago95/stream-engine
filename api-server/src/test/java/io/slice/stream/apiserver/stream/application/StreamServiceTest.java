@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.slice.stream.apiserver.stream.fake.FakeStreamRepository;
 import io.slice.stream.apiserver.stream.fake.FakeStreamSessionRepository;
 import io.slice.stream.apiserver.stream.fake.FakeStreamSessionSegmentRepository;
-import io.slice.stream.apiserver.stream.fake.FakeViewMetricTimelineRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamSyncRequest;
@@ -24,7 +23,6 @@ class StreamServiceTest {
     private FakeStreamRepository streamRepository;
     private FakeStreamSessionRepository sessionRepository;
     private FakeStreamSessionSegmentRepository segmentRepository;
-    private FakeViewMetricTimelineRepository timelineRepository;
 
     private StreamSyncPersistenceService persistenceService;
     private StreamService streamService;
@@ -34,13 +32,11 @@ class StreamServiceTest {
         streamRepository = new FakeStreamRepository();
         sessionRepository = new FakeStreamSessionRepository();
         segmentRepository = new FakeStreamSessionSegmentRepository();
-        timelineRepository = new FakeViewMetricTimelineRepository();
 
         persistenceService = new StreamSyncPersistenceService(
             streamRepository,
             sessionRepository,
             segmentRepository,
-            timelineRepository,
             new ConcurrentMapCacheManager("activeSessions")
         );
 
@@ -78,8 +74,10 @@ class StreamServiceTest {
         assertThat(current.get().getConcurrentUserCount()).isEqualTo(1050);
         assertThat(current.get().isLive()).isTrue();
 
-        // 타임라인 역시 2건 모두 기록되어야 함
-        assertThat(timelineRepository.findBySessionIdOrderByTimestampAsc("live1")).hasSize(2);
+        Optional<StreamSessionEntity> session = sessionRepository.findBySessionId("live1");
+        assertThat(session).isPresent();
+        assertThat(session.get().getViewerSampleCount()).isEqualTo(2);
+        assertThat(session.get().getAverageViewerCount()).isEqualTo(1025);
     }
 
     @Test

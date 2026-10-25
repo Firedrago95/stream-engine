@@ -3,11 +3,9 @@ package io.slice.stream.apiserver.stream.application;
 import io.slice.stream.apiserver.stream.domain.StreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRepository;
-import io.slice.stream.apiserver.stream.infrastructure.JpaViewMetricTimelineRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegmentEntity;
-import io.slice.stream.apiserver.stream.infrastructure.entity.ViewMetricTimelineEntity;
 import io.slice.stream.apiserver.stream.presentation.dto.StreamSyncRequest;
 import java.time.Duration;
 import java.time.Instant;
@@ -35,7 +33,6 @@ public class StreamSyncPersistenceService {
     private final StreamRepository streamRepository;
     private final JpaStreamSessionRepository sessionRepository;
     private final JpaStreamSessionSegmentRepository segmentRepository;
-    private final JpaViewMetricTimelineRepository timelineRepository;
     private final CacheManager cacheManager;
 
     @Transactional
@@ -48,7 +45,7 @@ public class StreamSyncPersistenceService {
         }
 
         Map<String, StreamSessionEntity> sessionMap = resolveSessions(allUniqueRequests, currentTime);
-        recordViewMetricTimelines(allUniqueRequests, sessionMap, currentTime);
+        updateSessionViewerMetrics(allUniqueRequests, sessionMap);
 
         log.info("[Sync] DB 영속화 완료 - 대상 스트림: {}건", allUniqueRequests.size());
     }
@@ -119,11 +116,8 @@ public class StreamSyncPersistenceService {
         String newLiveId,
         Instant newLiveStartedAt
     ) {
-        Double avgViewers = timelineRepository.findAverageViewerCountBySessionId(activeSession.getSessionId());
-        Integer peakViewers = timelineRepository.findPeakViewerCountBySessionId(activeSession.getSessionId());
-        int finalPeak = peakViewers != null ? Math.max(peakViewers, activeSession.getPeakViewers()) : activeSession.getPeakViewers();
         Instant endedAt = determineClosedEndedAt(activeSession.getStartedAt(), newLiveStartedAt, currentTime);
-        activeSession.finishSession(endedAt, finalPeak, avgViewers);
+        activeSession.finishSession(endedAt, activeSession.getPeakViewers(), activeSession.getAverageViewerCount());
 
         segmentRepository.findActiveSegment(activeSession.getSessionId())
             .ifPresent(segment -> {
@@ -263,27 +257,15 @@ public class StreamSyncPersistenceService {
         }
     }
 
-    private void recordViewMetricTimelines(
+    private void updateSessionViewerMetrics(
         Map<String, StreamSyncRequest> uniqueRequests,
-        Map<String, StreamSessionEntity> sessionMap,
-        Instant currentTime
+        Map<String, StreamSessionEntity> sessionMap
     ) {
-        List<ViewMetricTimelineEntity> timelineEntities = new ArrayList<>();
         for (StreamSyncRequest req : uniqueRequests.values()) {
             StreamSessionEntity session = sessionMap.get(req.streamId());
             if (session != null) {
-                session.updatePeakViewers(req.concurrentUserCount());
-                timelineEntities.add(new ViewMetricTimelineEntity(
-                    req.streamId(),
-                    session.getSessionId(),
-                    currentTime,
-                    req.concurrentUserCount()
-                ));
+                session.recordViewerSample(req.concurrentUserCount());
             }
-        }
-
-        if (!timelineEntities.isEmpty()) {
-            timelineRepository.saveAll(timelineEntities);
         }
     }
 
