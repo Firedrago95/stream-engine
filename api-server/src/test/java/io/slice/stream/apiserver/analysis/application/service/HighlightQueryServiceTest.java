@@ -9,6 +9,7 @@ import io.slice.stream.apiserver.stream.fake.FakeStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -155,5 +156,76 @@ class HighlightQueryServiceTest {
 
         assertThat(results.get(1).peakFirepower()).isEqualTo(1500L);
         assertThat(results.get(1).startTimeOffset()).isEqualTo(30000L); // t1 기준 30초
+    }
+
+    @Test
+    void 알고리즘_순위_rank_in_session이_있으면_절대_화력보다_순위_오름차순으로_우선_정렬된다() {
+        String streamId = "stream-algo";
+        String sessionId = "sess-algo";
+        Instant base = Instant.parse("2026-03-24T12:00:00Z");
+
+        StreamSessionEntity session = new StreamSessionEntity(streamId, sessionId, "방제", "종겜", base);
+        session.finishSession(base.plusSeconds(3600), 1000, 800.0);
+        sessionRepository.save(session);
+
+        // 화력은 1000이지만 순위는 2위
+        Map<String, Object> tags1 = Map.of("words", List.of(Map.of("w", "대박")), "emotes", List.of());
+        HighlightEventEntity h1 = new HighlightEventEntity(
+            streamId, sessionId, "GENERAL", base.plusSeconds(100), 100000L,
+            base.plusSeconds(100), 100000L, base.plusSeconds(130), 130000L,
+            1000L, "FINISHED", 2, 3.5, 120.0, tags1
+        );
+
+        // 화력은 500이지만 순위는 1위 (더 높은 Z-score 등)
+        Map<String, Object> tags2 = Map.of("words", List.of(Map.of("w", "클러치")), "emotes", List.of());
+        HighlightEventEntity h2 = new HighlightEventEntity(
+            streamId, sessionId, "GENERAL", base.plusSeconds(200), 200000L,
+            base.plusSeconds(200), 200000L, base.plusSeconds(230), 230000L,
+            500L, "FINISHED", 1, 5.2, 180.0, tags2
+        );
+
+        highlightRepository.save(h1);
+        highlightRepository.save(h2);
+
+        List<HighlightResponse> results = highlightQueryService.getHighlightsBySessionId(streamId, sessionId);
+
+        assertThat(results).hasSize(2);
+        // 1위인 h2가 먼저 와야 함
+        assertThat(results.get(0).rankInSession()).isEqualTo(1);
+        assertThat(results.get(0).peakFirepower()).isEqualTo(500L);
+        assertThat(results.get(0).peakZ()).isEqualTo(5.2);
+        assertThat(results.get(0).topTags()).isNotNull();
+
+        // 2위인 h1이 그 다음
+        assertThat(results.get(1).rankInSession()).isEqualTo(2);
+        assertThat(results.get(1).peakFirepower()).isEqualTo(1000L);
+    }
+
+    @Test
+    void 최근_종료된_세션_목록_조회_시_하이라이트_개수와_함께_반환된다() {
+        String streamId = "stream-feed";
+        String sessionId = "sess-feed-1";
+        Instant base = Instant.parse("2026-03-24T10:00:00Z");
+
+        StreamSessionEntity session = new StreamSessionEntity(streamId, sessionId, "종료된 방송 제목", "종겜", base);
+        session.finishSession(base.plusSeconds(7200), 12000, 8500.0);
+        sessionRepository.save(session);
+
+        HighlightEventEntity h1 = new HighlightEventEntity(
+            streamId, sessionId, "GENERAL", base.plusSeconds(100), 100000L,
+            base.plusSeconds(100), 100000L, base.plusSeconds(130), 130000L,
+            500L, "FINISHED", 1, 4.0, 150.0, Map.of()
+        );
+        highlightRepository.save(h1);
+
+        var recentSessions = highlightQueryService.getRecentFinishedSessions(10);
+
+        assertThat(recentSessions).hasSize(1);
+        assertThat(recentSessions.get(0).sessionId()).isEqualTo(sessionId);
+        assertThat(recentSessions.get(0).title()).isEqualTo("종료된 방송 제목");
+        assertThat(recentSessions.get(0).durationSeconds()).isEqualTo(7200L);
+        assertThat(recentSessions.get(0).peakViewers()).isEqualTo(12000);
+        assertThat(recentSessions.get(0).avgViewers()).isEqualTo(8500);
+        assertThat(recentSessions.get(0).highlightCount()).isEqualTo(1L);
     }
 }

@@ -2,8 +2,12 @@ package io.slice.stream.apiserver.analysis.infrastructure.entity;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "highlight_events")
@@ -48,9 +52,28 @@ public class HighlightEventEntity {
     @Column(nullable = false)
     private String status;
 
-    // 세션 시작 생성자
-    public HighlightEventEntity(String streamId, String sessionId, Instant startTime, Long startTimeOffset,
-        Instant lastPeakTime, Long lastPeakOffset, Long peakFirepower) {
+    @Column(name = "rank_in_session")
+    private Integer rankInSession;
+
+    @Column(name = "peak_z")
+    private Double peakZ;
+
+    @Column(name = "llr_score")
+    private Double llrScore;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "top_tags", columnDefinition = "jsonb")
+    private Map<String, Object> topTags = defaultTopTags();
+
+    public HighlightEventEntity(
+        String streamId,
+        String sessionId,
+        Instant startTime,
+        Long startTimeOffset,
+        Instant lastPeakTime,
+        Long lastPeakOffset,
+        Long peakFirepower
+    ) {
         this.streamId = streamId;
         this.sessionId = sessionId;
         this.startTime = startTime;
@@ -59,6 +82,45 @@ public class HighlightEventEntity {
         this.lastPeakOffset = lastPeakOffset;
         this.peakFirepower = peakFirepower;
         this.status = "ONGOING";
+        this.topTags = defaultTopTags();
+    }
+
+    public HighlightEventEntity(
+        String streamId,
+        String sessionId,
+        String category,
+        Instant startTime,
+        Long startTimeOffset,
+        Instant lastPeakTime,
+        Long lastPeakOffset,
+        Instant endTime,
+        Long endTimeOffset,
+        Long peakFirepower,
+        String status,
+        Integer rankInSession,
+        Double peakZ,
+        Double llrScore,
+        Map<String, Object> topTags
+    ) {
+        this.streamId = streamId;
+        this.sessionId = sessionId;
+        this.category = category != null ? category : "GENERAL";
+        this.startTime = startTime;
+        this.startTimeOffset = startTimeOffset;
+        this.lastPeakTime = lastPeakTime;
+        this.lastPeakOffset = lastPeakOffset;
+        this.endTime = endTime;
+        this.endTimeOffset = endTimeOffset;
+        this.peakFirepower = peakFirepower;
+        this.status = status != null ? status : "FINISHED";
+        this.rankInSession = rankInSession;
+        this.peakZ = peakZ;
+        this.llrScore = llrScore;
+        this.topTags = topTags != null ? topTags : defaultTopTags();
+    }
+
+    private static Map<String, Object> defaultTopTags() {
+        return Map.of("words", List.of(), "emotes", List.of());
     }
 
     public void updatePeakFirepower(Long currentFirepower) {

@@ -23,6 +23,11 @@ public interface JpaHighlightEventRepository extends JpaRepository<HighlightEven
 
     long countByStartTimeAfter(Instant threshold);
 
+    long countBySessionId(String sessionId);
+
+    @Query("SELECT h.sessionId, COUNT(h) FROM HighlightEventEntity h WHERE h.sessionId IN :sessionIds GROUP BY h.sessionId")
+    List<Object[]> countGroupedBySessionIdIn(@Param("sessionIds") Collection<String> sessionIds);
+
     @Query("SELECT h FROM HighlightEventEntity h WHERE h.streamId = :streamId AND h.sessionId = :sessionId")
     List<HighlightEventEntity> findAllByStreamIdAndSessionId(@Param("streamId") String streamId, @Param("sessionId") String sessionId);
 
@@ -54,7 +59,10 @@ public interface JpaHighlightEventRepository extends JpaRepository<HighlightEven
         DELETE FROM highlight_events 
         WHERE id IN (
             SELECT id FROM (
-                SELECT id, ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY peak_firepower DESC) as rn
+                SELECT id, ROW_NUMBER() OVER (
+                    PARTITION BY session_id 
+                    ORDER BY COALESCE(rank_in_session, 999999) ASC, peak_firepower DESC
+                ) as rn
                 FROM highlight_events 
                 WHERE start_time < :threshold
             ) sub

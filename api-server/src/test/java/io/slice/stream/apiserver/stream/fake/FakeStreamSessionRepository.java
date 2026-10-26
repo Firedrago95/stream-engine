@@ -33,6 +33,16 @@ public class FakeStreamSessionRepository implements JpaStreamSessionRepository {
     }
 
     @Override
+    public Page<Object[]> findRecentFinishedSessionsWithStreamerName(Pageable pageable) {
+        List<Object[]> rows = storage.values().stream()
+            .filter(s -> s.getEndedAt() != null)
+            .sorted(Comparator.comparing(StreamSessionEntity::getEndedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+            .map(s -> new Object[]{s, "테스트스트리머"})
+            .toList();
+        return paginate(rows, pageable);
+    }
+
+    @Override
     public Page<StreamSessionEntity> findByStreamIdOrderByStartedAtDesc(String streamId, Pageable pageable) {
         List<StreamSessionEntity> filtered = storage.values().stream()
             .filter(s -> Objects.equals(s.getStreamId(), streamId))
@@ -86,7 +96,7 @@ public class FakeStreamSessionRepository implements JpaStreamSessionRepository {
         return Duration.between(s.getStartedAt(), s.getEndedAt()).getSeconds() >= minDurationSeconds;
     }
 
-    private Page<StreamSessionEntity> paginate(List<StreamSessionEntity> items, Pageable pageable) {
+    private <T> Page<T> paginate(List<T> items, Pageable pageable) {
         int start = (int) pageable.getOffset();
         if (start >= items.size()) {
             return new PageImpl<>(List.of(), pageable, items.size());

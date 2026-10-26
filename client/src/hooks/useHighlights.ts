@@ -14,6 +14,10 @@ export interface HighlightResponse {
   startTimeOffset: number;
   endTimeOffset: number | null;
   externalVodId?: string | null;
+  rankInSession?: number | null;
+  peakZ?: number | null;
+  llrScore?: number | null;
+  topTags?: string | { words?: Array<{ w: string; u?: number }>; emotes?: Array<{ w: string; u?: number }> } | null;
 }
 
 export const useHighlights = (streamId: string, sessionId?: string, interval = 5000) => {

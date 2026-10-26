@@ -55,7 +55,70 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
                 메뉴
               </h3>
               <ul className="mt-3 space-y-1.5 flex flex-col">
+                {/* 1. 실시간 라이브 */}
+                <li className="order-1">
+                  <NavLink
+                    end
+                    to="/"
+                    onClick={() => setSidebarOpen(false)}
+                    className={({ isActive }) =>
+                      `group flex items-center px-3 py-2.5 rounded-xl transition-all duration-150 ${
+                        (pathname === '/' || (pathname.startsWith('/streams') && !location.search.includes('sessionId=')))
+                          ? 'bg-[#00FFA3]/15 text-[#00FFA3] font-black border border-[#00FFA3]/40 shadow-[0_0_15px_rgba(0,255,163,0.15)]'
+                          : 'text-gray-100 hover:text-white hover:bg-gray-800/80 font-bold border border-transparent'
+                      }`
+                    }
+                  >
+                    <svg
+                      className={`shrink-0 h-5 w-5 transition-colors ${
+                        (pathname === '/' || (pathname.startsWith('/streams') && !location.search.includes('sessionId=')))
+                          ? 'text-[#00FFA3] drop-shadow-[0_0_8px_rgba(0,255,163,0.6)]'
+                          : 'text-gray-100 group-hover:text-white'
+                      }`}
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                    </svg>
+                    <span className="text-sm font-bold ml-3 duration-200 whitespace-nowrap">실시간 라이브</span>
+                  </NavLink>
+                </li>
+
+                {/* 2. 방송 하이라이트 (NEW) */}
                 <li className="order-2">
+                  <NavLink
+                    to="/highlights"
+                    onClick={() => setSidebarOpen(false)}
+                    className={({ isActive }) =>
+                      `group flex items-center px-3 py-2.5 rounded-xl transition-all duration-150 ${
+                        pathname.startsWith('/highlights') || (pathname.startsWith('/streams') && location.search.includes('sessionId='))
+                          ? 'bg-[#00FFA3]/15 text-[#00FFA3] font-black border border-[#00FFA3]/40 shadow-[0_0_15px_rgba(0,255,163,0.15)]'
+                          : 'text-gray-100 hover:text-white hover:bg-gray-800/80 font-bold border border-transparent'
+                      }`
+                    }
+                  >
+                    <svg
+                      className={`shrink-0 h-5 w-5 transition-colors ${
+                        pathname.startsWith('/highlights') || (pathname.startsWith('/streams') && location.search.includes('sessionId='))
+                          ? 'text-[#00FFA3] drop-shadow-[0_0_8px_rgba(0,255,163,0.6)]'
+                          : 'text-gray-100 group-hover:text-white'
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm font-bold ml-3 duration-200 whitespace-nowrap">방송 하이라이트</span>
+                    <span className="ml-auto px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded bg-yellow-400/20 text-yellow-300 border border-yellow-400/40">
+                      AI
+                    </span>
+                  </NavLink>
+                </li>
+
+                {/* 3. 스트리머 리포트 */}
+                <li className="order-3">
                   <NavLink
                     to="/streamers"
                     onClick={() => setSidebarOpen(false)}
@@ -80,36 +143,6 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                     <span className="text-sm font-bold ml-3 duration-200 whitespace-nowrap">스트리머 리포트</span>
-                    <span className="ml-auto px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider rounded bg-[#00FFA3]/20 text-[#00FFA3] border border-[#00FFA3]/40">
-                      NEW
-                    </span>
-                  </NavLink>
-                </li>
-                <li className="order-1">
-                  <NavLink
-                    end
-                    to="/"
-                    onClick={() => setSidebarOpen(false)}
-                    className={({ isActive }) =>
-                      `group flex items-center px-3 py-2.5 rounded-xl transition-all duration-150 ${
-                        (pathname === '/' || pathname.startsWith('/streams'))
-                          ? 'bg-[#00FFA3]/15 text-[#00FFA3] font-black border border-[#00FFA3]/40 shadow-[0_0_15px_rgba(0,255,163,0.15)]'
-                          : 'text-gray-100 hover:text-white hover:bg-gray-800/80 font-bold border border-transparent'
-                      }`
-                    }
-                  >
-                    <svg
-                      className={`shrink-0 h-5 w-5 transition-colors ${
-                        (pathname === '/' || pathname.startsWith('/streams'))
-                          ? 'text-[#00FFA3] drop-shadow-[0_0_8px_rgba(0,255,163,0.6)]'
-                          : 'text-gray-100 group-hover:text-white'
-                      }`}
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                    </svg>
-                    <span className="text-sm font-bold ml-3 duration-200 whitespace-nowrap">실시간 라이브</span>
                   </NavLink>
                 </li>
               </ul>

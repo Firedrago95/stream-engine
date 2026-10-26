@@ -40,6 +40,25 @@ const formatAbsoluteTime = (isoString: string) => {
   }
 };
 
+interface ParsedTags {
+  words: string[];
+  hasEmotes: boolean;
+}
+
+const parseTopTags = (topTags: any): ParsedTags => {
+  if (!topTags) return { words: [], hasEmotes: false };
+  try {
+    const parsed = typeof topTags === 'string' ? JSON.parse(topTags) : topTags;
+    const words = Array.isArray(parsed?.words)
+      ? parsed.words.map((item: any) => (typeof item === 'string' ? item : item.w)).filter(Boolean)
+      : [];
+    const hasEmotes = Array.isArray(parsed?.emotes) && parsed.emotes.length > 0;
+    return { words, hasEmotes };
+  } catch (e) {
+    return { words: [], hasEmotes: false };
+  }
+};
+
 interface HighlightSectionProps {
   highlights: any[];
   selectedTab: string;
@@ -55,8 +74,8 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
   endedAt,
   isAdult = false,
 }) => {
-  const [viewMode, setViewMode] = useState<'top6' | 'recommended' | 'all'>('top6');
-  const [sortOrder, setSortOrder] = useState<'firepower' | 'time'>('firepower');
+  const [viewMode, setViewMode] = useState<'top10' | 'recommended' | 'all'>('top10');
+  const [sortOrder, setSortOrder] = useState<'score' | 'time'>('score');
   const isRealtime = selectedTab === 'realtime';
 
   const durationHours = React.useMemo(() => {
@@ -71,26 +90,40 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
   }, [startedAt, endedAt]);
 
   const recommendedLimit = React.useMemo(() => {
-    return Math.max(6, Math.round(durationHours * 4));
+    return Math.max(10, Math.round(durationHours * 4));
   }, [durationHours]);
 
-  const firepowerRankMap = React.useMemo(() => {
-    const sorted = [...highlights].sort((a, b) => b.peakFirepower - a.peakFirepower);
+  const scoreRankMap = React.useMemo(() => {
+    const sorted = [...highlights].sort((a, b) => {
+      if (a.rankInSession && b.rankInSession) {
+        return a.rankInSession - b.rankInSession;
+      }
+      if (a.rankInSession) return -1;
+      if (b.rankInSession) return 1;
+      return (b.peakFirepower || 0) - (a.peakFirepower || 0);
+    });
     const map = new Map<string | number, number>();
     sorted.forEach((hl, index) => {
-      map.set(hl.id, index + 1);
+      map.set(hl.id, hl.rankInSession ?? index + 1);
     });
     return map;
   }, [highlights]);
 
   const processedHighlights = React.useMemo(() => {
-    const byFirepower = [...highlights].sort((a, b) => b.peakFirepower - a.peakFirepower);
+    const byScore = [...highlights].sort((a, b) => {
+      if (a.rankInSession && b.rankInSession) {
+        return a.rankInSession - b.rankInSession;
+      }
+      if (a.rankInSession) return -1;
+      if (b.rankInSession) return 1;
+      return (b.peakFirepower || 0) - (a.peakFirepower || 0);
+    });
 
-    let selected = byFirepower;
-    if (viewMode === 'top6') {
-      selected = byFirepower.slice(0, 6);
+    let selected = byScore;
+    if (viewMode === 'top10') {
+      selected = byScore.slice(0, 10);
     } else if (viewMode === 'recommended') {
-      selected = byFirepower.slice(0, recommendedLimit);
+      selected = byScore.slice(0, recommendedLimit);
     }
 
     if (sortOrder === 'time') {
@@ -106,8 +139,8 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
 
   const titleText = React.useMemo(() => {
     const prefix = isRealtime ? "실시간 하이라이트" : "방송 하이라이트";
-    if (highlights.length <= 6) return prefix;
-    if (viewMode === 'top6') return `${prefix} (Top 6)`;
+    if (highlights.length <= 10) return prefix;
+    if (viewMode === 'top10') return `${prefix} (Top 10)`;
     if (viewMode === 'recommended') {
       const count = Math.min(recommendedLimit, highlights.length);
       return `${prefix} (추천 ${count}선)`;
@@ -116,8 +149,8 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
   }, [isRealtime, highlights.length, viewMode, recommendedLimit]);
 
   const countBadgeText = React.useMemo(() => {
-    if (highlights.length <= 6) return `${highlights.length}`;
-    if (viewMode === 'top6') return `6 / ${highlights.length}`;
+    if (highlights.length <= 10) return `${highlights.length}`;
+    if (viewMode === 'top10') return `10 / ${highlights.length}`;
     if (viewMode === 'recommended') {
       const count = Math.min(recommendedLimit, highlights.length);
       return `${count} / ${highlights.length}`;
@@ -139,8 +172,8 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
             <InfoTooltip
                 text={
                   isRealtime
-                    ? "현재 진행 중인 방송의 하이라이트입니다.\n- Top 6: 최상위 화력 순간\n- 추천 뷰: 방송 시간 기반(시간당 4개) 엄선\n- 정렬 토글로 타임라인순/화력순 전환 가능"
-                    : "방송 하이라이트 목록입니다.\n- Top 6: 최상위 화력 순간\n- 추천 뷰: 방송 시간 기반(시간당 4개) 엄선\n- 정렬 토글로 타임라인순/화력순 전환 가능"
+                    ? "현재 진행 중인 방송의 하이라이트입니다.\n- 점수순: 자체 알고리즘 기반 화력 폭발/랭킹 순\n- 추천 뷰: 방송 시간 기반(시간당 4개) 엄선\n- 정렬 토글로 타임라인순/점수순 전환 가능"
+                    : "방송 하이라이트 목록입니다.\n- 점수순: 자체 알고리즘(Z-Score/LLR) 기반 종합 랭킹 순\n- 추천 뷰: 방송 시간 기반(시간당 4개) 엄선\n- 정렬 토글로 타임라인순/점수순 전환 가능"
                 }
             />
           </div>
@@ -148,14 +181,14 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
           {highlights.length > 0 && (
             <div className="flex items-center bg-[#1a1a1c] p-1 rounded-xl border border-gray-800 text-xs font-bold self-start sm:self-auto">
               <button
-                onClick={() => setSortOrder('firepower')}
+                onClick={() => setSortOrder('score')}
                 className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
-                  sortOrder === 'firepower'
+                  sortOrder === 'score'
                     ? 'bg-gray-800 text-[#00FFA3] shadow-sm'
                     : 'text-gray-200 hover:text-white'
                 }`}
               >
-                <span>🔥</span> 화력순
+                <span>⚡</span> 점수순
               </button>
               <button
                 onClick={() => setSortOrder('time')}
@@ -180,19 +213,31 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {processedHighlights.length === 0 ? (
-              <div className="col-span-full p-16 text-center bg-[#1a1a1c] border border-gray-800 rounded-3xl text-gray-200 font-bold italic flex flex-col items-center gap-2">
+              <div className="col-span-full p-12 sm:p-16 text-center bg-[#1a1a1c] border border-gray-800 rounded-3xl text-gray-200 font-bold italic flex flex-col items-center gap-2">
                 {isAdult ? (
                   <>
                     <span className="text-rose-400 text-sm font-semibold">🔞 해당 방송은 연령 제한(19금)으로 인해 채팅 화력 하이라이트가 수집되지 않았습니다.</span>
                     <span className="text-gray-400 text-xs font-normal">치지직 정책상 19금 설정 방송은 채팅 접근이 제한됩니다. (시청자 지표는 상단에서 확인 가능합니다)</span>
                   </>
+                ) : isRealtime ? (
+                  <div className="flex flex-col items-center gap-3 py-4">
+                    <span className="text-4xl animate-pulse">⏳</span>
+                    <span className="text-white text-base sm:text-lg font-black not-italic">현재 실시간 방송 진행 중입니다</span>
+                    <span className="text-gray-300 text-xs sm:text-sm font-normal not-italic max-w-md leading-relaxed">
+                      방송이 종료되면 AI 정밀 분석 파이프라인(Z-Score, 포아송 LLR, 밈 추출)이 가동되어 오늘의 하이라이트 리포트가 자동으로 발행됩니다.
+                    </span>
+                    <span className="mt-2 text-[11px] font-mono font-bold text-[#00FFA3] bg-[#00FFA3]/10 border border-[#00FFA3]/30 px-3 py-1 rounded-full not-italic">
+                      📡 상단 그래프에서 실시간 시청자 추이를 모니터링할 수 있습니다
+                    </span>
+                  </div>
                 ) : (
-                  "데이터가 없습니다."
+                  "수집된 하이라이트 데이터가 없습니다."
                 )}
               </div>
           ) : (
               processedHighlights.map((hl) => {
-                const rank = firepowerRankMap.get(hl.id) || 1;
+                const rank = scoreRankMap.get(hl.id) || 1;
+                const { words, hasEmotes } = parseTopTags(hl.topTags);
                 const getRankStyles = (r: number) => {
                   switch (r) {
                     case 1: // 1등 Gold
@@ -235,7 +280,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
                     >
                       <div
                           className={`mr-3 sm:mr-4 flex-shrink-0 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 font-black text-xs italic ${style.badge}`}
-                          title={`화력 순위 ${rank}위`}
+                          title={`치즈픽 종합 순위 ${rank}위`}
                       >
                         {rank}
                       </div>
@@ -253,11 +298,39 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
                           <span
                               className="text-gray-100 text-[10px] font-bold">({formatAbsoluteTime(hl.startTime)})</span>
                         </div>
+
+                        {/* 🏷️ 하이라이트 태그 영역 (단어 태그 + 이모티콘 폭발!) */}
+                        {(words.length > 0 || hasEmotes) && (
+                          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                            {hasEmotes && (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-black px-2 py-0.5 rounded-md bg-gradient-to-r from-pink-500/20 to-purple-500/20 text-pink-300 border border-pink-500/40 shadow-sm animate-pulse">
+                                🎉 이모티콘 폭발!
+                              </span>
+                            )}
+                            {words.slice(0, 3).map((w, idx) => (
+                              <span
+                                key={idx}
+                                className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-gray-800/90 text-gray-200 border border-gray-700/60 hover:text-[#00FFA3] transition-colors"
+                              >
+                                #{w}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       <div className="text-right border-l border-gray-800/50 pl-3 sm:pl-4 ml-2 shrink-0">
-                        <span className="text-[9px] text-gray-100 font-black mb-0.5 sm:mb-1 block tracking-widest uppercase">최고 화력</span>
-                        <span className={`font-black text-lg sm:text-xl leading-none ${style.peak}`}>
+                        {hl.peakZ ? (
+                          <div className="mb-0.5 sm:mb-1">
+                            <span className="text-[9px] text-[#00FFA3] font-black uppercase tracking-wider block">순간 화력</span>
+                            <span className="text-xs sm:text-sm font-black text-[#00FFA3] font-mono">
+                              {Number(hl.peakZ).toFixed(1)}<span className="text-[10px] font-normal">배 폭발</span>
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[9px] text-gray-100 font-black mb-0.5 sm:mb-1 block tracking-widest uppercase">최고 화력</span>
+                        )}
+                        <span className={`font-black text-base sm:text-lg leading-none ${style.peak}`}>
                           {hl.peakFirepower}
                           <span className="text-[10px] text-gray-100 ml-1 font-bold">msg/s</span>
                         </span>
@@ -268,9 +341,9 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
           )}
         </div>
 
-        {highlights.length > 6 && (
+        {highlights.length > 10 && (
           <div className="mt-6 flex flex-col items-center gap-3">
-            {viewMode === 'top6' && (
+            {viewMode === 'top10' && (
               <button
                 onClick={() => setViewMode(highlights.length <= recommendedLimit ? 'all' : 'recommended')}
                 className="w-full py-4 bg-[#1a1a1c] border border-gray-800 rounded-2xl text-gray-100 text-sm font-bold hover:bg-gray-800 hover:text-white transition-all shadow-lg group"
@@ -278,7 +351,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
                 <div className="flex items-center justify-center gap-2">
                   <span>▼ 추천 하이라이트 보기</span>
                   <span className="bg-gray-800 px-2.5 py-0.5 rounded text-[11px] group-hover:bg-gray-700 text-[#00FFA3]">
-                    {Math.min(recommendedLimit, highlights.length) - 6}개 더보기
+                    {Math.min(recommendedLimit, highlights.length) - 10}개 더보기
                     {highlights.length > recommendedLimit && ` (약 ${durationHours.toFixed(1)}시간 기준)`}
                   </span>
                 </div>
@@ -288,10 +361,10 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
             {viewMode === 'recommended' && (
               <div className="w-full flex flex-col items-center gap-2.5">
                 <button
-                  onClick={() => setViewMode('top6')}
+                  onClick={() => setViewMode('top10')}
                   className="w-full py-4 bg-[#1a1a1c] border border-gray-800 rounded-2xl text-gray-100 text-sm font-bold hover:bg-gray-800 hover:text-white transition-all shadow-lg"
                 >
-                  ▲ 기본(Top 6)으로 접기
+                  ▲ 기본(Top 10)으로 접기
                 </button>
 
                 {highlights.length > recommendedLimit && (
@@ -311,19 +384,19 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
             {viewMode === 'all' && (
               <div className="w-full flex flex-col items-center gap-2.5">
                 <button
-                  onClick={() => setViewMode(highlights.length > recommendedLimit ? 'recommended' : 'top6')}
+                  onClick={() => setViewMode(highlights.length > recommendedLimit ? 'recommended' : 'top10')}
                   className="w-full py-4 bg-[#1a1a1c] border border-gray-800 rounded-2xl text-gray-100 text-sm font-bold hover:bg-gray-800 hover:text-white transition-all shadow-lg"
                 >
                   {highlights.length > recommendedLimit
                     ? `▲ 추천 하이라이트로 접기 (${Math.min(recommendedLimit, highlights.length)}개)`
-                    : "▲ 기본(Top 6)으로 접기"}
+                    : "▲ 기본(Top 10)으로 접기"}
                 </button>
                 {highlights.length > recommendedLimit && (
                   <button
-                    onClick={() => setViewMode('top6')}
+                    onClick={() => setViewMode('top10')}
                     className="text-xs text-gray-200 hover:text-white transition-colors"
                   >
-                    기본(Top 6)으로 바로 접기
+                    기본(Top 10)으로 바로 접기
                   </button>
                 )}
               </div>
