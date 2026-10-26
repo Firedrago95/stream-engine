@@ -7,8 +7,10 @@ import io.slice.stream.apiserver.stream.infrastructure.JpaStreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamEntity;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
+import io.slice.stream.apiserver.streamer.domain.repository.StreamerAiProfileRepository;
 import io.slice.stream.apiserver.streamer.domain.repository.StreamerFollowerSnapshotRepository;
 import io.slice.stream.apiserver.streamer.infrastructure.entity.StreamerFollowerSnapshotEntity;
+import io.slice.stream.apiserver.streamer.presentation.dto.StreamerAiProfileDto;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerProfileResponse;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerProfileResponse.StreamerCategoryDto;
 import io.slice.stream.apiserver.streamer.presentation.dto.StreamerProfileResponse.StreamerHeaderDto;
@@ -45,6 +47,7 @@ public class StreamerProfileQueryService {
     private final JpaStreamSessionRepository sessionRepository;
     private final StreamerFollowerSnapshotRepository snapshotRepository;
     private final StreamerLeaderboardQueryService leaderboardQueryService;
+    private final StreamerAiProfileRepository aiProfileRepository;
     private final SessionProperties sessionProperties;
     private final Clock clock;
 
@@ -52,7 +55,7 @@ public class StreamerProfileQueryService {
         JpaStreamRepository streamRepository,
         JpaStreamSessionRepository sessionRepository
     ) {
-        this(streamRepository, sessionRepository, null, null, new SessionProperties(null, null, 50), Clock.system(KST));
+        this(streamRepository, sessionRepository, null, null, null, new SessionProperties(null, null, 50), Clock.system(KST));
     }
 
     public StreamerProfileQueryService(
@@ -60,7 +63,7 @@ public class StreamerProfileQueryService {
         JpaStreamSessionRepository sessionRepository,
         Clock clock
     ) {
-        this(streamRepository, sessionRepository, null, null, new SessionProperties(null, null, 50), clock);
+        this(streamRepository, sessionRepository, null, null, null, new SessionProperties(null, null, 50), clock);
     }
 
     public StreamerProfileQueryService(
@@ -69,7 +72,7 @@ public class StreamerProfileQueryService {
         StreamerFollowerSnapshotRepository snapshotRepository,
         Clock clock
     ) {
-        this(streamRepository, sessionRepository, snapshotRepository, null, new SessionProperties(null, null, 50), clock);
+        this(streamRepository, sessionRepository, snapshotRepository, null, null, new SessionProperties(null, null, 50), clock);
     }
 
     public StreamerProfileQueryService(
@@ -78,7 +81,7 @@ public class StreamerProfileQueryService {
         StreamerLeaderboardQueryService leaderboardQueryService,
         Clock clock
     ) {
-        this(streamRepository, sessionRepository, null, leaderboardQueryService, new SessionProperties(null, null, 50), clock);
+        this(streamRepository, sessionRepository, null, leaderboardQueryService, null, new SessionProperties(null, null, 50), clock);
     }
 
     public StreamerProfileQueryService(
@@ -88,10 +91,9 @@ public class StreamerProfileQueryService {
         StreamerLeaderboardQueryService leaderboardQueryService,
         Clock clock
     ) {
-        this(streamRepository, sessionRepository, snapshotRepository, leaderboardQueryService, new SessionProperties(null, null, 50), clock);
+        this(streamRepository, sessionRepository, snapshotRepository, leaderboardQueryService, null, new SessionProperties(null, null, 50), clock);
     }
 
-    @Autowired
     public StreamerProfileQueryService(
         JpaStreamRepository streamRepository,
         JpaStreamSessionRepository sessionRepository,
@@ -100,10 +102,24 @@ public class StreamerProfileQueryService {
         SessionProperties sessionProperties,
         Clock clock
     ) {
+        this(streamRepository, sessionRepository, snapshotRepository, leaderboardQueryService, null, sessionProperties, clock);
+    }
+
+    @Autowired
+    public StreamerProfileQueryService(
+        JpaStreamRepository streamRepository,
+        JpaStreamSessionRepository sessionRepository,
+        StreamerFollowerSnapshotRepository snapshotRepository,
+        StreamerLeaderboardQueryService leaderboardQueryService,
+        StreamerAiProfileRepository aiProfileRepository,
+        SessionProperties sessionProperties,
+        Clock clock
+    ) {
         this.streamRepository = streamRepository;
         this.sessionRepository = sessionRepository;
         this.snapshotRepository = snapshotRepository;
         this.leaderboardQueryService = leaderboardQueryService;
+        this.aiProfileRepository = aiProfileRepository;
         this.sessionProperties = sessionProperties;
         this.clock = clock;
     }
@@ -130,10 +146,13 @@ public class StreamerProfileQueryService {
         StreamerHeaderDto header = buildHeader(stream, isLive, followerGrowth.growth7d(), followerGrowth.growth30d());
         StreamerKpiSummaryDto summary = buildKpiSummary(kpi, followerGrowth.growth30d(), cachedAverageViewers);
         List<StreamerCategoryDto> mostPlayedCategories = calculateMostPlayedCategories(sessions30d, start30dInstant, now);
+        StreamerAiProfileDto aiProfile = aiProfileRepository != null
+            ? aiProfileRepository.findByStreamId(channelId).orElse(null)
+            : null;
 
         log.debug("스트리머 프로필 및 요약 통계 조회 완료: channelId={}", channelId);
 
-        return new StreamerProfileResponse(header, summary, mostPlayedCategories);
+        return new StreamerProfileResponse(header, summary, mostPlayedCategories, aiProfile);
     }
 
     private StreamEntity findStreamOrThrow(String channelId) {

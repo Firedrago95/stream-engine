@@ -4,6 +4,7 @@ import { StreamerCalendarTimeline } from './StreamerCalendarTimeline';
 import { StreamerFollowerTrendChart } from './StreamerFollowerTrendChart';
 import { StreamerCategories, type CategoryData } from './StreamerCategories';
 import { StreamerSessionList, type SessionItemData } from './StreamerSessionList';
+import { StreamerAiProfileCard, type AiProfileData } from './StreamerAiProfileCard';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -27,6 +28,7 @@ interface ProfileData {
     attendanceRate30d?: number;
   };
   mostPlayedCategories: CategoryData[];
+  aiProfile?: AiProfileData | null;
 }
 
 const formatHours = (seconds: number) => {
@@ -196,6 +198,13 @@ export const StreamerDetailPage: React.FC = () => {
           </button>
         )}
       </div>
+
+      {profile.aiProfile && (
+        <StreamerAiProfileCard
+          aiProfile={profile.aiProfile}
+          streamerName={header.streamerName}
+        />
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         <div className="p-4 sm:p-5 bg-[#141416] border border-[#2A2A2C] rounded-2xl relative group/tip">
