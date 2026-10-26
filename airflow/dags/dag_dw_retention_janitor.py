@@ -106,19 +106,23 @@ def dw_retention_janitor():
 
                     for part in partitions:
                         # part 형식: base_table_yYYYYmMM
-                        if "_y" in part and "m" in part:
-                            try:
-                                suffix = part.split("_y")[-1]  # YYYYmMM
-                                y_str, m_str = suffix.split("m")
-                                part_val = int(y_str) * 100 + int(m_str)
+                        if "_y" not in part or "m" not in part:
+                            continue
 
-                                # 만료 기준 이전 파티션인 경우 안전하게 DROP
-                                if part_val < cutoff_val:
-                                    logger.warning(f"[Janitor] 만료 파티션 감지 ➔ DROP TABLE 실행: {part}")
-                                    cur.execute(f"DROP TABLE IF EXISTS {part};")
-                                    dropped_partitions.append(part)
-                            except Exception as parse_err:
-                                logger.error(f"[Janitor] 파티션명 파싱 실패 (스킵): {part}, 오류={parse_err}")
+                        try:
+                            suffix = part.split("_y")[-1]  # YYYYmMM
+                            y_str, m_str = suffix.split("m")
+                            part_val = int(y_str) * 100 + int(m_str)
+                        except (ValueError, IndexError) as parse_err:
+                            logger.warning(f"[Janitor] 파티션명 포맷 불일치 (스킵): {part}, 사유={parse_err}")
+                            continue
+
+                        # 만료 기준 이전 파티션인 경우 안전하게 DROP (DB 오류는 상위로 전파하여 Airflow 재시도 트리거)
+                        if part_val < cutoff_val:
+                            logger.warning(f"[Janitor] 만료 파티션 감지 ➔ DROP TABLE 실행: {part}")
+                            cur.execute(f"DROP TABLE IF EXISTS {part};")
+                            conn.commit()
+                            dropped_partitions.append(part)
 
             conn.commit()
 
