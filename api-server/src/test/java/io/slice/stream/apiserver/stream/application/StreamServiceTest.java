@@ -2,6 +2,7 @@ package io.slice.stream.apiserver.stream.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.slice.stream.apiserver.stream.fake.FakeAnalysisSignalSummaryJdbcRepository;
 import io.slice.stream.apiserver.stream.fake.FakeStreamRepository;
 import io.slice.stream.apiserver.stream.fake.FakeStreamSessionRepository;
 import io.slice.stream.apiserver.stream.fake.FakeStreamSessionSegmentRepository;
@@ -23,6 +24,7 @@ class StreamServiceTest {
     private FakeStreamRepository streamRepository;
     private FakeStreamSessionRepository sessionRepository;
     private FakeStreamSessionSegmentRepository segmentRepository;
+    private FakeAnalysisSignalSummaryJdbcRepository summaryRepository;
 
     private StreamSyncPersistenceService persistenceService;
     private StreamService streamService;
@@ -32,11 +34,13 @@ class StreamServiceTest {
         streamRepository = new FakeStreamRepository();
         sessionRepository = new FakeStreamSessionRepository();
         segmentRepository = new FakeStreamSessionSegmentRepository();
+        summaryRepository = new FakeAnalysisSignalSummaryJdbcRepository();
 
         persistenceService = new StreamSyncPersistenceService(
             streamRepository,
             sessionRepository,
             segmentRepository,
+            summaryRepository,
             new ConcurrentMapCacheManager("activeSessions")
         );
 

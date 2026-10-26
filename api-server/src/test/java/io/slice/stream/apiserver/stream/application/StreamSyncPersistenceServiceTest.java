@@ -2,6 +2,8 @@ package io.slice.stream.apiserver.stream.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.slice.stream.apiserver.analysis.infrastructure.dto.LiveViewerSummaryDto;
+import io.slice.stream.apiserver.stream.fake.FakeAnalysisSignalSummaryJdbcRepository;
 import io.slice.stream.apiserver.stream.fake.FakeStreamRepository;
 import io.slice.stream.apiserver.stream.fake.FakeStreamSessionRepository;
 import io.slice.stream.apiserver.stream.fake.FakeStreamSessionSegmentRepository;
@@ -27,6 +29,7 @@ class StreamSyncPersistenceServiceTest {
     private FakeStreamRepository streamRepository;
     private FakeStreamSessionRepository sessionRepository;
     private FakeStreamSessionSegmentRepository segmentRepository;
+    private FakeAnalysisSignalSummaryJdbcRepository summaryRepository;
     private ConcurrentMapCacheManager cacheManager;
     private StreamSyncPersistenceService persistenceService;
 
@@ -35,12 +38,14 @@ class StreamSyncPersistenceServiceTest {
         streamRepository = new FakeStreamRepository();
         sessionRepository = new FakeStreamSessionRepository();
         segmentRepository = new FakeStreamSessionSegmentRepository();
+        summaryRepository = new FakeAnalysisSignalSummaryJdbcRepository();
         cacheManager = new ConcurrentMapCacheManager("activeSessions");
 
         persistenceService = new StreamSyncPersistenceService(
             streamRepository,
             sessionRepository,
             segmentRepository,
+            summaryRepository,
             cacheManager
         );
     }
@@ -171,5 +176,23 @@ class StreamSyncPersistenceServiceTest {
         assertThat(activeSegment).isPresent();
         assertThat(activeSegment.get().getStartedAt()).isEqualTo(startedAt);
         assertThat(activeSegment.get().getStartOffsetMs()).isEqualTo(7200000L);
+    }
+
+    @Test
+    void 라이브_세션_동기화시_1분_시청자_요약_데이터가_정상_적재된다() {
+        Instant startedAt = Instant.parse("2026-02-13T10:00:00Z");
+        Instant currentTime = Instant.parse("2026-02-13T10:05:30Z");
+        StreamSyncRequest request = new StreamSyncRequest("ch1", "live1", "침착맨", "소통 방송", "thumb.jpg", 1500, "소통", startedAt);
+
+        persistenceService.persistSync(Map.of("ch1", request), currentTime);
+
+        List<LiveViewerSummaryDto> liveViewers = summaryRepository.getLiveViewerStorage();
+        assertThat(liveViewers).hasSize(1);
+        LiveViewerSummaryDto summary = liveViewers.getFirst();
+        assertThat(summary.streamId()).isEqualTo("ch1");
+        assertThat(summary.sessionId()).isEqualTo("live1");
+        assertThat(summary.viewerCount()).isEqualTo(1500);
+        assertThat(summary.timestampMinute()).isEqualTo(Instant.parse("2026-02-13T10:05:00Z"));
+        assertThat(summary.offsetMs()).isEqualTo(300_000L);
     }
 }

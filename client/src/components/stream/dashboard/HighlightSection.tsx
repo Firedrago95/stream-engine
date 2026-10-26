@@ -173,7 +173,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
                 text={
                   isRealtime
                     ? "현재 진행 중인 방송의 하이라이트입니다.\n- 점수순: 자체 알고리즘 기반 화력 폭발/랭킹 순\n- 추천 뷰: 방송 시간 기반(시간당 4개) 엄선\n- 정렬 토글로 타임라인순/점수순 전환 가능"
-                    : "방송 하이라이트 목록입니다.\n- 점수순: 자체 알고리즘(Z-Score/LLR) 기반 종합 랭킹 순\n- 추천 뷰: 방송 시간 기반(시간당 4개) 엄선\n- 정렬 토글로 타임라인순/점수순 전환 가능"
+                    : "방송 하이라이트 목록입니다.\n- 점수순: 자체 화력 분석 알고리즘 기반 종합 랭킹 순\n- 추천 뷰: 방송 시간 기반(시간당 4개) 엄선\n- 정렬 토글로 타임라인순/점수순 전환 가능"
                 }
             />
           </div>
@@ -224,7 +224,7 @@ export const HighlightSection: React.FC<HighlightSectionProps> = ({
                     <span className="text-4xl animate-pulse">⏳</span>
                     <span className="text-white text-base sm:text-lg font-black not-italic">현재 실시간 방송 진행 중입니다</span>
                     <span className="text-gray-300 text-xs sm:text-sm font-normal not-italic max-w-md leading-relaxed">
-                      방송이 종료되면 AI 정밀 분석 파이프라인(Z-Score, 포아송 LLR, 밈 추출)이 가동되어 오늘의 하이라이트 리포트가 자동으로 발행됩니다.
+                      방송이 종료되면 정밀 분석이 가동되어 오늘의 핵심 클라이맥스 리포트가 자동으로 발행됩니다.
                     </span>
                     <span className="mt-2 text-[11px] font-mono font-bold text-[#00FFA3] bg-[#00FFA3]/10 border border-[#00FFA3]/30 px-3 py-1 rounded-full not-italic">
                       📡 상단 그래프에서 실시간 시청자 추이를 모니터링할 수 있습니다

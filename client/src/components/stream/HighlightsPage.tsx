@@ -90,7 +90,7 @@ export const HighlightsPage: React.FC = () => {
               </span>
             </div>
             <p className="text-gray-300 text-xs sm:text-sm font-medium leading-relaxed max-w-2xl">
-              방송 종료 후 <span className="text-[#00FFA3] font-bold">AI 정밀 분석 파이프라인(Z-Score, 포아송 LLR, 밈 추출)</span>으로 발굴된 명장면과 다시보기 타임라인을 확인해보세요.
+              방송 종료 후 <span className="text-[#00FFA3] font-bold">자동 분석으로 발굴된 명장면과 클라이맥스 타임라인</span>을 확인해보세요.
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0">
