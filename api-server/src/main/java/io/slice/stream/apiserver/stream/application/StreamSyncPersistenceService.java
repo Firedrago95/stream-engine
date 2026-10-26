@@ -1,5 +1,7 @@
 package io.slice.stream.apiserver.stream.application;
 
+import io.slice.stream.apiserver.analysis.infrastructure.AnalysisSignalSummaryJdbcRepository;
+import io.slice.stream.apiserver.analysis.infrastructure.dto.LiveViewerSummaryDto;
 import io.slice.stream.apiserver.stream.domain.StreamRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.JpaStreamSessionSegmentRepository;
@@ -9,6 +11,7 @@ import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionSegme
 import io.slice.stream.apiserver.stream.presentation.dto.StreamSyncRequest;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +36,7 @@ public class StreamSyncPersistenceService {
     private final StreamRepository streamRepository;
     private final JpaStreamSessionRepository sessionRepository;
     private final JpaStreamSessionSegmentRepository segmentRepository;
+    private final AnalysisSignalSummaryJdbcRepository summaryRepository;
     private final CacheManager cacheManager;
 
     @Transactional
@@ -46,6 +50,7 @@ public class StreamSyncPersistenceService {
 
         Map<String, StreamSessionEntity> sessionMap = resolveSessions(allUniqueRequests, currentTime);
         updateSessionViewerMetrics(allUniqueRequests, sessionMap);
+        recordLiveViewerSummaries(allUniqueRequests, sessionMap, currentTime);
 
         log.info("[Sync] DB 영속화 완료 - 대상 스트림: {}건", allUniqueRequests.size());
     }
@@ -266,6 +271,40 @@ public class StreamSyncPersistenceService {
             if (session != null) {
                 session.recordViewerSample(req.concurrentUserCount());
             }
+        }
+    }
+
+    private void recordLiveViewerSummaries(
+        Map<String, StreamSyncRequest> uniqueRequests,
+        Map<String, StreamSessionEntity> sessionMap,
+        Instant currentTime
+    ) {
+        if (uniqueRequests == null || uniqueRequests.isEmpty() || sessionMap == null || sessionMap.isEmpty()) {
+            return;
+        }
+
+        Instant minuteTs = currentTime.truncatedTo(ChronoUnit.MINUTES);
+        List<LiveViewerSummaryDto> summaries = new ArrayList<>();
+
+        for (StreamSyncRequest req : uniqueRequests.values()) {
+            StreamSessionEntity session = sessionMap.get(req.streamId());
+            if (session != null && session.getEndedAt() == null && req.concurrentUserCount() > 0) {
+                long offsetMs = session.getStartedAt() != null
+                    ? Math.max(0L, Duration.between(session.getStartedAt(), minuteTs).toMillis())
+                    : 0L;
+
+                summaries.add(new LiveViewerSummaryDto(
+                    session.getStreamId(),
+                    session.getSessionId(),
+                    minuteTs,
+                    offsetMs,
+                    req.concurrentUserCount()
+                ));
+            }
+        }
+
+        if (!summaries.isEmpty()) {
+            summaryRepository.batchUpsertLiveViewers(summaries);
         }
     }
 
