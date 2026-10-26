@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -31,8 +32,10 @@ public class StreamerAiProfileJdbcRepository implements StreamerAiProfileReposit
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
 
+    @Autowired
     public StreamerAiProfileJdbcRepository(NamedParameterJdbcTemplate jdbcTemplate) {
-        this(jdbcTemplate, new ObjectMapper());
+        this.jdbcTemplate = jdbcTemplate;
+        this.objectMapper = new ObjectMapper();
     }
 
     public StreamerAiProfileJdbcRepository(
