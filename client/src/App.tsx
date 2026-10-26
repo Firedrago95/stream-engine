@@ -27,6 +27,10 @@ const AdminDashboard = lazy(() =>
   import('./components/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard }))
 );
 
+const HighlightsPage = lazy(() =>
+  import('./components/stream/HighlightsPage').then(m => ({ default: m.HighlightsPage }))
+);
+
 const MainPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { streams, isLoading, error } = useStreams(searchTerm, 30000);
@@ -200,6 +204,7 @@ export default function App() {
               >
                 <Routes>
                   <Route path="/" element={<MainPage />} />
+                  <Route path="/highlights" element={<HighlightsPage />} />
                   <Route path="/streamers" element={<StreamerStatsPage />} />
                   <Route path="/streamers/:channelId" element={<StreamerDetailPage />} />
                   <Route path="/streams/:streamId" element={<StreamAnalysisDashboard />} />
