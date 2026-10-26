@@ -158,7 +158,7 @@ def post_broadcast_pipeline():
                         session_stopwords.add(clean_streamer)
 
                 try:
-                    buckets, session_tokens, truncated_input = _parse_and_aggregate_chat(
+                    buckets, session_tokens, truncated_input, subscriber_chat_ratio = _parse_and_aggregate_chat(
                         file_path=target_files,
                         stopwords=session_stopwords,
                     )
@@ -208,6 +208,7 @@ def post_broadcast_pipeline():
                         highlights_algo_version=ALGO_VERSION,
                         avg_viewers=avg_viewers,
                         peak_viewers=peak_viewers,
+                        subscriber_chat_ratio=subscriber_chat_ratio,
                     )
 
                     conn.commit()
@@ -222,6 +223,7 @@ def post_broadcast_pipeline():
                         avg_viewers=avg_viewers,
                         peak_viewers=peak_viewers,
                         minute_viewers=minute_viewers,
+                        subscriber_chat_ratio=subscriber_chat_ratio,
                     )
 
                     for target_file in target_files:
@@ -465,6 +467,8 @@ def _parse_and_aggregate_chat(file_path: str | list[str], stopwords: set[str] | 
     })
     session_tokens = Counter()
     truncated_input = False
+    total_chat_count = 0
+    subscriber_chat_count = 0
 
     lines_read = 0
     for single_path in file_paths:
@@ -481,6 +485,10 @@ def _parse_and_aggregate_chat(file_path: str | list[str], stopwords: set[str] | 
 
                     if msg.get("type") == "METADATA":
                         continue
+
+                    total_chat_count += 1
+                    if msg.get("isSubscriber") is True:
+                        subscriber_chat_count += 1
 
                     dt = _parse_timestamp(msg.get("timestamp"))
                     if not dt:
@@ -530,7 +538,13 @@ def _parse_and_aggregate_chat(file_path: str | list[str], stopwords: set[str] | 
             user_df_counter[em_tok] = len(u_set)
         b["tokens"] = user_df_counter
 
-    return buckets, session_tokens, truncated_input
+    subscriber_chat_ratio = (
+        round((subscriber_chat_count / total_chat_count) * 100, 1)
+        if total_chat_count > 0
+        else None
+    )
+
+    return buckets, session_tokens, truncated_input, subscriber_chat_ratio
 
 
 def _quantile(sorted_arr: list[float], q: float) -> float:
@@ -1082,6 +1096,7 @@ def _update_session_analysis_state(
     highlights_algo_version: str,
     avg_viewers: int | None = None,
     peak_viewers: int | None = None,
+    subscriber_chat_ratio: float | None = None,
 ):
     sql = """
         UPDATE stream_sessions
@@ -1091,7 +1106,8 @@ def _update_session_analysis_state(
             sigma_algo_version = %s,
             highlights_algo_version = %s,
             average_viewer_count = COALESCE(%s, average_viewer_count),
-            peak_viewers = GREATEST(COALESCE(peak_viewers, 0), COALESCE(%s, 0))
+            peak_viewers = GREATEST(COALESCE(peak_viewers, 0), COALESCE(%s, 0)),
+            subscriber_chat_ratio = COALESCE(%s, subscriber_chat_ratio)
         WHERE session_id = %s
           AND ended_at IS NOT NULL;
     """
@@ -1105,6 +1121,7 @@ def _update_session_analysis_state(
                 highlights_algo_version,
                 avg_viewers,
                 peak_viewers,
+                subscriber_chat_ratio,
                 session_id,
             ),
         )
@@ -1186,6 +1203,7 @@ def _sync_analyzed_session_to_oci(
     avg_viewers: int | None,
     peak_viewers: int | None,
     minute_viewers: dict[datetime, int],
+    subscriber_chat_ratio: float | None = None,
 ) -> bool:
     try:
         oci_hook = PostgresHook(postgres_conn_id="slice_oci_postgres")
@@ -1196,15 +1214,16 @@ def _sync_analyzed_session_to_oci(
 
     try:
         with oci_conn.cursor() as cur:
-            if avg_viewers is not None or peak_viewers is not None:
+            if avg_viewers is not None or peak_viewers is not None or subscriber_chat_ratio is not None:
                 cur.execute(
                     """
                     UPDATE stream_sessions
                     SET average_viewer_count = COALESCE(%s, average_viewer_count),
-                        peak_viewers = GREATEST(COALESCE(peak_viewers, 0), COALESCE(%s, 0))
+                        peak_viewers = GREATEST(COALESCE(peak_viewers, 0), COALESCE(%s, 0)),
+                        subscriber_chat_ratio = COALESCE(%s, subscriber_chat_ratio)
                     WHERE session_id = %s;
                     """,
-                    (avg_viewers, peak_viewers, session_id),
+                    (avg_viewers, peak_viewers, subscriber_chat_ratio, session_id),
                 )
 
             cur.execute("DELETE FROM highlight_events WHERE session_id = %s;", (session_id,))
