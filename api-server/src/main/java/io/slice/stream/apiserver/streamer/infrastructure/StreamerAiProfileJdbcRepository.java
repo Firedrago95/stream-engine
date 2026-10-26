@@ -11,7 +11,6 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -20,7 +19,6 @@ import org.springframework.stereotype.Repository;
 
 @Slf4j
 @Repository
-@RequiredArgsConstructor
 public class StreamerAiProfileJdbcRepository implements StreamerAiProfileRepository {
 
     private static final String FIND_BY_STREAM_ID_SQL = """
@@ -32,6 +30,18 @@ public class StreamerAiProfileJdbcRepository implements StreamerAiProfileReposit
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+
+    public StreamerAiProfileJdbcRepository(NamedParameterJdbcTemplate jdbcTemplate) {
+        this(jdbcTemplate, new ObjectMapper());
+    }
+
+    public StreamerAiProfileJdbcRepository(
+        NamedParameterJdbcTemplate jdbcTemplate,
+        ObjectMapper objectMapper
+    ) {
+        this.jdbcTemplate = jdbcTemplate;
+        this.objectMapper = (objectMapper != null) ? objectMapper : new ObjectMapper();
+    }
 
     @Override
     public Optional<StreamerAiProfileDto> findByStreamId(String streamId) {
