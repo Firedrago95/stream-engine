@@ -13,7 +13,11 @@ public record HighlightResponse(
     Long startTimeOffset,
     Long endTimeOffset,
     Long peakFirepower,
-    String status
+    String status,
+    Integer rankInSession,
+    Double peakZ,
+    Double llrScore,
+    String topTags
 ) {
     public static HighlightResponse from(HighlightEventEntity entity) {
         return from(entity, null);
@@ -44,7 +48,11 @@ public record HighlightResponse(
             startOffset,
             endOffset,
             entity.getPeakFirepower(),
-            entity.getStatus()
+            entity.getStatus(),
+            entity.getRankInSession(),
+            entity.getPeakZ(),
+            entity.getLlrScore(),
+            entity.getTopTags()
         );
     }
 }

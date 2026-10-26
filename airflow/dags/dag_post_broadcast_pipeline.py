@@ -1222,6 +1222,10 @@ def _sync_analyzed_session_to_oci(
                         h["end_offset_ms"],
                         h["peak_chats"],
                         "FINISHED",
+                        h.get("rank_in_session"),
+                        h.get("peak_z"),
+                        h.get("llr_score"),
+                        json.dumps(h.get("top_tags") or {"words": [], "emotes": []}),
                     )
                     for h in highlights
                 ]
@@ -1232,7 +1236,8 @@ def _sync_analyzed_session_to_oci(
                         stream_id, session_id, category,
                         start_time, last_peak_time, end_time,
                         start_time_offset, last_peak_offset, end_time_offset,
-                        peak_firepower, status
+                        peak_firepower, status,
+                        rank_in_session, peak_z, llr_score, top_tags
                     ) VALUES %s;
                     """,
                     hl_records,

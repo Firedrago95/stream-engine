@@ -23,6 +23,11 @@ public interface JpaHighlightEventRepository extends JpaRepository<HighlightEven
 
     long countByStartTimeAfter(Instant threshold);
 
+    long countBySessionId(String sessionId);
+
+    @Query("SELECT h.sessionId, COUNT(h) FROM HighlightEventEntity h WHERE h.sessionId IN :sessionIds GROUP BY h.sessionId")
+    List<Object[]> countGroupedBySessionIdIn(@Param("sessionIds") Collection<String> sessionIds);
+
     @Query("SELECT h FROM HighlightEventEntity h WHERE h.streamId = :streamId AND h.sessionId = :sessionId")
     List<HighlightEventEntity> findAllByStreamIdAndSessionId(@Param("streamId") String streamId, @Param("sessionId") String sessionId);
 

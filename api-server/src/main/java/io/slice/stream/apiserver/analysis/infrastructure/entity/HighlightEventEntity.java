@@ -48,9 +48,27 @@ public class HighlightEventEntity {
     @Column(nullable = false)
     private String status;
 
-    // 세션 시작 생성자
-    public HighlightEventEntity(String streamId, String sessionId, Instant startTime, Long startTimeOffset,
-        Instant lastPeakTime, Long lastPeakOffset, Long peakFirepower) {
+    @Column(name = "rank_in_session")
+    private Integer rankInSession;
+
+    @Column(name = "peak_z")
+    private Double peakZ;
+
+    @Column(name = "llr_score")
+    private Double llrScore;
+
+    @Column(name = "top_tags")
+    private String topTags = "{\"words\": [], \"emotes\": []}";
+
+    public HighlightEventEntity(
+        String streamId,
+        String sessionId,
+        Instant startTime,
+        Long startTimeOffset,
+        Instant lastPeakTime,
+        Long lastPeakOffset,
+        Long peakFirepower
+    ) {
         this.streamId = streamId;
         this.sessionId = sessionId;
         this.startTime = startTime;
@@ -59,6 +77,40 @@ public class HighlightEventEntity {
         this.lastPeakOffset = lastPeakOffset;
         this.peakFirepower = peakFirepower;
         this.status = "ONGOING";
+    }
+
+    public HighlightEventEntity(
+        String streamId,
+        String sessionId,
+        String category,
+        Instant startTime,
+        Long startTimeOffset,
+        Instant lastPeakTime,
+        Long lastPeakOffset,
+        Instant endTime,
+        Long endTimeOffset,
+        Long peakFirepower,
+        String status,
+        Integer rankInSession,
+        Double peakZ,
+        Double llrScore,
+        String topTags
+    ) {
+        this.streamId = streamId;
+        this.sessionId = sessionId;
+        this.category = category != null ? category : "GENERAL";
+        this.startTime = startTime;
+        this.startTimeOffset = startTimeOffset;
+        this.lastPeakTime = lastPeakTime;
+        this.lastPeakOffset = lastPeakOffset;
+        this.endTime = endTime;
+        this.endTimeOffset = endTimeOffset;
+        this.peakFirepower = peakFirepower;
+        this.status = status != null ? status : "FINISHED";
+        this.rankInSession = rankInSession;
+        this.peakZ = peakZ;
+        this.llrScore = llrScore;
+        this.topTags = topTags != null ? topTags : "{\"words\": [], \"emotes\": []}";
     }
 
     public void updatePeakFirepower(Long currentFirepower) {

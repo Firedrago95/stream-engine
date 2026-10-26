@@ -36,6 +36,14 @@ public interface JpaStreamSessionRepository extends JpaRepository<StreamSessionE
         """)
     List<StreamSessionEntity> findSessionsToClose(@Param("threshold") Instant threshold);
 
+    @Query("""
+        SELECT ss, s.streamerName FROM StreamSessionEntity ss
+        JOIN StreamEntity s ON ss.streamId = s.streamId
+        WHERE ss.endedAt IS NOT NULL
+        ORDER BY ss.endedAt DESC
+        """)
+    Page<Object[]> findRecentFinishedSessionsWithStreamerName(Pageable pageable);
+
     Page<StreamSessionEntity> findByStreamIdOrderByStartedAtDesc(String streamId, Pageable pageable);
 
     Page<StreamSessionEntity> findByStreamIdAndPaidPromotionTrueOrderByStartedAtDesc(String streamId, Pageable pageable);

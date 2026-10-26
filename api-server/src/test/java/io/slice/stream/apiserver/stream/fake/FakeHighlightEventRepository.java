@@ -51,6 +51,26 @@ public class FakeHighlightEventRepository implements JpaHighlightEventRepository
     }
 
     @Override
+    public long countBySessionId(String sessionId) {
+        return storage.values().stream()
+            .filter(h -> Objects.equals(h.getSessionId(), sessionId))
+            .count();
+    }
+
+    @Override
+    public List<Object[]> countGroupedBySessionIdIn(Collection<String> sessionIds) {
+        if (sessionIds == null || sessionIds.isEmpty()) {
+            return List.of();
+        }
+        return storage.values().stream()
+            .filter(h -> sessionIds.contains(h.getSessionId()))
+            .collect(Collectors.groupingBy(HighlightEventEntity::getSessionId, Collectors.counting()))
+            .entrySet().stream()
+            .map(e -> new Object[]{e.getKey(), e.getValue()})
+            .toList();
+    }
+
+    @Override
     public List<HighlightEventEntity> findAllByStreamIdAndSessionId(String streamId, String sessionId) {
         return storage.values().stream()
             .filter(h -> Objects.equals(h.getStreamId(), streamId) && Objects.equals(h.getSessionId(), sessionId))
