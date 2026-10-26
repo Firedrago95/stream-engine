@@ -82,7 +82,7 @@ const CustomTooltip = ({ active, payload, selectedTab, formatTime, segments = []
       <div className="bg-[#1a1a1c] border border-gray-700 p-3 rounded-xl shadow-2xl z-50 min-w-[200px]">
         <div className="flex items-center justify-between gap-4 mb-1.5">
           <div className="text-[#00FFA3] font-black text-lg flex items-center gap-1.5">
-            <span>🔥 {data.value ?? 0}</span>
+            <span>🔥 {data.rawValue ?? data.value ?? 0}</span>
             <span className="text-xs font-normal text-gray-200">건/초</span>
             {data.status === 'PEAK' && (
               <span className="text-[10px] bg-red-500/20 text-red-400 border border-red-500/40 px-1 py-0.2 rounded font-bold">
@@ -217,43 +217,52 @@ export const AnalysisChart: React.FC<Props> = ({
     return buildCategoryColorMap(segments);
   }, [segments]);
 
+  const [showFirepower, setShowFirepower] = React.useState(true);
+  const [showViewers, setShowViewers] = React.useState(true);
+  const [isSmooth, setIsSmooth] = React.useState(true);
+
+  const toggleFirepower = () => {
+    if (showFirepower && !showViewers) return;
+    setShowFirepower(prev => !prev);
+  };
+
+  const toggleViewers = () => {
+    if (showViewers && !showFirepower) return;
+    setShowViewers(prev => !prev);
+  };
+
   const hasAnyFirepower = React.useMemo(() => {
     return chartData.some(d => d.value > 0);
   }, [chartData]);
 
-  const { processedData, uniqueColors } = React.useMemo(() => {
-    if (!segments.length || !chartData.length) {
-      return { processedData: chartData, uniqueColors: ['#00FFA3'] };
-    }
+  const processedData = React.useMemo(() => {
+    if (!chartData || chartData.length === 0) return [];
 
-    const normalize = (ts: number) => (ts < 10000000000 ? ts * 1000 : ts);
-    const newData = chartData.map(d => ({ ...d }));
-    const colors = new Set<string>();
+    return chartData.map((d, i, arr) => {
+      const rawFirepower = d.value ?? 0;
+      let smoothedFirepower = rawFirepower;
 
-    for (let i = 0; i < newData.length; i++) {
-      const d = newData[i];
-      if (!d.timestamp) continue;
-      
-      const tsMs = normalize(d.timestamp);
-      const activeSeg = resolveActiveSegment(tsMs, segments);
-      
-      const color = activeSeg ? (categoryColorMap.get(activeSeg.categoryName) || '#8B5CF6') : '#00FFA3';
-      colors.add(color);
-      
-      d[`val_${color}`] = d.value;
-      d._color = color;
-    }
-
-    for (let i = 1; i < newData.length; i++) {
-      const prevColor = newData[i - 1]._color;
-      const currColor = newData[i]._color;
-      if (prevColor && currColor && prevColor !== currColor) {
-        newData[i][`val_${prevColor}`] = newData[i].value;
+      if (isSmooth && arr.length >= 3) {
+        let weightSum = 0;
+        let valSum = 0;
+        for (let offset = -2; offset <= 2; offset++) {
+          const idx = i + offset;
+          if (idx >= 0 && idx < arr.length) {
+            const w = offset === 0 ? 0.4 : Math.abs(offset) === 1 ? 0.2 : 0.1;
+            valSum += (arr[idx].value ?? 0) * w;
+            weightSum += w;
+          }
+        }
+        smoothedFirepower = weightSum > 0 ? Math.round((valSum / weightSum) * 10) / 10 : rawFirepower;
       }
-    }
 
-    return { processedData: newData, uniqueColors: Array.from(colors) };
-  }, [chartData, segments, categoryColorMap]);
+      return {
+        ...d,
+        rawValue: rawFirepower,
+        displayFirepower: isSmooth ? smoothedFirepower : rawFirepower,
+      };
+    });
+  }, [chartData, isSmooth]);
 
   const ribbonSegments = React.useMemo(() => {
     if (!mergedSegments.length) return [];
@@ -405,15 +414,47 @@ export const AnalysisChart: React.FC<Props> = ({
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <div>
             <h3 className="text-base sm:text-lg font-bold text-gray-200 uppercase tracking-widest italic">채팅 화력 및 시청자 추이</h3>
-            <div className="flex items-center gap-4 mt-1.5 text-xs font-semibold">
-              <span className="flex items-center gap-1.5 text-[#00FFA3]">
-                <span className="w-2.5 h-2.5 rounded-sm bg-[#00FFA3]/80 inline-block" />
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2 text-xs">
+              <button
+                type="button"
+                onClick={toggleFirepower}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all text-xs font-semibold ${
+                  showFirepower
+                    ? 'bg-[#00FFA3]/10 border-[#00FFA3]/40 text-[#00FFA3]'
+                    : 'bg-gray-800/40 border-gray-700/60 text-gray-500 line-through opacity-60'
+                }`}
+                title="채팅 화력 그래프 표시/숨김"
+              >
+                <span className={`w-2 h-2 rounded-full ${showFirepower ? 'bg-[#00FFA3]' : 'bg-gray-500'}`} />
                 채팅 화력 (건/초)
-              </span>
-              <span className="flex items-center gap-1.5 text-[#67BFFF]">
-                <span className="w-3 h-0.5 bg-[#67BFFF] inline-block" />
+              </button>
+
+              <button
+                type="button"
+                onClick={toggleViewers}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all text-xs font-semibold ${
+                  showViewers
+                    ? 'bg-[#67BFFF]/10 border-[#67BFFF]/40 text-[#67BFFF]'
+                    : 'bg-gray-800/40 border-gray-700/60 text-gray-500 line-through opacity-60'
+                }`}
+                title="시청자 수 그래프 표시/숨김"
+              >
+                <span className={`w-2.5 h-0.5 ${showViewers ? 'bg-[#67BFFF]' : 'bg-gray-500'}`} />
                 동시 시청자 (명)
-              </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsSmooth(prev => !prev)}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border transition-all text-xs font-medium ${
+                  isSmooth
+                    ? 'bg-purple-500/15 border-purple-500/40 text-purple-300'
+                    : 'bg-gray-800/40 border-gray-700/60 text-gray-400'
+                }`}
+                title="가시밭 노이즈를 완화하고 흐름을 부드럽게 봅니다"
+              >
+                <span>{isSmooth ? '✨ 부드러운 곡선' : '⚡ 1분 원본'}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -503,20 +544,14 @@ export const AnalysisChart: React.FC<Props> = ({
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={processedData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }} onMouseMove={onMouseMove} onMouseLeave={onMouseLeave}>
             <defs>
-              <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#00FFA3" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#00FFA3" stopOpacity={0} />
+              <linearGradient id="colorFirepowerArea" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#00FFA3" stopOpacity={0.18} />
+                <stop offset="95%" stopColor="#00FFA3" stopOpacity={0.0} />
               </linearGradient>
               <linearGradient id="colorViewerArea" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#67BFFF" stopOpacity={0.3} />
+                <stop offset="5%" stopColor="#67BFFF" stopOpacity={0.25} />
                 <stop offset="95%" stopColor="#67BFFF" stopOpacity={0.02} />
               </linearGradient>
-              {uniqueColors.map(color => (
-                <linearGradient key={color} id={`grad_${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={color} stopOpacity={0.4} />
-                  <stop offset="95%" stopColor={color} stopOpacity={0} />
-                </linearGradient>
-              ))}
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} opacity={0.3} />
             {highlights.map((h) => {
@@ -558,18 +593,22 @@ export const AnalysisChart: React.FC<Props> = ({
               axisLine={false}
               tickLine={false}
             />
-            <YAxis yAxisId="firepower" width={40} stroke="#475569" fontSize={11} domain={[0, maxY]} axisLine={false} tickLine={false} />
-            <YAxis
-              yAxisId="viewers"
-              orientation="right"
-              width={48}
-              stroke="#475569"
-              fontSize={11}
-              domain={[0, maxViewerY]}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={(v) => (v >= 10000 ? `${(v / 10000).toFixed(1)}만` : v >= 1000 ? `${(v / 1000).toFixed(1)}천` : `${v}`)}
-            />
+            {showFirepower && (
+              <YAxis yAxisId="firepower" width={40} stroke="#475569" fontSize={11} domain={[0, maxY]} axisLine={false} tickLine={false} />
+            )}
+            {showViewers && (
+              <YAxis
+                yAxisId="viewers"
+                orientation="right"
+                width={48}
+                stroke="#475569"
+                fontSize={11}
+                domain={[0, maxViewerY]}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => (v >= 10000 ? `${(v / 10000).toFixed(1)}만` : v >= 1000 ? `${(v / 1000).toFixed(1)}천` : `${v}`)}
+              />
+            )}
 
             {rebangIndexes.map((idx: number) => (
               <ReferenceLine
@@ -581,44 +620,43 @@ export const AnalysisChart: React.FC<Props> = ({
               />
             ))}
 
-            {hasAnyFirepower && (
-              uniqueColors.map(color => (
-                <Area 
-                  key={color} 
-                  yAxisId="firepower" 
-                  type="monotone" 
-                  dataKey={`val_${color}`} 
-                  stroke={color} 
-                  strokeWidth={3} 
-                  fill={`url(#grad_${color.replace('#', '')})`} 
-                  isAnimationActive={false} 
-                  connectNulls={false} 
-                />
-              ))
-            )}
-            
-            {!hasAnyFirepower ? (
+            {showFirepower && hasAnyFirepower && (
               <Area 
-                yAxisId="viewers" 
+                yAxisId="firepower" 
                 type="monotone" 
-                dataKey="viewerCount" 
-                stroke="#67BFFF" 
-                strokeWidth={2.5} 
-                fill="url(#colorViewerArea)" 
+                dataKey="displayFirepower" 
+                stroke="#00FFA3" 
+                strokeWidth={2} 
+                fill="url(#colorFirepowerArea)" 
                 isAnimationActive={false} 
                 connectNulls={true} 
               />
-            ) : (
-              <Line
-                yAxisId="viewers"
-                type="monotone"
-                dataKey="viewerCount"
-                stroke="#67BFFF"
-                strokeWidth={2}
-                dot={false}
-                isAnimationActive={false}
-                connectNulls={true}
-              />
+            )}
+            
+            {showViewers && (
+              (!showFirepower || !hasAnyFirepower) ? (
+                <Area 
+                  yAxisId="viewers" 
+                  type="monotone" 
+                  dataKey="viewerCount" 
+                  stroke="#67BFFF" 
+                  strokeWidth={2.5} 
+                  fill="url(#colorViewerArea)" 
+                  isAnimationActive={false} 
+                  connectNulls={true} 
+                />
+              ) : (
+                <Line
+                  yAxisId="viewers"
+                  type="monotone"
+                  dataKey="viewerCount"
+                  stroke="#67BFFF"
+                  strokeWidth={2.5}
+                  dot={false}
+                  isAnimationActive={false}
+                  connectNulls={true}
+                />
+              )
             )}
 
             <Tooltip content={<CustomTooltip selectedTab={selectedTab} formatTime={formatTime} segments={segments} />} cursor={{ stroke: "#00FFA3", strokeWidth: 1 }} />
