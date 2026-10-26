@@ -59,7 +59,10 @@ public interface JpaHighlightEventRepository extends JpaRepository<HighlightEven
         DELETE FROM highlight_events 
         WHERE id IN (
             SELECT id FROM (
-                SELECT id, ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY peak_firepower DESC) as rn
+                SELECT id, ROW_NUMBER() OVER (
+                    PARTITION BY session_id 
+                    ORDER BY COALESCE(rank_in_session, 999999) ASC, peak_firepower DESC
+                ) as rn
                 FROM highlight_events 
                 WHERE start_time < :threshold
             ) sub
