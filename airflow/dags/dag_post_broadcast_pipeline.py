@@ -1241,6 +1241,7 @@ def _sync_analyzed_session_to_oci(
                     ) VALUES %s;
                     """,
                     hl_records,
+                    template="(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)",
                     page_size=500,
                 )
 

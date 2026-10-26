@@ -3,6 +3,7 @@ package io.slice.stream.apiserver.analysis.presentation.dto;
 import io.slice.stream.apiserver.analysis.infrastructure.entity.HighlightEventEntity;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 
 public record HighlightResponse(
     Long id,
@@ -17,7 +18,7 @@ public record HighlightResponse(
     Integer rankInSession,
     Double peakZ,
     Double llrScore,
-    String topTags
+    Map<String, Object> topTags
 ) {
     public static HighlightResponse from(HighlightEventEntity entity) {
         return from(entity, null);

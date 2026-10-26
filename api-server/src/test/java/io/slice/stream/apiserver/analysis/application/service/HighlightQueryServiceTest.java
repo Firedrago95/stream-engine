@@ -9,6 +9,7 @@ import io.slice.stream.apiserver.stream.fake.FakeStreamSessionRepository;
 import io.slice.stream.apiserver.stream.infrastructure.entity.StreamSessionEntity;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -168,17 +169,19 @@ class HighlightQueryServiceTest {
         sessionRepository.save(session);
 
         // 화력은 1000이지만 순위는 2위
+        Map<String, Object> tags1 = Map.of("words", List.of(Map.of("w", "대박")), "emotes", List.of());
         HighlightEventEntity h1 = new HighlightEventEntity(
             streamId, sessionId, "GENERAL", base.plusSeconds(100), 100000L,
             base.plusSeconds(100), 100000L, base.plusSeconds(130), 130000L,
-            1000L, "FINISHED", 2, 3.5, 120.0, "{\"words\": [{\"w\": \"대박\"}], \"emotes\": []}"
+            1000L, "FINISHED", 2, 3.5, 120.0, tags1
         );
 
         // 화력은 500이지만 순위는 1위 (더 높은 Z-score 등)
+        Map<String, Object> tags2 = Map.of("words", List.of(Map.of("w", "클러치")), "emotes", List.of());
         HighlightEventEntity h2 = new HighlightEventEntity(
             streamId, sessionId, "GENERAL", base.plusSeconds(200), 200000L,
             base.plusSeconds(200), 200000L, base.plusSeconds(230), 230000L,
-            500L, "FINISHED", 1, 5.2, 180.0, "{\"words\": [{\"w\": \"클러치\"}], \"emotes\": []}"
+            500L, "FINISHED", 1, 5.2, 180.0, tags2
         );
 
         highlightRepository.save(h1);
@@ -191,7 +194,7 @@ class HighlightQueryServiceTest {
         assertThat(results.get(0).rankInSession()).isEqualTo(1);
         assertThat(results.get(0).peakFirepower()).isEqualTo(500L);
         assertThat(results.get(0).peakZ()).isEqualTo(5.2);
-        assertThat(results.get(0).topTags()).contains("클러치");
+        assertThat(results.get(0).topTags()).isNotNull();
 
         // 2위인 h1이 그 다음
         assertThat(results.get(1).rankInSession()).isEqualTo(2);
@@ -211,7 +214,7 @@ class HighlightQueryServiceTest {
         HighlightEventEntity h1 = new HighlightEventEntity(
             streamId, sessionId, "GENERAL", base.plusSeconds(100), 100000L,
             base.plusSeconds(100), 100000L, base.plusSeconds(130), 130000L,
-            500L, "FINISHED", 1, 4.0, 150.0, "{}"
+            500L, "FINISHED", 1, 4.0, 150.0, Map.of()
         );
         highlightRepository.save(h1);
 

@@ -2,8 +2,12 @@ package io.slice.stream.apiserver.analysis.infrastructure.entity;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "highlight_events")
@@ -57,8 +61,9 @@ public class HighlightEventEntity {
     @Column(name = "llr_score")
     private Double llrScore;
 
-    @Column(name = "top_tags")
-    private String topTags = "{\"words\": [], \"emotes\": []}";
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "top_tags", columnDefinition = "jsonb")
+    private Map<String, Object> topTags = defaultTopTags();
 
     public HighlightEventEntity(
         String streamId,
@@ -77,6 +82,7 @@ public class HighlightEventEntity {
         this.lastPeakOffset = lastPeakOffset;
         this.peakFirepower = peakFirepower;
         this.status = "ONGOING";
+        this.topTags = defaultTopTags();
     }
 
     public HighlightEventEntity(
@@ -94,7 +100,7 @@ public class HighlightEventEntity {
         Integer rankInSession,
         Double peakZ,
         Double llrScore,
-        String topTags
+        Map<String, Object> topTags
     ) {
         this.streamId = streamId;
         this.sessionId = sessionId;
@@ -110,7 +116,11 @@ public class HighlightEventEntity {
         this.rankInSession = rankInSession;
         this.peakZ = peakZ;
         this.llrScore = llrScore;
-        this.topTags = topTags != null ? topTags : "{\"words\": [], \"emotes\": []}";
+        this.topTags = topTags != null ? topTags : defaultTopTags();
+    }
+
+    private static Map<String, Object> defaultTopTags() {
+        return Map.of("words", List.of(), "emotes", List.of());
     }
 
     public void updatePeakFirepower(Long currentFirepower) {
