@@ -42,7 +42,7 @@ def streamer_ai_profiler():
         conn = hook.get_conn()
         try:
             with conn.cursor() as cur:
-                # 최근 30일간 3회 이상 방송한 활성 스트리머 상위 300명
+                # 최고 시청자수 및 체급 기준 상위 300명 추출
                 cur.execute(
                     """
                     SELECT stream_id, streamer_name, count(*) as session_count
@@ -51,13 +51,12 @@ def streamer_ai_profiler():
                       AND streamer_name IS NOT NULL
                       AND trim(streamer_name) != ''
                     GROUP BY stream_id, streamer_name
-                    HAVING count(*) >= 3
-                    ORDER BY session_count DESC
+                    ORDER BY max(peak_viewers) DESC NULLS LAST, max(average_viewer_count) DESC NULLS LAST
                     LIMIT 300;
                     """
                 )
                 rows = cur.fetchall()
-                logger.info(f"[AI Profiler] 최근 30일 활성 대상 스트리머 {len(rows)}명 추출 완료")
+                logger.info(f"[AI Profiler] 상위 체급 스트리머 {len(rows)}명 추출 완료")
                 return [
                     {"stream_id": r[0], "streamer_name": r[1], "session_count": r[2]}
                     for r in rows
