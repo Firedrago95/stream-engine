@@ -5,8 +5,16 @@ import java.util.List;
 public record StreamerProfileResponse(
     StreamerHeaderDto header,
     StreamerKpiSummaryDto summary,
-    List<StreamerCategoryDto> mostPlayedCategories
+    List<StreamerCategoryDto> mostPlayedCategories,
+    StreamerAiProfileDto aiProfile
 ) {
+    public StreamerProfileResponse(
+        StreamerHeaderDto header,
+        StreamerKpiSummaryDto summary,
+        List<StreamerCategoryDto> mostPlayedCategories
+    ) {
+        this(header, summary, mostPlayedCategories, null);
+    }
     public record StreamerHeaderDto(
         String channelId,
         String streamerName,
