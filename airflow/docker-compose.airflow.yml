@@ -21,6 +21,8 @@ x-airflow-common:
     OCI_BUCKET_NAME: ${OCI_BUCKET_NAME:-slice-data-lake}
     OCI_ACCESS_KEY_ID: ${OCI_ACCESS_KEY_ID:-}
     OCI_SECRET_ACCESS_KEY: ${OCI_SECRET_ACCESS_KEY:-}
+    GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-pro}
     TZ: Asia/Seoul
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
