@@ -148,6 +148,33 @@ function Sidebar({ sidebarOpen, setSidebarOpen, variant = 'default' }) {
               </ul>
             </div>
           </div>
+
+          {/* 하단 피드백 영역: 상시 노출 구글폼 피드백 배너 */}
+          <div className="mt-auto pt-4 border-t border-gray-800/80">
+            <a
+              href="https://forms.gle/hUkZBr9KCTDyTXLW9"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group block p-3 rounded-xl bg-[#1a1a1c]/80 hover:bg-[#1a1a1c] border border-gray-800 hover:border-[#00FFA3]/50 transition-all duration-200 shadow-sm"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-bold text-gray-200 group-hover:text-[#00FFA3] transition-colors flex items-center gap-1.5">
+                  <span>💡</span> 피드백 보내기
+                </span>
+                <svg
+                  className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#00FFA3] group-hover:translate-x-0.5 transition-all"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </div>
+              <p className="text-[11px] text-gray-400 group-hover:text-gray-300 leading-relaxed transition-colors">
+                서비스 의견이나 개선점을 들려주세요!
+              </p>
+            </a>
+          </div>
         </div>
       </div>
   );
