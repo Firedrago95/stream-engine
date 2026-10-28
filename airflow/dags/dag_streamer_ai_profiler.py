@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import time
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 KST = ZoneInfo("Asia/Seoul")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-pro")
 
 default_args = {
     "owner": "slice-de",
@@ -27,8 +28,8 @@ default_args = {
 @dag(
     dag_id="dag_streamer_ai_profiler",
     default_args=default_args,
-    description="스트리머 5대 축(스케줄, 콘텐츠, 화력, 팬덤, 밈) AI 프로파일링 파이프라인",
-    schedule="0 4 * * 1",  # 매주 월요일 새벽 4시 정기 갱신
+    description="스트리머 5대 축(스케줄, 콘텐츠, 화력, 팬덤, 밈) AI 프로파일링 파이프라인 (매일 10명씩 30일 순환)",
+    schedule="0 4 * * *",  # 매일 새벽 4시 순환 갱신 (30일 주기 300명)
     start_date=datetime(2026, 10, 24),
     catchup=False,
     max_active_runs=1,
@@ -42,21 +43,28 @@ def streamer_ai_profiler():
         conn = hook.get_conn()
         try:
             with conn.cursor() as cur:
-                # 최고 시청자수 및 체급 기준 상위 300명 추출
+                # 최근 30일 상위 300명 풀 중, 가장 오래 갱신되지 않았거나(미존재 포함) 신규 진입한 10명 추출
                 cur.execute(
                     """
-                    SELECT stream_id, streamer_name, count(*) as session_count
-                    FROM stream_sessions
-                    WHERE started_at >= NOW() - INTERVAL '30 days'
-                      AND streamer_name IS NOT NULL
-                      AND trim(streamer_name) != ''
-                    GROUP BY stream_id, streamer_name
-                    ORDER BY max(peak_viewers) DESC NULLS LAST, max(average_viewer_count) DESC NULLS LAST
-                    LIMIT 300;
+                    WITH top_streamers AS (
+                        SELECT stream_id, streamer_name, count(*) as session_count
+                        FROM stream_sessions
+                        WHERE started_at >= NOW() - INTERVAL '30 days'
+                          AND streamer_name IS NOT NULL
+                          AND trim(streamer_name) != ''
+                        GROUP BY stream_id, streamer_name
+                        ORDER BY max(peak_viewers) DESC NULLS LAST, max(average_viewer_count) DESC NULLS LAST
+                        LIMIT 300
+                    )
+                    SELECT t.stream_id, t.streamer_name, t.session_count
+                    FROM top_streamers t
+                    LEFT JOIN streamer_ai_profiles p ON t.stream_id = p.stream_id
+                    ORDER BY p.updated_at ASC NULLS FIRST
+                    LIMIT 10;
                     """
                 )
                 rows = cur.fetchall()
-                logger.info(f"[AI Profiler] 상위 체급 스트리머 {len(rows)}명 추출 완료")
+                logger.info(f"[AI Profiler] 오늘 분석 대상 순환 스트리머 {len(rows)}명 추출 완료")
                 return [
                     {"stream_id": r[0], "streamer_name": r[1], "session_count": r[2]}
                     for r in rows
@@ -96,6 +104,7 @@ def streamer_ai_profiler():
                             json.dumps(profile_data.get("popular_memes", [])),
                             fact_sheet.get("total_sessions", 0),
                         ))
+                    time.sleep(3)  # API 호출 레이트 리밋 방어 및 안정적 간격 확보
                 except Exception as ex:
                     logger.warning(f"[AI Profiler] {streamer_name}({stream_id}) 프로필 생성 실패: {ex}")
 
@@ -283,7 +292,7 @@ def _call_gemini_api(facts: dict, streamer_name: str) -> dict:
         headers={"Content-Type": "application/json"}
     )
     
-    with urllib.request.urlopen(req, timeout=20) as resp:
+    with urllib.request.urlopen(req, timeout=60) as resp:
         res_json = json.loads(resp.read().decode("utf-8"))
         text = res_json["candidates"][0]["content"]["parts"][0]["text"].strip()
         if text.startswith("```"):
@@ -320,22 +329,23 @@ def _synthesize_rule_based_profile(facts: dict, streamer_name: str) -> dict:
         time_text = f"심야 {modal_hour}시경 깊은 밤을 함께 지새우는 올빼미 방송"
 
     # 3. 게임 소비 스타일에 따른 서술
+    main_game = clean_games[0] if clean_games else "게임"
     if "EXPLORER" in style_desc:
-        summary_line = f"매일 새로운 신작과 인디게임을 발굴하고 소개하는 종합게임 탐험가"
-        broadcasting_style = f"{time_text}으로, {games_text} 등 다양한 신작 게임의 매력을 평균 {avg_dur}시간 동안 푸근하고 유쾌한 호흡으로 소개합니다."
-        fandom_traits = "새로운 게임의 맛과 리액션을 함께 즐기며 편안하게 소통하는 게임 애호가들의 안락한 쉼터입니다."
+        summary_line = f"매일 {games_text} 등 신작을 다채롭게 발굴하는 종합게임 탐험가"
+        broadcasting_style = f"{time_text}으로, {games_text} 등 다양한 장르를 넘나들며 평균 {avg_dur}시간 동안 유쾌하고 푸근한 호흡으로 소통합니다."
+        fandom_traits = "새로운 게임의 매력을 함께 탐험하며 편안하게 대화를 즐기는 게임 애호가들의 쉼터입니다."
     elif "DEEP_IMMERSIVE" in style_desc:
-        summary_line = f"하나의 세계관에 깊게 파고들어 끝장을 보는 끈기의 몰입형 게이머"
-        broadcasting_style = f"{time_text}으로, {games_text} 등의 대작에 깊게 몰입하며 평균 {avg_dur}시간 동안 높은 텐션과 열정으로 진행합니다."
-        fandom_traits = "스트리머의 긴 여정과 챌린지에 함께 과몰입하여 뜨겁게 호응하고 응원하는 끈끈한 팬덤 분위기를 지닙니다."
+        summary_line = f"'{main_game}'의 정점을 향해 뜨겁게 질주하는 승부와 몰입의 플레이어"
+        broadcasting_style = f"{time_text}으로, {games_text}에 깊게 파고들며 평균 {avg_dur}시간 동안 흔들림 없는 텐션과 진심 어린 몰입을 보여줍니다."
+        fandom_traits = "스트리머의 치열한 여정과 도전에 깊게 공감하며 한마음으로 뜨겁게 환호하는 결속력 높은 팬덤입니다."
     elif "COMMUNICATION_FOCUSED" in style_desc:
-        summary_line = f"진솔한 일상과 따뜻한 유대감이 흐르는 편안한 아지트"
-        broadcasting_style = f"{time_text}에 찾아와, 평균 {avg_dur}시간 동안 시청자들과 진솔하게 일상을 나누고 다양한 콘텐츠를 유연하게 선보입니다."
+        summary_line = f"진솔한 대화와 끈끈한 유대감이 흐르는 따뜻한 소통 아지트"
+        broadcasting_style = f"{time_text}에 찾아와, 평균 {avg_dur}시간 동안 시청자들과 일상을 나누며 편안한 교감을 나눕니다."
         sub_desc = f"구독자 비율 {sub_ratio}%의 " if sub_ratio is not None else ""
-        fandom_traits = f"{sub_desc}두터운 유대감 속에서 짓궂은 티키타카와 애정 어린 교감이 넘치는 따뜻한 커뮤니티입니다."
+        fandom_traits = f"{sub_desc}두터운 신뢰 속에서 유쾌한 티키타카와 애정 어린 교감이 넘치는 포근한 커뮤니티입니다."
     else:
-        summary_line = f"게임과 소통을 유연하게 오가며 다채로운 재미를 전하는 방송인"
-        broadcasting_style = f"{time_text}으로, {games_text} 플레이와 소통을 넘나들며 평균 {avg_dur}시간 동안 안정적인 호흡으로 진행합니다."
+        summary_line = f"{main_game} 플레이와 소통을 유연하게 넘나드는 균형 잡힌 방송인"
+        broadcasting_style = f"{time_text}으로, {games_text} 플레이와 소통을 오가며 평균 {avg_dur}시간 동안 안정적인 호흡으로 진행합니다."
         fandom_traits = "누구나 편안하게 참여하여 대화를 즐길 수 있는 열린 분위기의 포근한 채팅방입니다."
 
     # 4. 방제에서 의미 있는 고유 명사/키워드 추출 (불용어 제외)
